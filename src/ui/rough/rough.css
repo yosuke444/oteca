@@ -1,0 +1,86 @@
+.rough-box {
+  position: relative;
+}
+
+.rough-box__svg {
+  position: absolute;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.rough-box__content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- RoughButton（SPEC §6-7） ---------- */
+
+.rough-btn {
+  position: relative;
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  outline: none;
+  transition: transform calc(80ms / var(--fx-speed)) ease-out;
+}
+
+.rough-btn__box {
+  width: 100%;
+  height: 100%;
+}
+
+.rough-btn__label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  width: 100%;
+  height: 100%;
+  padding: 0.3em 1em;
+  text-align: center;
+  line-height: 1.25;
+}
+
+/* 押した瞬間：2px沈む */
+.rough-btn.is-pressed {
+  transform: translateY(2px);
+}
+
+/* 押せない：えんぴつ色 */
+.rough-btn:disabled,
+.rough-btn.is-disabled {
+  cursor: not-allowed;
+  color: var(--pencil);
+}
+
+.rough-btn:focus-visible .rough-btn__label {
+  text-decoration: underline wavy var(--pen-blue) 2px;
+  text-underline-offset: 6px;
+}
+
+/* 押した瞬間：インクがにじむ */
+.rough-btn__ink {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--ink);
+  pointer-events: none;
+  filter: blur(3px);
+  animation: rough-ink calc(420ms / var(--fx-speed)) ease-out forwards;
+}
+
+@keyframes rough-ink {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(5);
+  }
+}

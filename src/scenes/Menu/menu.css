@@ -1,0 +1,136 @@
+.menu-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.menu-scene__logo {
+  position: absolute;
+  left: 48px;
+  top: 30px;
+}
+
+.menu-scene__top-right {
+  position: absolute;
+  right: 48px;
+  top: 36px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.menu-scene__name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 170px;
+  height: 56px;
+  padding: 0 18px;
+  font-size: 24px;
+}
+
+.menu-scene__name .rough-box__content,
+.menu-scene__coins .rough-box__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-scene__coins {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+  height: 56px;
+  font-size: 28px;
+}
+
+.menu-scene__gear {
+  width: 64px;
+  height: 64px;
+}
+.menu-scene__gear .rough-btn__label {
+  padding: 0;
+}
+.menu-scene__gear-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+/* フレンドたいせん：いちばん大きい */
+.menu-scene__friend {
+  position: absolute;
+  left: 120px;
+  top: 170px;
+  width: 500px;
+  height: 230px;
+  font-size: 50px;
+}
+.menu-scene__friend-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.menu-scene__friend-label small {
+  font-size: 22px;
+  color: var(--pen-blue);
+}
+
+/* ストーリー・ガチャ */
+.menu-scene__locked {
+  position: absolute;
+  top: 450px;
+  width: 230px;
+  height: 150px;
+}
+.menu-scene__locked--story { left: 120px; }
+.menu-scene__locked--gacha { left: 390px; }
+.menu-scene__locked-btn {
+  width: 100%;
+  height: 100%;
+  font-size: 30px;
+  color: var(--pencil);
+}
+.menu-scene__locked-sticky {
+  position: absolute;
+  right: -18px;
+  top: -24px;
+  width: 104px;
+  font-size: 20px;
+  pointer-events: none;
+}
+.menu-scene__locked-msg {
+  left: 50%;
+  top: 162px;
+  translate: -50% 0;
+  color: var(--pen-red);
+}
+
+/* 右の列 */
+.menu-scene__sub {
+  position: absolute;
+  left: 730px;
+  width: 360px;
+  height: 104px;
+  font-size: 32px;
+}
+.menu-scene__deck { top: 180px; }
+.menu-scene__rules { top: 316px; }
+.menu-scene__debug {
+  top: 452px;
+  height: 80px;
+  font-size: 26px;
+  color: var(--pen-red);
+}
+
+/* 落書き */
+.menu-scene__doodle {
+  position: absolute;
+  pointer-events: none;
+}
+.menu-scene__doodle--oteage { left: 1010px; top: 520px; }
+.menu-scene__doodle--star1 { left: 680px; top: 590px; animation-delay: -1.3s; }
+.menu-scene__doodle--star2 { left: 1150px; top: 440px; animation-delay: -2.1s; }
+.menu-scene__doodle--dice { left: 640px; top: 60px; animation-delay: -0.7s; }

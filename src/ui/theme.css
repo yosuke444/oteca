@@ -1,0 +1,102 @@
+/* ============================================================
+   オテカ テーマ：白い方眼ノート × ペンの手描き（SPEC §6）
+   色は必ずここの CSS変数だけを使う。
+   ============================================================ */
+
+:root {
+  /* §6-3 色 */
+  --paper: #fbfbf7;
+  --grid-minor: #d3e3f2;
+  --grid-major: #a9c8e6;
+  --ink: #1e2433;
+  --pen-blue: #2456c7;
+  --pen-red: #d23c3c;
+  --pen-green: #2e9a5a;
+  --pencil: #8a8f99;
+  --marker-yellow: rgba(255, 226, 80, 0.55);
+  --marker-pink: rgba(255, 120, 170, 0.4);
+  --super-gold: #e0a800;
+
+  /* ふせんの色（§6-6 アイテムカード・じゅんびちゅう） */
+  --note-yellow: #fff3a8;
+  --note-green: #d8f2d0;
+  --note-red: #fbd3d0;
+  --note-purple: #e6d8f5;
+  --note-blue: #d2ecf7;
+  --note-shadow: rgba(30, 36, 51, 0.18);
+
+  /* §6-4 文字 */
+  --font-hand: 'Yomogi', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;
+  --font-num: 'Caveat', 'Yomogi', cursive;
+
+  /* 方眼の間隔（§6-3） */
+  --grid-size: 24px;
+  --grid-major-size: 120px;
+
+  /* 演出設定（fx/fxSettings.tsx が上書きする） */
+  --fx-speed: 1;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 方眼背景は body 全体に敷く（余白にも方眼が続き、黒帯を出さない） */
+body {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+  background-size:
+    var(--grid-major-size) var(--grid-major-size),
+    var(--grid-major-size) var(--grid-major-size),
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size);
+  background-position: center center;
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* 数字（HP・ダメージ）用 */
+.num {
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+/* ラベル文字の傾き（要素ごとに --tilt を固定値で与える） */
+.tilt {
+  display: inline-block;
+  transform: rotate(var(--tilt, 0deg));
+}
+
+.pencil {
+  color: var(--pencil);
+}
+
+/* 蛍光ペンの下線風ハイライト */
+.marker {
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%, var(--marker-yellow) 92%, transparent 92%);
+}

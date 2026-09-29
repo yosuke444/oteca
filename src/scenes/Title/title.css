@@ -1,0 +1,55 @@
+.title-scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.title-scene__logo-row {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  margin-left: 170px; /* 落書きの分だけ右にずらしてロゴを中央に */
+}
+
+.title-scene__doodle {
+  margin-bottom: 10px;
+}
+
+.title-scene__sub {
+  margin: 28px 0 0;
+  font-size: 40px;
+  letter-spacing: 0.08em;
+  padding: 0 12px;
+  background: linear-gradient(transparent 58%, var(--marker-yellow) 58%, var(--marker-yellow) 90%, transparent 90%);
+  opacity: 0;
+  animation: title-fade calc(500ms / var(--fx-speed)) ease-out forwards;
+  animation-delay: calc(var(--logo-ms) * 1ms / var(--fx-speed));
+}
+
+.title-scene__tap {
+  margin: 90px 0 0;
+  font-size: 30px;
+  color: var(--pen-blue);
+  opacity: 0;
+  animation:
+    title-fade calc(400ms / var(--fx-speed)) ease-out forwards,
+    title-blink 1.4s ease-in-out infinite;
+  animation-delay:
+    calc((var(--logo-ms) + 500) * 1ms / var(--fx-speed)),
+    calc((var(--logo-ms) + 900) * 1ms / var(--fx-speed));
+}
+
+@keyframes title-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes title-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
