@@ -150,3 +150,61 @@
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ---------- ほぞんしたよ ✓ ---------- */
+.saved-toast {
+  position: absolute;
+  right: 36px;
+  top: 96px;
+  z-index: 50;
+  padding: 2px 12px;
+  font-size: 20px;
+  color: var(--pen-green);
+  pointer-events: none;
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+  animation: note-pop calc(1200ms / var(--fx-speed)) ease-out forwards;
+}
+.saved-toast__check {
+  font-family: var(--font-num);
+  font-size: 26px;
+}
+
+/* ---------- 文字入力（ペンで書く欄） ---------- */
+.pen-input {
+  font: inherit;
+  font-size: 24px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed var(--pencil);
+  outline: none;
+  padding: 2px 6px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.pen-input:focus {
+  border-bottom: 2px solid var(--pen-blue);
+  background: var(--marker-yellow);
+}
+.pen-textarea {
+  width: 100%;
+  font-family: var(--font-num);
+  font-size: 24px;
+  line-height: 1.35;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px dashed var(--pencil);
+  border-radius: 6px;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+  word-break: break-all;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.pen-textarea:focus {
+  border-color: var(--pen-blue);
+}
+.red-pen {
+  color: var(--pen-red);
+}

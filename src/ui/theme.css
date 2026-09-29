@@ -24,6 +24,8 @@
   --note-purple: #e6d8f5;
   --note-blue: #d2ecf7;
   --note-shadow: rgba(30, 36, 51, 0.18);
+  /* マスキングテープ（§6-6） */
+  --tape: rgba(214, 196, 150, 0.55);
 
   /* §6-4 文字 */
   --font-hand: 'Yomogi', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;

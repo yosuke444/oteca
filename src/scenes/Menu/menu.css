@@ -134,3 +134,19 @@
 .menu-scene__doodle--star1 { left: 680px; top: 590px; animation-delay: -1.3s; }
 .menu-scene__doodle--star2 { left: 1150px; top: 440px; animation-delay: -2.1s; }
 .menu-scene__doodle--dice { left: 640px; top: 60px; animation-delay: -0.7s; }
+
+/* データを まもろう */
+.menu-scene__backup {
+  position: absolute;
+  left: 700px;
+  top: 560px;
+  width: 250px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 22px;
+}
+.menu-scene__backup small {
+  font-size: 16px;
+}

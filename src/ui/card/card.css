@@ -1,0 +1,324 @@
+/* ============================================================
+   カード（SPEC §6-6）
+   ============================================================ */
+
+/* ---------- 共通のパーツ ---------- */
+
+/* 上辺のマスキングテープ */
+.card-tape {
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  width: 44px;
+  height: 14px;
+  translate: -50% 0;
+  rotate: -3deg;
+  background: var(--tape);
+  pointer-events: none;
+  z-index: 1;
+}
+.card-tape--big {
+  width: 80px;
+  height: 22px;
+  top: -13px;
+}
+
+/* スーパーの「S」はんこ */
+.card-stamp {
+  position: absolute;
+  right: -8px;
+  top: -10px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--pen-red);
+  border-radius: 50%;
+  color: var(--pen-red);
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 18px;
+  rotate: 12deg;
+  background: var(--paper);
+  z-index: 2;
+}
+.card-stamp--big {
+  width: 40px;
+  height: 40px;
+  right: -14px;
+  top: -14px;
+  font-size: 30px;
+  border-width: 3px;
+}
+
+/* HP：赤ペンで丸囲み */
+.card-hp {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 0 6px;
+  border: 2px solid var(--pen-red);
+  border-radius: 50% / 45%;
+  color: var(--pen-red);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.card-hp small {
+  font-size: 11px;
+}
+.card-hp .num {
+  font-size: 20px;
+}
+.card-hp--big small {
+  font-size: 15px;
+}
+.card-hp--big .num {
+  font-size: 32px;
+}
+
+/* 技表 */
+.card-moves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.card-moves__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.card-moves__faces {
+  min-width: 26px;
+  font-size: 18px;
+}
+.card-moves__effect.is-damage {
+  color: var(--ink);
+}
+.card-moves__effect.is-heal {
+  color: var(--pen-green);
+}
+.card-moves__effect.is-other {
+  color: var(--pen-blue);
+}
+.card-moves--big {
+  gap: 8px;
+}
+.card-moves--big .card-moves__row {
+  font-size: 20px;
+  gap: 10px;
+}
+.card-moves__dice {
+  display: inline-flex;
+  gap: 2px;
+  min-width: 160px;
+}
+
+/* イラスト */
+.card-art {
+  width: 100%;
+  height: 150px;
+}
+.card-art__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.card-art__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--pencil);
+}
+.card-art__q {
+  font-family: var(--font-num);
+  font-size: 72px;
+  line-height: 0.9;
+}
+.card-art__name {
+  font-size: 16px;
+}
+
+/* ---------- 小さいカード ---------- */
+.card-mini {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: transform calc(80ms / var(--fx-speed)) ease-out;
+}
+.card-mini:hover {
+  transform: translateY(-3px);
+}
+.card-mini:active {
+  transform: translateY(1px);
+}
+.card-mini.is-dim {
+  color: var(--pencil);
+  opacity: 0.65;
+}
+.card-mini--tile {
+  width: 128px;
+  height: 120px;
+}
+.card-mini--slot {
+  width: 100px;
+  height: 74px;
+}
+.card-mini__frame,
+.card-mini__note {
+  width: 100%;
+  height: 100%;
+}
+.card-mini__frame > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 7px 6px;
+}
+.card-mini__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+}
+.card-mini__name {
+  font-size: 16px;
+  line-height: 1.15;
+  min-width: 0;
+}
+/* 名前は1行目に全部、HP は2行目 */
+.card-mini--tile .card-mini__head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.card-mini__name.is-long {
+  font-size: 14px;
+  letter-spacing: -0.5px;
+}
+.card-mini--tile .card-mini__frame > .rough-box__content {
+  gap: 3px;
+  padding-top: 7px;
+}
+.card-mini--tile .card-hp .num {
+  font-size: 17px;
+}
+.card-mini--slot .card-mini__head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.card-mini__name {
+  white-space: nowrap;
+}
+.card-mini__note .card-mini__name {
+  white-space: normal;
+}
+.card-mini--slot .card-mini__name {
+  font-size: 15px;
+}
+.card-mini__note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 8px 6px;
+}
+.card-mini--slot .card-mini__note {
+  justify-content: center;
+  padding: 10px 6px 4px;
+}
+.card-mini__text {
+  font-size: 14px;
+  line-height: 1.2;
+}
+.card-mini--tile .card-mini__note {
+  padding-top: 10px;
+  gap: 2px;
+}
+.card-mini__count {
+  position: absolute;
+  right: -6px;
+  bottom: -10px;
+  z-index: 3;
+  padding: 0 4px;
+  font-size: 24px;
+  color: var(--pen-blue);
+  background: linear-gradient(transparent 50%, var(--marker-yellow) 50%);
+}
+
+/* ---------- 大きいカード ---------- */
+.card-detail-wrap {
+  position: relative;
+}
+.card-detail {
+  width: 330px;
+}
+.card-detail > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 18px 18px;
+}
+.card-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-detail__name {
+  font-size: 30px;
+}
+.card-detail__flavor {
+  margin: 0;
+  font-size: 15px;
+  color: var(--pencil);
+}
+.card-detail__star {
+  position: absolute;
+  z-index: 3;
+}
+.card-detail__star--1 {
+  left: -30px;
+  top: 40px;
+}
+.card-detail__star--2 {
+  right: -26px;
+  bottom: 60px;
+}
+.card-detail--item {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 330px;
+  min-height: 300px;
+  padding: 36px 26px 22px;
+  text-align: left;
+}
+.card-detail__text {
+  font-size: 22px;
+  line-height: 1.5;
+}
+.card-detail__kind {
+  margin-top: auto;
+  font-size: 15px;
+  color: var(--pencil);
+}
+.card-mini--tile .card-moves__row {
+  gap: 3px;
+}
+.card-mini--tile .card-moves__faces {
+  min-width: 22px;
+  font-size: 17px;
+}

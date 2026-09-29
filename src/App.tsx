@@ -4,6 +4,8 @@ import { Stage } from './ui/common/Stage';
 import { RotateHint } from './ui/common/RotateHint';
 import { TitleScene } from './scenes/Title/TitleScene';
 import { MenuScene } from './scenes/Menu/MenuScene';
+import { DeckEditScene } from './scenes/DeckEdit/DeckEditScene';
+import { SettingsScene } from './scenes/Settings/SettingsScene';
 import { ComingSoonScene, UnderConstructionScene } from './scenes/Placeholder/PlaceholderScene';
 
 /**
@@ -13,11 +15,11 @@ import { ComingSoonScene, UnderConstructionScene } from './scenes/Placeholder/Pl
 const ROUTES: Record<RouteId, ComponentType> = {
   title: TitleScene,
   menu: MenuScene,
-  deck: UnderConstructionScene,
+  deck: DeckEditScene,
   lobby: UnderConstructionScene,
   battle: UnderConstructionScene,
   result: UnderConstructionScene,
-  settings: UnderConstructionScene,
+  settings: SettingsScene,
   rules: UnderConstructionScene,
   debug: UnderConstructionScene,
   // 🔒 後で実装

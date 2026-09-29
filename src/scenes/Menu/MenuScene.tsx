@@ -7,10 +7,8 @@ import { tiltStyle } from '../../ui/rough/seed';
 import { Logo } from '../../ui/common/Logo';
 import { Sticky } from '../../ui/common/Sticky';
 import { DiceDoodle, OteageDoodle, StarDoodle } from '../../ui/common/Doodles';
+import { useSave } from '../../state/SaveContext';
 import './menu.css';
-
-/** フェーズ2でセーブデータの playerName に置き換える */
-const PLAYER_NAME_PLACEHOLDER = 'プレイヤー';
 
 type LockedId = 'story' | 'gacha';
 
@@ -18,6 +16,7 @@ type LockedId = 'story' | 'gacha';
 export function MenuScene() {
   const { go } = useNav();
   const debug = isDebugMode();
+  const { save, remindBackup } = useSave();
   // 🔒 じゅんびちゅう のふせんを揺らす合図（押した回数）
   const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0 });
 
@@ -37,12 +36,12 @@ export function MenuScene() {
       <div className="menu-scene__top-right">
         {features.coins && (
           <RoughBox seed="menu-coins" className="menu-scene__coins" radius={20}>
-            <span className="num">0</span>
+            <span className="num">{save.coins}</span>
           </RoughBox>
         )}
         <RoughBox seed="menu-name" className="menu-scene__name" paper>
           <span className="tilt" style={tiltStyle('menu-name')}>
-            {PLAYER_NAME_PLACEHOLDER}
+            {save.playerName}
           </span>
         </RoughBox>
         <RoughButton seed="menu-settings" className="menu-scene__gear" ariaLabel="せってい" onClick={() => go('settings')}>
@@ -77,6 +76,17 @@ export function MenuScene() {
         >
           デバッグたいせん
         </RoughButton>
+      )}
+
+      {/* データを まもろう（SPEC §12-6） */}
+      {remindBackup && (
+        <button type="button" className="menu-scene__backup" onClick={() => go('settings')}>
+          <Sticky seed="menu-backup" color="green" angle={3}>
+            データを まもろう
+            <br />
+            <small>（コードを つくっておこう）</small>
+          </Sticky>
+        </button>
       )}
 
       {/* 余白の落書き（ゆっくり動く） */}

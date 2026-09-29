@@ -1,0 +1,267 @@
+.deck-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------- スロットタブ ---------- */
+.deck-scene__tabs {
+  position: absolute;
+  left: 36px;
+  top: 16px;
+  display: flex;
+  gap: 12px;
+}
+.deck-tab {
+  position: relative;
+  width: 72px;
+  height: 62px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.deck-tab__note {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 0;
+  transition: transform calc(120ms / var(--fx-speed)) ease-out;
+}
+.deck-tab.is-current .deck-tab__note {
+  transform: translateY(6px) scale(1.08);
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.deck-tab__num {
+  font-size: 30px;
+}
+.deck-tab__bad {
+  position: absolute;
+  right: -4px;
+  top: -8px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--pen-red);
+  color: var(--paper);
+  font-size: 22px;
+}
+
+.deck-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 18px;
+  width: 150px;
+  height: 60px;
+  font-size: 24px;
+}
+
+/* ---------- デッキ名 ---------- */
+.deck-scene__name {
+  position: absolute;
+  left: 40px;
+  top: 98px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 22px;
+}
+.deck-scene__name-btn {
+  padding: 0 4px;
+  border: none;
+  background: none;
+  font-size: 26px;
+  cursor: pointer;
+}
+.deck-scene__name-btn:hover {
+  background: var(--marker-yellow);
+}
+.deck-scene__pen {
+  color: var(--pen-blue);
+}
+.deck-scene__name-input {
+  width: 230px;
+}
+.deck-scene__name-hint {
+  font-size: 15px;
+}
+
+/* ---------- デッキ（左） ---------- */
+.deck-panel {
+  position: absolute;
+  left: 30px;
+  top: 146px;
+  width: 590px;
+  height: 468px;
+}
+.deck-panel > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px;
+}
+.deck-panel__head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.deck-panel__title {
+  font-size: 20px;
+}
+.deck-panel__total {
+  font-size: 38px;
+  color: var(--pen-red);
+}
+.deck-panel__total.is-ok {
+  color: var(--pen-green);
+}
+.deck-panel__counts {
+  font-size: 17px;
+}
+.deck-panel__counts b {
+  font-weight: normal;
+  font-size: 22px;
+}
+.deck-panel__slots {
+  display: grid;
+  grid-template-columns: repeat(5, 100px);
+  grid-auto-rows: 74px;
+  gap: 20px 10px;
+  margin-top: 16px;
+  justify-content: center;
+}
+.deck-slot-empty {
+  display: block;
+  width: 100px;
+  height: 74px;
+  border: 2px dashed var(--grid-major);
+  border-radius: 6px;
+}
+.deck-panel__problems {
+  list-style: none;
+  margin: auto 0 0;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1.4;
+}
+.deck-panel__ok {
+  color: var(--pen-green);
+}
+
+.deck-scene__reject {
+  position: absolute;
+  left: 330px;
+  top: 540px;
+  z-index: 20;
+  min-width: 250px;
+  font-size: 20px;
+  color: var(--pen-red);
+}
+
+/* ---------- カードいちらん（右） ---------- */
+.list-panel {
+  position: absolute;
+  left: 648px;
+  top: 96px;
+  width: 604px;
+  height: 518px;
+}
+.list-panel > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 8px;
+}
+.list-panel__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+/* 枠線の上に書いた見出し */
+.list-panel__title,
+.deck-panel__legend {
+  position: absolute;
+  left: 18px;
+  top: -15px;
+  padding: 0 8px;
+  font-size: 20px;
+  background: var(--paper);
+}
+.list-panel__filters {
+  display: flex;
+  gap: 8px;
+}
+.list-panel__filter {
+  height: 44px;
+  font-size: 17px;
+}
+.list-panel__filter .rough-btn__label {
+  padding: 0 12px;
+}
+.list-panel__sort {
+  margin-left: auto;
+  height: 44px;
+  font-size: 17px;
+}
+.list-panel__grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 128px);
+  grid-auto-rows: 120px;
+  gap: 12px 12px;
+  justify-content: center;
+  align-content: start;
+  margin-top: 12px;
+  padding: 10px 4px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.list-panel__hint {
+  margin: 0;
+  font-size: 15px;
+  text-align: center;
+}
+
+/* ---------- 下のボタン ---------- */
+.deck-scene__actions {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 632px;
+  display: flex;
+  gap: 18px;
+}
+.deck-scene__action {
+  height: 64px;
+  font-size: 22px;
+  padding: 0 4px;
+}
+
+/* ---------- ダイアログの中 ---------- */
+.deck-scene__detail {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+.deck-scene__copy-note {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+.deck-scene__copy-slots {
+  display: flex;
+  gap: 12px;
+}
+.deck-scene__copy-slot {
+  width: 96px;
+  height: 90px;
+  font-size: 30px;
+}
+.deck-scene__copy-slot small {
+  display: block;
+  font-size: 15px;
+}

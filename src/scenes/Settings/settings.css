@@ -1,0 +1,181 @@
+.settings-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.settings-scene__title {
+  position: absolute;
+  left: 48px;
+  top: 18px;
+  margin: 0;
+  font-size: 40px;
+  font-weight: normal;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+}
+
+.settings-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 18px;
+  width: 150px;
+  height: 60px;
+  font-size: 24px;
+}
+
+.settings-panel {
+  position: absolute;
+  top: 110px;
+  height: 580px;
+}
+.settings-panel > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 26px;
+}
+.settings-panel--left {
+  left: 30px;
+  width: 740px;
+}
+.settings-panel--left > .rough-box__content {
+  justify-content: space-between;
+}
+.settings-panel--right {
+  left: 800px;
+  width: 450px;
+}
+.settings-panel--right > .rough-box__content {
+  gap: 18px;
+}
+.settings-panel__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: normal;
+}
+.settings-panel__note {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.settings-panel__stats {
+  margin: 8px 0 0;
+  font-size: 20px;
+}
+.settings-panel__stats .num {
+  font-size: 28px;
+}
+
+/* ---------- 1行 ---------- */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 72px;
+}
+.settings-row__label {
+  width: 230px;
+  display: flex;
+  flex-direction: column;
+  font-size: 23px;
+}
+.settings-row__label small {
+  font-size: 14px;
+  margin-top: 2px;
+}
+.settings-row__control {
+  flex: 1;
+}
+.settings-scene__name {
+  width: 260px;
+}
+
+/* ---------- 選ぶボタン ---------- */
+.settings-choice {
+  display: flex;
+  gap: 12px;
+}
+.settings-choice__btn {
+  min-width: 110px;
+  height: 54px;
+  font-size: 20px;
+}
+
+/* ---------- 音量 ---------- */
+.volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.volume__step {
+  width: 50px;
+  height: 50px;
+  font-size: 26px;
+}
+.volume__step .rough-btn__label {
+  padding: 0;
+}
+.volume__cells {
+  display: flex;
+  gap: 4px;
+}
+.volume__cell {
+  width: 24px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+  cursor: pointer;
+  rotate: -2deg;
+}
+.volume__cell:nth-child(even) {
+  rotate: 1.5deg;
+}
+/* 斜線ハッチングで塗る */
+.volume__cell.is-on {
+  background: repeating-linear-gradient(-45deg, var(--pen-blue) 0 2px, transparent 2px 6px);
+}
+.volume__value {
+  width: 36px;
+  font-size: 30px;
+  text-align: center;
+}
+
+/* ---------- データひきつぎ ---------- */
+.settings-transfer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.settings-transfer__btn {
+  width: 100%;
+  height: 66px;
+  font-size: 24px;
+}
+.settings-wipe {
+  margin-top: auto;
+  align-self: flex-end;
+  width: 200px;
+  height: 56px;
+  font-size: 20px;
+}
+
+/* ---------- ダイアログ ---------- */
+.settings-dialog__note {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+.settings-dialog__code {
+  height: 200px;
+}
+.settings-dialog__msg {
+  margin: 10px 0 0;
+  font-size: 18px;
+}
+.settings-dialog__msg.is-ok {
+  color: var(--pen-green);
+}
+/* 4桁のまとまりの途中で折り返さない（ハイフンの後ろで折り返す） */
+.settings-dialog__code {
+  word-break: normal;
+  overflow-wrap: normal;
+}

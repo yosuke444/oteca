@@ -1,0 +1,53 @@
+.dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  animation: dialog-fade calc(160ms / var(--fx-speed)) ease-out;
+}
+
+.dialog {
+  max-height: 680px;
+  animation: dialog-pop calc(200ms / var(--fx-speed)) ease-out;
+}
+
+.dialog__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 26px 32px 24px;
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: normal;
+}
+
+.dialog__body {
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.dialog__actions .rough-btn {
+  min-width: 150px;
+  height: 60px;
+  font-size: 22px;
+}
+
+@keyframes dialog-fade {
+  from { opacity: 0; }
+}
+
+@keyframes dialog-pop {
+  from { opacity: 0; transform: translateY(12px) rotate(-1deg); }
+}
