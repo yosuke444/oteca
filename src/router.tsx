@@ -15,11 +15,15 @@ export type RouteId =
   | 'rules'
   | 'story'
   | 'gacha'
-  | 'debug';
+  | 'debug'
+  | 'soundtest';
 
 export type Nav = {
   route: RouteId;
-  go: (to: RouteId) => void;
+  /** 画面を切り替える。payload は次の画面に渡すデータ（対戦の設定・結果など） */
+  go: (to: RouteId, payload?: unknown) => void;
+  /** 今の画面に渡されたデータ */
+  payload: unknown;
 };
 
 export const NavContext = createContext<Nav | null>(null);

@@ -26,6 +26,11 @@
   --note-shadow: rgba(30, 36, 51, 0.18);
   /* マスキングテープ（§6-6） */
   --tape: rgba(214, 196, 150, 0.55);
+  /* HPバーの黄色（26〜50%） */
+  --pen-yellow: #e0a800;
+  /* きみょうなドリンクの紫・スポドリの水色（演出用） */
+  --pen-purple: #8a4fc7;
+  --pen-sky: #3aa7d8;
 
   /* §6-4 文字 */
   --font-hand: 'Yomogi', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;

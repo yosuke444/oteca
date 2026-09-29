@@ -1,0 +1,531 @@
+/* ============================================================
+   S04 対戦（SPEC §8-1）  舞台 1280×720
+   上＝あいて（y 0〜266）／まんなか（おりめ）／下＝じぶん（y 334〜720）
+   ============================================================ */
+.battle,
+.battle-board {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------- 上の帯（あいて） ---------- */
+.battle-top {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 6px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  font-size: 19px;
+}
+.battle-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  height: 42px;
+  padding: 0 14px;
+  font-size: 22px;
+  white-space: nowrap;
+}
+.battle-name--opp {
+  color: var(--pen-red);
+}
+.battle-name--me {
+  color: var(--pen-blue);
+}
+.battle-name > .rough-box__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.battle-top__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.battle-top__item b {
+  font-weight: normal;
+  font-size: 26px;
+}
+.battle-top__backs {
+  display: flex;
+  gap: 2px;
+}
+.battle-top__back {
+  width: 13px;
+  height: 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  background: repeating-linear-gradient(0deg, var(--grid-minor) 0 1px, var(--paper) 1px 4px);
+}
+.battle-top__buttons {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+.battle-top__btn {
+  height: 42px;
+  font-size: 18px;
+}
+.battle-top__btn--gear {
+  width: 50px;
+  font-size: 24px;
+}
+.battle-top__btn--gear .rough-btn__label {
+  padding: 0;
+}
+
+/* ---------- たおした ☆ ---------- */
+.battle-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+.battle-star .doodle__fill {
+  transition: fill calc(300ms / var(--fx-speed));
+}
+.battle-star.is-on .doodle__fill {
+  fill: var(--marker-yellow);
+}
+
+/* ---------- 場の枠 ---------- */
+.battle-slot {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--grid-major);
+  border-radius: 8px;
+}
+.battle-slot--active {
+  left: 565px;
+  width: 150px;
+  height: 210px;
+}
+.battle-slot--bench {
+  width: 120px;
+  height: 168px;
+}
+.battle-slot--bench0 {
+  left: 395px;
+}
+.battle-slot--bench1 {
+  left: 765px;
+}
+.battle-slot--opp.battle-slot--active {
+  top: 54px;
+}
+.battle-slot--opp.battle-slot--bench {
+  top: 75px;
+}
+.battle-slot--me.battle-slot--active {
+  top: 336px;
+}
+.battle-slot--me.battle-slot--bench {
+  top: 357px;
+}
+.battle-slot:has(.battle-card),
+.battle-slot:has(.card-back) {
+  border-color: transparent;
+}
+.battle-slot__label {
+  font-size: 17px;
+}
+.battle-slot.is-drop {
+  border: 3px solid var(--pen-blue);
+  background: var(--marker-yellow);
+  cursor: pointer;
+}
+
+/* 待機中：バトル場のおてあげがゆっくり上下（§9-3） */
+.battle-idle {
+  animation: battle-bob calc(2s / var(--fx-speed)) ease-in-out infinite;
+}
+.battle-idle--opp {
+  animation-delay: -1s;
+}
+@keyframes battle-bob {
+  0%, 100% { translate: 0 -3px; }
+  50% { translate: 0 3px; }
+}
+
+/* ---------- やまふだ・すてふだ ---------- */
+.battle-pile {
+  position: absolute;
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.battle-pile--deck {
+  left: 1020px;
+}
+.battle-pile--discard {
+  left: 1136px;
+}
+.battle-pile--opp {
+  top: 64px;
+}
+.battle-pile--me {
+  top: 372px;
+}
+.battle-pile__label {
+  font-size: 16px;
+  white-space: nowrap;
+}
+.battle-pile__label b {
+  font-weight: normal;
+  font-size: 22px;
+}
+.battle-pile__empty,
+.battle-pile__top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 118px;
+  border: 2px dashed var(--grid-major);
+  border-radius: 6px;
+}
+.battle-pile__top {
+  border: 2px solid var(--pencil);
+  background: var(--paper);
+  rotate: 4deg;
+}
+.battle-pile__top-name {
+  padding: 4px;
+  font-size: 16px;
+  text-align: center;
+  color: var(--pencil);
+}
+
+/* ---------- まんなか（おりめ） ---------- */
+.battle-fold {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 300px;
+  border-top: 2px dashed var(--grid-major);
+}
+.battle-turn {
+  position: absolute;
+  left: 40px;
+  top: 276px;
+  padding: 0 10px;
+  font-size: 30px;
+  background: var(--paper);
+}
+.battle-turn.is-me {
+  color: var(--pen-blue);
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+}
+.battle-turn.is-opp {
+  color: var(--pen-red);
+}
+.battle-dice {
+  position: absolute;
+  left: 545px;
+  width: 190px;
+  white-space: nowrap;
+  top: 272px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 16px;
+  background: var(--paper);
+  border: 2px dashed var(--grid-major);
+  border-radius: 10px;
+}
+.battle-dice__icon {
+  opacity: 0.5;
+}
+.battle-draw {
+  position: absolute;
+  right: 40px;
+  top: 280px;
+  padding: 0 10px;
+  font-size: 22px;
+  background: var(--paper);
+}
+.battle-draw.is-soon {
+  color: var(--pen-blue);
+  background: linear-gradient(transparent 50%, var(--marker-yellow) 50%);
+}
+
+/* ---------- 下（じぶん） ---------- */
+.battle-me {
+  position: absolute;
+  left: 20px;
+  top: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 19px;
+}
+.battle-me__stars {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 手札（おうぎがた） */
+.battle-hand {
+  position: absolute;
+  left: 0;
+  top: 552px;
+  width: 1280px;
+  height: 158px;
+  pointer-events: none;
+}
+.battle-hand__slot {
+  position: absolute;
+  transform-origin: 50% 120%;
+  transition:
+    translate calc(140ms / var(--fx-speed)) ease-out,
+    scale calc(140ms / var(--fx-speed)) ease-out;
+  pointer-events: auto;
+}
+@media (hover: hover) {
+  .battle-hand__slot:hover {
+    translate: 0 -46px;
+    scale: 1.22;
+    z-index: 50 !important;
+  }
+}
+.battle-hand__slot.is-lifted {
+  translate: 0 -56px;
+  scale: 1.25;
+  z-index: 51 !important;
+}
+.battle-card.is-dragging {
+  opacity: 0.35;
+}
+.battle-ghost {
+  position: absolute;
+  z-index: 90;
+  pointer-events: none;
+  rotate: 4deg;
+  filter: drop-shadow(4px 8px 6px var(--note-shadow));
+}
+
+/* 操作ボタン（選んだ時） */
+.battle-actionbar {
+  position: absolute;
+  left: 20px;
+  top: 452px;
+  width: 360px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  z-index: 40;
+}
+.battle-actionbar .rough-btn {
+  height: 48px;
+  font-size: 19px;
+}
+.battle-actionbar__note {
+  width: 100%;
+  font-size: 18px;
+  color: var(--pen-blue);
+}
+
+/* ターンおわり */
+.battle-end {
+  position: absolute;
+  right: 20px;
+  top: 590px;
+  width: 300px;
+  height: 92px;
+}
+.battle-end__btn {
+  width: 100%;
+  height: 100%;
+  font-size: 24px;
+}
+.battle-end.is-nudge {
+  animation: end-nudge calc(1.6s / var(--fx-speed)) ease-in-out infinite;
+}
+@keyframes end-nudge {
+  0%, 70%, 100% { rotate: 0deg; }
+  75% { rotate: -3deg; }
+  80% { rotate: 3deg; }
+  85% { rotate: -2deg; }
+  90% { rotate: 1deg; }
+}
+
+/* ヒント1行 */
+.battle-hint {
+  position: absolute;
+  left: 20px;
+  top: 640px;
+  width: 330px;
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--pencil);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 案内（準備・くりだし） */
+.battle-prompt {
+  position: absolute;
+  left: 50%;
+  top: 268px;
+  translate: -50% 0;
+  z-index: 30;
+  padding: 4px 18px;
+  font-size: 26px;
+  white-space: nowrap;
+  color: var(--pen-blue);
+  background: var(--paper);
+  border: 2px solid var(--pen-blue);
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px var(--marker-yellow);
+}
+.battle-prompt--wait {
+  color: var(--pencil);
+  border-color: var(--pencil);
+  box-shadow: none;
+}
+
+/* ひとこと（出来ない理由など） */
+.battle-toast {
+  position: absolute;
+  left: 50%;
+  top: 470px;
+  translate: -50% 0;
+  z-index: 70;
+  padding: 6px 20px;
+  font-size: 24px;
+  color: var(--pen-red);
+  background: var(--paper);
+  border: 2px solid var(--pen-red);
+  border-radius: 10px;
+  white-space: nowrap;
+  animation: note-pop calc(1800ms / var(--fx-speed)) ease-out forwards;
+  pointer-events: none;
+}
+
+/* ログ（余白メモ） */
+.battle-log {
+  position: absolute;
+  left: 16px;
+  top: 56px;
+  width: 360px;
+  height: 390px;
+  z-index: 45;
+  padding: 10px 14px;
+  background: var(--note-yellow);
+  box-shadow: 3px 6px 10px -4px var(--note-shadow);
+  rotate: -1deg;
+  overflow: hidden;
+}
+.battle-log__title {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+.battle-log__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  height: 330px;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.battle-detail {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+.battle-menu {
+  display: flex;
+  justify-content: center;
+}
+.battle-menu__surrender {
+  width: 360px;
+  height: 64px;
+  font-size: 22px;
+}
+.battle-end__btn small {
+  font-size: 18px;
+}
+
+/* 小さい画面（スマホ横向き）：舞台が小さく縮むので、選んだ手札を大きく持ち上げて読めるようにする */
+@media (max-height: 500px) {
+  .battle-hint {
+    font-size: 17px;
+    color: var(--ink);
+  }
+  .battle-toast {
+    font-size: 32px;
+  }
+  .battle-prompt {
+    font-size: 28px;
+  }
+  /* やまふだ・すてふだの文字は、大きくすると横にくっつくので2行にする */
+  .battle-pile__label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.05;
+    font-size: 22px;
+  }
+  .battle-top,
+  .battle-me {
+    font-size: 22px;
+  }
+  .battle-dice span {
+    display: none;
+  }
+  .dialog__body {
+    font-size: 26px;
+  }
+  .dialog__title {
+    font-size: 36px;
+  }
+  .dialog__actions .rough-btn {
+    font-size: 26px;
+    height: 70px;
+  }
+}
+
+/* 選んだカードの拡大表示（小さい画面だけ。左の余白に出して、行き先を隠さない） */
+.battle-preview {
+  display: none;
+}
+@media (max-height: 500px) {
+  .battle-preview {
+    display: block;
+    position: absolute;
+    left: 40px;
+    top: 70px;
+    z-index: 29;
+    scale: 2.2;
+    transform-origin: top left;
+    pointer-events: none;
+  }
+}
+
+/* 相手の番の間、画面上部に出るバナー（§8-3） */
+.battle-opp-banner {
+  position: absolute;
+  left: 16px;
+  top: 58px;
+  z-index: 20;
+  padding: 2px 14px;
+  font-size: 28px;
+  color: var(--pen-red);
+  background: linear-gradient(transparent 55%, var(--marker-pink) 55%);
+  rotate: -2deg;
+  pointer-events: none;
+}

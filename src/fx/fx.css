@@ -1,0 +1,106 @@
+/* 演出の層（舞台 1280×720 の上に重ねる） */
+.fx-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fx-el {
+  position: absolute;
+  translate: -50% -50%;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.fx-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* ---------- 文字 ---------- */
+.fx-pop {
+  font-size: 40px;
+  -webkit-text-stroke: 1px var(--paper);
+  paint-order: stroke fill;
+}
+.fx-pop--damage {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 64px;
+  color: var(--ink);
+}
+.fx-pop--heal {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 56px;
+  color: var(--pen-green);
+}
+.fx-pop--purple {
+  color: var(--pen-purple);
+}
+.fx-pop--item {
+  font-size: 30px;
+  padding: 2px 12px;
+  background: var(--note-yellow);
+  box-shadow: 2px 4px 6px -2px var(--note-shadow);
+}
+.fx-pop--banner {
+  font-size: 52px;
+  padding: 0 18px;
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+}
+.fx-pop--opp {
+  color: var(--pen-red);
+}
+.fx-pop--stamp {
+  font-size: 60px;
+  color: var(--pen-red);
+  border: 5px solid var(--pen-red);
+  border-radius: 14px;
+  padding: 0 18px;
+  rotate: -8deg;
+  background: var(--paper);
+}
+
+/* ---------- サイコロ ---------- */
+.fx-die {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: var(--paper);
+  font-size: 54px;
+  box-shadow: 3px 4px 0 var(--note-shadow);
+}
+
+/* ---------- カードの裏面（演出用） ---------- */
+.fx-cardback {
+  border: 2.5px solid var(--ink);
+  border-radius: 6px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, var(--grid-major) 2px, transparent 2px),
+    linear-gradient(to bottom, var(--grid-major) 2px, transparent 2px),
+    linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+  background-size: 50% 50%, 50% 50%, 10px 10px, 10px 10px;
+  background-position: center, center, 0 0, 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 3px 5px 8px -3px var(--note-shadow);
+}
+.fx-cardback__logo {
+  padding: 0 4px;
+  font-size: 26px;
+  rotate: -8deg;
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+}

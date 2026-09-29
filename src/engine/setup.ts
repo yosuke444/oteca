@@ -15,6 +15,10 @@ export type GameConfig = {
   rules?: Partial<Record<Side, Partial<RuleSet>>>;
   /** デバッグ・テスト用：乱数の代わりに出すサイコロの目 */
   forcedDice?: number[];
+  /** デバッグ用：配ったあと、山札の上に置くカード（カードNo、上から順）。山札に無いものは無視 */
+  stackTop?: Partial<Record<Side, number[]>>;
+  /** デバッグ用：サイコロの目を固定（1〜6）。先攻決めには使わない */
+  fixedDie?: number | null;
 };
 
 /**
@@ -62,6 +66,7 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
     rules,
     rng: seedRng(config.seed),
     forcedDice: [...(config.forcedDice ?? [])],
+    fixedDie: null,
     cards,
     players,
     phase: 'setup',
@@ -88,6 +93,9 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
 
   // 2〜3. 切って配る → おてあげが来るまで引き直し
   for (const side of SIDES) deal(ctx, side);
+  for (const side of SIDES) stackDeck(state, side, config.stackTop?.[side] ?? []);
+  const fixed = config.fixedDie;
+  state.fixedDie = fixed && fixed >= 1 && fixed <= 6 ? Math.floor(fixed) : null;
 
   return { state, events: ctx.events };
 }
@@ -107,4 +115,15 @@ function deal(ctx: Ctx, side: Side): void {
     shuffleInPlace(s.rng, ps.deck);
     ps.hand = ps.deck.splice(0, r.initialHand);
   }
+}
+
+/** 山札の上を指定する（デバッグ用。配り終わってから並べ替える） */
+function stackDeck(s: GameState, side: Side, nos: number[]): void {
+  const ps = s.players[side];
+  const top: string[] = [];
+  for (const no of nos) {
+    const uid = ps.deck.find((u) => s.cards[u].no === no && !top.includes(u));
+    if (uid) top.push(uid);
+  }
+  ps.deck = [...top, ...ps.deck.filter((u) => !top.includes(u))];
 }

@@ -65,7 +65,7 @@
   white-space: nowrap;
 }
 .card-hp small {
-  font-size: 11px;
+  font-size: 12px;
 }
 .card-hp .num {
   font-size: 20px;
@@ -321,4 +321,282 @@
 .card-mini--tile .card-moves__faces {
   min-width: 22px;
   font-size: 17px;
+}
+
+/* ============================================================
+   対戦画面のカード
+   ============================================================ */
+.battle-card {
+  position: relative;
+  flex: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.battle-card__frame {
+  width: 100%;
+  height: 100%;
+}
+.battle-card__frame > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 7px 6px;
+}
+.battle-card__head {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+}
+.battle-card__name {
+  font-size: 17px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.battle-card__name.is-long {
+  font-size: 14px;
+  letter-spacing: -0.5px;
+}
+.battle-card--active .battle-card__name {
+  font-size: 19px;
+}
+.battle-card--active .battle-card__name.is-long {
+  font-size: 16px;
+}
+.battle-card__art {
+  position: relative;
+  height: 62px;
+}
+.battle-card--bench .battle-card__art,
+.battle-card--hand .battle-card__art {
+  height: 44px;
+}
+.battle-card__art .card-art {
+  height: 100%;
+}
+.battle-card__art .card-art__q {
+  font-size: 34px;
+}
+.battle-card__art .card-art__name {
+  display: none;
+}
+.battle-card__hp {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  background: var(--paper);
+}
+.battle-card--bench .battle-card__hp .num,
+.battle-card--hand .battle-card__hp .num {
+  font-size: 17px;
+}
+.battle-card--active .battle-card__hp .num {
+  font-size: 24px;
+}
+.battle-card__moves .card-moves__row {
+  gap: 3px;
+  padding: 0 2px;
+  border-radius: 3px;
+}
+.battle-card__moves .card-moves__faces {
+  min-width: 28px;
+  margin-right: 3px;
+  font-size: 16px;
+}
+.battle-card--active .battle-card__moves .card-moves__row {
+  font-size: 15px;
+}
+.battle-card--active .battle-card__moves .card-moves__faces {
+  font-size: 19px;
+}
+/* 技表の該当行に蛍光ペン（サイコロの演出） */
+.card-moves__row.is-marked {
+  background: linear-gradient(transparent 20%, var(--marker-yellow) 20%, var(--marker-yellow) 90%, transparent 90%);
+}
+/* 取り消し線方式（§6-6） */
+.card-moves__old {
+  color: var(--ink);
+  text-decoration: line-through;
+  text-decoration-color: var(--pen-red);
+  text-decoration-thickness: 2px;
+}
+.card-moves__new {
+  color: var(--pen-red);
+  font-size: 18px;
+}
+.battle-card__hpbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: auto;
+}
+.battle-card__hpnum {
+  font-size: 16px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.battle-card--active .battle-card__hpnum {
+  font-size: 19px;
+}
+.battle-card__star {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+.battle-card__star--1 {
+  left: -16px;
+  top: 30%;
+}
+.battle-card__star--2 {
+  right: -14px;
+  bottom: 18%;
+}
+.battle-card__badges {
+  position: absolute;
+  right: -30px;
+  top: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 4;
+}
+.buff-badge {
+  padding: 1px 6px;
+  border: 2px solid currentColor;
+  border-radius: 12px;
+  background: var(--paper);
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.1;
+  rotate: 6deg;
+  animation: buff-pulse calc(1.2s / var(--fx-speed)) ease-in-out infinite;
+}
+.buff-badge--yaiba {
+  color: var(--pen-red);
+}
+.buff-badge--drink {
+  color: var(--pen-purple);
+  font-family: var(--font-hand);
+  font-size: 16px;
+}
+@keyframes buff-pulse {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.12; }
+}
+.battle-card__sweat {
+  position: absolute;
+  left: -14px;
+  top: 12px;
+  z-index: 4;
+  fill: var(--paper);
+  stroke: var(--pen-blue);
+  stroke-width: 2;
+  stroke-linecap: round;
+  animation: sweat calc(2.6s / var(--fx-speed)) ease-in infinite;
+}
+.battle-card__sweat-shine {
+  fill: none;
+}
+@keyframes sweat {
+  0%, 55% { opacity: 0; translate: 0 -4px; }
+  65% { opacity: 1; translate: 0 0; }
+  90% { opacity: 1; translate: 0 10px; }
+  100% { opacity: 0; translate: 0 14px; }
+}
+.battle-card.is-dim {
+  color: var(--pencil);
+}
+.battle-card.is-dim .battle-card__frame {
+  opacity: 0.75;
+}
+.battle-card.is-dim .battle-card__note {
+  color: var(--pencil);
+  opacity: 0.6;
+}
+/* ベンチは技表が近いので、イラストの右下にのせる（技の文字を隠さない） */
+.battle-card--bench .battle-card__badges {
+  top: 40px;
+  right: -10px;
+}
+
+/* アイテム（ふせん） */
+.battle-card__note {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 14px 8px 6px;
+}
+.battle-card__text {
+  font-size: 14px;
+  line-height: 1.25;
+}
+.battle-card--bench .battle-card__note .battle-card__name,
+.battle-card--hand .battle-card__note .battle-card__name {
+  white-space: normal;
+  font-size: 16px;
+}
+/* 黄色く光る（いま出来る） */
+.battle-card.is-highlight .battle-card__note {
+  outline: 4px solid var(--marker-yellow);
+  outline-offset: 2px;
+}
+.battle-card.is-selected .battle-card__note {
+  outline: 3px solid var(--pen-blue);
+  outline-offset: 2px;
+}
+
+/* ---------- カードの裏 ---------- */
+.card-back > .rough-box__content {
+  overflow: hidden;
+  border-radius: 6px;
+}
+.card-back__grid {
+  position: absolute;
+  inset: 5px;
+  background-image:
+    linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+.card-back__fold {
+  position: absolute;
+  background: var(--grid-major);
+}
+.card-back__fold--v {
+  left: 50%;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  box-shadow: 2px 0 3px var(--note-shadow);
+}
+.card-back__fold--h {
+  top: 50%;
+  left: 5px;
+  right: 5px;
+  height: 2px;
+  box-shadow: 0 2px 3px var(--note-shadow);
+}
+/* 折った角 */
+.card-back__corner {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 22%;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, transparent 50%, var(--note-shadow) 50%, var(--paper) 58%);
+}
+.card-back__logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  rotate: -8deg;
+  padding: 0 4px;
+  color: var(--ink);
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+  white-space: nowrap;
 }

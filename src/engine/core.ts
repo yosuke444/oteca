@@ -45,7 +45,8 @@ export function isOver(s: GameState): boolean {
 /** サイコロを1個振る（テスト・デバッグ用の固定目があればそれを使う） */
 export function rollDie(ctx: Ctx, purpose: 'order' | 'attack', player: Side): number {
   const forced = ctx.s.forcedDice.shift();
-  const value = forced ?? nextInt(ctx.s.rng, DICE_FACES) + 1;
+  const fixed = purpose === 'attack' ? ctx.s.fixedDie : null;
+  const value = forced ?? fixed ?? nextInt(ctx.s.rng, DICE_FACES) + 1;
   ctx.events.push({ type: 'DiceRolled', purpose, player, value });
   return value;
 }

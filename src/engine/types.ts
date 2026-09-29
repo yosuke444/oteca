@@ -148,6 +148,8 @@ export type GameState = {
   rng: [number, number, number, number];
   /** デバッグ・テスト用：先頭から順に、乱数の代わりにこの目を出す */
   forcedDice: number[];
+  /** デバッグ用：サイコロの目を固定（null なら乱数） */
+  fixedDie: number | null;
   cards: Record<string, CardInstance>;
   players: Record<Side, PlayerState>;
   phase: Phase;

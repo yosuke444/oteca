@@ -53,15 +53,17 @@ export function OteageDoodle({ seed, size = 120, float, wave = true, className, 
   );
 }
 
+/** 星の形 */
+const STAR_D = 'M30 4 L37 22 L56 23 L41 35 L47 54 L30 43 L13 54 L19 35 L4 23 L23 22 Z';
+
 /** 星 */
 export function StarDoodle({ seed, size = 60, float, className, style }: DoodleProps) {
   const s = seedFrom(seed);
-  const paths = useMemo(
-    () => roughPath('M30 4 L37 22 L56 23 L41 35 L47 54 L30 43 L13 54 L19 35 L4 23 L23 22 Z', { seed: s, strokeWidth: 2.2 }),
-    [s],
-  );
+  const paths = useMemo(() => roughPath(STAR_D, { seed: s, strokeWidth: 2.2 }), [s]);
   return (
     <svg className={`doodle ${floatClass(float)} ${className ?? ''}`} viewBox="0 0 60 60" width={size} height={size} style={style} aria-hidden>
+      {/* 塗り用（rough.js の線は細切れなので、塗りは普通の星の形で行う） */}
+      <path d={STAR_D} className="doodle__fill" />
       <RoughPaths paths={paths} />
     </svg>
   );

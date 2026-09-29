@@ -101,6 +101,10 @@
 .doodle__dot {
   fill: var(--ink);
 }
+.doodle__fill {
+  fill: none;
+  stroke: none;
+}
 .doodle__line {
   fill: none;
   stroke: var(--ink);

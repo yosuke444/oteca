@@ -165,3 +165,41 @@ describe('準備と決定論', () => {
     expect(validateDeck(unknown, CARD_DB)).toContainEqual({ code: 'unknownCard', no: 999 });
   });
 });
+
+describe('デバッグ用の設定', () => {
+  it('山札の上を指定できる（配ったあとの山札の上から順）', () => {
+    const decks = { p1: starterDeckNos(), p2: starterDeckNos() };
+    const want = [noOf('kami'), noOf('supodori'), noOf('kusuri')];
+    for (let i = 0; i < 20; i++) {
+      const g = createGame({ seed: `stack-${i}`, decks, cardDb: CARD_DB, stackTop: { p1: want } });
+      const deck = g.state.players.p1.deck;
+      const handNos = g.state.players.p1.hand.map((u) => g.state.cards[u].no);
+      // 手札に来てしまったカードは山札に無いので飛ばされる
+      const expected = want.filter((no, k) => {
+        const inHand = handNos.filter((h) => h === no).length;
+        const total = decks.p1.filter((d) => d === no).length;
+        const wantedBefore = want.slice(0, k).filter((w) => w === no).length;
+        return total - inHand - wantedBefore > 0;
+      });
+      expect(deck.slice(0, expected.length).map((u) => g.state.cards[u].no)).toEqual(expected);
+      expect(deck.length + g.state.players.p1.hand.length).toBe(15);
+    }
+  });
+});
+
+describe('デバッグ用の設定（サイコロ）', () => {
+  it('サイコロの目を固定すると、攻撃の目は毎回その目になる（先攻決めは乱数のまま）', () => {
+    const decks = { p1: starterDeckNos(), p2: starterDeckNos() };
+    let { state } = createGame({ seed: 'fixed', decks, cardDb: CARD_DB, fixedDie: 6 });
+    expect(state.fixedDie).toBe(6);
+    for (const side of ['p1', 'p2'] as Side[]) {
+      const uid = state.players[side].hand.find((u) => CARD_DB[state.cards[u].no].kind === 'otege')!;
+      state = applyAction(state, { type: 'SETUP_ACTIVE', player: side, uid }).state;
+    }
+    for (let i = 0; i < 4 && state.phase === 'main'; i++) {
+      const r = applyAction(state, { type: 'END_TURN', player: state.currentPlayer });
+      for (const e of eventsOf(r.events, 'DiceRolled')) expect(e.value).toBe(6);
+      state = r.state;
+    }
+  });
+});
