@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "cards": [
+    { "no": 1, "id": "oteage", "name": "おてあげ", "kind": "otege", "rarity": "normal", "hp": 90,
+      "moves": [
+        { "faces": [1,2,3,4,5], "effects": [{ "type": "damage", "amount": 30 }] },
+        { "faces": [6],         "effects": [{ "type": "damage", "amount": 50 }] }
+      ],
+      "image": "cards/oteage.png", "flavor": "" },
+
+    { "no": 2, "id": "mitsume", "name": "みつめ", "kind": "otege", "rarity": "normal", "hp": 120,
+      "moves": [
+        { "faces": [1],         "effects": [{ "type": "heal", "amount": 30 }] },
+        { "faces": [2,3,4,5,6], "effects": [{ "type": "damage", "amount": 30 }] }
+      ], "image": "cards/mitsume.png", "flavor": "" },
+
+    { "no": 3, "id": "otesage", "name": "おてさげ", "kind": "otege", "rarity": "normal", "hp": 70,
+      "moves": [
+        { "faces": [1,2,3], "effects": [{ "type": "damage", "amount": 40 }] },
+        { "faces": [4,5,6], "effects": [{ "type": "damage", "amount": 60 }] }
+      ], "image": "cards/otesage.png", "flavor": "" },
+
+    { "no": 4, "id": "yotsuashi", "name": "よつあし", "kind": "otege", "rarity": "normal", "hp": 100,
+      "moves": [
+        { "faces": [1,2,3,4], "effects": [{ "type": "heal", "amount": 10 }] },
+        { "faces": [5,6],     "effects": [{ "type": "damage", "amount": 60 }] }
+      ], "image": "cards/yotsuashi.png", "flavor": "" },
+
+    { "no": 5, "id": "sanbon", "name": "さんぼん", "kind": "otege", "rarity": "normal", "hp": 70,
+      "moves": [
+        { "faces": [1,2,3,4], "effects": [{ "type": "damage", "amount": 20 }] },
+        { "faces": [5,6],     "effects": [{ "type": "damage", "amount": 70 }] }
+      ], "image": "cards/sanbon.png", "flavor": "" },
+
+    { "no": 6, "id": "mutsuashi", "name": "むつあし", "kind": "otege", "rarity": "normal", "hp": 160,
+      "moves": [
+        { "faces": [1,2,3], "effects": [{ "type": "heal", "amount": 10 }] },
+        { "faces": [4,5,6], "effects": [{ "type": "damage", "amount": 20 }] }
+      ], "image": "cards/mutsuashi.png", "flavor": "" },
+
+    { "no": 7, "id": "revolution", "name": "レボリューション", "kind": "otege", "rarity": "super", "hp": 200,
+      "moves": [
+        { "faces": [1,2,3,4,5], "effects": [{ "type": "damage", "amount": 30 }] },
+        { "faces": [6],         "effects": [{ "type": "damage", "amount": 90 }] }
+      ], "image": "cards/revolution.png", "flavor": "" },
+
+    { "no": 8, "id": "kami", "name": "かみ", "kind": "otege", "rarity": "super", "hp": 240,
+      "moves": [
+        { "faces": [1,2],     "effects": [{ "type": "heal", "amount": 30 }] },
+        { "faces": [3,4,5,6], "effects": [{ "type": "damage", "amount": 40 }] }
+      ], "image": "cards/kami.png", "flavor": "" },
+
+    { "no": 9, "id": "kusuri", "name": "くすり", "kind": "item", "color": "green",
+      "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
+      "useCondition": "notFullHp",
+      "effects": [{ "type": "heal", "amount": 30 }],
+      "text": "じぶんの おてあげ 1たいの HPを 30 かいふく", "image": "cards/kusuri.png" },
+
+    { "no": 10, "id": "himitsu_yaiba", "name": "ひみつのやいば", "kind": "item", "color": "red",
+      "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
+      "effects": [{ "type": "addAttack", "amount": 20, "duration": "thisTurn" }],
+      "text": "このターン、ダメージ +20（かさねがけ OK）", "image": "cards/himitsu_yaiba.png" },
+
+    { "no": 11, "id": "kimyou_drink", "name": "きみょうなドリンク", "kind": "item", "color": "purple",
+      "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
+      "effects": [
+        { "type": "setHp", "value": 10 },
+        { "type": "overrideAttack", "value": 50, "duration": "thisTurn" }
+      ],
+      "text": "HPが 10 になる。このターン、ダメージが 50 になる", "image": "cards/kimyou_drink.png" },
+
+    { "no": 12, "id": "supodori", "name": "スポドリ", "kind": "item", "color": "blue",
+      "target": { "side": "self", "zones": ["bench"], "rarity": ["normal"] },
+      "useCondition": "notFullHp",
+      "effects": [{ "type": "heal", "amount": 70 }],
+      "text": "ベンチの つうじょう おてあげ 1たいの HPを 70 かいふく", "image": "cards/supodori.png" }
+  ]
+}
