@@ -449,7 +449,9 @@
 }
 .battle-menu {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
 .battle-menu__surrender {
   width: 360px;
@@ -528,4 +530,36 @@
   background: linear-gradient(transparent 55%, var(--marker-pink) 55%);
   rotate: -2deg;
   pointer-events: none;
+}
+
+/* デバッグ対戦：状態ハッシュ（S99） */
+.battle-hash {
+  position: absolute;
+  left: 40px;
+  top: 238px;
+  z-index: 5;
+  padding: 0 6px;
+  font-size: 16px;
+  color: var(--pen-red);
+  background: var(--paper);
+  pointer-events: none;
+}
+.battle-hash .num {
+  font-size: 20px;
+}
+.battle-hash small {
+  font-size: 14px;
+  color: var(--pencil);
+}
+@media (max-height: 500px) {
+  .battle-hash {
+    font-size: 24px;
+    top: 222px;
+  }
+  .battle-hash .num {
+    font-size: 28px;
+  }
+  .battle-hash small {
+    font-size: 20px;
+  }
 }

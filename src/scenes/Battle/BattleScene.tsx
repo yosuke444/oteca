@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { buildActionLog, downloadActionLog } from '../../battle/actionLog';
 import { type BattleSetup, randomSeed } from '../../battle/setup';
 import { StatsCollector } from '../../battle/stats';
 import { Match, type MatchStep } from '../../controllers/match';
 import type { Controller } from '../../controllers/types';
 import { CARD_DB } from '../../data/cards';
-import { getLegalActions, validateAction } from '../../engine';
+import { getLegalActions, hashState, validateAction } from '../../engine';
 import type { Action, GameState, Side } from '../../engine/types';
 import { type FxEnv } from '../../fx/env';
 import { FxQueue } from '../../fx/fxQueue';
@@ -107,7 +108,7 @@ export function BattleScene() {
 
   // ---------------------------------------------------------------- 試合と演出の準備
   useEffect(() => {
-    const controllers: Record<Side, Controller> = createControllers(setup);
+    const controllers: Record<Side, Controller> = createControllers(setup, () => fxRef.current.speed);
     const match = new Match(
       {
         seed: setup.seed,
@@ -186,6 +187,7 @@ export function BattleScene() {
       reason: view.endReason!,
       stats: statsRef.current.result(match.state),
       log: [...match.log],
+      finalHash: hashState(match.state),
     };
     const id = window.setTimeout(() => go('result', result), 400);
     return () => window.clearTimeout(id);
@@ -382,6 +384,12 @@ export function BattleScene() {
   if (!view) return <div className="battle" ref={rootRef}><div className="fx-overlay" ref={overlayRef} /></div>;
 
   const detailDef = detailUid ? view.cardDefs[view.cards[detailUid].no] : null;
+  // デバッグ：エンジンの正式な状態のハッシュ（S99「状態ハッシュ表示」）
+  const officialHash = setup.showHash && matchRef.current ? hashState(matchRef.current.state) : null;
+  const saveLog = () => {
+    const match = matchRef.current;
+    if (match) downloadActionLog(buildActionLog(setup, match.log, hashState(match.state)));
+  };
 
   return (
     <div className="battle" ref={rootRef}>
@@ -415,6 +423,13 @@ export function BattleScene() {
         onEndTurn={endTurn}
       />
       <div className="fx-overlay" ref={overlayRef} />
+
+      {officialHash && (
+        <div className="battle-hash" data-testid="state-hash">
+          ハッシュ <span className="num">{officialHash}</span>
+          <small>（そうさ {matchRef.current?.log.length ?? 0}）</small>
+        </div>
+      )}
 
       {toast && (
         <div key={toast.n} className="battle-toast" role="status">
@@ -467,6 +482,11 @@ export function BattleScene() {
             >
               <span className="red-pen">おてあげする（こうさん）</span>
             </RoughButton>
+            {setup.debug && (
+              <RoughButton seed="battle-savelog" className="battle-menu__surrender" onClick={saveLog}>
+                こうどうログを ほぞん（JSON）
+              </RoughButton>
+            )}
           </div>
         </Dialog>
       )}

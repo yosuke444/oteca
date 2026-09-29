@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { buildActionLog, downloadActionLog } from '../../battle/actionLog';
 import type { BattleSetup } from '../../battle/setup';
 import type { MatchStats } from '../../battle/stats';
 import { CARD_DB } from '../../data/cards';
@@ -17,6 +18,8 @@ export type ResultPayload = {
   reason: EndReason;
   stats: MatchStats;
   log: Action[];
+  /** 最後の状態ハッシュ（行動ログの保存用） */
+  finalHash: string;
 };
 
 const REASON_TEXT: Record<EndReason, string> = {
@@ -95,6 +98,11 @@ export function ResultScene() {
           メニューへ
         </RoughButton>
       </div>
+      {r.setup.debug && (
+        <RoughButton seed="result-savelog" className="result__savelog" onClick={() => downloadActionLog(buildActionLog(r.setup, r.log, r.finalHash))}>
+          こうどうログを ほぞん
+        </RoughButton>
+      )}
       {waitingRematch && <p className="result__wait pencil">あいても まってるよ</p>}
     </div>
   );

@@ -4,12 +4,18 @@ import { SIZES, clickText, launch, openPage, shot, waitIdle } from './pw.mjs';
 export async function playToEnd(page, prefix, opts = {}) {
   let usedItem = false;
   let swapped = false;
-  for (let turn = 0; turn < 200; turn++) {
+  for (let turn = 0; turn < 600; turn++) {
     await waitIdle(page, 30000);
     if (await page.locator('.result').count()) break;
     if ((await page.locator('.battle-turn').textContent()) === 'けっちゃく') {
       await page.waitForSelector('.result', { timeout: 10000 });
       break;
+    }
+    // CPU・相手の番：終わるのを待つ
+    const hintNow = (await page.locator('.battle-hint').textContent().catch(() => '')) ?? '';
+    if (/あいての ばん|まってるよ/.test(hintNow)) {
+      await page.waitForTimeout(300);
+      continue;
     }
     // 準備：手札の最初のおてあげをバトル場へ
     if (await page.getByText('バトルばに だす おてあげを').count()) {
@@ -67,6 +73,9 @@ export async function playToEnd(page, prefix, opts = {}) {
     }
     const end = page.locator('.battle-end button');
     if ((await end.getAttribute('aria-disabled')) === 'true') {
+      // CPU・相手が動き出したところ（演出中）なら待つ
+      const h = (await page.locator('.battle-hint').textContent().catch(() => '')) ?? '';
+      if (h === '…' || /あいての ばん|まってるよ/.test(h) || (await page.locator('.result').count())) continue;
       await shot(page, `${prefix}_stuck`);
       const hint = await page.locator('.battle-hint').textContent().catch(() => '');
       const prompt = await page.locator('.battle-prompt').textContent().catch(() => '');

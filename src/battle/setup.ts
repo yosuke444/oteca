@@ -22,6 +22,10 @@ export type BattleSetup = {
   fixedDie?: number | null;
   /** デバッグ：配ったあと山札の上に置くカード（カードNo、上から順） */
   stackTop?: Partial<Record<Side, number[]>>;
+  /** デバッグ対戦（行動ログの保存ボタンを出す） */
+  debug?: boolean;
+  /** デバッグ：状態ハッシュを表示する */
+  showHash?: boolean;
 };
 
 /** 乱数の種を作る（ローカル対戦用。オンラインはコミット・リビールで作る） */

@@ -29,6 +29,8 @@ export class Match {
   readonly initial: MatchStep;
   readonly config: GameConfig;
   readonly controllers: Record<Side, Controller>;
+  /** 画面の演出が追いついていて、次の操作を考えてよい時 true（CPU が演出の途中で動かないように） */
+  idle = false;
 
   constructor(config: GameConfig, controllers: Record<Side, Controller>) {
     this.config = config;
@@ -58,6 +60,7 @@ export class Match {
     }
     this._state = r.state;
     this._log.push(action);
+    this.idle = false;
     const step: MatchStep = { index: this._log.length, action, events: r.events, state: r.state };
     for (const fn of this.listeners) fn(step);
     return null;
@@ -70,6 +73,7 @@ export class Match {
 
   /** 画面の演出が追いついた時に呼ぶ。Controller に考える番を知らせる */
   notifyIdle(): void {
+    this.idle = true;
     this.controllers.p1.onIdle(this._state);
     this.controllers.p2.onIdle(this._state);
   }

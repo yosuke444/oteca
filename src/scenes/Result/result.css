@@ -108,3 +108,15 @@
   text-align: center;
   font-size: 20px;
 }
+
+/* デバッグ対戦：行動ログの保存 */
+.result__savelog {
+  position: absolute;
+  right: 30px;
+  bottom: 24px;
+  width: 290px;
+  height: 56px;
+  font-size: 20px;
+  white-space: nowrap;
+  color: var(--pen-red);
+}

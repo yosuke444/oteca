@@ -21,25 +21,26 @@
 }
 .debug-panel {
   position: absolute;
-  left: 40px;
-  right: 40px;
-  top: 100px;
-  bottom: 30px;
+  left: 30px;
+  right: 30px;
+  top: 92px;
+  bottom: 18px;
 }
 .debug-panel > .rough-box__content {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px 26px;
+  gap: 12px;
+  padding: 16px 24px;
 }
 .debug-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  min-height: 48px;
 }
 .debug-row__label {
-  width: 200px;
-  font-size: 20px;
+  flex: 0 0 250px;
+  font-size: 22px;
 }
 .debug-row__choices {
   display: flex;
@@ -47,12 +48,50 @@
   gap: 8px;
 }
 .debug-row__choice {
-  min-width: 110px;
+  min-width: 118px;
+  height: 48px;
+  font-size: 20px;
+}
+.debug-row__choice--die,
+.debug-row__choice--side {
+  min-width: 64px;
+}
+.debug-row__choice--die .num {
+  font-size: 26px;
+}
+.debug-row__note {
+  font-size: 18px;
+}
+.debug-stack {
+  flex: 1;
+  font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.debug-row--cards {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 264px;
+  min-height: 104px;
+  align-content: flex-start;
+}
+.debug-card-btn {
+  min-width: 124px;
   height: 46px;
-  font-size: 17px;
+  font-size: 18px;
+}
+.debug-starts {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  margin-top: auto;
 }
 .debug-scene__start {
-  width: 420px;
-  height: 70px;
-  font-size: 24px;
+  width: 440px;
+  height: 72px;
+  font-size: 26px;
+}
+.debug-stack-note {
+  margin: -8px 0 0 264px;
 }
