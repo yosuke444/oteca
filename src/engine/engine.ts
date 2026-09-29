@@ -56,6 +56,8 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
 export function validateAction(s: GameState, action: Action): RejectReason | null {
   if (isOver(s)) return 'gameOver';
   const p = action.player;
+  // 通信で届いた操作は形が壊れているかもしれない（SPEC §11-5「不正な操作は無視」）
+  if (p !== 'p1' && p !== 'p2') return 'wrongPhase';
   const ps = s.players[p];
 
   switch (action.type) {
@@ -112,6 +114,10 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
     case 'END_TURN':
       if (!ps.active) return 'noActive';
       return null;
+
+    default:
+      // 知らない種類の操作
+      return 'wrongPhase';
   }
 }
 

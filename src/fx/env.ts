@@ -1,4 +1,5 @@
 import type { GameEvent, GameState, Side } from '../engine/types';
+import type { Particles } from './particles';
 
 /** 演出から使える道具（画面が用意して fxQueue に渡す） */
 export type FxEnv = {
@@ -24,6 +25,12 @@ export type FxEnv = {
   markMove(uid: string | null, moveIndex: number | null): void;
   /** 効果音（キーは audio/soundMap.ts） */
   sound(key: string): void;
+  /** 粒子（「演出をへらす」の時も入っているが、出すかどうかは parts 側で判断する） */
+  particles: Particles | null;
+  /** スローモーション（1 でふつう。決着の最後の一撃で 0.4） */
+  slowMo(factor: number): void;
+  /** BGM を一瞬下げる（大ダメージ・きぜつの瞬間。SPEC §10-3） */
+  duckBgm(): void;
   /** ログに1行足す */
   log(event: GameEvent, view: GameState): void;
 };

@@ -85,6 +85,8 @@ type GameNeg = {
   oppSeed: Uint8Array | null;
   revealed: boolean;
   started: boolean;
+  /** deck より先に届いた reveal */
+  pendingReveal: Extract<Msg, { t: 'reveal' }> | null;
 };
 
 export class OnlineSession {
@@ -96,6 +98,8 @@ export class OnlineSession {
   onStamp: (id: number) => void = () => {};
   /** 相手が「もういっかい」を押した */
   onOpponentRematch: () => void = () => {};
+  /** 決着の結果が2人でそろったか（そろった時だけ勝敗を記録する） */
+  onResult: (agree: boolean) => void = () => {};
   /** 状態ハッシュが合わなかった（SPEC §11-6） */
   onDesync: (turn: number) => void = () => {};
   /** 相手が見つかった（VS画面用） */
@@ -133,6 +137,14 @@ export class OnlineSession {
   private readonly myHashes = new Map<number, string>();
   private readonly oppHashes = new Map<number, string>();
   private myRematch = -1;
+  /** この試合でずれを知らせた */
+  private desynced = false;
+  private desyncTurn = 0;
+  private myResult: Side | null = null;
+  private oppResult: Side | null = null;
+  private resultTold = false;
+  /** 「もうすこし まつ」を押した時、この時刻までは「きれた」にしない */
+  private graceUntil = 0;
   private oppRematch = -1;
   /** 受け取った不正なメッセージの記録（SPEC §11-5「ログに残す」） */
   readonly ignored: string[] = [];
@@ -192,6 +204,19 @@ export class OnlineSession {
     this.myHashes.set(turn, hash);
     this.sendToOpponent(makeMsg('hash', this.opts.protocol, { turn, hash, game: this.game }));
     this.compareHash(turn);
+  }
+
+  /** 決着した時：どちらの勝ちになったかを送り合う（SPEC §11-6 の考え方を決着にも使う） */
+  sendResult(winner: Side): void {
+    this.myResult = winner;
+    this.sendToOpponent(makeMsg('hash', this.opts.protocol, { turn: 0, hash: 'end', game: this.game, winner }));
+    this.compareResult();
+  }
+
+  private compareResult(): void {
+    if (this.myResult === null || this.oppResult === null || this.resultTold) return;
+    this.resultTold = true;
+    this.onResult(this.myResult === this.oppResult);
   }
 
   sendStamp(id: number): void {
@@ -259,6 +284,19 @@ export class OnlineSession {
         return;
       case 'hash':
         if (m.body.game !== this.game) return;
+        if (m.body.winner) {
+          this.oppResult = m.body.winner;
+          this.compareResult();
+          return;
+        }
+        if (m.body.mismatch) {
+          if (!this.desynced) {
+            this.desynced = true;
+            this.desyncTurn = m.body.turn;
+            this.onDesync(m.body.turn);
+          }
+          return;
+        }
         this.oppHashes.set(m.body.turn, m.body.hash);
         this.compareHash(m.body.turn);
         return;
@@ -371,9 +409,14 @@ export class OnlineSession {
     this.buffered.clear();
     this.myHashes.clear();
     this.oppHashes.clear();
+    this.desynced = false;
+    this.desyncTurn = 0;
+    this.myResult = null;
+    this.oppResult = null;
+    this.resultTold = false;
     const mySeed = this.randomBytes(32);
     const myCommit = toHex(await sha256(mySeed));
-    this.neg = { game, mySeed, myCommit, oppDeck: null, oppCommit: null, oppSeed: null, revealed: false, started: false };
+    this.neg = { game, mySeed, myCommit, oppDeck: null, oppCommit: null, oppSeed: null, revealed: false, started: false, pendingReveal: null };
     this.sendToOpponent(makeMsg('deck', this.opts.protocol, { cards: this.opts.deck, commit: myCommit, game }));
     // 先に届いていたメッセージ
     const early = this.early.get(game) ?? [];
@@ -397,10 +440,16 @@ export class OnlineSession {
         neg.revealed = true;
         this.sendToOpponent(makeMsg('reveal', this.opts.protocol, { seed: toHex(neg.mySeed), game: neg.game }));
       }
+      const pending = neg.pendingReveal;
+      if (pending) {
+        neg.pendingReveal = null;
+        await this.gotNeg(pending);
+        return;
+      }
     } else {
       if (!neg.oppCommit) {
-        // deck より先に reveal が来ることは無いはずだが、念のため後で処理する
-        this.keepEarly(m.body.game, m);
+        // deck より先に reveal が来た（ふつうは無いが、再接続の時などに起こりうる）→ deck が来てから確かめる
+        neg.pendingReveal = m;
         return;
       }
       let seed: Uint8Array;
@@ -480,7 +529,12 @@ export class OnlineSession {
   private compareHash(turn: number): void {
     const a = this.myHashes.get(turn);
     const b = this.oppHashes.get(turn);
-    if (a !== undefined && b !== undefined && a !== b) this.onDesync(turn);
+    if (a === undefined || b === undefined || a === b || this.desynced) return;
+    this.desynced = true;
+    this.desyncTurn = turn;
+    // 相手にも知らせる（相手の側ではハッシュが合って見えることもあるため）
+    this.sendToOpponent(makeMsg('hash', this.opts.protocol, { turn, hash: a, game: this.game, mismatch: true }));
+    this.onDesync(turn);
   }
 
   // ---------------------------------------------------------------- 再接続・再戦
@@ -492,6 +546,10 @@ export class OnlineSession {
     this.sendToOpponent(makeMsg('deck', this.opts.protocol, { cards: this.opts.deck, commit: neg.myCommit, game: neg.game }));
     if (neg.revealed) this.sendToOpponent(makeMsg('reveal', this.opts.protocol, { seed: toHex(neg.mySeed), game: neg.game }));
     for (const a of this.myLog) this.sendToOpponent(makeMsg('action', this.opts.protocol, a));
+    // ターン終わりのハッシュ・ずれの知らせ・決着の結果も（切れている間に消えたかもしれない）
+    for (const [turn, hash] of this.myHashes) this.sendToOpponent(makeMsg('hash', this.opts.protocol, { turn, hash, game: this.game }));
+    if (this.desynced) this.sendToOpponent(makeMsg('hash', this.opts.protocol, { turn: this.desyncTurn, hash: this.myHashes.get(this.desyncTurn) ?? '', game: this.game, mismatch: true }));
+    if (this.myResult) this.sendToOpponent(makeMsg('hash', this.opts.protocol, { turn: 0, hash: 'end', game: this.game, winner: this.myResult }));
     if (this.myRematch > this.game) this.sendToOpponent(makeMsg('rematch', this.opts.protocol, { game: this.myRematch }));
   }
 
@@ -522,7 +580,8 @@ export class OnlineSession {
       this.send(makeMsg('ping', this.opts.protocol, { t: this.clock.now(), n: this.myLog.length, game: this.game }), this.opponentPeer);
     }
     const since = this.clock.now() - this.lastHeard;
-    const next: Connection = since >= LOST_AFTER_MS ? 'lost' : since >= WAITING_AFTER_MS ? 'waiting' : 'ok';
+    const lost = since >= LOST_AFTER_MS && this.clock.now() >= this.graceUntil;
+    const next: Connection = lost ? 'lost' : since >= WAITING_AFTER_MS ? 'waiting' : 'ok';
     if (next !== this.connection) {
       this.connection = next;
       this.onConnection(next);
@@ -541,7 +600,7 @@ export class OnlineSession {
 
   /** 「もうすこし まつ」：切れた扱いをやめて、もう30秒待つ（SPEC §11-7） */
   waitMore(): void {
-    this.lastHeard = this.clock.now() - WAITING_AFTER_MS;
+    this.graceUntil = this.clock.now() + LOST_AFTER_MS;
     this.connection = 'waiting';
     this.onConnection('waiting');
   }

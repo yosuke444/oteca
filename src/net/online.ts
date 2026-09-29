@@ -21,6 +21,7 @@ type Events = {
   oppRematch: void;
   desync: number;
   waitingTick: number;
+  result: boolean;
 };
 
 type Listener<T> = (v: T) => void;
@@ -35,6 +36,8 @@ export class OnlineLink {
   oppRematch = false;
   /** 自分が「もういっかい」を押した */
   myRematch = false;
+  /** 決着の結果が2人でそろったか（null はまだ分からない） */
+  resultAgree: boolean | null = null;
   /** 届いた相手の操作（試合ごと、全部）。対戦画面が作り直されても最初から通し直せるように */
   private readonly history = new Map<number, Action[]>();
   private sink: { game: number; fn: (a: Action) => void } | null = null;
@@ -54,6 +57,7 @@ export class OnlineLink {
     s.onMatched = (v) => this.emit('matched', v);
     s.onStart = (g) => {
       this.lastStart = g;
+      this.resultAgree = null;
       this.oppRematch = false;
       this.myRematch = false;
       this.emit('start', g);
@@ -65,6 +69,10 @@ export class OnlineLink {
       this.emit('oppRematch', undefined);
     };
     s.onDesync = (turn) => this.emit('desync', turn);
+    s.onResult = (agree) => {
+      this.resultAgree = agree;
+      this.emit('result', agree);
+    };
     s.onWaitingTick = (ms) => this.emit('waitingTick', ms);
     s.onRemoteAction = (a) => {
       const game = this.lastStart?.game ?? 0;
@@ -112,6 +120,9 @@ export function startOnline(roomNumber: string, name: string, deck: number[]): O
     // 開発用：Playwright などから通信をわざと切れるように
     (window as unknown as { __otecaNet?: unknown }).__otecaNet = {
       setOffline: (v: boolean) => link.flaky?.setOffline(v),
+      corruptHash: (v: boolean) => {
+        if (link.flaky) link.flaky.corruptHash = v;
+      },
       selfId: link.transport.selfId,
     };
   }

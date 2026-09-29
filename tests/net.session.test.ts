@@ -245,6 +245,7 @@ async function playLockstep(seedA: number, seedB: number, hooks: { tamper?: bool
     connectLockstep(match, g.me, {
       sendAction: (act) => peer.s.sendAction(act),
       sendHash: (turn, h) => peer.s.sendHash(turn, hooks.tamper && peer === b ? 'deadbeef' : h),
+      sendResult: (w) => peer.s.sendResult(w),
     });
     sides.push({ peer, match, me: g.me });
   }
@@ -278,8 +279,10 @@ describe('オンライン：ロックステップ（SPEC §11-3、§11-6）', ()
   }, 60000);
 
   it('状態ハッシュが違えば「ずれ」を知らせる', async () => {
-    const { a } = await playLockstep(3, 4, { tamper: true });
-    expect(a.desync.length).toBeGreaterThan(0);
+    const { a, b } = await playLockstep(3, 4, { tamper: true });
+    expect(a.desync).toHaveLength(1);
+    // 片方だけが気づいても、相手にも知らせて両方で止まる
+    expect(b.desync).toHaveLength(1);
   }, 60000);
 
   it('送る操作に「誰の操作か」は入れない（受け取った側が相手の役割を入れる）。操作だけで状態は送らない', async () => {
@@ -368,6 +371,14 @@ describe('オンライン：切断・再接続（SPEC §11-7）', () => {
     expect(a.conn.at(-1)).toBe('lost');
     a.s.waitMore();
     expect(a.conn.at(-1)).toBe('waiting');
+    // そこから 30秒は「きれた」にならない
+    clock.advance(LOST_AFTER_MS - 1000);
+    await settle(hub);
+    expect(a.conn.at(-1)).toBe('waiting');
+    clock.advance(1500);
+    await settle(hub);
+    expect(a.conn.at(-1)).toBe('lost');
+    a.s.waitMore();
     // 通信が戻る
     b.t.onMessage = bRecv;
     a.t.onMessage = aRecv;
@@ -395,6 +406,78 @@ describe('オンライン：切断・再接続（SPEC §11-7）', () => {
     await settle(hub);
     expect(got).toEqual(['PLACE_BENCH', 'END_TURN']);
     expect(a.conn.at(-1)).toBe('ok');
+  });
+});
+
+describe('オンライン：切れている間に送ったハッシュ・結果（SPEC §11-6、§11-7）', () => {
+  /** a と b の間の通信を切る。戻す関数を返す */
+  function cut(a: Peer, b: Peer) {
+    const [ra, rb] = [a.t.onMessage, b.t.onMessage];
+    a.t.onMessage = () => {};
+    b.t.onMessage = () => {};
+    return () => {
+      a.t.onMessage = ra;
+      b.t.onMessage = rb;
+    };
+  }
+
+  it('切れている間のターン終わりのハッシュも、戻った時に送り直されて、ずれに両方が気づく', async () => {
+    const { hub, clock, a, b } = await pair();
+    const restore = cut(a, b);
+    a.s.sendHash(1, 'aaaaaaaa');
+    b.s.sendHash(1, 'bbbbbbbb');
+    clock.advance(WAITING_AFTER_MS + 1000);
+    await settle(hub);
+    expect(a.desync).toEqual([]);
+    restore();
+    clock.advance(3500);
+    await settle(hub);
+    expect(a.desync).toEqual([1]);
+    expect(b.desync).toEqual([1]);
+  });
+
+  it('決着の結果を送り合い、そろった時だけ「そろった」と知らせる（同時に降参して食い違った時は記録しない）', async () => {
+    const x = await pair();
+    const got: boolean[][] = [[], []];
+    x.a.s.onResult = (v) => got[0].push(v);
+    x.b.s.onResult = (v) => got[1].push(v);
+    x.a.s.sendResult('p2');
+    x.b.s.sendResult('p2');
+    await settle(x.hub);
+    expect(got).toEqual([[true], [true]]);
+
+    const y = await pair(5, 6);
+    const got2: boolean[] = [];
+    y.a.s.onResult = (v) => got2.push(v);
+    y.b.s.onResult = (v) => got2.push(v);
+    y.a.s.sendResult('p2'); // a は「自分の降参で p2 の勝ち」
+    y.b.s.sendResult('p1'); // b は「自分の降参で p1 の勝ち」
+    await settle(y.hub);
+    expect(got2).toEqual([false, false]);
+  });
+
+  it('deck より先に reveal が届いても、種を決めて始まる', async () => {
+    const hub = new MemoryHub();
+    const clock = new FakeClock();
+    const a = makePeer(hub, clock, 'peer-a');
+    const b = makePeer(hub, clock, 'peer-b');
+    // b の deck だけ、b の reveal より後に届くようにする
+    const send = b.t.send.bind(b.t);
+    let heldDeck: Parameters<typeof send> | null = null;
+    b.t.send = (m, to) => {
+      if (m.t === 'deck' && !heldDeck) {
+        heldDeck = [m, to];
+        return;
+      }
+      send(m, to);
+      if (m.t === 'reveal' && heldDeck) send(...heldDeck);
+    };
+    a.s.join('3333');
+    b.s.join('3333');
+    await matchUp(hub, clock);
+    expect(a.starts).toHaveLength(1);
+    expect(b.starts).toHaveLength(1);
+    expect(a.starts[0].seed).toBe(b.starts[0].seed);
   });
 });
 

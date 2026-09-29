@@ -104,3 +104,238 @@
   rotate: -8deg;
   background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
 }
+
+/* ---------- 粒子（Canvas） ---------- */
+.fx-particles {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  z-index: 61;
+  pointer-events: none;
+}
+
+/* ---------- ペン描き ---------- */
+.fx-write {
+  font-size: 56px;
+  padding: 0 10px;
+}
+.fx-write__text {
+  display: inline-block;
+}
+.fx-write__tip {
+  position: absolute;
+  top: 70%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 3px rgba(30, 36, 51, 0.15);
+}
+.fx-write--me {
+  color: var(--pen-blue);
+}
+.fx-write--opp {
+  color: var(--pen-red);
+}
+.fx-write--big {
+  font-size: 72px;
+}
+.fx-write--green {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 64px;
+  color: var(--pen-green);
+  -webkit-text-stroke: 1px var(--paper);
+  paint-order: stroke fill;
+}
+.fx-write--item {
+  font-size: 30px;
+}
+.fx-marker {
+  translate: 0 0;
+  border-radius: 4px;
+  mix-blend-mode: multiply;
+}
+.fx-ruler,
+.fx-focus,
+.fx-speed {
+  overflow: visible;
+}
+
+/* ---------- 擬音 ---------- */
+.fx-onom {
+  font-size: 58px;
+  font-weight: 700;
+  color: var(--paper);
+  -webkit-text-stroke: 9px var(--ink);
+  paint-order: stroke fill;
+  letter-spacing: -2px;
+  z-index: 5;
+}
+.fx-onom--big {
+  font-size: 116px;
+  -webkit-text-stroke: 14px var(--ink);
+  color: #ffe250;
+}
+
+/* ---------- はんこ ---------- */
+.fx-stamp {
+  font-size: 64px;
+  color: var(--pen-red);
+  border: 6px double var(--pen-red);
+  border-radius: 16px;
+  padding: 0 22px;
+  background: rgba(251, 251, 247, 0.92);
+  z-index: 6;
+}
+.fx-stamp--blue {
+  color: var(--pen-blue);
+  border-color: var(--pen-blue);
+}
+
+/* ---------- ダメージ数字 ---------- */
+.fx-burst {
+  display: grid;
+  place-items: center;
+  z-index: 6;
+}
+.fx-burst > svg,
+.fx-burst > .fx-burst__num {
+  grid-area: 1 / 1;
+}
+.fx-burst__num {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 58px;
+  color: var(--ink);
+}
+.fx-burst--big .fx-burst__num {
+  font-size: 80px;
+}
+
+/* ---------- 画面全体 ---------- */
+.fx-flash {
+  left: 0 !important;
+  top: 0 !important;
+  width: 1280px;
+  height: 720px;
+  translate: 0 0;
+  background: #fff;
+  z-index: 20;
+}
+
+/* ---------- 落書き ---------- */
+.fx-dust,
+.fx-arrow {
+  z-index: 4;
+}
+.fx-tape {
+  width: 64px;
+  height: 20px;
+  background: rgba(214, 196, 150, 0.8);
+  box-shadow: 0 1px 2px var(--note-shadow);
+  clip-path: polygon(0 10%, 6% 0, 12% 12%, 18% 0, 24% 10%, 100% 4%, 94% 50%, 100% 96%, 20% 100%, 12% 88%, 6% 100%, 0 92%, 5% 50%);
+  z-index: 4;
+}
+.fx-sfx-text {
+  font-size: 26px;
+  color: var(--ink);
+  rotate: -8deg;
+}
+.fx-hatch {
+  translate: 0 0;
+  border-radius: 8px;
+  background: repeating-linear-gradient(-45deg, currentColor 0 3px, transparent 3px 9px);
+  mix-blend-mode: multiply;
+}
+.fx-hpseg {
+  translate: 0 0;
+  border-radius: 2px;
+}
+.fx-hpseg--lost {
+  color: var(--pen-red);
+  background: repeating-linear-gradient(-50deg, currentColor 0 2px, transparent 2px 5px);
+}
+.fx-hpseg--gain {
+  color: var(--pen-green);
+  background: repeating-linear-gradient(-50deg, currentColor 0 2.5px, transparent 2.5px 5px);
+}
+.fx-eraser {
+  width: 30px;
+  height: 18px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f3b6c0 0 40%, #fbfbf7 40%);
+  z-index: 5;
+}
+.fx-pentip {
+  width: 8px;
+  height: 30px;
+  translate: -50% -85%;
+  rotate: 25deg;
+  background: linear-gradient(var(--pen-green) 0 75%, var(--ink) 75%);
+  border-radius: 2px 2px 50% 50%;
+  z-index: 5;
+}
+
+/* ---------- サイコロ ---------- */
+.fx-die2 {
+  width: 84px;
+  height: 84px;
+  z-index: 7;
+}
+.fx-die2 svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.fx-die-label {
+  font-size: 26px;
+  z-index: 7;
+}
+.fx-circle {
+  z-index: 8;
+}
+
+/* ---------- アイテム ---------- */
+.fx-note {
+  width: 96px;
+  height: 96px;
+  padding: 16px 8px 6px;
+  font-size: 18px;
+  line-height: 1.2;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 3px 6px 8px -3px var(--note-shadow);
+  z-index: 6;
+}
+.fx-note::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.07);
+}
+.fx-note--yellow { background: var(--note-yellow); }
+.fx-note--green { background: var(--note-green); }
+.fx-note--red { background: var(--note-red); }
+.fx-note--purple { background: var(--note-purple); }
+.fx-note--blue { background: var(--note-blue); }
+.fx-plus {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 44px;
+  color: var(--pen-green);
+  -webkit-text-stroke: 1px var(--paper);
+  paint-order: stroke fill;
+  z-index: 6;
+}
+.fx-swirl,
+.fx-slash {
+  z-index: 6;
+}

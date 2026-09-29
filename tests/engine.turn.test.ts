@@ -109,6 +109,9 @@ describe('ターンの流れ', () => {
       [{ type: 'SWAP', player: 'p1', benchUid: mitsume }, 'notOnBench'],
       [{ type: 'PROMOTE', player: 'p1', benchUid: mitsume }, 'wrongPhase'],
       [{ type: 'SETUP_ACTIVE', player: 'p1', uid: mitsume }, 'wrongPhase'],
+      // 形の壊れた操作（通信で届いたもの）
+      [{ type: 'FLY_AWAY', player: 'p1' } as unknown as Action, 'wrongPhase'],
+      [{ type: 'END_TURN', player: 'p3' } as unknown as Action, 'wrongPhase'],
     ];
     for (const [action, reason] of rejects) {
       const r = applyAction(s, action);

@@ -10,6 +10,7 @@ import { getLegalActions, hashState, validateAction } from '../../engine';
 import type { Action, GameState, Side } from '../../engine/types';
 import { type FxEnv } from '../../fx/env';
 import { FxQueue } from '../../fx/fxQueue';
+import { Particles } from '../../fx/particles';
 import { setFxSpeed } from '../../fx/timing';
 import { useFx } from '../../fx/fxSettings';
 import { useNav } from '../../router';
@@ -77,6 +78,7 @@ export function BattleScene() {
 
   const rootRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const matchRef = useRef<Match | null>(null);
   const queueRef = useRef<FxQueue | null>(null);
   const statsRef = useRef(new StatsCollector());
@@ -129,9 +131,15 @@ export function BattleScene() {
     viewRef.current = match.initial.state;
     setViewState(match.initial.state);
 
+    const particles = canvasRef.current ? new Particles(canvasRef.current, () => fxRef.current.speed) : null;
     const env: FxEnv = {
-      overlay: overlayRef.current!,
-      root: rootRef.current!,
+      // 画面を描き直しても、いつも今の要素を使う
+      get overlay() {
+        return overlayRef.current!;
+      },
+      get root() {
+        return rootRef.current!;
+      },
       me: () => meRef.current,
       speed: () => fxRef.current.speed,
       reduce: () => fxRef.current.reduceFx,
@@ -145,6 +153,9 @@ export function BattleScene() {
       zoneEl: (key) => rootRef.current?.querySelector(`[data-zone="${key}"]`) ?? null,
       markMove: (uid, move) => flushSync(() => setMarked(uid && move !== null ? { uid, move } : null)),
       sound: () => {},
+      particles,
+      slowMo: (factor) => setFxSpeed(fxRef.current.speed, factor),
+      duckBgm: () => {},
       log: (e, before) => {
         const line = logLine(e, before, setup.names);
         if (line) setLogLines((l) => [line, ...l].slice(0, 60));
@@ -176,6 +187,8 @@ export function BattleScene() {
     return () => {
       unsub();
       queue.dispose();
+      particles?.dispose();
+      setFxSpeed(fxRef.current.speed);
       match.dispose();
       matchRef.current = null;
     };
@@ -192,7 +205,8 @@ export function BattleScene() {
 
   // ---------------------------------------------------------------- 決着 → リザルトへ
   useEffect(() => {
-    if (!view || view.phase !== 'over' || busy) return;
+    // 通信のずれ・相手の退室で止めた試合は、決着してもリザルトへ進まない（記録しない）
+    if (!view || view.phase !== 'over' || busy || online.problem) return;
     const match = matchRef.current!;
     const result: ResultPayload = {
       setup,
@@ -204,7 +218,7 @@ export function BattleScene() {
     };
     const id = window.setTimeout(() => go('result', result), 400);
     return () => window.clearTimeout(id);
-  }, [view, busy, go, setup]);
+  }, [view, busy, go, setup, online.problem]);
 
   // ---------------------------------------------------------------- ブラウザの戻るボタン（SPEC §3）
   useEffect(() => {
@@ -394,7 +408,7 @@ export function BattleScene() {
     submit({ type: 'END_TURN', player: me });
   };
 
-  if (!view) return <div className="battle" ref={rootRef}><div className="fx-overlay" ref={overlayRef} /></div>;
+  if (!view) return <div className="battle" ref={rootRef}><div key="fx-overlay" className="fx-overlay" ref={overlayRef} /><canvas key="fx-particles" className="fx-particles" ref={canvasRef} /></div>;
 
   const detailDef = detailUid ? view.cardDefs[view.cards[detailUid].no] : null;
   // デバッグ：エンジンの正式な状態のハッシュ（S99「状態ハッシュ表示」）
@@ -403,7 +417,7 @@ export function BattleScene() {
     const match = matchRef.current;
     if (!match) return;
     // フレンド対戦では、通信の記録（送った操作・受け取れなかったもの）も入れる（SPEC §11-6）
-    const extra = setup.mode === 'online' ? { desyncTurn: online.desyncTurn, session: currentOnline()?.session.debugLog() ?? null } : undefined;
+    const extra = setup.mode === 'online' ? { desyncTurn: online.desyncTurn, rejected: match.rejected, session: currentOnline()?.session.debugLog() ?? null } : undefined;
     downloadActionLog(buildActionLog(setup, match.log, hashState(match.state), extra));
   };
   const lostOpen = setup.mode === 'online' && online.connection === 'lost' && !online.problem && view.phase !== 'over';
@@ -439,7 +453,8 @@ export function BattleScene() {
         onPerform={perform}
         onEndTurn={endTurn}
       />
-      <div className="fx-overlay" ref={overlayRef} />
+      <div key="fx-overlay" className="fx-overlay" ref={overlayRef} />
+      <canvas key="fx-particles" className="fx-particles" ref={canvasRef} />
 
       {officialHash && (
         <div className="battle-hash" data-testid="state-hash">

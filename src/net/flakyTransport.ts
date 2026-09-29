@@ -7,6 +7,8 @@ import type { NetTransport } from './transport';
  */
 export class FlakyTransport implements NetTransport {
   private offline = false;
+  /** 送る状態ハッシュをわざと変える（ズレ検知の確認用） */
+  corruptHash = false;
   onMessage: NetTransport['onMessage'] = () => {};
   onPeerJoin: NetTransport['onPeerJoin'] = () => {};
   onPeerLeave: NetTransport['onPeerLeave'] = () => {};
@@ -42,6 +44,8 @@ export class FlakyTransport implements NetTransport {
   }
 
   send(msg: Msg, to?: string): void {
-    if (!this.offline) this.inner.send(msg, to);
+    if (this.offline) return;
+    if (this.corruptHash && msg.t === 'hash') msg = { ...msg, body: { ...msg.body, hash: '00000000' } };
+    this.inner.send(msg, to);
   }
 }

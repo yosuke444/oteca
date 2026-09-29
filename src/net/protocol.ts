@@ -1,4 +1,4 @@
-import type { Action } from '../engine/types';
+import type { Action, Side } from '../engine/types';
 
 /**
  * 通信メッセージ（SPEC §11-5）
@@ -31,7 +31,11 @@ export type MsgBody = {
   deck: { cards: number[]; commit: string; game: number };
   reveal: { seed: string; game: number };
   action: { seq: number; action: WireAction; game: number };
-  hash: { turn: number; hash: string; game: number };
+  /**
+   * mismatch は追加：ずれに気づいた側が相手にも知らせる（両方で中断するため）
+   * winner は追加：決着した時に「どちらの勝ちになったか」を送り合う（そろった時だけ勝敗を記録する）
+   */
+  hash: { turn: number; hash: string; game: number; mismatch?: boolean; winner?: Side };
   stamp: { id: number };
   rematch: { game: number };
   leave: Record<string, never>;

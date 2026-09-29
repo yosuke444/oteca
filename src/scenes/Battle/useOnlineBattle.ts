@@ -13,6 +13,7 @@ export type OnlineProblem = 'desync' | 'left' | 'cheat' | null;
 /**
  * フレンド対戦のつなぎ（SPEC §11-3〜§11-7）
  * 自分の操作を送り、相手の操作をエンジンに通し、通信の様子を画面に知らせる。
+ * @param matchId 試合（Match）を作った回数。0 はまだ作っていない（作り直しのたびにつなぎ直す）
  */
 export function useOnlineBattle(setup: BattleSetup, matchRef: MutableRefObject<Match | null>, matchId: number) {
   const [connection, setConnection] = useState<Connection>('ok');
@@ -20,7 +21,8 @@ export function useOnlineBattle(setup: BattleSetup, matchRef: MutableRefObject<M
   const [desyncTurn, setDesyncTurn] = useState<number | null>(null);
 
   useEffect(() => {
-    if (setup.mode !== 'online') return;
+    // matchId が 0 の時はまだ試合が無い（同じ試合に2回つなぐと、相手の操作を2回通してしまう）
+    if (setup.mode !== 'online' || matchId === 0) return;
     const link = currentOnline();
     const match = matchRef.current;
     if (!link || !match) {
@@ -29,21 +31,29 @@ export function useOnlineBattle(setup: BattleSetup, matchRef: MutableRefObject<M
     }
     const opp: Side = setup.me === 'p1' ? 'p2' : 'p1';
     const remote = match.controllers[opp] as RemoteController;
+    let stopReceiving = link.receiveActions(setup.game ?? 0, (a) => remote.feed(a));
+    /** 続けられなくなったら、相手の操作はもう通さない（ずれた試合が勝手に決着して記録されないように） */
+    const stop = (p: Exclude<OnlineProblem, null>) => {
+      stopReceiving();
+      stopReceiving = () => {};
+      setProblem(p);
+    };
     const offs = [
       connectLockstep(match, setup.me, link.session),
-      link.receiveActions(setup.game ?? 0, (a) => remote.feed(a)),
       link.on('connection', (c) => setConnection(c)),
       link.on('desync', (turn) => {
         setDesyncTurn(turn);
-        setProblem('desync');
+        stop('desync');
       }),
       link.on('status', (s) => {
-        if (s.kind === 'aborted') setProblem(s.reason);
+        if (s.kind === 'aborted') stop(s.reason);
       }),
     ];
     setConnection(link.session.connection);
-    return () => offs.forEach((f) => f());
-    // 試合（Match）が作り直されたら、つなぎ直す
+    return () => {
+      stopReceiving();
+      offs.forEach((f) => f());
+    };
   }, [matchId]);
 
   return { connection, problem, desyncTurn };

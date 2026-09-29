@@ -47,6 +47,10 @@ export function ResultScene() {
   const [waitingRematch, setWaitingRematch] = useState(false);
   const [oppWants, setOppWants] = useState(link?.oppRematch ?? false);
   const [oppGone, setOppGone] = useState(r.setup.mode === 'online' && !link);
+  // 決着の結果が2人でそろったか（同時に降参した時など、食い違ったら記録しない）
+  const [agree, setAgree] = useState<boolean | null>(link ? link.resultAgree : null);
+  useEffect(() => (link ? link.on('result', setAgree) : undefined), [link]);
+
 
   useEffect(() => {
     if (!link) return;
@@ -80,7 +84,9 @@ export function ResultScene() {
     if (r.setup.mode === 'online') endOnline();
     go('menu');
   };
-  const rematchNote = oppGone
+  const rematchNote = agree === false
+    ? 'ふたりの けっかが ちがったので きろく しないよ'
+    : oppGone
     ? 'あいては メニューに もどったよ'
     : waitingRematch
       ? oppWants
@@ -93,12 +99,13 @@ export function ResultScene() {
   // 勝敗数をセーブデータに記録（フレンド対戦だけ。中断・切断は記録しない）
   useEffect(() => {
     if (recorded.current || !r.setup.record) return;
+    if (r.setup.mode === 'online' && agree !== true) return;
     recorded.current = true;
     update((d) => {
       if (win) d.stats.wins += 1;
       else d.stats.losses += 1;
     });
-  }, [r.setup.record, update, win]);
+  }, [r.setup.record, r.setup.mode, update, win, agree]);
 
   const title = hotSeat ? `${r.setup.names[r.winner]} の かち！` : win ? 'かち！' : 'まけ…';
 
