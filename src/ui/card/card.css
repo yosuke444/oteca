@@ -411,7 +411,12 @@
 }
 /* 技表の該当行に蛍光ペン（サイコロの演出） */
 .card-moves__row.is-marked {
-  background: linear-gradient(transparent 20%, var(--marker-yellow) 20%, var(--marker-yellow) 90%, transparent 90%);
+  background: linear-gradient(transparent 20%, var(--marker-yellow) 20%, var(--marker-yellow) 90%, transparent 90%) no-repeat left / 100% 100%;
+  animation: marker-sweep calc(0.3s / var(--fx-speed)) ease-out both;
+}
+@keyframes marker-sweep {
+  from { background-size: 0% 100%; }
+  to { background-size: 100% 100%; }
 }
 /* 取り消し線方式（§6-6） */
 .card-moves__old {

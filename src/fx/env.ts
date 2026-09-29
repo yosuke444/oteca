@@ -31,6 +31,10 @@ export type FxEnv = {
   slowMo(factor: number): void;
   /** BGM を一瞬下げる（大ダメージ・きぜつの瞬間。SPEC §10-3） */
   duckBgm(): void;
+  /** プレイヤーの名前 */
+  nameOf(side: Side): string;
+  /** ターン開始の文字（ひとりで両方あやつる時は名前、ふだんは「あなた／あいて」）と、画面の下の人のターンか */
+  turnLabel(side: Side): { text: string; mine: boolean };
   /** ログに1行足す */
   log(event: GameEvent, view: GameState): void;
 };
@@ -53,4 +57,6 @@ export type StepContext = {
   attackerUid: string | null;
   /** 最後の一撃（この操作で決着する） */
   finalBlow: boolean;
+  /** 同じ操作の中のイベントどうしで渡す印（例：直前に使ったアイテムの種類） */
+  flags: Record<string, unknown>;
 };

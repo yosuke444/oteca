@@ -15,9 +15,13 @@ export function wait(ms: number): Promise<void> {
   });
 }
 
-/** GSAP のアニメが終わるまで待つ */
+/** GSAP のアニメが終わるまで待つ（アニメ自身の onComplete も呼ぶ） */
 export function play(tween: gsap.core.Animation): Promise<void> {
   return new Promise((resolve) => {
-    tween.eventCallback('onComplete', () => resolve());
+    const own = tween.eventCallback('onComplete') as ((...a: unknown[]) => void) | null;
+    tween.eventCallback('onComplete', () => {
+      own?.();
+      resolve();
+    });
   });
 }

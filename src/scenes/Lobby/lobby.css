@@ -112,7 +112,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(251, 251, 247, 0.7);
+  background: var(--fx-glow);
 }
 .lobby__error-box {
   width: 760px;

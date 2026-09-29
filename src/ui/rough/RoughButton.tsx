@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { audio } from '../../audio/audioManager';
 import { RoughBox } from './RoughBox';
 import { tiltStyle } from './seed';
 
@@ -70,7 +71,11 @@ export function RoughButton({
       style={style}
       aria-disabled={disabled}
       aria-label={ariaLabel}
-      onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(true)}
+      onPointerEnter={(e) => {
+        if (e.pointerType !== 'mouse') return;
+        setHover(true);
+        if (!disabled) audio.play('se_hover');
+      }}
       onPointerLeave={() => {
         setHover(false);
         setPressed(false);
@@ -78,7 +83,12 @@ export function RoughButton({
       onPointerDown={handlePointerDown}
       onPointerUp={() => setPressed(false)}
       onPointerCancel={() => setPressed(false)}
-      onClick={() => (disabled ? onDisabledClick?.() : onClick?.())}
+      onClick={() => {
+        // 押せない時は小さな「ブブッ」、押せる時はペン先の「カチッ」（SPEC §10-3）
+        audio.play(disabled ? 'se_error' : 'se_click');
+        if (disabled) onDisabledClick?.();
+        else onClick?.();
+      }}
     >
       <RoughBox
         seed={seed}

@@ -61,6 +61,8 @@ export class FxQueue {
         if (since < gap) await wait((gap - since) * this.env.speed());
       }
       await this.playStep(step);
+      // スローモーションは1つの操作の中だけ
+      this.env.slowMo(1);
       if (this.disposed) return;
       // 表示をエンジンの正式な状態にそろえる
       this.env.setView(() => step.state);
@@ -74,21 +76,25 @@ export class FxQueue {
 
   private async playStep(step: FxStep): Promise<void> {
     const over = step.events.some((e) => e.type === 'GameOver');
-    const ctx: StepContext = { actor: step.actor, events: step.events, index: 0, attackerUid: null, finalBlow: over };
+    const ctx: StepContext = { actor: step.actor, events: step.events, index: 0, attackerUid: null, finalBlow: over, flags: {} };
     for (let i = 0; i < step.events.length; i++) {
       if (this.disposed) return;
       const e = step.events[i];
       ctx.index = i;
       if (e.type === 'MoveSelected') ctx.attackerUid = e.uid;
       const preset = PRESETS[e.type] as { before?: Function; after?: Function } | undefined;
+      // 演出で失敗しても、表示は進めて試合は止めない
       try {
         if (preset?.before) await preset.before(this.env, e, ctx);
-        const before = this.env.view();
-        this.env.setView((v) => applyEventToView(v, e));
-        this.env.log(e, before);
+      } catch (err) {
+        console.error('[fx]', e.type, err);
+      }
+      const before = this.env.view();
+      this.env.setView((v) => applyEventToView(v, e));
+      this.env.log(e, before);
+      try {
         if (preset?.after) await preset.after(this.env, e, ctx);
       } catch (err) {
-        // 演出で失敗しても、試合は止めない
         console.error('[fx]', e.type, err);
       }
     }

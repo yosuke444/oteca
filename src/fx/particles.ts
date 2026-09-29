@@ -51,7 +51,7 @@ const r = (a: number, b: number) => a + Math.random() * (b - a);
 export function cssColor(v: string): string {
   const m = /^var\((--[\w-]+)\)$/.exec(v.trim());
   if (!m) return v;
-  return getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || '#1e2433';
+  return getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || 'black';
 }
 
 export class Particles {
@@ -60,6 +60,8 @@ export class Particles {
   private raf = 0;
   private last = 0;
   private paused = false;
+  /** 紙・方眼・光の色（CSS 変数から読む） */
+  private readonly colors = { paper: cssColor('var(--paper)'), grid: cssColor('var(--grid-major)'), shine: cssColor('var(--fx-shine)') };
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -173,12 +175,12 @@ export class Particles {
         // 方眼紙の切れ端（くるくる裏返る）
         const w = p.size * 2.2;
         const h = p.size * 1.5 * Math.abs(Math.cos(p.flip));
-        c.fillStyle = '#fbfbf7';
+        c.fillStyle = this.colors.paper;
         c.fillRect(-w / 2, -h / 2, w, h);
         c.globalAlpha = alpha * 0.9;
         c.fillStyle = p.color;
         c.fillRect(-w / 2, -h / 2, w, Math.max(1, h * 0.28));
-        c.strokeStyle = 'rgba(169,200,230,0.9)';
+        c.strokeStyle = this.colors.grid;
         c.lineWidth = 1;
         c.beginPath();
         c.moveTo(-w / 6, -h / 2);
@@ -194,7 +196,7 @@ export class Particles {
         c.quadraticCurveTo(0, -p.size * 0.9, p.size, 0);
         c.quadraticCurveTo(0, p.size * 0.9, -p.size, 0);
         c.fill();
-        c.strokeStyle = 'rgba(255,255,255,0.7)';
+        c.strokeStyle = this.colors.shine;
         c.lineWidth = 1;
         c.beginPath();
         c.moveTo(-p.size * 0.8, 0);
@@ -219,7 +221,7 @@ export class Particles {
         c.beginPath();
         c.ellipse(0, 0, p.size * 1.6, p.size * 0.7, 0, 0, Math.PI * 2);
         c.fill();
-        c.fillStyle = 'rgba(255,255,255,0.6)';
+        c.fillStyle = this.colors.shine;
         c.beginPath();
         c.arc(-p.size * 0.4, -p.size * 0.2, p.size * 0.25, 0, Math.PI * 2);
         c.fill();

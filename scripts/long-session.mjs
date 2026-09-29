@@ -9,7 +9,7 @@ await toMenu(page, size);
 await setSpeed(page, 'さいそく');
 await clickText(page, 'デバッグたいせん');
 await clickText(page, 'ひとりで りょうほう');
-for (let g = 1; g <= 3; g++) {
+for (let g = 1; g <= 2; g++) {
   const t0 = Date.now();
   await playToEnd(page, `_long`, { item: true });
   console.log('game', g, (Date.now() - t0) / 1000, 's');

@@ -95,3 +95,79 @@
 .debug-stack-note {
   margin: -8px 0 0 264px;
 }
+.debug-scene__tool {
+  position: absolute;
+  right: 206px;
+  top: 18px;
+  width: 230px;
+  height: 60px;
+  font-size: 22px;
+  color: var(--pen-red);
+}
+
+/* ---------- 演出テスト ---------- */
+.fxtest-panel {
+  position: absolute;
+  left: 6px;
+  top: 56px;
+  z-index: 80;
+  width: 262px;
+  padding: 8px;
+  background: var(--fx-glow);
+  border: 2px solid var(--pen-red);
+  border-radius: 10px;
+  font-size: 18px;
+}
+.fxtest-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  color: var(--pen-red);
+}
+.fxtest-row,
+.fxtest-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.fxtest-list .fxtest-btn {
+  width: calc(50% - 2px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fxtest-btn {
+  padding: 2px 4px;
+  font-family: var(--font-hand);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.fxtest-btn.is-on {
+  background: var(--marker-yellow);
+}
+.fxtest-btn:disabled {
+  color: var(--pencil);
+  border-style: dashed;
+}
+.fxtest-btn small {
+  font-size: 14px;
+  color: var(--pen-blue);
+}
+.fxtest-btn--back {
+  font-size: 15px;
+}
+@media (max-height: 500px) {
+  .fxtest-panel {
+    width: 330px;
+    font-size: 22px;
+  }
+  .fxtest-btn {
+    font-size: 19px;
+  }
+}

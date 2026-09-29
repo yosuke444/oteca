@@ -31,6 +31,16 @@
   /* きみょうなドリンクの紫・スポドリの水色（演出用） */
   --pen-purple: #8a4fc7;
   --pen-sky: #3aa7d8;
+  /* 演出で使う色（SPEC §9） */
+  --fx-flash: #ffffff;
+  --fx-onom-fill: #ffe250;
+  --fx-splash-light: #a9ddf5;
+  --fx-leaf: #7ccf8f;
+  --fx-eraser: #f3b6c0;
+  --fx-crumb: #c9c9c9;
+  --fx-glow: rgba(251, 251, 247, 0.9);
+  --fx-shine: rgba(255, 255, 255, 0.65);
+  --fx-shadow: rgba(30, 36, 51, 0.15);
 
   /* §6-4 文字 */
   --font-hand: 'Yomogi', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;

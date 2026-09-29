@@ -16,6 +16,7 @@ export type RouteId =
   | 'story'
   | 'gacha'
   | 'debug'
+  | 'fxtest'
   | 'soundtest';
 
 export type Nav = {

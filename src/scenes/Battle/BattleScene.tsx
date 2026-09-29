@@ -131,7 +131,8 @@ export function BattleScene() {
     viewRef.current = match.initial.state;
     setViewState(match.initial.state);
 
-    const particles = canvasRef.current ? new Particles(canvasRef.current, () => fxRef.current.speed) : null;
+    let slow = 1;
+    const particles = canvasRef.current ? new Particles(canvasRef.current, () => fxRef.current.speed * slow) : null;
     const env: FxEnv = {
       // 画面を描き直しても、いつも今の要素を使う
       get overlay() {
@@ -154,8 +155,18 @@ export function BattleScene() {
       markMove: (uid, move) => flushSync(() => setMarked(uid && move !== null ? { uid, move } : null)),
       sound: () => {},
       particles,
-      slowMo: (factor) => setFxSpeed(fxRef.current.speed, factor),
+      slowMo: (factor) => {
+        slow = factor;
+        setFxSpeed(fxRef.current.speed, factor);
+      },
       duckBgm: () => {},
+      nameOf: (side) => setup.names[side],
+      turnLabel: (side) =>
+        setup.mode === 'local'
+          ? { text: `${setup.names[side]} の ターン`, mine: true }
+          : side === setup.me
+            ? { text: 'あなたの ターン', mine: true }
+            : { text: 'あいての ターン', mine: false },
       log: (e, before) => {
         const line = logLine(e, before, setup.names);
         if (line) setLogLines((l) => [line, ...l].slice(0, 60));
@@ -216,7 +227,7 @@ export function BattleScene() {
       log: [...match.log],
       finalHash: hashState(match.state),
     };
-    const id = window.setTimeout(() => go('result', result), 400);
+    const id = window.setTimeout(() => go('result', result), fxRef.current.dur(400));
     return () => window.clearTimeout(id);
   }, [view, busy, go, setup, online.problem]);
 

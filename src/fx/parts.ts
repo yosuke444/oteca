@@ -66,6 +66,18 @@ export async function rulerUnderline(env: FxEnv, box: Box, color = 'var(--pen-bl
   return svg;
 }
 
+/** 紙のベール：盤面の上にうすく紙を重ねて、演出を読みやすくする（フラッシュではないので「へらす」でも出す） */
+export function veil(env: FxEnv, opacity = 0.78): HTMLElement {
+  const el = spawn(env, 'fx-veil', { x: 0, y: 0 });
+  gsap.fromTo(el, { opacity: 0 }, { opacity, duration: 0.2 });
+  return el;
+}
+
+export async function unveil(el: HTMLElement): Promise<void> {
+  await play(gsap.to(el, { opacity: 0, duration: 0.25 }));
+  el.remove();
+}
+
 // ---------------------------------------------------------------- 集中線・速度線
 
 /** 集中線：画面の中心へ向かうペンの線を放射状に描く（「演出をへらす」では出さない） */
@@ -186,7 +198,8 @@ export function shake(env: FxEnv, big: boolean): Promise<void> {
 
 /** ヒットストップ：当たった瞬間に全体を止める（小：60ms／大：140ms） */
 export function hitStop(env: FxEnv, big: boolean): Promise<void> {
-  const ms = (big ? 140 : 60) / env.speed();
+  // 演出スピードとスローモーションの両方で割る（GSAP 全体の速さ＝その掛け算）
+  const ms = (big ? 140 : 60) / (gsap.globalTimeline.timeScale() || 1);
   gsap.globalTimeline.pause();
   env.particles?.pause(true);
   return new Promise((resolve) =>
@@ -326,14 +339,17 @@ export async function hpBarChange(env: FxEnv, uid: string, before: number, after
     tl.to(seg, { clipPath: 'inset(0 100% 0 0)', duration: 0.45, ease: 'power1.inOut' });
     tl.fromTo(eraser, { left: x1, rotate: -20 }, { left: x0, rotate: 10, duration: 0.45, ease: 'power1.inOut' }, '<');
     tl.to(eraser, { opacity: 0, duration: 0.15 });
-    particles(env, { kind: 'crumb', x: (x0 + x1) / 2, y: b.y + b.h, count: 10, colors: ['#e7b8b8', '#c9c9c9'], angle: Math.PI / 2, spread: Math.PI / 3, speed: [40, 140], size: [1.5, 3], life: [0.5, 0.9], gravity: 500, area: (x1 - x0) / 2 });
+    particles(env, { kind: 'crumb', x: (x0 + x1) / 2, y: b.y + b.h, count: 10, colors: ['var(--fx-eraser)', 'var(--fx-crumb)'], angle: Math.PI / 2, spread: Math.PI / 3, speed: [40, 140], size: [1.5, 3], life: [0.5, 0.9], gravity: 500, area: (x1 - x0) / 2 });
     await play(tl);
   } else {
+    // 表示はもう増えたHP。増えた分を紙でかくしておき、ペン先の動きに合わせて左から見せていく（緑ペンで塗り足す）
+    seg.className = 'fx-el fx-hpcover';
     const pen = spawn(env, 'fx-pentip', { x: x0, y: b.y + b.h / 2 });
+    const seconds = mode === 'big' ? 0.7 : 0.45;
     const tl = gsap.timeline({ onComplete: () => (seg.remove(), pen.remove()) });
-    tl.fromTo(seg, { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: mode === 'big' ? 0.7 : 0.45, ease: 'power1.inOut' });
-    tl.fromTo(pen, { left: x0 }, { left: x1, duration: mode === 'big' ? 0.7 : 0.45, ease: 'power1.inOut' }, '<');
-    tl.to([seg, pen], { opacity: 0, duration: 0.2 });
+    tl.fromTo(seg, { clipPath: 'inset(-2px -2px -2px 0%)' }, { clipPath: 'inset(-2px -2px -2px 100%)', duration: seconds, ease: 'power1.inOut' });
+    tl.fromTo(pen, { left: x0 }, { left: x1, duration: seconds, ease: 'power1.inOut' }, '<');
+    tl.to(pen, { opacity: 0, duration: 0.15 });
     await play(tl);
   }
 }
