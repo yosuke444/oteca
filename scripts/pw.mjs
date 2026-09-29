@@ -58,3 +58,11 @@ export async function setSpeed(page, label) {
   await clickText(page, 'もどる');
   await page.getByRole('button', { name: 'デッキへんしゅう' }).waitFor();
 }
+
+/** フレンドたいせん：部屋番号を入れて入室する */
+export async function enterRoom(page, room) {
+  await clickText(page, 'フレンドたいせん');
+  await page.getByTestId('room-input').waitFor();
+  for (const d of room) await page.getByRole('button', { name: d, exact: true }).click();
+  await clickText(page, 'へやに はいる');
+}

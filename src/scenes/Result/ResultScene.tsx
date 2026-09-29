@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { buildActionLog, downloadActionLog } from '../../battle/actionLog';
-import type { BattleSetup } from '../../battle/setup';
+import { type BattleSetup, badOnlineStart, onlineSetup } from '../../battle/setup';
+import { currentOnline, endOnline } from '../../net/online';
+import { isDebugMode } from '../../router';
 import type { MatchStats } from '../../battle/stats';
 import { CARD_DB } from '../../data/cards';
 import type { Action, EndReason, Side } from '../../engine/types';
@@ -40,7 +42,53 @@ export function ResultScene() {
   const win = r.winner === me;
   const s = r.stats.sides[hotSeat ? r.winner : me];
   const mvp = s.mvpNo !== null ? CARD_DB[s.mvpNo] : null;
-  const [waitingRematch] = useState(false);
+  // フレンド対戦の再戦（両者が「もういっかい」を押したら先攻決めから。SPEC §7 S05）
+  const link = r.setup.mode === 'online' ? currentOnline() : null;
+  const [waitingRematch, setWaitingRematch] = useState(false);
+  const [oppWants, setOppWants] = useState(link?.oppRematch ?? false);
+  const [oppGone, setOppGone] = useState(r.setup.mode === 'online' && !link);
+
+  useEffect(() => {
+    if (!link) return;
+    const offs = [
+      link.on('oppRematch', () => setOppWants(true)),
+      link.on('start', (g) => {
+        if (g.game <= (r.setup.game ?? 0)) return;
+        if (badOnlineStart(g)) {
+          endOnline();
+          setOppGone(true);
+          return;
+        }
+        go('battle', onlineSetup(g, isDebugMode()));
+      }),
+      link.on('status', (st) => {
+        if (st.kind === 'aborted') setOppGone(true);
+      }),
+    ];
+    return () => offs.forEach((f) => f());
+  }, [link, go, r.setup.game]);
+
+  const again = () => {
+    if (!link) {
+      go('battle', rematchSetup(r.setup));
+      return;
+    }
+    setWaitingRematch(true);
+    link.requestRematch();
+  };
+  const toMenu = () => {
+    if (r.setup.mode === 'online') endOnline();
+    go('menu');
+  };
+  const rematchNote = oppGone
+    ? 'あいては メニューに もどったよ'
+    : waitingRematch
+      ? oppWants
+        ? 'はじまるよ！'
+        : 'あいてを まってるよ…'
+      : oppWants
+        ? 'あいても まってるよ'
+        : '';
 
   // 勝敗数をセーブデータに記録（フレンド対戦だけ。中断・切断は記録しない）
   useEffect(() => {
@@ -91,10 +139,10 @@ export function ResultScene() {
       )}
 
       <div className="result__buttons">
-        <RoughButton seed="result-again" className="result__btn" highlight onClick={() => go('battle', rematchSetup(r.setup))}>
+        <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone} disabled={waitingRematch || oppGone} onClick={again}>
           もういっかい
         </RoughButton>
-        <RoughButton seed="result-menu" className="result__btn" onClick={() => go('menu')}>
+        <RoughButton seed="result-menu" className="result__btn" onClick={toMenu}>
           メニューへ
         </RoughButton>
       </div>
@@ -103,7 +151,11 @@ export function ResultScene() {
           こうどうログを ほぞん
         </RoughButton>
       )}
-      {waitingRematch && <p className="result__wait pencil">あいても まってるよ</p>}
+      {rematchNote && (
+        <p className={`result__wait ${oppWants && !oppGone ? 'blue-pen' : 'pencil'}`} data-testid="rematch-note">
+          {rematchNote}
+        </p>
+      )}
     </div>
   );
 }

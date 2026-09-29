@@ -563,3 +563,30 @@
     font-size: 20px;
   }
 }
+
+/* フレンド対戦：相手の通信を待っている（SPEC §11-7） */
+.battle-netwait {
+  position: absolute;
+  left: 50%;
+  top: 60px;
+  z-index: 40;
+  translate: -50% 0;
+  padding: 6px 22px;
+  font-size: 24px;
+  color: var(--pen-red);
+  background: var(--paper);
+  border: 3px dashed var(--pen-red);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px var(--note-shadow);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: netwait-blink calc(1.4s / var(--fx-speed)) ease-in-out infinite;
+}
+@keyframes netwait-blink {
+  50% { border-color: var(--paper); }
+}
+@media (max-height: 500px) {
+  .battle-netwait {
+    font-size: 34px;
+  }
+}

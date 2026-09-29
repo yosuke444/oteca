@@ -9,6 +9,7 @@ import { SettingsScene } from './scenes/Settings/SettingsScene';
 import { BattleScene } from './scenes/Battle/BattleScene';
 import { ResultScene } from './scenes/Result/ResultScene';
 import { DebugScene } from './scenes/Debug/DebugScene';
+import { LobbyScene } from './scenes/Lobby/LobbyScene';
 import { ComingSoonScene, UnderConstructionScene } from './scenes/Placeholder/PlaceholderScene';
 
 /**
@@ -18,7 +19,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   title: TitleScene,
   menu: MenuScene,
   deck: DeckEditScene,
-  lobby: UnderConstructionScene,
+  lobby: LobbyScene,
   battle: BattleScene,
   result: ResultScene,
   settings: SettingsScene,

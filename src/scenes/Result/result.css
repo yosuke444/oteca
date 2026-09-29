@@ -103,10 +103,16 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 680px;
+  top: 676px;
   margin: 0;
   text-align: center;
-  font-size: 20px;
+  font-size: 26px;
+}
+@media (max-height: 500px) {
+  .result__wait {
+    top: 668px;
+    font-size: 34px;
+  }
 }
 
 /* デバッグ対戦：行動ログの保存 */

@@ -20,6 +20,8 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { BattleBoard, type BoardSel } from './BattleBoard';
 import { logLine, rejectText } from './battleText';
 import { createControllers } from './controllersFor';
+import { useOnlineBattle } from './useOnlineBattle';
+import { currentOnline, endOnline } from '../../net/online';
 import type { ResultPayload } from '../Result/ResultScene';
 import './battle.css';
 
@@ -94,6 +96,8 @@ export function BattleScene() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [idleSince, setIdleSince] = useState(0);
+  /** 試合（Match）を作り直した回数（フレンド対戦のつなぎ直しに使う） */
+  const [matchId, setMatchId] = useState(0);
 
   const fxRef = useRef(fx);
   fxRef.current = fx;
@@ -120,6 +124,7 @@ export function BattleScene() {
       controllers,
     );
     matchRef.current = match;
+    setMatchId((n) => n + 1);
     setLogLines([]);
     viewRef.current = match.initial.state;
     setViewState(match.initial.state);
@@ -177,6 +182,14 @@ export function BattleScene() {
     // setup は画面に入った時に1回だけ使う
   }, []);
 
+  // ---------------------------------------------------------------- フレンド対戦（SPEC §11）
+  const online = useOnlineBattle(setup, matchRef, matchId);
+  /** 対戦をやめてメニューへ（中断なので勝敗は記録しない） */
+  const quitToMenu = useCallback(() => {
+    if (setup.mode === 'online') endOnline();
+    go('menu');
+  }, [go, setup.mode]);
+
   // ---------------------------------------------------------------- 決着 → リザルトへ
   useEffect(() => {
     if (!view || view.phase !== 'over' || busy) return;
@@ -221,7 +234,7 @@ export function BattleScene() {
 
   // ---------------------------------------------------------------- 操作
   const controllerKind = matchRef.current?.controllers[me].kind;
-  const canAct = !!view && !busy && view.phase !== 'over' && controllerKind === 'human';
+  const canAct = !!view && !busy && view.phase !== 'over' && controllerKind === 'human' && !online.problem;
   /** 自分が決める番か（相手の番ならえんぴつ色にする。演出中はちらつかないよう変えない） */
   const myDecision =
     !!view &&
@@ -292,12 +305,12 @@ export function BattleScene() {
 
   const surrender = useCallback(() => {
     const match = matchRef.current;
-    if (!match || match.state.phase === 'over') {
-      go('menu');
+    if (!match || match.state.phase === 'over' || online.problem) {
+      quitToMenu();
       return;
     }
     match.submit({ type: 'SURRENDER', player: meRef.current });
-  }, [go]);
+  }, [quitToMenu, online.problem]);
 
   /** 出来ない理由の一言 */
   const reasonFor = (uid: string): string => {
@@ -388,8 +401,12 @@ export function BattleScene() {
   const officialHash = setup.showHash && matchRef.current ? hashState(matchRef.current.state) : null;
   const saveLog = () => {
     const match = matchRef.current;
-    if (match) downloadActionLog(buildActionLog(setup, match.log, hashState(match.state)));
+    if (!match) return;
+    // フレンド対戦では、通信の記録（送った操作・受け取れなかったもの）も入れる（SPEC §11-6）
+    const extra = setup.mode === 'online' ? { desyncTurn: online.desyncTurn, session: currentOnline()?.session.debugLog() ?? null } : undefined;
+    downloadActionLog(buildActionLog(setup, match.log, hashState(match.state), extra));
   };
+  const lostOpen = setup.mode === 'online' && online.connection === 'lost' && !online.problem && view.phase !== 'over';
 
   return (
     <div className="battle" ref={rootRef}>
@@ -429,6 +446,55 @@ export function BattleScene() {
           ハッシュ <span className="num">{officialHash}</span>
           <small>（そうさ {matchRef.current?.log.length ?? 0}）</small>
         </div>
+      )}
+
+      {/* 相手の通信が止まっている（SPEC §11-7） */}
+      {setup.mode === 'online' && online.connection === 'waiting' && !online.problem && view.phase !== 'over' && (
+        <div className="battle-netwait" role="status">
+          あいての つうしんを まっています…
+        </div>
+      )}
+
+      {lostOpen && (
+        <Dialog
+          seed="net-lost"
+          title="つうしんが きれたよ"
+          actions={
+            <>
+              <RoughButton seed="net-lost-menu" onClick={quitToMenu}>
+                メニューへ
+              </RoughButton>
+              <RoughButton seed="net-lost-wait" highlight onClick={() => currentOnline()?.session.waitMore()}>
+                もうすこし まつ
+              </RoughButton>
+            </>
+          }
+        >
+          あいてから 30びょう へんじが ないよ。この たいせんは きろく されないよ。
+        </Dialog>
+      )}
+
+      {online.problem && view.phase !== 'over' && (
+        <Dialog
+          seed={`net-problem-${online.problem}`}
+          title={online.problem === 'left' ? 'あいてが いなく なったよ' : 'データの ずれが おきたよ'}
+          actions={
+            <>
+              {online.problem !== 'left' && (
+                <RoughButton seed="net-problem-log" onClick={saveLog}>
+                  ログを ほぞん
+                </RoughButton>
+              )}
+              <RoughButton seed="net-problem-menu" highlight onClick={quitToMenu}>
+                メニューへ
+              </RoughButton>
+            </>
+          }
+        >
+          {online.problem === 'left'
+            ? 'あいてが たいせんを やめたみたい。この たいせんは きろく されないよ。'
+            : 'ふたりの がめんの けっかが ちがって しまったので、たいせんを ちゅうだん するよ。この たいせんは きろく されないよ。'}
+        </Dialog>
       )}
 
       {toast && (

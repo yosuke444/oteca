@@ -1,0 +1,273 @@
+.lobby {
+  position: absolute;
+  inset: 0;
+}
+.lobby__title {
+  position: absolute;
+  left: 48px;
+  top: 16px;
+  margin: 0;
+  font-size: 40px;
+  font-weight: normal;
+}
+.lobby__back {
+  position: absolute;
+  right: 36px;
+  top: 18px;
+  width: 150px;
+  height: 60px;
+  font-size: 24px;
+}
+.lobby__label {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+/* ---------- 入力：左（ばんごう・テンキー） ---------- */
+.lobby__left {
+  position: absolute;
+  left: 60px;
+  top: 92px;
+  width: 500px;
+}
+.lobby__num {
+  width: 500px;
+  height: 92px;
+}
+.lobby__num > .rough-box__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lobby__digits {
+  display: flex;
+  gap: 6px;
+}
+.lobby__digit {
+  width: 50px;
+  text-align: center;
+  font-size: 64px;
+  line-height: 1;
+}
+.lobby__digit--empty {
+  font-size: 34px;
+  color: var(--grid-major);
+}
+.lobby__pad {
+  margin-top: 16px;
+  width: 500px;
+}
+
+/* ---------- 入力：右（デッキ・はいる） ---------- */
+.lobby__right {
+  position: absolute;
+  left: 640px;
+  top: 92px;
+  width: 580px;
+}
+.lobby__decks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lobby__deck {
+  width: 580px;
+  height: 58px;
+  font-size: 24px;
+}
+.lobby__deck .rough-btn__label {
+  width: 100%;
+}
+.lobby__deck .tilt {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+.lobby__deck-name {
+  flex: 1;
+  text-align: left;
+  padding-left: 18px;
+}
+.lobby__deck-note {
+  padding-right: 18px;
+  font-size: 20px;
+}
+.lobby__join {
+  margin-top: 24px;
+  width: 580px;
+  height: 92px;
+  font-size: 34px;
+}
+.lobby__note {
+  margin: 14px 0 0;
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+/* ---------- エラー ---------- */
+.lobby__error {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(251, 251, 247, 0.7);
+}
+.lobby__error-box {
+  width: 760px;
+}
+.lobby__error-box > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 36px 30px;
+}
+.lobby__error-text {
+  margin: 0;
+  white-space: pre-line;
+  font-size: 30px;
+  text-align: center;
+  line-height: 1.5;
+}
+.lobby__error-ok {
+  width: 220px;
+  height: 66px;
+  font-size: 26px;
+}
+
+/* ---------- 待機 ---------- */
+.lobby--wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 60px;
+}
+.lobby-wait__label {
+  margin: 0;
+  font-size: 28px;
+  color: var(--pencil);
+}
+.lobby-wait__num {
+  margin-top: 10px;
+  min-width: 520px;
+  height: 170px;
+}
+.lobby-wait__num > .rough-box__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 40px;
+}
+.lobby-wait__num .num {
+  font-size: 140px;
+  letter-spacing: 10px;
+  line-height: 1;
+}
+.lobby-wait__tell {
+  margin: 22px 0 0;
+  font-size: 32px;
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+  padding: 0 8px;
+}
+.lobby-wait__waiting {
+  margin: 36px 0 0;
+  font-size: 30px;
+}
+.lobby-wait__dots {
+  display: inline-block;
+  width: 3.2em;
+  text-align: left;
+  color: var(--pencil);
+}
+.lobby-wait__hint {
+  margin: 12px 0 0;
+  font-size: 28px;
+}
+.lobby-wait__cancel {
+  position: absolute;
+  bottom: 40px;
+  width: 220px;
+  height: 66px;
+  font-size: 26px;
+}
+
+/* ---------- あいてが きた！ ---------- */
+.lobby--found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lobby-found {
+  margin: 0;
+  font-size: 96px;
+  padding: 0 24px;
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+  animation: lobby-pop calc(400ms / var(--fx-speed)) cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+@keyframes lobby-pop {
+  from { transform: scale(0.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- VS ---------- */
+.lobby--vs {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 60px;
+}
+.lobby-vs__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 440px;
+}
+.lobby-vs__side--me {
+  animation: lobby-in-left calc(500ms / var(--fx-speed)) ease-out both;
+}
+.lobby-vs__side--opp {
+  animation: lobby-in-right calc(500ms / var(--fx-speed)) ease-out both;
+}
+.lobby-vs__who {
+  font-size: 28px;
+}
+.lobby-vs__name {
+  font-size: 64px;
+  white-space: nowrap;
+}
+.lobby-vs__vs {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 150px;
+  color: var(--ink);
+  rotate: -6deg;
+  background: linear-gradient(transparent 55%, var(--marker-pink) 55%);
+  padding: 0 20px;
+  animation: lobby-pop calc(500ms / var(--fx-speed)) cubic-bezier(0.2, 1.8, 0.4, 1) calc(300ms / var(--fx-speed)) both;
+}
+@keyframes lobby-in-left {
+  from { transform: translateX(-300px); opacity: 0; }
+}
+@keyframes lobby-in-right {
+  from { transform: translateX(300px); opacity: 0; }
+}
+.lobby__more {
+  margin-left: 8px;
+}
+
+/* 小さい画面（スマホ横向き）：舞台が縮むので、説明の文字を大きく */
+@media (max-height: 500px) {
+  .lobby__note {
+    font-size: 26px;
+    line-height: 1.35;
+  }
+  .lobby__deck-note {
+    font-size: 24px;
+  }
+  .lobby-wait__label {
+    font-size: 34px;
+  }
+}

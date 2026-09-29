@@ -212,3 +212,23 @@
 .red-pen {
   color: var(--pen-red);
 }
+.blue-pen {
+  color: var(--pen-blue);
+}
+
+/* ---------- テンキー（ロビー） ---------- */
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.numpad__key {
+  height: 76px;
+  font-size: 44px;
+}
+.numpad__key .num {
+  font-size: 48px;
+}
+.numpad__key--word {
+  font-size: 24px;
+}
