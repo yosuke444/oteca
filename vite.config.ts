@@ -5,15 +5,26 @@ import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * 戦闘曲の一覧（SPEC §10-2）。public/audio/bgm/battle/ にある .mp3 を数えて、
- * `virtual:battle-bgm` として渡す。曲を足す時はファイルを置くだけでよい。
- * - 開発サーバー：フォルダを見張り、曲を足す・消すとページを読み込み直す
- * - 公開用ビルド：ビルドした時にある曲が入る
+ * 音のファイルの一覧（SPEC §10）。public/audio/ の中を数えて渡す。
+ * - `virtual:battle-bgm`：戦闘曲（public/audio/bgm/battle/ の .mp3）。曲を足す時はファイルを置くだけでよい
+ * - `virtual:audio-files`：public/audio/ の中の全部の音のファイル（例 bgm/bgm_title.mp3、se/se_click.mp3）。
+ *   置いていないファイル（.ogg・効果音の差し替え）をネット越しに確かめない（公開サイトで 404 を出さない）ため
+ * 開発サーバー：フォルダを見張り、ファイルを足す・消すとページを読み込み直す。公開用ビルド：ビルドした時のファイルが入る
  */
 function battleBgm(): Plugin {
   const id = 'virtual:battle-bgm';
   const resolved = '\0' + id;
-  const dir = resolve(import.meta.dirname, 'public/audio/bgm/battle');
+  const filesId = 'virtual:audio-files';
+  const filesResolved = '\0' + filesId;
+  const audioDir = resolve(import.meta.dirname, 'public/audio');
+  const dir = resolve(audioDir, 'bgm/battle');
+  const audioFiles = () =>
+    existsSync(audioDir)
+      ? readdirSync(audioDir, { recursive: true, encoding: 'utf8' })
+          .map((f) => f.replace(/\\/g, '/'))
+          .filter((f) => /\.(mp3|ogg)$/i.test(f))
+          .sort()
+      : [];
   const list = () => {
     if (!existsSync(dir)) return [];
     const files = readdirSync(dir);
@@ -28,14 +39,20 @@ function battleBgm(): Plugin {
   };
   return {
     name: 'oteca-battle-bgm',
-    resolveId: (source) => (source === id ? resolved : undefined),
-    load: (source) => (source === resolved ? `export default ${JSON.stringify(list())};` : undefined),
+    resolveId: (source) => (source === id ? resolved : source === filesId ? filesResolved : undefined),
+    load: (source) => {
+      if (source === resolved) return `export default ${JSON.stringify(list())};`;
+      if (source === filesResolved) return `export default ${JSON.stringify(audioFiles())};`;
+      return undefined;
+    },
     configureServer(server) {
-      server.watcher.add(dir);
+      server.watcher.add(audioDir);
       const onChange = (file: string) => {
-        if (!resolve(file).startsWith(dir)) return;
-        const mod = server.moduleGraph.getModuleById(resolved);
-        if (mod) server.moduleGraph.invalidateModule(mod);
+        if (!resolve(file).startsWith(audioDir)) return;
+        for (const r of [resolved, filesResolved]) {
+          const mod = server.moduleGraph.getModuleById(r);
+          if (mod) server.moduleGraph.invalidateModule(mod);
+        }
         server.ws.send({ type: 'full-reload' });
       };
       server.watcher.on('add', onChange);

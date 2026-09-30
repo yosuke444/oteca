@@ -129,6 +129,8 @@ try {
   await clickText(b.page, 'ひとりで りょうほう');
   await b.page.waitForFunction(() => (window.Howler?._howls ?? []).some((h) => String(h._src).includes('/bgm/battle/') && h.playing()), null, { timeout: 20000 });
   await startMonitor(b.page);
+  // 前の画面の曲が 0.8秒のクロスフェードで消えきるのを待つ
+  await b.page.waitForTimeout(1200);
   const bs1 = (await battleHowls(b.page)).find((h) => h.playing).file;
   const others = (await b.page.evaluate(() => (window.Howler?._howls ?? []).filter((h) => h.playing()).map((h) => String(h._src).split('/').pop()))).filter((f) => f !== bs1);
   check(others.length === 0, `対戦画面では戦闘曲だけ流れる（${bs1}${others.length ? '、ほか ' + others.join(',') : ''}）`);

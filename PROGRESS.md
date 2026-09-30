@@ -265,3 +265,4 @@
 - [x] 過去のコミットから screenshots/ と元画像を履歴ごと消した。作者のメールアドレスを noreply に置き換えた
 - [x] 公開されるファイルに個人情報が無いことを確認
 - [x] 公開パス /oteca/、Cookie の path /oteca/、GitHub Actions で自動公開
+- [x] 公開URLを Playwright で確認（scripts/check-public.mjs）。置いていない音のファイルの確認で出ていた 404 を無くした

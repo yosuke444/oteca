@@ -85,3 +85,5 @@
 | 79 | 6 | 公開は GitHub Actions（.github/workflows/deploy.yml）。main ブランチに push すると、テスト → ビルド → GitHub Pages。テストが失敗したら公開しない。手元のブランチ名を master から main に変えた | 壊れたものを公開しないため。Actions は main への push で動かす |
 | 80 | 6 | このリポジトリだけ、コミットに使うメールアドレスを GitHub の noreply アドレスにした（git config user.email）。過去の14コミットも書き換え済み | 公開リポジトリに本物のメールアドレスを残さないため |
 | 81 | 6 | 公開用に短い README.md を足した。.claude/（Claude Code の手元の設定）も .gitignore に入れた | 公開リポジトリの入口として。手元の設定は公開しないため |
+| 82 | 6 | 置いていない音のファイル（BGM と同じ名前の .ogg、効果音の差し替え public/audio/se/*.mp3）を、ネット越しに確かめるのをやめた。public/audio/ の中のファイルの一覧をビルドした時に作り（virtual:audio-files）、それを見て判断する。#49 の「本番で 404 が最大25件出る」は無くなった | 公開サイトで、読み込みエラー（404）がコンソールに27件ほど出ていたため。動作には影響していなかった |
+| 83 | 6 | 公開後の確認は scripts/check-public.mjs（公開URLで タイトル → デッキ編集 → デバッグ対戦。画像・BGM・戦闘曲・効果音・Cookie の path・読み込みエラー） | 次回から公開のたびに同じ確認ができるように |

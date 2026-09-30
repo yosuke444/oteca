@@ -1,4 +1,5 @@
 import { Howl, Howler } from 'howler';
+import audioFiles from 'virtual:audio-files';
 import { BattlePlaylist } from './battlePlaylist';
 import {
   BATTLE_DIR,
@@ -311,12 +312,9 @@ class AudioManager {
   private bgmSources(key: LoopBgmKey): Promise<string[] | null> {
     const hit = this.bgmFiles.get(key);
     if (hit) return hit;
-    const p = (async () => {
-      const urls = [`${base}${BGM_DIR}${key}.mp3`, `${base}${BGM_DIR}${key}.ogg`];
-      const ok = await Promise.all(urls.map(exists));
-      const found = urls.filter((_, i) => ok[i]);
-      return found.length > 0 ? found : null;
-    })();
+    // 置いてあるファイルだけ（一覧はビルドした時に作る。無いファイルを確かめに行かない）
+    const found = [`${BGM_DIR}${key}.mp3`, `${BGM_DIR}${key}.ogg`].filter(hasFile).map((f) => `${base}${f}`);
+    const p = Promise.resolve(found.length > 0 ? found : null);
     this.bgmFiles.set(key, p);
     return p;
   }
@@ -328,8 +326,9 @@ class AudioManager {
   private async checkSeFiles(mx: Mixer): Promise<void> {
     await Promise.all(
       SE_KEYS.map(async (key) => {
-        const url = `${base}${SE_DIR}${key}.mp3`;
-        if (!(await exists(url))) {
+        const file = `${SE_DIR}${key}.mp3`;
+        const url = `${base}${file}`;
+        if (!hasFile(file)) {
           this.seFiles.set(key, null);
           return;
         }
@@ -363,15 +362,11 @@ function saveLastBattle(id: string): void {
   }
 }
 
-/** ファイルがあるか（音のファイルとして返ってくるか。開発サーバーは無いファイルに HTML を返すことがある） */
-async function exists(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, { method: 'HEAD' });
-    const type = res.headers.get('content-type') ?? '';
-    return res.ok && !type.includes('text/html');
-  } catch {
-    return false;
-  }
+const files = new Set(audioFiles.map((f) => `audio/${f}`));
+
+/** public/ の下にそのファイルがあるか（例 audio/bgm/bgm_title.mp3。一覧は vite.config.ts が作る） */
+function hasFile(path: string): boolean {
+  return files.has(path);
 }
 
 export const audio = new AudioManager();
