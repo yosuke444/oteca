@@ -20,7 +20,7 @@ export function hintText(view: GameState, me: Side, legal: Action[], selectedUid
     if (def.kind === 'item') return 'ひかる おてあげに つかおう';
     return 'あいている ベンチに だそう';
   }
-  if (legal.some((a) => a.type === 'PLACE_BENCH')) return 'ベンチに だそう（1ターン 1まい まで）';
+  if (legal.some((a) => a.type === 'PLACE_BENCH')) return `ベンチに だそう（1ターン ${view.rules[me].benchPlacePerTurn}たい まで）`;
   if (ps.swappedThisTurn) return 'こうたいしたので こうげきは なし';
   if (legal.some((a) => a.type === 'USE_ITEM')) return 'アイテムか「ターンおわり」を おそう';
   return '「ターンおわり＆こうげき！」を おそう';

@@ -616,7 +616,7 @@
   position: absolute;
   right: 0;
   top: 52px;
-  width: 360px;
+  width: 400px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -632,6 +632,7 @@
   justify-content: center;
   gap: 4px;
   height: 52px;
+  white-space: nowrap;
   font-family: var(--font-hand);
   font-size: 21px;
   color: var(--ink);
@@ -654,7 +655,8 @@
 }
 .stamp-balloon {
   position: absolute;
-  z-index: 46;
+  /* 演出の層（ベールなど）より上に出す */
+  z-index: 70;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -712,8 +714,12 @@
     font-size: 24px;
     height: 50px;
   }
+  .stamp-picker__panel {
+    width: 460px;
+  }
   .stamp-picker__item {
-    font-size: 25px;
+    font-size: 24px;
+    height: 60px;
   }
   .stamp-balloon {
     font-size: 32px;

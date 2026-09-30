@@ -11,8 +11,16 @@ import { RoughButton } from '../../ui/rough/RoughButton';
  * 「コードを いれる」：貼り付け欄 → 確認「いまの データは うわがき されるよ」→ 復元。
  */
 
-export function MakeCodeDialog({ save, onClose }: { save: SaveData; onClose: () => void }) {
+/** コードを見せて「つくった」と数える時間（書き写すのに使ったとみなす） */
+const SHOWN_ENOUGH_MS = 5000;
+
+export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; onClose: () => void; onCreated: () => void }) {
   const [code] = useState(() => encodeTransferCode(save));
+  const [openedAt] = useState(() => Date.now());
+  const close = () => {
+    if (Date.now() - openedAt >= SHOWN_ENOUGH_MS) onCreated();
+    onClose();
+  };
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const digits = code.replace(/-/g, '').length;
@@ -27,6 +35,7 @@ export function MakeCodeDialog({ save, onClose }: { save: SaveData; onClose: () 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code);
+      onCreated();
       setMsg({ text: 'コピーしたよ！ メモアプリなどに はりつけて とっておいてね', ok: true });
       return;
     } catch {
@@ -35,6 +44,7 @@ export function MakeCodeDialog({ save, onClose }: { save: SaveData; onClose: () 
     selectAll();
     try {
       if (document.execCommand('copy')) {
+        onCreated();
         setMsg({ text: 'コピーしたよ！ メモアプリなどに はりつけて とっておいてね', ok: true });
         return;
       }
@@ -52,7 +62,7 @@ export function MakeCodeDialog({ save, onClose }: { save: SaveData; onClose: () 
       width={760}
       actions={
         <>
-          <RoughButton seed="make-code-close" onClick={onClose}>
+          <RoughButton seed="make-code-close" onClick={close}>
             とじる
           </RoughButton>
           <RoughButton seed="make-code-copy" highlight onClick={copy}>

@@ -141,3 +141,7 @@
     font-size: 23px;
   }
 }
+.rules-art--cards,
+.rules-art--attack {
+  gap: 60px;
+}

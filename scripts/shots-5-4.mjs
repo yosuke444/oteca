@@ -69,9 +69,8 @@ await clickText(page, 'おてあげする', { exact: true });
 await page.locator('.result').waitFor();
 await clickText(page, 'メニューへ');
 await page.getByRole('button', { name: 'せってい' }).click();
-await page.locator('#hints-off, [data-testid="hints-off"]').first().click().catch(async () => {
-  await page.getByRole('button', { name: /OFF|けす|だ さない/ }).last().click();
-});
+// 「ヒントを だす」は設定の いちばん下の オン／オフ
+await page.getByRole('button', { name: 'オフ', exact: true }).last().click();
 await clickText(page, 'もどる');
 await clickText(page, 'デバッグ たいせん');
 await clickText(page, 'ひとりで りょうほう');

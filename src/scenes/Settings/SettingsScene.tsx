@@ -91,10 +91,7 @@ export function SettingsScene() {
           ほかの たんまつや ブラウザに データを もっていけるよ。ブラウザの データを けすと きえるので、ときどき コードを つくっておこう。
         </p>
         <div className="settings-transfer">
-          <RoughButton seed="make-code-btn" className="settings-transfer__btn" onClick={() => {
-            markCodeCreated();
-            setDialog('make');
-          }}>
+          <RoughButton seed="make-code-btn" className="settings-transfer__btn" onClick={() => setDialog('make')}>
             コードを つくる
           </RoughButton>
           <RoughButton seed="enter-code-btn" className="settings-transfer__btn" onClick={() => setDialog('enter')}>
@@ -109,7 +106,7 @@ export function SettingsScene() {
         </RoughButton>
       </RoughBox>
 
-      {dialog === 'make' && <MakeCodeDialog save={save} onClose={() => setDialog(null)} />}
+      {dialog === 'make' && <MakeCodeDialog save={save} onClose={() => setDialog(null)} onCreated={markCodeCreated} />}
       {dialog === 'enter' && <EnterCodeDialog onRestore={replace} onClose={() => setDialog(null)} />}
       {dialog === 'wipe1' && (
         <Dialog

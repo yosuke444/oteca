@@ -237,9 +237,11 @@ export function BattleScene() {
     if (setup.mode !== 'online') return;
     const link = currentOnline();
     if (!link) return;
+    let lastAt = 0;
     return link.on('stamp', (id) => {
-      // 届いた番号が正しい時だけ（壊れたデータは無視）
-      if (!isStampId(id)) return;
+      // 届いた番号が正しい時だけ（壊れたデータは無視）。3秒より短い間隔で届いたものも無視する
+      if (!isStampId(id) || Date.now() - lastAt < STAMP_COOLDOWN_MS - 300) return;
+      lastAt = Date.now();
       setOppStamp((s) => ({ id, n: (s?.n ?? 0) + 1 }));
       audio.play('se_stamp_chat');
     });

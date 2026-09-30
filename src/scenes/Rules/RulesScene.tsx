@@ -74,7 +74,9 @@ const PAGES: Page[] = [
           デッキは <Mark>ちょうど {R.deckSize}まい</Mark>。おてあげを 1まい いじょう いれてね。スーパーおてあげ（S）は デッキに {R.superMaxPerDeck}まい まで。
         </p>
         <p>① サイコロで せんこうを きめる（おおきい めが さき）</p>
-        <p>② カードを {R.initialHand}まい ひく。おてあげが いなかったら ひきなおし</p>
+        <p>
+          ② カードを {R.initialHand}まい ひく。{R.mulliganIfNoOtege ? 'おてあげが いなかったら ひきなおし' : ''}
+        </p>
         <p>③ バトルばに おてあげを 1たい、うらむきで だす。ふたり そろったら オープン！</p>
       </>
     ),
@@ -84,7 +86,7 @@ const PAGES: Page[] = [
         {superSample && <CardMini def={superSample} seed="rules-super" variant="tile" />}
       </div>
     ),
-    more: 'せんこうきめで おなじ めが でたら ふりなおし。じゅんびの あいだは ベンチに だせないよ。',
+    more: 'おなじ カードは なんまい いれても いいよ（スーパーだけ かずが きまっている）。せんこうきめで おなじ めが でたら ふりなおし。じゅんびの あいだは ベンチに だせないよ。',
   },
   {
     title: 'じぶんの ターン',
@@ -120,7 +122,7 @@ const PAGES: Page[] = [
         </p>
         <p>でた めの わざを、バトルばの おてあげが つかう。</p>
         <p>ダメージは あいての バトルばへ。かいふくは じぶん じしんを なおすよ（さいだいHPまで）。</p>
-        <p>こうげきは かならず する。こうたいした ターンだけ こうげき なし。</p>
+        <p>こうげきは かならず する（さきに はじめる ひとの 1ターンめも）。こうたいした ターンだけ こうげき なし。</p>
       </>
     ),
     art: (
@@ -131,7 +133,7 @@ const PAGES: Page[] = [
     ),
     more: (
       <>
-        ダメージの けいさん：わざの ダメージ →（{itemName('overrideAttack')}なら {effectValue('overrideAttack')} に かわる）→（{itemName('addAttack')} 1まいごとに +{effectValue('addAttack')}）。かいふくの わざは かわらない。あまった ダメージは つぎの おてあげに のこらないよ。
+        ダメージの けいさん：わざの ダメージ →（{itemName('overrideAttack')}なら、もとが おおきくても {effectValue('overrideAttack')} に かわる）→（{itemName('addAttack')} 1まいごとに +{effectValue('addAttack')}）。かいふくの わざは かわらない。あまった ダメージは つぎの おてあげに のこらないよ。
       </>
     ),
   },
@@ -163,7 +165,7 @@ const PAGES: Page[] = [
     body: (
       <>
         <p>
-          HPが 0に なった おてあげは <Mark>きぜつ</Mark>。すてふだへ いくよ。
+          HPが 0いかに なった おてあげは <Mark>きぜつ</Mark>。すてふだへ いくよ。
         </p>
         <p>
           ・あいてを {R.koToWin}たい たおしたら かち
