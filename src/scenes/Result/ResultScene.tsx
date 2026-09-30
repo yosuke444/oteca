@@ -13,6 +13,7 @@ import type { Action, EndReason, Side } from '../../engine/types';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { CardMini } from '../../ui/card/CardMini';
+import { OtegeArt } from '../../ui/common/OtegeArt';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { rematchSetup } from '../Battle/BattleScene';
@@ -185,6 +186,9 @@ export function ResultScene() {
           <span className="result__mvp-label">MVP</span>
         </div>
       )}
+
+      {/* 余白の おてあげの絵（動かさない） */}
+      <OtegeArt width={200} className="result__art" />
 
       {!happy && (
         <p className="result__next" ref={nextRef}>

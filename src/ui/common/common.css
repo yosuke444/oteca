@@ -3,6 +3,25 @@
   position: absolute;
   transform-origin: 0 0;
   overflow: hidden;
+  /*
+   * 舞台の中にも、body と同じ方眼を敷く。舞台は transform で拡大縮小しているので、舞台の中の絵は
+   * 舞台の外（body）の方眼と乗算（mix-blend-mode: multiply）できないため。
+   * 大きさと線の太さを倍率（--stage-scale）で割り、中央基準にすると、画面上で body の方眼とぴったり重なる
+   * （舞台は画面の中央にあり、body の方眼も中央基準）。
+   */
+  --px: calc(1px / var(--stage-scale, 1));
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, var(--grid-major) var(--px), transparent var(--px)),
+    linear-gradient(to bottom, var(--grid-major) var(--px), transparent var(--px)),
+    linear-gradient(to right, var(--grid-minor) var(--px), transparent var(--px)),
+    linear-gradient(to bottom, var(--grid-minor) var(--px), transparent var(--px));
+  background-size:
+    calc(var(--grid-major-size) / var(--stage-scale, 1)) calc(var(--grid-major-size) / var(--stage-scale, 1)),
+    calc(var(--grid-major-size) / var(--stage-scale, 1)) calc(var(--grid-major-size) / var(--stage-scale, 1)),
+    calc(var(--grid-size) / var(--stage-scale, 1)) calc(var(--grid-size) / var(--stage-scale, 1)),
+    calc(var(--grid-size) / var(--stage-scale, 1)) calc(var(--grid-size) / var(--stage-scale, 1));
+  background-position: center center;
 }
 
 /* ---------- ふせん ---------- */
@@ -118,24 +137,17 @@
   0%, 100% { translate: 0 0; rotate: 0deg; }
   50% { translate: 0 -8px; rotate: 3deg; }
 }
-.oteage__arm {
-  transform-box: view-box;
+/* ---------- おてあげの絵（動かさない。白い所は乗算で方眼を透かす） ---------- */
+.otege-art {
+  display: block;
+  height: auto;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
-.oteage__arm--l { transform-origin: 34px 66px; }
-.oteage__arm--r { transform-origin: 86px 66px; }
-.oteage--wave .oteage__arm--l {
-  animation: arm-l calc(1.2s / var(--fx-speed)) ease-in-out infinite;
-}
-.oteage--wave .oteage__arm--r {
-  animation: arm-r calc(1.2s / var(--fx-speed)) ease-in-out infinite;
-}
-@keyframes arm-l {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-70deg); }
-}
-@keyframes arm-r {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(70deg); }
+.otege-art.is-missing {
+  visibility: hidden;
 }
 
 /* ---------- 一言メッセージ ---------- */

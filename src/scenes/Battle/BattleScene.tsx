@@ -247,12 +247,6 @@ export function BattleScene() {
     });
   }, [setup.mode]);
 
-  // ---------------------------------------------------------------- BGM（SPEC §10-2）
-  const pinch = !!view && (['p1', 'p2'] as const).some((s) => view.players[s].koCount >= view.rules[s].koToWin - 1);
-  useEffect(() => {
-    audio.playBgm(pinch ? 'bgm_battle_pinch' : 'bgm_battle');
-  }, [pinch]);
-
   // ---------------------------------------------------------------- 決着 → リザルトへ
   useEffect(() => {
     // 通信のずれ・相手の退室で止めた試合は、決着してもリザルトへ進まない（記録しない）

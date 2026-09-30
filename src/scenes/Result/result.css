@@ -159,3 +159,10 @@
   top: 212px;
   font-size: 26px;
 }
+
+/* 余白の おてあげの絵（動かさない。SPEC §7 S00） */
+.result__art {
+  position: absolute;
+  left: 1016px;
+  top: 282px;
+}

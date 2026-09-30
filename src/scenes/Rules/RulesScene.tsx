@@ -4,7 +4,8 @@ import { DEFAULT_RULES } from '../../engine';
 import type { CardDef, OtegeCardDef } from '../../engine/types';
 import { useNav } from '../../router';
 import { CardMini } from '../../ui/card/CardMini';
-import { DiceDoodle, OteageDoodle, StarDoodle } from '../../ui/common/Doodles';
+import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
+import { OtegeArt } from '../../ui/common/OtegeArt';
 import { turnPage } from '../../ui/common/PageTurn';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
@@ -59,9 +60,8 @@ const PAGES: Page[] = [
     ),
     art: (
       <div className="rules-art rules-art--vs">
-        <OteageDoodle seed="rules-p1-a" size={150} />
+        <OtegeArt width={240} />
         <DiceDoodle seed="rules-p1-dice" size={80} face={6} float />
-        <OteageDoodle seed="rules-p1-b" size={150} wave={false} />
       </div>
     ),
     more: '1しあいは だいたい 5〜10ぷん。「おてあげ」には「こうさん」という いみも あるよ。',

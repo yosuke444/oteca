@@ -1,3 +1,4 @@
+import { OtegeArt } from './OtegeArt';
 import './common.css';
 
 /** スマホ縦向きの時だけ重ねて出す「よこむきにしてね」（SPEC §6-2） */
@@ -12,6 +13,7 @@ export function RotateHint() {
         <path className="rotate-hint__arrow" d="M150 40 Q185 75 160 120" />
         <path className="rotate-hint__arrow" d="M150 112 L160 121 L168 108" />
       </svg>
+      <OtegeArt width={130} className="rotate-hint__art" />
       <p className="rotate-hint__text">よこむきに してね</p>
     </div>
   );

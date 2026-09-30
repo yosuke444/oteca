@@ -2,12 +2,12 @@ import { useEffect, useRef } from 'react';
 import { audio } from '../../audio/audioManager';
 import { useNav } from '../../router';
 import { Logo, LOGO_DRAW_MS } from '../../ui/common/Logo';
-import { OteageDoodle } from '../../ui/common/Doodles';
+import { OtegeArt } from '../../ui/common/OtegeArt';
 import './title.css';
 
 /**
  * S00 タイトル
- * ロゴが書き順どおりに描かれる → 「おてあげカードバトル」 → 「タップしてはじめる」が点滅。
+ * ロゴが書き順どおりに描かれる → 「おてあげカードバトル」 → 「タップしてはじめる」が点滅。ロゴの横に おてあげの絵（動かさない）。
  * タップで音声を有効化して、メニューへ。
  */
 export function TitleScene() {
@@ -45,7 +45,7 @@ export function TitleScene() {
     >
       <div className="title-scene__logo-row">
         <Logo draw width={520} />
-        <OteageDoodle seed="title-oteage" size={150} className="title-scene__doodle" />
+        <OtegeArt width={190} className="title-scene__art" />
       </div>
       <p className="title-scene__sub">おてあげカードバトル</p>
       <p className="title-scene__tap">タップして はじめる</p>

@@ -8,6 +8,7 @@ export const STAGE_H = 720;
 /**
  * 1280×720 の舞台を、画面サイズに合わせて拡大縮小して中央に置く。
  * 方眼は body に敷いてあるので、余白にも方眼が続く（黒帯なし）。
+ * 舞台の中にも同じ方眼を、画面上でぴったり重なるように敷く（絵を方眼と乗算できるように。common.css の .stage）。
  */
 export function Stage({ children }: { children: ReactNode }) {
   const [box, setBox] = useState(calc);
@@ -31,6 +32,7 @@ export function Stage({ children }: { children: ReactNode }) {
         left: box.left,
         top: box.top,
         transform: `scale(${box.scale})`,
+        ['--stage-scale' as string]: box.scale,
       }}
     >
       {children}

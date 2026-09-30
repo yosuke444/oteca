@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { OteageDoodle } from '../../ui/common/Doodles';
+import { OtegeArt } from '../../ui/common/OtegeArt';
 
 /**
  * スタンプ（SPEC §8-4。P1）
@@ -28,7 +28,7 @@ export function StampBalloon({ stamp, side }: { stamp: { id: number; n: number }
   if (!shown || !isStampId(shown.id)) return null;
   return (
     <div key={shown.n} className={`stamp-balloon stamp-balloon--${side}`} role="status" data-testid={`stamp-${side}`}>
-      {shown.id === STAMP_WITH_ART && <OteageDoodle seed="stamp-art" size={46} />}
+      {shown.id === STAMP_WITH_ART && <OtegeArt width={50} />}
       <span>{STAMPS[shown.id]}</span>
     </div>
   );
@@ -66,7 +66,7 @@ export function StampPicker({ onSend, cooldownUntil }: { onSend: (id: number) =>
                 setOpen(false);
               }}
             >
-              {id === STAMP_WITH_ART && <OteageDoodle seed="stamp-pick-art" size={30} wave={false} />}
+              {id === STAMP_WITH_ART && <OtegeArt width={32} />}
               {text}
             </button>
           ))}

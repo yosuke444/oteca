@@ -1,11 +1,11 @@
 import { useMemo, type CSSProperties } from 'react';
-import { roughEllipse, roughPath, roundRectD } from '../rough/roughShapes';
+import { roughPath, roundRectD } from '../rough/roughShapes';
 import { RoughPaths } from '../rough/RoughPaths';
 import { seedFrom } from '../rough/seed';
 import './common.css';
 
 /**
- * 余白の落書き（おてあげ・星・サイコロ）。
+ * 余白の落書き（星・サイコロ）。おてあげは絵（OtegeArt.tsx）。
  * 画面をまたいで使い回す。float=true でゆっくり上下に動く。
  */
 
@@ -13,44 +13,6 @@ type DoodleProps = { seed: string; size?: number; float?: boolean; className?: s
 
 function floatClass(float?: boolean) {
   return float ? 'doodle--float' : '';
-}
-
-/** おてあげ（両手を上げ下げする） */
-export function OteageDoodle({ seed, size = 120, float, wave = true, className, style }: DoodleProps & { wave?: boolean }) {
-  const s = seedFrom(seed);
-  const body = useMemo(
-    () => [
-      ...roughEllipse(60, 74, 58, 58, { seed: s, strokeWidth: 2.6 }),
-      ...roughPath('M48 102 L42 124 M72 102 L78 124', { seed: s + 1, strokeWidth: 2.4 }),
-    ],
-    [s],
-  );
-  const armL = useMemo(() => roughPath('M34 66 L12 34', { seed: s + 2, strokeWidth: 2.4 }), [s]);
-  const armR = useMemo(() => roughPath('M86 66 L108 34', { seed: s + 3, strokeWidth: 2.4 }), [s]);
-  return (
-    <svg
-      className={`doodle ${floatClass(float)} ${wave ? 'oteage--wave' : ''} ${className ?? ''}`}
-      viewBox="0 0 120 130"
-      width={size}
-      height={(size * 130) / 120}
-      style={style}
-      aria-hidden
-    >
-      <RoughPaths paths={body} />
-      {/* 顔 */}
-      <circle cx="50" cy="70" r="3" className="doodle__dot" />
-      <circle cx="70" cy="70" r="3" className="doodle__dot" />
-      <path d="M52 84 Q60 91 68 84" className="doodle__line" />
-      <g className="oteage__arm oteage__arm--l">
-        <RoughPaths paths={armL} />
-        <circle cx="11" cy="31" r="5" className="doodle__line" />
-      </g>
-      <g className="oteage__arm oteage__arm--r">
-        <RoughPaths paths={armR} />
-        <circle cx="109" cy="31" r="5" className="doodle__line" />
-      </g>
-    </svg>
-  );
 }
 
 /** 星の形 */

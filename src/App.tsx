@@ -40,7 +40,8 @@ const ROUTES: Record<RouteId, ComponentType> = {
 };
 
 /**
- * 画面ごとの BGM（SPEC §10-2）。undefined の画面は、その画面が自分で決める（対戦はピンチで切り替える）
+ * 画面ごとの BGM（SPEC §10-2）。undefined の画面は、その画面が自分で決める。
+ * 対戦は戦闘曲（battle フォルダの曲をシャッフル）。リザルトは止める（ジングルを聞かせるため）
  */
 const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   title: 'bgm_title',
@@ -52,7 +53,7 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   settings: 'bgm_deck',
   rules: 'bgm_deck',
   lobby: 'bgm_lobby',
-  battle: undefined,
+  battle: 'battle',
   fxtest: undefined,
   result: null,
   soundtest: null,

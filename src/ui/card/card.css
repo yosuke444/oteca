@@ -129,6 +129,8 @@
   height: 100%;
   object-fit: contain;
   display: block;
+  /* 白い所は乗算で紙になじませる（画像は scripts/prepare-art.mjs で全カード同じ大きさ・中央ぞろえにしてある） */
+  mix-blend-mode: multiply;
 }
 .card-art__placeholder {
   display: flex;

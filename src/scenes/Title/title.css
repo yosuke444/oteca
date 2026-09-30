@@ -13,11 +13,11 @@
   display: flex;
   align-items: flex-end;
   gap: 24px;
-  margin-left: 170px; /* 落書きの分だけ右にずらしてロゴを中央に */
+  margin-left: 214px; /* 絵の分だけ右にずらしてロゴを中央に */
 }
 
-.title-scene__doodle {
-  margin-bottom: 10px;
+.title-scene__art {
+  margin-bottom: -6px;
 }
 
 .title-scene__sub {

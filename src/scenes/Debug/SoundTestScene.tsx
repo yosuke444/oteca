@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { checkAllSounds } from '../../audio/soundCheck';
-import { BGM, type BgmKey, SE_KEYS, SE_LABEL, type SeKey } from '../../audio/soundMap';
+import { BGM, type BgmKey, SE_KEYS, SE_LABEL, type SeKey, battleTracks } from '../../audio/soundMap';
 import { recipeLength } from '../../audio/sfx/synth';
 import { RECIPES } from '../../audio/sfx/recipes';
 import { useNav } from '../../router';
@@ -27,6 +27,12 @@ export function SoundTestScene() {
   const { save } = useSave();
   const [last, setLast] = useState('');
   const [bgm, setBgm] = useState<BgmKey | null>(audio.bgmKey);
+  // いま流れている戦闘曲（曲が切りかわるのを目で見られるように）
+  const [song, setSong] = useState<string | null>(null);
+  useEffect(() => {
+    const id = window.setInterval(() => setSong(audio.battleSong), 300);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     audio.unlock();
@@ -93,14 +99,20 @@ export function SoundTestScene() {
         </div>
         <div className="soundtest__layers">
           <b>BGM：</b>
-          {(Object.keys(BGM) as BgmKey[]).map((k) => (
+          {([...Object.keys(BGM), 'battle'] as BgmKey[]).map((k) => (
             <button key={k} type="button" className={`fxtest-btn ${bgm === k ? 'is-on' : ''}`} onClick={() => switchBgm(k)}>
-              {k}
+              {k === 'battle' ? `せんとう（${battleTracks.length}きょく）` : k}
             </button>
           ))}
           <button type="button" className="fxtest-btn" onClick={() => switchBgm(null)}>
             とめる
           </button>
+          <button type="button" className="fxtest-btn" onClick={() => audio.seekNearEnd(5)}>
+            きょくの おわりへ（のこり5びょう）
+          </button>
+          <span className="soundtest__note" data-testid="bgm-now">
+            {song && `いま：${song}`}
+          </span>
           <span className="pencil soundtest__note">（public/audio/bgm/ に ファイルが ないと むおん）</span>
         </div>
         <p className="soundtest__last" data-testid="last-played">

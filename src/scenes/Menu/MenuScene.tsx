@@ -6,7 +6,8 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { Logo } from '../../ui/common/Logo';
 import { Sticky } from '../../ui/common/Sticky';
-import { DiceDoodle, OteageDoodle, StarDoodle } from '../../ui/common/Doodles';
+import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
+import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useSave } from '../../state/SaveContext';
 import './menu.css';
 
@@ -94,8 +95,8 @@ export function MenuScene() {
         </button>
       )}
 
-      {/* 余白の落書き（ゆっくり動く） */}
-      <OteageDoodle seed="menu-oteage" size={130} float className="menu-scene__doodle menu-scene__doodle--oteage" />
+      {/* 余白の落書き（星・サイコロはゆっくり動く。おてあげの絵は動かさない） */}
+      <OtegeArt width={150} className="menu-scene__doodle menu-scene__doodle--oteage" />
       <StarDoodle seed="menu-star-1" size={54} float className="menu-scene__doodle menu-scene__doodle--star1" />
       <StarDoodle seed="menu-star-2" size={36} float className="menu-scene__doodle menu-scene__doodle--star2" />
       <DiceDoodle seed="menu-dice" size={58} face={6} float className="menu-scene__doodle menu-scene__doodle--dice" />
