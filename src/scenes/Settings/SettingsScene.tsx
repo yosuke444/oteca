@@ -80,9 +80,6 @@ export function SettingsScene() {
         <Row label="えんしゅつを へらす" note="がめんの ゆれ・ひかり・つぶを おさえる">
           <OnOff id="reduce" value={s.reduceFx} onChange={(v) => update((d) => void (d.settings.reduceFx = v))} />
         </Row>
-        <Row label="ヒントを だす" note="たいせんちゅうの ヒント 1ぎょう">
-          <OnOff id="hints" value={s.hints} onChange={(v) => update((d) => void (d.settings.hints = v))} />
-        </Row>
       </RoughBox>
 
       <RoughBox seed="settings-right" className="settings-panel settings-panel--right" paper radius={8}>

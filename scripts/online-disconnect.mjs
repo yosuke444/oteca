@@ -2,7 +2,7 @@
 // B の通信をわざと切る（?debug=1 の window.__otecaNet.setOffline）。
 //  ① 12秒切る → 6秒で「あいての つうしんを まっています…」→ 戻すと、切れている間の操作が届いて続く
 //  ② 31秒切る → 「つうしんが きれたよ」→「もうすこし まつ」→ 戻すと続く → 最後まで対戦
-import { SIZES, enterRoom, launch, openPage, setSpeed, shot, toMenu } from './pw.mjs';
+import { boardState, SIZES, enterRoom, launch, openPage, setSpeed, shot, toMenu } from './pw.mjs';
 import { step } from './online-step.mjs';
 
 const q = process.argv[2] ?? '?debug=1';
@@ -31,8 +31,8 @@ const hashOf = (p) => p.page.getByTestId('state-hash').textContent();
 async function untilAMain() {
   for (let i = 0; i < 400; i++) {
     const endA = A.page.locator('.battle-end button');
-    const hint = (await A.page.locator('.battle-hint').textContent().catch(() => '')) ?? '';
-    if ((await endA.getAttribute('aria-disabled')) !== 'true' && !/…|あいて/.test(hint) && !(await A.page.getByText('くりだす おてあげを').count())) return;
+    const state = await boardState(A.page);
+    if ((await endA.getAttribute('aria-disabled')) !== 'true' && state === 'mine' && !(await A.page.getByText('くりだす おてあげを').count())) return;
     const rb = await step(B, st.B);
     const ra = (await A.page.getByText('バトルばに だす おてあげを').count()) || (await A.page.getByText('くりだす おてあげを').count()) ? await step(A, st.A) : 'wait';
     if (ra === 'wait' && rb === 'wait') await A.page.waitForTimeout(150);

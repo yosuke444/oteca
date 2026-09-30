@@ -8,7 +8,6 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { drawCounterText } from './battleText';
-import { hintText } from './hints';
 import { useCardGesture } from './useCardGesture';
 
 export type BoardSel = { uid: string };
@@ -28,7 +27,6 @@ type Props = {
   marked: { uid: string; move: number } | null;
   logLines: string[];
   logOpen: boolean;
-  hints: boolean;
   idleSince: number;
   onToggleLog: () => void;
   onOpenMenu: () => void;
@@ -200,7 +198,7 @@ export function BattleBoard(p: Props) {
   const selectedActions = p.selected ? p.legal.filter((a) => ('uid' in a ? a.uid : 'benchUid' in a ? a.benchUid : null) === p.selected!.uid) : [];
 
   return (
-    <div className="battle-board" ref={boardRef}>
+    <div className="battle-board" ref={boardRef} data-state={boardState(view.phase, p.canAct, p.busy)}>
       {/* ---------------- 上：あいて ---------------- */}
       <div className="battle-top">
         <RoughBox seed={`name-${opp}`} className="battle-name battle-name--opp" radius={10}>
@@ -322,8 +320,6 @@ export function BattleBoard(p: Props) {
 
       <EndTurnButton label={endLabel} active={endLegal} myTurn={myTurn && p.canAct} idleSince={p.idleSince} onClick={p.onEndTurn} />
 
-      {p.hints && <div className="battle-hint">{hintText(view, me, p.legal, p.selected?.uid ?? null, p.canAct, p.busy)}</div>}
-
       {/* くりだし・準備の案内 */}
       {view.phase === 'promote' && view.pendingPromote.includes(me) && p.canAct && (
         <div className="battle-prompt">ベンチから くりだす おてあげを えらんでね</div>
@@ -391,4 +387,14 @@ function EndTurnButton({ label, active, myTurn, idleSince, onClick }: { label: R
       </RoughButton>
     </div>
   );
+}
+
+/**
+ * 対戦画面の いまの状態（画面には出さない。確認用の自動操作が「演出が終わったか」「自分の番か」を知るための目印）
+ * over＝決着／busy＝演出中／wait＝相手の番・相手を待っている／mine＝自分が操作できる
+ */
+function boardState(phase: string, canAct: boolean, busy: boolean): 'over' | 'busy' | 'wait' | 'mine' {
+  if (phase === 'over') return 'over';
+  if (busy) return 'busy';
+  return canAct ? 'mine' : 'wait';
 }

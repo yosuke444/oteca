@@ -72,9 +72,19 @@ export function App() {
 
   // 画面に触ったら、いつでも音を有効にし直す（スマホで裏に回して戻った時など）
   useEffect(() => {
+    // iPhone は touchend・click でないと再開を許さないことがあるので、いくつかの操作で試す
     const on = () => audio.unlock();
-    document.addEventListener('pointerdown', on);
-    return () => document.removeEventListener('pointerdown', on);
+    const kinds = ['pointerdown', 'touchend', 'click', 'keydown'] as const;
+    kinds.forEach((k) => document.addEventListener(k, on, { capture: true, passive: true }));
+    // アプリを切り替えて戻った時（画面が見えるようになった時）も再開を試す（だめでも次に触れば再開する）
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') audio.unlock();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      kinds.forEach((k) => document.removeEventListener(k, on, { capture: true }));
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   // 音量は設定の値（0〜10）

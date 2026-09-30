@@ -267,3 +267,11 @@
 - [x] 公開パス /oteca/、Cookie の path /oteca/、GitHub Actions で自動公開
 - [x] 公開URLを Playwright で確認（scripts/check-public.mjs）。置いていない音のファイルの確認で出ていた 404 を無くした
 - [x] §15 フェーズ6 完成条件「公開URLで友だちと対戦できる」：公開URLで、別々に起動した2つのブラウザ（1280×720 と 844×390）が同じ部屋番号で対戦 → リザルト → 再戦までできた（scripts/online-play.mjs、状態ハッシュ 51回一致、エラーなし）。[!] 別の端末（スマホとPC）どうしは企画者が確認
+
+## 不具合の修正（効果音が鳴らない・音量が効かない）とヒント削除（SPEC v1.3）
+- [x] 原因：howler の自動の有効化が 48000Hz の端末で AudioContext を作り直し、ミキサーが閉じた方に残っていた
+- [x] 本物に近い条件（自動再生の制限あり・48000Hz）で、タップ後に running、実際の出力に BGM・効果音が出る（scripts/check-audio-output.mjs）
+- [x] BGM と効果音の音量が別々に効く／0 で完全に無音／読み込み直しても残る／アプリを切り替えて戻っても鳴る
+- [x] 自動テスト A01〜A05（tests/audio.mixer.test.ts）、V01 hints の読み書き
+- [x] ヒント1行・「ヒントを だす」を削除（SPEC §8-2・§7 S06・§12-2・§15）
+- [x] 開発サーバーと公開用ビルド（npm run preview）の両方で確認。npm test 87件・npm run build

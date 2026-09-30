@@ -128,7 +128,6 @@ export function FxTestScene() {
         marked={marked}
         logLines={[]}
         logOpen={false}
-        hints={false}
         idleSince={Number.MAX_SAFE_INTEGER}
         onToggleLog={noop}
         onOpenMenu={noop}

@@ -1,12 +1,11 @@
 // フレンド対戦の自動操作：1人ぶん、出来ることを1つする
-import { clickText } from './pw.mjs';
+import { boardState, clickText } from './pw.mjs';
 
 export /** 1人ぶん、出来ることを1つする。'wait'＝自分の番ではない／演出中、'acted'、'over' */
 async function step(p, st) {
   const page = p.page;
   if (await page.locator('.result').count()) return 'over';
-  const hint = ((await page.locator('.battle-hint').textContent().catch(() => '')) ?? '').trim();
-  if (hint === '' || hint === '…' || /あいての ばん|まってるよ/.test(hint)) return 'wait';
+  if ((await boardState(page)) !== 'mine') return 'wait';
   if (await page.getByText('バトルばに だす おてあげを').count()) {
     await page.locator('.battle-hand .battle-card:not(.is-dim)').first().click();
     await clickText(page, 'バトルばに だす');

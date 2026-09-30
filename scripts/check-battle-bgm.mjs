@@ -39,6 +39,10 @@ const gapAfter = (page, from) =>
     return Math.round(log[next].t - log[lastFrom].t);
   }, from);
 
+/** 戦闘曲の読み込みが終わって鳴り始めるまで待つ（読み込み中に早送りしても空振りするため） */
+const waitPlaying = (page) =>
+  page.waitForFunction(() => (window.Howler?._howls ?? []).some((h) => String(h._src).includes('/bgm/battle/') && h.playing()), null, { timeout: 30000 });
+
 const nowSong = async (page) => ((await page.getByTestId('bgm-now').textContent()) ?? '').replace('いま：', '');
 
 async function waitSongChange(page, prev, timeout = 20000) {
@@ -75,6 +79,7 @@ try {
   const played = [first];
   for (let i = 0; i < 5; i++) {
     const prev = played[played.length - 1];
+    await waitPlaying(page);
     await clickText(page, 'きょくの おわりへ');
     await page.waitForTimeout(1500);
     const pre = await battleHowls(page);
@@ -136,7 +141,7 @@ try {
   check(others.length === 0, `対戦画面では戦闘曲だけ流れる（${bs1}${others.length ? '、ほか ' + others.join(',') : ''}）`);
   await b.page.evaluate(() => {
     const h = window.Howler._howls.find((h) => String(h._src).includes('/bgm/battle/') && h.playing());
-    h.seek(h.duration() - 3);
+    h.seek(h.duration() - 8); // 先読み（残り60秒で始まる）が間に合うように、少し手前まで
   });
   await b.page.waitForFunction(
     (bs1) => (window.Howler?._howls ?? []).some((h) => String(h._src).includes('/bgm/battle/') && h.playing() && !String(h._src).endsWith(bs1)),

@@ -4,20 +4,27 @@ import { makeReverb } from './reverb';
 /**
  * 音の通り道（SPEC §10-3 mixer.ts）
  *
- *   効果音 ─┬─────────────→ 効果音バス ─┐
- *           └→ 残響（短・長）→ ┘            ├→ マスターのコンプレッサー → スピーカー
- *   BGM（howler.js）──────────→ BGM バス ─┘   （大ダメージ・きぜつの時は BGM バスを一瞬下げる）
- * howler と同じ AudioContext を使うので、BGM も同じ通り道を通る。数値は recipes.ts の MIX。
+ *   効果音 ─┬───────────────→ se ─→ コンプレッサー ─→ 効果音の音量 ─┐
+ *           └→ 残響（短・長）→ ┘                                     ├→ master → リミッター → スピーカー
+ *   BGM（howler.js）─→ bgm ─→ 一瞬下げる（duck）─→ BGM の音量 ───────┘
+ * howler と同じ AudioContext を使うので、BGM もここを通る。数値は recipes.ts の MIX。
  *
- * コンプレッサーを通すので、たくさん重ねても音割れしにくい。
+ * - 設定の音量（BGM・効果音）は、コンプレッサーの「後」でかける。前でかけると、下げた分を
+ *   コンプレッサーが持ち上げてしまい、音量を変えても あまり変わらなかったため。0 なら完全に無音
+ * - 効果音はコンプレッサーを通すので、たくさん重ねても音割れしにくい。最後のリミッターは念のための音割れ止め
  */
 export class Mixer {
   readonly ctx: BaseAudioContext;
   readonly master: GainNode;
+  /** 効果音の入口 */
   readonly se: GainNode;
-  /** BGM バス（howler の出口をここへつなぐ） */
+  /** BGM の入口（howler の出口をここへつなぐ） */
   readonly bgm: GainNode;
-  private bgmLevel = 0.6;
+  /** 設定の音量（0〜1） */
+  private readonly seVolume: GainNode;
+  private readonly bgmVolume: GainNode;
+  /** 大ダメージ・きぜつの時に BGM を一瞬下げる */
+  private readonly bgmDuck: GainNode;
   private ducks = 0;
   /** 残響へ送る入口（短い／長い） */
   readonly reverbShort: GainNode;
@@ -27,24 +34,33 @@ export class Mixer {
 
   /** ctx を渡すと、その中で鳴らす（試聴ページの自動チェックで OfflineAudioContext に書き出す時） */
   constructor(given?: BaseAudioContext) {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = given ?? new Ctx();
+    const ctx = given ?? new (window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     this.ctx = ctx;
+
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = MIX.limiter.threshold;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.1;
+    this.master = ctx.createGain();
+    this.master.gain.value = MIX.master;
+    this.master.connect(limiter).connect(ctx.destination);
+
     this.comp = ctx.createDynamicsCompressor();
     this.comp.threshold.value = MIX.compressor.threshold;
     this.comp.knee.value = MIX.compressor.knee;
     this.comp.ratio.value = MIX.compressor.ratio;
     this.comp.attack.value = MIX.compressor.attack;
     this.comp.release.value = MIX.compressor.release;
-    this.master = ctx.createGain();
-    this.master.gain.value = MIX.master;
-    this.comp.connect(this.master).connect(ctx.destination);
-
     this.se = ctx.createGain();
-    this.se.connect(this.comp);
+    this.seVolume = ctx.createGain();
+    this.se.connect(this.comp).connect(this.seVolume).connect(this.master);
+
     this.bgm = ctx.createGain();
-    this.bgm.gain.value = this.bgmLevel;
-    this.bgm.connect(this.comp);
+    this.bgmDuck = ctx.createGain();
+    this.bgmVolume = ctx.createGain();
+    this.bgm.connect(this.bgmDuck).connect(this.bgmVolume).connect(this.master);
 
     const short = makeReverb(ctx, MIX.reverbShort);
     const long = makeReverb(ctx, MIX.reverbLong);
@@ -54,27 +70,27 @@ export class Mixer {
     this.reverbLong.connect(long).connect(this.se);
   }
 
-  /** BGM の音量（0〜1） */
+  /** BGM の音量（0〜1）。0 なら完全に無音 */
   setBgmVolume(v: number): void {
-    this.bgmLevel = v;
-    if (this.ducks === 0) this.bgm.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02);
+    setLevel(this.bgmVolume.gain, v, this.ctx);
   }
 
   /** BGM を一瞬下げる（SPEC §10-3：0.4秒だけ 40% 下げる） */
   duckBgm(): void {
     const t = this.ctx.currentTime;
+    const g = this.bgmDuck.gain;
     this.ducks += 1;
-    this.bgm.gain.cancelScheduledValues(t);
-    this.bgm.gain.setTargetAtTime(this.bgmLevel * MIX.duck.level, t, 0.015);
+    g.cancelScheduledValues(t);
+    g.setTargetAtTime(MIX.duck.level, t, 0.015);
     window.setTimeout(() => {
       this.ducks -= 1;
-      if (this.ducks === 0) this.bgm.gain.setTargetAtTime(this.bgmLevel, this.ctx.currentTime, 0.08);
+      if (this.ducks === 0) g.setTargetAtTime(1, this.ctx.currentTime, 0.08);
     }, MIX.duck.seconds * 1000);
   }
 
-  /** 効果音の音量（0〜1） */
+  /** 効果音の音量（0〜1）。0 なら完全に無音 */
   setSeVolume(v: number): void {
-    this.se.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02);
+    setLevel(this.seVolume.gain, v, this.ctx);
   }
 
   /** ノイズの音源（白・ピンク・ブラウン）。2秒ぶん作って使い回す */
@@ -113,4 +129,12 @@ export class Mixer {
     this.noiseCache.set(kind, buf);
     return buf;
   }
+}
+
+/** 音量を なめらかに変える。0 の時は最後に ぴったり 0 にする（なめらかな変化だけだと 0 に近づくだけのため） */
+function setLevel(p: AudioParam, v: number, ctx: BaseAudioContext): void {
+  const t = ctx.currentTime;
+  p.cancelScheduledValues(t);
+  p.setValueAtTime(p.value, t);
+  p.linearRampToValueAtTime(Math.max(0, v), t + 0.03);
 }

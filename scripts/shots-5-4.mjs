@@ -39,14 +39,12 @@ for (let i = 1; i <= 6; i++) {
 await clickText(page, 'もどる');
 log('ルール 6ページ');
 
-// 対戦：ヒント1行とスタンプ
+// 対戦：スタンプ（ヒント1行は v1.3 で削除）
 await page.goto(page.url().split('?')[0] + '?debug=1');
 await toMenu(page, size);
 await clickText(page, 'デバッグ たいせん');
 await clickText(page, 'ひとりで りょうほう');
 await waitIdle(page, 30000);
-await shot(page, n('03_hint_on'));
-const hintOn = await page.locator('.battle-hint').count();
 await page.getByRole('button', { name: 'スタンプ' }).click();
 await page.waitForTimeout(200);
 await shot(page, n('04_stamp_picker'));
@@ -60,25 +58,8 @@ const cool = await page.getByText(/びょう まってね/).count();
 await page.getByRole('button', { name: 'スタンプ' }).click();
 await page.waitForTimeout(2600);
 const gone = (await page.getByTestId('stamp-me').count()) === 0;
-log('ヒント', hintOn > 0, 'クールタイム表示', cool > 0, '2秒で消える', gone);
+log('クールタイム表示', cool > 0, '2秒で消える', gone);
 
-// 設定でヒントを OFF → 対戦画面にヒントが出ない
-await page.locator('[aria-label="メニュー"]').click();
-await clickText(page, 'おてあげする（こうさん）');
-await clickText(page, 'おてあげする', { exact: true });
-await page.locator('.result').waitFor();
-await clickText(page, 'メニューへ');
-await page.getByRole('button', { name: 'せってい' }).click();
-// 「ヒントを だす」は設定の いちばん下の オン／オフ
-await page.getByRole('button', { name: 'オフ', exact: true }).last().click();
-await clickText(page, 'もどる');
-await clickText(page, 'デバッグ たいせん');
-await clickText(page, 'ひとりで りょうほう');
-await waitIdle(page, 30000).catch(() => {});
-await page.waitForTimeout(1500);
-const hintOff = await page.locator('.battle-hint').count();
-await shot(page, n('07_hint_off'));
-log('ヒント OFF で消える', hintOff === 0);
 log('errors', errors.length ? errors : 'なし');
 await browser.close();
 

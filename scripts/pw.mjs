@@ -39,9 +39,14 @@ export async function shot(page, name) {
   await page.screenshot({ path: `screenshots/${name}.png` });
 }
 
-/** 演出が終わって操作できるまで待つ（ヒント行が「…」でなくなる） */
+/** 対戦画面の状態（over＝決着／busy＝演出中／wait＝相手の番・相手待ち／mine＝自分が操作できる。対戦画面でなければ ''） */
+export async function boardState(page) {
+  return (await page.locator('.battle-board').getAttribute('data-state', { timeout: 1000 }).catch(() => '')) ?? '';
+}
+
+/** 演出が終わって操作できるまで待つ（対戦画面の data-state が busy でなくなる） */
 export async function waitIdle(page, timeout = 20000) {
-  await page.waitForFunction(() => !document.querySelector('.battle-hint') || document.querySelector('.battle-hint').textContent !== '…', null, { timeout });
+  await page.waitForFunction(() => document.querySelector('.battle-board')?.getAttribute('data-state') !== 'busy', null, { timeout });
   await page.waitForTimeout(150);
 }
 

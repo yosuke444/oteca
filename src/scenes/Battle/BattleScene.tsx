@@ -15,7 +15,6 @@ import { Particles } from '../../fx/particles';
 import { setFxSpeed } from '../../fx/timing';
 import { useFx } from '../../fx/fxSettings';
 import { useNav } from '../../router';
-import { useSave } from '../../state/SaveContext';
 import { CardDetail } from '../../ui/card/CardDetail';
 import { Dialog } from '../../ui/common/Dialog';
 import { RoughButton } from '../../ui/rough/RoughButton';
@@ -75,7 +74,6 @@ function targetKeyOf(a: Action, me: Side): string | null {
 export function BattleScene() {
   const { payload, go } = useNav();
   const setup = payload as BattleSetup;
-  const { save } = useSave();
   const fx = useFx();
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -481,7 +479,6 @@ export function BattleScene() {
         marked={marked}
         logLines={logLines}
         logOpen={logOpen}
-        hints={save.settings.hints}
         idleSince={idleSince}
         onToggleLog={() => setLogOpen((o) => !o)}
         onOpenMenu={() => setMenuOpen(true)}

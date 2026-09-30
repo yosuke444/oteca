@@ -48,6 +48,18 @@ type BattleSong = { song: number; howl: Howl; failed: boolean; onFail?: () => vo
 
 const base = import.meta.env.BASE_URL ?? '/';
 
+/**
+ * howler の自動の「音の有効化」と「30秒鳴らないと止める」を切る（音の有効化はこのファイルで行う）。
+ * howler の自動の有効化は、AudioContext の周波数が 44100Hz でないと（ふつうの PC・iPhone は 48000Hz）
+ * AudioContext を閉じて作り直す。するとミキサーが閉じた AudioContext に残り、効果音が鳴らず、
+ * BGM がミキサーを通らなくなって音量設定が効かなくなっていた
+ */
+Howler.autoUnlock = false;
+Howler.autoSuspend = false;
+
+/** 最初のタップの直後など、AudioContext の再開を待って鳴らすのは この時間（ms）まで。遅れて まとめて鳴らないように */
+const RESUME_WAIT_MS = 400;
+
 type HowlInternals = {
   _sprite: Record<string, [number, number, boolean?]>;
   _soundById(id: number): { _node?: { bufferSource?: AudioBufferSourceNode } } | null;
@@ -69,7 +81,8 @@ class AudioManager {
   /** 音を使えるようにする（タイトルのタップ・画面に触った時に呼ぶ。何度呼んでもよい） */
   unlock(): void {
     const mx = this.ensureMixer();
-    if (mx && mx.ctx.state !== 'running') void (mx.ctx as AudioContext).resume().catch(() => {});
+    // 'suspended'（まだ有効でない・止められた）も 'interrupted'（iPhone でアプリを切り替えた）も再開する
+    if (mx && mx.ctx.state !== 'running' && mx.ctx.state !== 'closed') void (mx.ctx as AudioContext).resume().catch(() => {});
     if (mx && !this.seChecked) {
       this.seChecked = true;
       void this.checkSeFiles(mx);
@@ -109,8 +122,13 @@ class AudioManager {
       if (recipe) playRecipe(mx, recipe);
     };
     if (mx.ctx.state === 'running') go();
-    // まだ有効になっていない（最初のタップの直後など）：有効になってから鳴らす
-    else void (mx.ctx as AudioContext).resume().then(go, () => {});
+    else {
+      // まだ有効になっていない（最初のタップの直後など）：すぐ再開できた時だけ鳴らす
+      const asked = performance.now();
+      void (mx.ctx as AudioContext).resume().then(() => {
+        if (performance.now() - asked < RESUME_WAIT_MS) go();
+      }, () => {});
+    }
   }
 
   /** BGM を一瞬（0.4秒）40% 下げる（大ダメージ・きぜつ。§10-3） */
@@ -201,6 +219,8 @@ class AudioManager {
       return;
     }
     cur.onFail = skip;
+    // 選んだ時点で「直前の曲」として覚える（読み込み中に読み込み直しても、同じ曲から始めない）
+    saveLastBattle(battleTracks[song].id);
     const volume = (BATTLE_VOLUME[battleTracks[song].id] ?? 1) * BGM_LEVEL;
     const start = () => {
       if (this.current !== track) return;
@@ -209,7 +229,6 @@ class AudioManager {
       // 最初の曲はクロスフェードで入る。2曲目からは間をあけずにそのまま
       if (fadeIn) howl.fade(0, volume, BGM_CROSSFADE * 1000, id);
       else howl.volume(volume, id);
-      saveLastBattle(battleTracks[song].id);
       track.timer = window.setInterval(() => {
         // 残りが少なくなったら次の曲を先読み
         if (this.current !== track || track.next) return;
@@ -288,7 +307,10 @@ class AudioManager {
   // ---------------------------------------------------------------- 内部
 
   private ensureMixer(): Mixer | null {
-    if (this.mixer) return this.mixer;
+    // howler が AudioContext を作り直していたら（閉じていたら）、ミキサーも作り直して つなぎ直す
+    const m = this.mixer;
+    if (m && (!Howler.ctx || m.ctx === Howler.ctx) && m.ctx.state !== 'closed') return m;
+    this.mixer = null;
     try {
       // howler の AudioContext を作らせて、それを効果音にも使う
       Howler.volume(Howler.volume());

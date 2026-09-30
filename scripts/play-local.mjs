@@ -1,5 +1,5 @@
 // ひとりで両方あやつる対戦を最後まで自動で進める（1台で決着まで遊べるかの確認）
-import { SIZES, clickText, launch, openPage, shot, waitIdle } from './pw.mjs';
+import { SIZES, boardState, clickText, launch, openPage, shot, waitIdle } from './pw.mjs';
 
 export async function playToEnd(page, prefix, opts = {}) {
   let usedItem = false;
@@ -12,8 +12,7 @@ export async function playToEnd(page, prefix, opts = {}) {
       break;
     }
     // CPU・相手の番：終わるのを待つ
-    const hintNow = (await page.locator('.battle-hint').textContent().catch(() => '')) ?? '';
-    if (/あいての ばん|まってるよ/.test(hintNow)) {
+    if ((await boardState(page)) === 'wait') {
       await page.waitForTimeout(300);
       continue;
     }
@@ -74,10 +73,10 @@ export async function playToEnd(page, prefix, opts = {}) {
     const end = page.locator('.battle-end button');
     if ((await end.getAttribute('aria-disabled')) === 'true') {
       // CPU・相手が動き出したところ（演出中）なら待つ
-      const h = (await page.locator('.battle-hint').textContent().catch(() => '')) ?? '';
-      if (h === '…' || /あいての ばん|まってるよ/.test(h) || (await page.locator('.result').count())) continue;
+      const st = await boardState(page);
+      if (st === 'busy' || st === 'wait' || (await page.locator('.result').count())) continue;
       await shot(page, `${prefix}_stuck`);
-      const hint = await page.locator('.battle-hint').textContent().catch(() => '');
+      const hint = await boardState(page);
       const prompt = await page.locator('.battle-prompt').textContent().catch(() => '');
       throw new Error(`ターンおわりが押せない: hint=${hint} prompt=${prompt}`);
     }

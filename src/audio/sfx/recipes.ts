@@ -2,10 +2,12 @@ import type { Layer, Recipe } from './synth';
 
 /** まぜ方（音の通り道）の数値。これもここで調整する */
 export const MIX = {
-  /** マスターのコンプレッサー（重ねても音割れしないように） */
+  /** 効果音のコンプレッサー（重ねても音割れしないように。設定の音量は この後でかける） */
   compressor: { threshold: -16, knee: 12, ratio: 6, attack: 0.003, release: 0.18 },
   /** 全体の大きさ */
   master: 0.9,
+  /** 最後の音割れ止め（この大きさ dB を超えた所だけ抑える） */
+  limiter: { threshold: -1 },
   /** 残響：短い（はんこ・ダメージ）と長い（大ダメージ・ジングル） */
   reverbShort: { seconds: 0.9, decay: 3.2, preDelay: 0.008, damp: 0.5 },
   reverbLong: { seconds: 2.6, decay: 2.4, preDelay: 0.02, damp: 0.35 },

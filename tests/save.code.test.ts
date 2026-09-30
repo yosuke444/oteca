@@ -24,6 +24,14 @@ describe('引き継ぎコード', () => {
     }
   });
 
+  it('V01 使わない値 hints（v1.3 でヒント削除）も、true・false のまま読み書きされる（前に作ったコードが読める）', () => {
+    for (const hints of [true, false]) {
+      const data = createDefaultSave(starterDeckNos());
+      data.settings.hints = hints;
+      expect(decodeTransferCode(encodeTransferCode(data, 7))).toEqual({ ok: true, data });
+    }
+  });
+
   it('V01 同じデータでもソルトで毎回違うコードになる', () => {
     const data = createDefaultSave(starterDeckNos());
     const a = encodeTransferCode(data, 12);
