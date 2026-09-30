@@ -1,3 +1,4 @@
+import { MIX } from './recipes';
 import { makeReverb } from './reverb';
 
 /**
@@ -5,7 +6,8 @@ import { makeReverb } from './reverb';
  *
  *   効果音 ─┬─────────────→ 効果音バス ─┐
  *           └→ 残響（短・長）→ ┘            ├→ マスターのコンプレッサー → スピーカー
- *   BGM は howler.js が鳴らし、音量は BGM バスの値を使う ┘
+ *   BGM（howler.js）──────────→ BGM バス ─┘   （大ダメージ・きぜつの時は BGM バスを一瞬下げる）
+ * howler と同じ AudioContext を使うので、BGM も同じ通り道を通る。数値は recipes.ts の MIX。
  *
  * コンプレッサーを通すので、たくさん重ねても音割れしにくい。
  */
@@ -13,6 +15,10 @@ export class Mixer {
   readonly ctx: BaseAudioContext;
   readonly master: GainNode;
   readonly se: GainNode;
+  /** BGM バス（howler の出口をここへつなぐ） */
+  readonly bgm: GainNode;
+  private bgmLevel = 0.6;
+  private ducks = 0;
   /** 残響へ送る入口（短い／長い） */
   readonly reverbShort: GainNode;
   readonly reverbLong: GainNode;
@@ -25,24 +31,45 @@ export class Mixer {
     const ctx = given ?? new Ctx();
     this.ctx = ctx;
     this.comp = ctx.createDynamicsCompressor();
-    this.comp.threshold.value = -16;
-    this.comp.knee.value = 12;
-    this.comp.ratio.value = 6;
-    this.comp.attack.value = 0.003;
-    this.comp.release.value = 0.18;
+    this.comp.threshold.value = MIX.compressor.threshold;
+    this.comp.knee.value = MIX.compressor.knee;
+    this.comp.ratio.value = MIX.compressor.ratio;
+    this.comp.attack.value = MIX.compressor.attack;
+    this.comp.release.value = MIX.compressor.release;
     this.master = ctx.createGain();
-    this.master.gain.value = 0.9;
+    this.master.gain.value = MIX.master;
     this.comp.connect(this.master).connect(ctx.destination);
 
     this.se = ctx.createGain();
     this.se.connect(this.comp);
+    this.bgm = ctx.createGain();
+    this.bgm.gain.value = this.bgmLevel;
+    this.bgm.connect(this.comp);
 
-    const short = makeReverb(ctx, { seconds: 0.9, decay: 3.2, preDelay: 0.008, damp: 0.5 });
-    const long = makeReverb(ctx, { seconds: 2.6, decay: 2.4, preDelay: 0.02, damp: 0.35 });
+    const short = makeReverb(ctx, MIX.reverbShort);
+    const long = makeReverb(ctx, MIX.reverbLong);
     this.reverbShort = ctx.createGain();
     this.reverbLong = ctx.createGain();
     this.reverbShort.connect(short).connect(this.se);
     this.reverbLong.connect(long).connect(this.se);
+  }
+
+  /** BGM の音量（0〜1） */
+  setBgmVolume(v: number): void {
+    this.bgmLevel = v;
+    if (this.ducks === 0) this.bgm.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02);
+  }
+
+  /** BGM を一瞬下げる（SPEC §10-3：0.4秒だけ 40% 下げる） */
+  duckBgm(): void {
+    const t = this.ctx.currentTime;
+    this.ducks += 1;
+    this.bgm.gain.cancelScheduledValues(t);
+    this.bgm.gain.setTargetAtTime(this.bgmLevel * MIX.duck.level, t, 0.015);
+    window.setTimeout(() => {
+      this.ducks -= 1;
+      if (this.ducks === 0) this.bgm.gain.setTargetAtTime(this.bgmLevel, this.ctx.currentTime, 0.08);
+    }, MIX.duck.seconds * 1000);
   }
 
   /** 効果音の音量（0〜1） */

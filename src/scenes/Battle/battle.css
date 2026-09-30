@@ -590,3 +590,132 @@
     font-size: 34px;
   }
 }
+
+/* ---------- スタンプ（SPEC §8-4） ---------- */
+.stamp-picker {
+  position: absolute;
+  right: 196px;
+  top: 8px;
+  z-index: 45;
+}
+.stamp-picker__open {
+  height: 44px;
+  padding: 0 14px;
+  font-family: var(--font-hand);
+  font-size: 20px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.stamp-picker__open.is-open {
+  background: var(--marker-yellow);
+}
+.stamp-picker__panel {
+  position: absolute;
+  right: 0;
+  top: 52px;
+  width: 360px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+  background: var(--paper);
+  border: 2.5px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 5px 10px -4px var(--note-shadow);
+}
+.stamp-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 52px;
+  font-family: var(--font-hand);
+  font-size: 21px;
+  color: var(--ink);
+  background: var(--note-yellow);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.stamp-picker__item:disabled {
+  color: var(--pencil);
+  background: var(--paper);
+  border-style: dashed;
+  cursor: default;
+}
+.stamp-picker__cool {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-size: 18px;
+}
+.stamp-balloon {
+  position: absolute;
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 16px;
+  font-size: 26px;
+  white-space: nowrap;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 24px;
+  pointer-events: none;
+  animation: stamp-pop 2.3s ease-out both;
+}
+.stamp-balloon::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--paper);
+  border-left: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+}
+.stamp-balloon--me {
+  left: 206px;
+  top: 548px;
+  color: var(--pen-blue);
+  transform-origin: left center;
+}
+.stamp-balloon--me::before {
+  left: -10px;
+  top: 50%;
+  translate: 0 -50%;
+  rotate: 45deg;
+}
+.stamp-balloon--opp {
+  left: 190px;
+  top: 54px;
+  color: var(--pen-red);
+  transform-origin: left top;
+}
+.stamp-balloon--opp::before {
+  left: 18px;
+  top: -10px;
+  rotate: 135deg;
+}
+/* ポンと出て、2秒後にしぼむ（読める長さは演出スピードに関係なく2秒） */
+@keyframes stamp-pop {
+  0% { transform: scale(0.2); opacity: 0; }
+  8% { transform: scale(1.15); opacity: 1; }
+  13% { transform: scale(1); }
+  87% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0); opacity: 0; }
+}
+@media (max-height: 500px) {
+  .stamp-picker__open {
+    font-size: 24px;
+    height: 50px;
+  }
+  .stamp-picker__item {
+    font-size: 25px;
+  }
+  .stamp-balloon {
+    font-size: 32px;
+  }
+}

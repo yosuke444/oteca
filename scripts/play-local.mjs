@@ -95,7 +95,7 @@ if (process.argv[1].endsWith('play-local.mjs')) {
     const { page, errors } = await openPage(browser, size);
     await page.mouse.click(size.width / 2, size.height / 2);
     await page.waitForTimeout(400);
-    await clickText(page, 'デバッグたいせん');
+    await clickText(page, 'デバッグ たいせん');
     await clickText(page, 'ひとりで りょうほう');
     await playToEnd(page, `3-1_${size.name}_play`);
     await page.waitForTimeout(600);

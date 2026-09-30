@@ -1,5 +1,5 @@
 import { Howl, Howler } from 'howler';
-import { BGM, BGM_CROSSFADE, BGM_DIR, type BgmKey, DUCK, SE_DIR } from './soundMap';
+import { BGM, BGM_CROSSFADE, BGM_DIR, type BgmKey, SE_DIR, SE_KEYS } from './soundMap';
 import { Mixer } from './sfx/mixer';
 import { RECIPES } from './sfx/recipes';
 import { playRecipe } from './sfx/synth';
@@ -8,12 +8,18 @@ import { playRecipe } from './sfx/synth';
  * 音の窓口（SPEC §10）
  * - BGM：howler.js。ファイルが無い間は無音で動く。0.8秒のクロスフェード、ループ位置の指定
  * - 効果音：Web Audio API でその場で合成（recipes.ts）。public/audio/se/<キー>.mp3 があればそちらを優先
- * - 音量は設定（0〜10）の値。スマホの自動再生制限があるので、最初のタップ（タイトル）で有効にする
+ * - howler と同じ AudioContext を使い、BGM も効果音も mixer（バス → コンプレッサー）を通す
+ * - 音量は設定（0〜10）の値。スマホの自動再生制限があるので、画面を触った時に音を有効にする
  */
 
-type BgmTrack = { key: BgmKey; howl: Howl; volume: number };
+type BgmTrack = { key: BgmKey; howl: Howl };
 
 const base = import.meta.env.BASE_URL ?? '/';
+
+type HowlInternals = {
+  _sprite: Record<string, [number, number, boolean?]>;
+  _soundById(id: number): { _node?: { bufferSource?: AudioBufferSourceNode } } | null;
+};
 
 class AudioManager {
   private mixer: Mixer | null = null;
@@ -21,21 +27,18 @@ class AudioManager {
   private seVolume = 0.8;
   private current: BgmTrack | null = null;
   private wanted: BgmKey | null = null;
-  /** ファイルがあるかどうか（キー → 使えるファイルのURL。無ければ null） */
   private readonly bgmFiles = new Map<BgmKey, Promise<string[] | null>>();
-  private readonly seFiles = new Map<string, Promise<AudioBuffer | null>>();
-  private ducking = 0;
+  /** 効果音の差し替えファイル（確認が済んだものだけ。null ＝ 無い） */
+  private readonly seFiles = new Map<string, AudioBuffer | null>();
+  private seChecked = false;
 
-  /** 音を使えるようにする（タイトルのタップで呼ぶ） */
+  /** 音を使えるようにする（タイトルのタップ・画面に触った時に呼ぶ。何度呼んでもよい） */
   unlock(): void {
     const mx = this.ensureMixer();
-    if (mx && mx.ctx.state !== 'running') void (mx.ctx as AudioContext).resume();
-    // howler 側もタップの中で有効にする
-    try {
-      const ctx = Howler.ctx;
-      if (ctx && ctx.state !== 'running') void ctx.resume();
-    } catch {
-      // 使えない環境でも動く
+    if (mx && mx.ctx.state !== 'running') void (mx.ctx as AudioContext).resume().catch(() => {});
+    if (mx && !this.seChecked) {
+      this.seChecked = true;
+      void this.checkSeFiles(mx);
     }
   }
 
@@ -48,7 +51,7 @@ class AudioManager {
     this.bgmVolume = Math.max(0, Math.min(10, bgm)) / 10;
     this.seVolume = Math.max(0, Math.min(10, se)) / 10;
     this.mixer?.setSeVolume(this.seVolume);
-    if (this.current) this.current.howl.volume(this.trackVolume(this.current.key));
+    this.mixer?.setBgmVolume(this.bgmVolume);
   }
 
   // ---------------------------------------------------------------- 効果音
@@ -57,32 +60,28 @@ class AudioManager {
   play(key: string): void {
     if (this.seVolume <= 0) return;
     const mx = this.ensureMixer();
-    if (!mx || mx.ctx.state !== 'running') return;
-    const recipe = RECIPES[key];
-    if (recipe?.duck) this.duckBgm();
-    void this.fileOverride(key).then((buf) => {
-      if (buf) {
+    if (!mx) return;
+    const go = () => {
+      const file = this.seFiles.get(key);
+      if (file) {
         const src = mx.ctx.createBufferSource();
-        src.buffer = buf;
+        src.buffer = file;
         src.connect(mx.se);
+        src.onended = () => src.disconnect();
         src.start();
-      } else if (recipe) {
-        playRecipe(mx, recipe);
+        return;
       }
-    });
+      const recipe = RECIPES[key];
+      if (recipe) playRecipe(mx, recipe);
+    };
+    if (mx.ctx.state === 'running') go();
+    // まだ有効になっていない（最初のタップの直後など）：有効になってから鳴らす
+    else void (mx.ctx as AudioContext).resume().then(go, () => {});
   }
 
   /** BGM を一瞬（0.4秒）40% 下げる（大ダメージ・きぜつ。§10-3） */
   duckBgm(): void {
-    const cur = this.current;
-    if (!cur) return;
-    const full = this.trackVolume(cur.key);
-    this.ducking += 1;
-    cur.howl.fade(cur.howl.volume(), full * DUCK.level, 40);
-    window.setTimeout(() => {
-      this.ducking -= 1;
-      if (this.ducking === 0 && this.current === cur) cur.howl.fade(cur.howl.volume(), full, 250);
-    }, DUCK.seconds * 1000);
+    this.mixer?.duckBgm();
   }
 
   // ---------------------------------------------------------------- BGM
@@ -98,39 +97,44 @@ class AudioManager {
       window.setTimeout(() => old.howl.unload(), BGM_CROSSFADE * 1000 + 50);
     }
     if (!key) return;
+    this.ensureMixer();
     void this.bgmSources(key).then((src) => {
       // ファイルが無い間は無音（§10-1）
       if (!src || this.wanted !== key || this.current?.key === key) return;
       const info = BGM[key];
-      const volume = this.trackVolume(key);
+      const volume = info.volume ?? 1;
+      const custom = info.loopStart !== undefined || info.loopEnd !== undefined;
       const howl = new Howl({
         src,
         html5: false,
-        loop: info.loopStart === undefined && info.loopEnd === undefined,
+        loop: true,
         volume: 0,
         onloaderror: () => {
           if (this.current?.howl === howl) this.current = null;
         },
       });
-      const track: BgmTrack = { key, howl, volume };
+      const track: BgmTrack = { key, howl };
       this.current = track;
       const start = () => {
         if (this.current !== track) return;
-        const dur = howl.duration();
-        const ls = info.loopStart ?? 0;
-        const le = info.loopEnd ?? dur;
-        if (info.loopStart !== undefined || info.loopEnd !== undefined) {
-          // イントロ → ループ部分をくり返す（howler のスプライト）
-          (howl as unknown as { _sprite: Record<string, [number, number, boolean?]> })._sprite = {
-            intro: [0, ls * 1000],
-            loop: [ls * 1000, (le - ls) * 1000, true],
-          };
-          const id = ls > 0 ? howl.play('intro') : howl.play('loop');
-          if (ls > 0) howl.once('end', () => this.current === track && howl.play('loop'), id);
+        let id: number;
+        if (custom) {
+          // イントロ付き：0 から鳴らし、2周目からは loopStart〜loopEnd をくり返す（Web Audio のループで、つなぎ目に隙間が出ない）
+          const dur = howl.duration();
+          const le = Math.min(info.loopEnd ?? dur, dur);
+          const ls = Math.max(0, Math.min(info.loopStart ?? 0, le - 0.05));
+          const h = howl as unknown as HowlInternals;
+          h._sprite = { ...h._sprite, bgm: [0, le * 1000, true] };
+          id = howl.play('bgm');
+          const bs = h._soundById(id)?._node?.bufferSource;
+          if (bs) {
+            bs.loopStart = ls;
+            bs.loopEnd = le;
+          }
         } else {
-          howl.play();
+          id = howl.play();
         }
-        howl.fade(0, volume, BGM_CROSSFADE * 1000);
+        howl.fade(0, volume, BGM_CROSSFADE * 1000, id);
       };
       if (howl.state() === 'loaded') start();
       else howl.once('load', start);
@@ -143,15 +147,21 @@ class AudioManager {
 
   // ---------------------------------------------------------------- 内部
 
-  private trackVolume(key: BgmKey): number {
-    return this.bgmVolume * (BGM[key].volume ?? 1);
-  }
-
   private ensureMixer(): Mixer | null {
     if (this.mixer) return this.mixer;
     try {
-      this.mixer = new Mixer();
-      this.mixer.setSeVolume(this.seVolume);
+      // howler の AudioContext を作らせて、それを効果音にも使う
+      Howler.volume(Howler.volume());
+      const ctx = Howler.ctx ?? undefined;
+      const mx = new Mixer(ctx);
+      if (Howler.masterGain && ctx) {
+        // howler の出口を BGM バスへつなぎ直す（BGM も コンプレッサーを通る）
+        Howler.masterGain.disconnect();
+        Howler.masterGain.connect(mx.bgm);
+      }
+      mx.setSeVolume(this.seVolume);
+      mx.setBgmVolume(this.bgmVolume);
+      this.mixer = mx;
     } catch {
       this.mixer = null;
     }
@@ -172,23 +182,26 @@ class AudioManager {
     return p;
   }
 
-  /** 効果音のファイル差し替え（public/audio/se/<キー>.mp3）。無ければ null */
-  private fileOverride(key: string): Promise<AudioBuffer | null> {
-    const hit = this.seFiles.get(key);
-    if (hit) return hit;
-    const mx = this.mixer!;
-    const p = (async () => {
-      const url = `${base}${SE_DIR}${key}.mp3`;
-      if (!(await exists(url))) return null;
-      try {
-        const res = await fetch(url);
-        return await mx.ctx.decodeAudioData(await res.arrayBuffer());
-      } catch {
-        return null;
-      }
-    })();
-    this.seFiles.set(key, p);
-    return p;
+  /**
+   * 効果音の差し替えファイル（public/audio/se/<キー>.mp3）を、音を有効にした時にまとめて確かめる。
+   * 確かめ終わるまでは合成音を鳴らす（最初の音を待たせない）
+   */
+  private async checkSeFiles(mx: Mixer): Promise<void> {
+    await Promise.all(
+      SE_KEYS.map(async (key) => {
+        const url = `${base}${SE_DIR}${key}.mp3`;
+        if (!(await exists(url))) {
+          this.seFiles.set(key, null);
+          return;
+        }
+        try {
+          const res = await fetch(url);
+          this.seFiles.set(key, await mx.ctx.decodeAudioData(await res.arrayBuffer()));
+        } catch {
+          this.seFiles.set(key, null);
+        }
+      }),
+    );
   }
 }
 

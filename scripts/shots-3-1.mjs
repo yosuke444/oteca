@@ -7,7 +7,7 @@ for (const size of SIZES) {
   const n = (k) => `3-1_${size.name}_${k}`;
   await page.mouse.click(size.width / 2, size.height / 2); // タイトル → メニュー
   await page.waitForTimeout(400);
-  await clickText(page, 'デバッグたいせん');
+  await clickText(page, 'デバッグ たいせん');
   await clickText(page, 'ひとりで りょうほう');
   await waitIdle(page);
   await shot(page, n('01_setup'));

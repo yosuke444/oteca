@@ -6,7 +6,7 @@ const size = SIZES[Number(process.argv[2] ?? 0)];
 const browser = await launch();
 const { page, errors } = await openPage(browser, size);
 await toMenu(page, size);
-await clickText(page, 'デバッグたいせん');
+await clickText(page, 'デバッグ たいせん');
 await clickText(page, 'えんしゅつ テスト');
 await page.getByTestId('fx-panel').waitFor();
 

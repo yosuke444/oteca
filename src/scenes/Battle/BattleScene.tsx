@@ -23,6 +23,7 @@ import { BattleBoard, type BoardSel } from './BattleBoard';
 import { logLine, rejectText } from './battleText';
 import { createControllers } from './controllersFor';
 import { useOnlineBattle } from './useOnlineBattle';
+import { STAMP_COOLDOWN_MS, StampBalloon, StampPicker, isStampId } from './Stamps';
 import { currentOnline, endOnline } from '../../net/online';
 import type { ResultPayload } from '../Result/ResultScene';
 import './battle.css';
@@ -217,6 +218,32 @@ export function BattleScene() {
     if (setup.mode === 'online') endOnline();
     go('menu');
   }, [go, setup.mode]);
+
+  // ---------------------------------------------------------------- スタンプ（SPEC §8-4）
+  const [myStamp, setMyStamp] = useState<{ id: number; n: number } | null>(null);
+  const [oppStamp, setOppStamp] = useState<{ id: number; n: number } | null>(null);
+  const [stampCooldown, setStampCooldown] = useState(0);
+  const sendStamp = useCallback(
+    (id: number) => {
+      if (Date.now() < stampCooldown || !isStampId(id)) return;
+      setStampCooldown(Date.now() + STAMP_COOLDOWN_MS);
+      setMyStamp((s) => ({ id, n: (s?.n ?? 0) + 1 }));
+      audio.play('se_stamp_chat');
+      if (setup.mode === 'online') currentOnline()?.session.sendStamp(id);
+    },
+    [stampCooldown, setup.mode],
+  );
+  useEffect(() => {
+    if (setup.mode !== 'online') return;
+    const link = currentOnline();
+    if (!link) return;
+    return link.on('stamp', (id) => {
+      // 届いた番号が正しい時だけ（壊れたデータは無視）
+      if (!isStampId(id)) return;
+      setOppStamp((s) => ({ id, n: (s?.n ?? 0) + 1 }));
+      audio.play('se_stamp_chat');
+    });
+  }, [setup.mode]);
 
   // ---------------------------------------------------------------- BGM（SPEC §10-2）
   const pinch = !!view && (['p1', 'p2'] as const).some((s) => view.players[s].koCount >= view.rules[s].koToWin - 1);
@@ -476,6 +503,10 @@ export function BattleScene() {
       />
       <div key="fx-overlay" className="fx-overlay" ref={overlayRef} />
       <canvas key="fx-particles" className="fx-particles" ref={canvasRef} />
+
+      <StampPicker onSend={sendStamp} cooldownUntil={stampCooldown} />
+      <StampBalloon stamp={myStamp} side="me" />
+      <StampBalloon stamp={oppStamp} side="opp" />
 
       {officialHash && (
         <div className="battle-hash" data-testid="state-hash">

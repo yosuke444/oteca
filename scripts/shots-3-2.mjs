@@ -9,7 +9,7 @@ const browser = await launch();
 const { page, errors } = await openPage(browser, size);
 await toMenu(page, size);
 await setSpeed(page, 'さいそく');
-await clickText(page, 'デバッグたいせん');
+await clickText(page, 'デバッグ たいせん');
 // サイコロを6に固定、1P の山札の上に「くすり」「スポドリ」
 await page.getByRole('button', { name: '6', exact: true }).click();
 await clickText(page, 'くすり', { exact: true });

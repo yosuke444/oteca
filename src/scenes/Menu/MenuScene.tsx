@@ -74,7 +74,12 @@ export function MenuScene() {
           stroke="var(--pen-red)"
           onClick={() => go('debug')}
         >
-          デバッグたいせん
+          <span className="menu-scene__debug-label">デバッグ たいせん</span>
+        </RoughButton>
+      )}
+      {debug && (
+        <RoughButton seed="menu-soundtest" className="menu-scene__sub menu-scene__debug menu-scene__soundtest" stroke="var(--pen-red)" onClick={() => go('soundtest')}>
+          <span className="menu-scene__debug-label">こうかおん テスト</span>
         </RoughButton>
       )}
 

@@ -33,8 +33,6 @@ export const SE_DIR = 'audio/se/';
 
 /** BGM の切り替えにかける時間（秒）（§10-2 クロスフェード） */
 export const BGM_CROSSFADE = 0.8;
-/** 大ダメージ・きぜつの時に BGM を下げる時間（秒）と、下げた時の大きさ（§10-3） */
-export const DUCK = { seconds: 0.4, level: 0.6 };
 
 /** 効果音・ジングルのキー（§10-3 の表の順） */
 export const SE_KEYS = [

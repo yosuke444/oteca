@@ -1,0 +1,143 @@
+.rules-scene {
+  position: absolute;
+  inset: 0;
+}
+.rules-page {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  top: 24px;
+  bottom: 110px;
+}
+.rules-page > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 34px 14px;
+  height: 100%;
+}
+.rules-page__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.rules-page__title {
+  margin: 0;
+  font-size: 42px;
+  font-weight: normal;
+  padding: 0 10px;
+  background: linear-gradient(transparent 58%, var(--marker-yellow) 58%);
+}
+.rules-page__num {
+  font-size: 30px;
+  color: var(--pencil);
+}
+.rules-page__main {
+  flex: 1;
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  min-height: 0;
+}
+.rules-page__body {
+  flex: 1;
+  font-size: 25px;
+  line-height: 1.55;
+}
+.rules-page__body p {
+  margin: 0 0 10px;
+}
+.rules-mark {
+  color: var(--pen-blue);
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+}
+.rules-items {
+  margin: 0;
+  padding-left: 1em;
+  font-size: 22px;
+  line-height: 1.5;
+}
+.rules-page__more {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 2px dashed var(--grid-major);
+  font-size: 19px;
+  line-height: 1.45;
+}
+
+/* イラスト */
+.rules-art {
+  flex: 0 0 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.rules-art--cards .card-mini,
+.rules-art--attack .card-mini {
+  scale: 1.25;
+}
+.rules-art--items {
+  flex-wrap: wrap;
+}
+.rules-art--turn {
+  position: relative;
+  gap: 14px;
+}
+.rules-slot {
+  width: 100px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--grid-major);
+  border-radius: 10px;
+  font-size: 22px;
+  color: var(--pencil);
+}
+.rules-slot--active {
+  width: 124px;
+  height: 172px;
+  border: 3px solid var(--ink);
+  color: var(--ink);
+}
+.rules-arrow {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  translate: -50% 0;
+  font-size: 48px;
+  color: var(--pen-blue);
+}
+
+/* ボタン */
+.rules-nav {
+  position: absolute;
+  bottom: 22px;
+  width: 200px;
+  height: 70px;
+  font-size: 28px;
+}
+.rules-nav--prev {
+  left: 60px;
+}
+.rules-nav--next {
+  right: 60px;
+}
+.rules-back {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  translate: -50% 0;
+  width: 180px;
+  height: 70px;
+  font-size: 26px;
+}
+
+@media (max-height: 500px) {
+  .rules-page__body {
+    font-size: 28px;
+  }
+  .rules-page__more {
+    font-size: 23px;
+  }
+}

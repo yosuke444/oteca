@@ -30,7 +30,7 @@ await shot(page, n('05_menu_locked'));
 log('title/menu');
 
 // 待機中：10秒操作しないと「ターンおわり」ボタンが揺れる
-await clickText(page, 'デバッグたいせん');
+await clickText(page, 'デバッグ たいせん');
 await clickText(page, 'ひとりで りょうほう');
 await waitIdle(page, 30000);
 for (let i = 0; i < 2; i++) {
@@ -52,7 +52,7 @@ await clickText(page, 'メニューへ');
 // 勝ち：ひとりで両方あやつる対戦を最後まで（さいそく）→ 「○○ の かち！」の演出
 await page.getByRole('button', { name: 'デッキへんしゅう' }).waitFor();
 await setSpeed(page, 'さいそく');
-await clickText(page, 'デバッグたいせん');
+await clickText(page, 'デバッグ たいせん');
 await clickText(page, 'ひとりで りょうほう');
 await playToEnd(page, n('play'));
 for (const [i, ms] of [350, 650, 1000, 1500, 2800].entries()) {
@@ -63,7 +63,7 @@ log('win');
 
 // 負け：かんたんCPU に降参 → 「まけ…」の演出
 await clickText(page, 'メニューへ');
-await clickText(page, 'デバッグたいせん');
+await clickText(page, 'デバッグ たいせん');
 await clickText(page, 'かんたんCPU と たいせん');
 await page.locator('.battle').waitFor();
 await page.waitForTimeout(800);

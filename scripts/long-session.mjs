@@ -7,7 +7,7 @@ const { page, errors } = await openPage(browser, size);
 page.on('crash', () => console.log('CRASH'));
 await toMenu(page, size);
 await setSpeed(page, 'さいそく');
-await clickText(page, 'デバッグたいせん');
+await clickText(page, 'デバッグ たいせん');
 await clickText(page, 'ひとりで りょうほう');
 for (let g = 1; g <= 2; g++) {
   const t0 = Date.now();

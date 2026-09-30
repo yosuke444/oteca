@@ -58,8 +58,6 @@ export type Recipe = {
   layers: Layer[];
   /** 全体の大きさ */
   gain?: number;
-  /** 大ダメージ・きぜつの時に BGM を一瞬下げる */
-  duck?: boolean;
 };
 
 /** 鳴らすたびの揺らぎ（SPEC §10-3：ピッチ ±3%、音量 ±10%） */
@@ -96,6 +94,8 @@ type Voice = {
   /** 長さを変える（メロディの音符） */
   length?: number;
   freqOverride?: number;
+  /** 左右の位置を固定（粒モードで、粒ごとに位置を変える時） */
+  pan?: number;
 };
 
 /** 1つの音（レイヤーの1回分）を鳴らす */
@@ -107,9 +107,11 @@ function voice(mx: Mixer, layer: Layer, v: Voice, out: AudioNode): void {
   const t0 = v.at;
   const t1 = t0 + total;
 
-  // 音源
+  // 音源（作ったノードは鳴り終わったら全部外す）
   const sources: AudioScheduledSourceNode[] = [];
+  const made: AudioNode[] = [];
   const srcOut = ctx.createGain();
+  made.push(srcOut);
   if (layer.src === 'white' || layer.src === 'pink' || layer.src === 'brown') {
     const s = ctx.createBufferSource();
     s.buffer = mx.noise(layer.src);
@@ -129,6 +131,7 @@ function voice(mx: Mixer, layer: Layer, v: Voice, out: AudioNode): void {
       const g = ctx.createGain();
       g.gain.value = 1 / Math.sqrt(partials.length) / (partials.indexOf(p) * 0.35 + 1);
       o.connect(g).connect(srcOut);
+      made.push(o, g);
       o.start(t0);
       sources.push(o);
     }
@@ -140,6 +143,7 @@ function voice(mx: Mixer, layer: Layer, v: Voice, out: AudioNode): void {
     const ws = ctx.createWaveShaper();
     ws.curve = driveCurve(layer.drive);
     ws.oversample = '2x';
+    made.push(ws);
     node.connect(ws);
     node = ws;
   }
@@ -150,11 +154,13 @@ function voice(mx: Mixer, layer: Layer, v: Voice, out: AudioNode): void {
     f.Q.value = layer.filter.q ?? 0.8;
     const [a, b] = layer.filter.freq;
     ramp(f.frequency, a, b, t0, t0 + Math.max(0.005, layer.filter.time ?? total), 'exp');
+    made.push(f);
     node.connect(f);
     node = f;
   }
   // 音量エンベロープ
   const g = ctx.createGain();
+  made.push(g);
   const peak = layer.gain * v.gainMul;
   const hold = v.length !== undefined ? Math.max(0, v.length - env.a - env.d) : (env.hold ?? 0);
   g.gain.setValueAtTime(0.0001, t0);
@@ -165,9 +171,10 @@ function voice(mx: Mixer, layer: Layer, v: Voice, out: AudioNode): void {
   node.connect(g);
   node = g;
   // 左右
-  if (layer.pan !== undefined && ctx.createStereoPanner) {
+  if ((layer.pan !== undefined || v.pan !== undefined) && ctx.createStereoPanner) {
     const p = ctx.createStereoPanner();
-    const [pa, pb] = Array.isArray(layer.pan) ? layer.pan : [layer.pan, layer.pan];
+    made.push(p);
+    const [pa, pb] = v.pan !== undefined ? [v.pan, v.pan] : Array.isArray(layer.pan) ? layer.pan : [layer.pan ?? 0, layer.pan ?? 0];
     p.pan.setValueAtTime(pa, t0);
     p.pan.linearRampToValueAtTime(pb, t1);
     node.connect(p);
@@ -177,17 +184,19 @@ function voice(mx: Mixer, layer: Layer, v: Voice, out: AudioNode): void {
   // 残響
   if (layer.reverb && layer.reverb > 0) {
     const send = ctx.createGain();
+    made.push(send);
     send.gain.value = layer.reverb;
     node.connect(send).connect(layer.reverbLong ? mx.reverbLong : mx.reverbShort);
   }
   for (const s of sources) s.stop(t1 + 0.05);
   // 終わったら外す（ノードがたまらないように）
   sources[0].onended = () => {
-    try {
-      srcOut.disconnect();
-      g.disconnect();
-    } catch {
-      // すでに外れている
+    for (const n of made) {
+      try {
+        n.disconnect();
+      } catch {
+        // すでに外れている
+      }
     }
   };
 }
@@ -221,9 +230,12 @@ export function playRecipe(mx: Mixer, recipe: Recipe, when?: number): void {
         times.push(t);
         t += (weights[i] / sum) * gr.spread * (1 + rand(-1, 1) * (gr.jitter ?? 0.4));
       }
+      const [p0, p1] = layer.pan === undefined ? [undefined, undefined] : Array.isArray(layer.pan) ? layer.pan : [layer.pan, layer.pan];
       times.forEach((tt, i) => {
-        const fade = 1 - (gr.fade ?? 0) * (i / Math.max(1, gr.count - 1));
-        voice(mx, layer, { at: at + tt, freqMul: pitch * (1 + rand(-1, 1) * (gr.pitchJitter ?? 0)), gainMul: fade * (1 - rand(0, gr.gainJitter ?? 0)) }, out);
+        const k = i / Math.max(1, gr.count - 1);
+        const fade = 1 - (gr.fade ?? 0) * k;
+        const pan = p0 === undefined || p1 === undefined ? undefined : p0 + (p1 - p0) * k;
+        voice(mx, layer, { at: at + tt, freqMul: pitch * (1 + rand(-1, 1) * (gr.pitchJitter ?? 0)), gainMul: fade * (1 - rand(0, gr.gainJitter ?? 0)), pan }, out);
       });
       end = Math.max(end, at + t + envLength(layer.env));
     } else {

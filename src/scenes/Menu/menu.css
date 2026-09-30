@@ -120,9 +120,14 @@
 .menu-scene__rules { top: 316px; }
 .menu-scene__debug {
   top: 452px;
+  width: 174px;
   height: 80px;
-  font-size: 26px;
+  font-size: 23px;
   color: var(--pen-red);
+}
+/* ?debug=1 の時だけ：こうかおん テスト（SPEC §10-4） */
+.menu-scene__soundtest {
+  left: 916px;
 }
 
 /* 落書き */
@@ -149,4 +154,11 @@
 }
 .menu-scene__backup small {
   font-size: 16px;
+}
+/* 2行に分けるのは「デバッグ／たいせん」のように言葉の切れ目で */
+.menu-scene__debug-label {
+  display: inline-block;
+  width: 5em;
+  line-height: 1.2;
+  word-break: keep-all;
 }

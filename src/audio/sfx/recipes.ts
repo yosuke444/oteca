@@ -1,5 +1,18 @@
 import type { Layer, Recipe } from './synth';
 
+/** まぜ方（音の通り道）の数値。これもここで調整する */
+export const MIX = {
+  /** マスターのコンプレッサー（重ねても音割れしないように） */
+  compressor: { threshold: -16, knee: 12, ratio: 6, attack: 0.003, release: 0.18 },
+  /** 全体の大きさ */
+  master: 0.9,
+  /** 残響：短い（はんこ・ダメージ）と長い（大ダメージ・ジングル） */
+  reverbShort: { seconds: 0.9, decay: 3.2, preDelay: 0.008, damp: 0.5 },
+  reverbLong: { seconds: 2.6, decay: 2.4, preDelay: 0.02, damp: 0.35 },
+  /** 大ダメージ・きぜつの瞬間に BGM を下げる：秒数と、下げた時の大きさ（0.6 ＝ 40% 下げる。SPEC §10-3） */
+  duck: { seconds: 0.4, level: 0.6 },
+};
+
 /**
  * 効果音のレシピ（SPEC §10-3）。音の調整は、このファイルの数値だけを触ればよい。
  *
@@ -148,7 +161,6 @@ export const RECIPES: Record<string, Recipe> = {
   // 60以上のダメージ：「ズドーン」
   se_hit_big: {
     gain: 1,
-    duck: true,
     layers: [
       { src: 'sine', gain: 1, freq: [130, 28], freqTime: 0.55, env: { a: 0.001, d: 0.7, s: 0, r: 0.1 }, drive: 0.55 },
       { src: 'square', gain: 0.18, freq: [70, 30], freqTime: 0.5, env: { a: 0.001, d: 0.5, s: 0, r: 0.1 }, filter: { type: 'lowpass', freq: [500, 120] } },
@@ -182,7 +194,6 @@ export const RECIPES: Record<string, Recipe> = {
   // きぜつ：紙をくしゃくしゃに丸める → 最後に「ポスッ」
   se_ko: {
     gain: 0.9,
-    duck: true,
     layers: [
       { src: 'white', gain: 0.35, filter: { type: 'bandpass', freq: [900, 900], q: 1.8 }, env: { a: 0.001, d: 0.018, s: 0, r: 0.008 }, grains: { count: 16, spread: 0.58, jitter: 0.9, pitchJitter: 0.4, gainJitter: 0.6 } },
       { src: 'white', gain: 0.35, filter: { type: 'bandpass', freq: [2300, 2300], q: 1.8 }, env: { a: 0.001, d: 0.015, s: 0, r: 0.006 }, grains: { count: 20, spread: 0.6, jitter: 0.9, pitchJitter: 0.4, gainJitter: 0.6 } },

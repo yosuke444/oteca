@@ -158,58 +158,58 @@
 
 ## 5-3 効果音の合成と BGM（§10 全部）
 **仕組み**
-- [ ] src/audio/sfx/synth.ts（レシピ → Web Audio ノード）
-- [ ] src/audio/sfx/recipes.ts（数値データ。調整はここだけ）
-- [ ] src/audio/sfx/reverb.ts（ノイズから作ったインパルス応答 → ConvolverNode）
-- [ ] src/audio/sfx/mixer.ts（BGMバス・効果音バス・マスターのコンプレッサー・BGMの一時的な音量下げ）
-- [ ] レイヤー：サイン／三角／矩形／ノコギリ／ホワイト・ピンク・ブラウンノイズ
-- [ ] 音量エンベロープ（ADSR）・ピッチ変化（開始→終了、カーブ）・フィルター（LP/HP/BP）と周波数変化・開始時刻のずれ・パン・ひずみ・残響量
-- [ ] 「粒」モード（短い音を N 個、不規則な間隔で）
-- [ ] 鳴らすたびにピッチ ±3%、音量 ±10% の揺らぎ
-- [ ] 大ダメージ・きぜつの瞬間は BGM を0.4秒だけ40%下げる
-- [ ] public/audio/se/<キー>.mp3 があれば合成音より優先（仕組みだけ）
-- [ ] 音量は設定の値を使う
+- [x] src/audio/sfx/synth.ts（レシピ → Web Audio ノード）
+- [x] src/audio/sfx/recipes.ts（数値データ。調整はここだけ）
+- [x] src/audio/sfx/reverb.ts（ノイズから作ったインパルス応答 → ConvolverNode）
+- [x] src/audio/sfx/mixer.ts（BGMバス・効果音バス・マスターのコンプレッサー・BGMの一時的な音量下げ）
+- [x] レイヤー：サイン／三角／矩形／ノコギリ／ホワイト・ピンク・ブラウンノイズ
+- [x] 音量エンベロープ（ADSR）・ピッチ変化（開始→終了、カーブ）・フィルター（LP/HP/BP）と周波数変化・開始時刻のずれ・パン・ひずみ・残響量
+- [x] 「粒」モード（短い音を N 個、不規則な間隔で）
+- [x] 鳴らすたびにピッチ ±3%、音量 ±10% の揺らぎ
+- [x] 大ダメージ・きぜつの瞬間は BGM を0.4秒だけ40%下げる
+- [x] public/audio/se/<キー>.mp3 があれば合成音より優先（仕組みだけ）
+- [x] 音量は設定の値を使う
 
 **効果音 25音（§10-3）**
-- [ ] se_click
-- [ ] se_hover
-- [ ] se_page
-- [ ] se_pen
-- [ ] se_stamp
-- [ ] se_dice_roll
-- [ ] se_dice_land
-- [ ] se_card_draw
-- [ ] se_card_place
-- [ ] se_tape
-- [ ] se_swap
-- [ ] se_hit_small
-- [ ] se_hit_big
-- [ ] se_heal
-- [ ] se_ko
-- [ ] se_item_kusuri
-- [ ] se_item_yaiba
-- [ ] se_item_drink
-- [ ] se_item_spodori
-- [ ] se_turn_start
-- [ ] se_error
-- [ ] se_match_found
-- [ ] se_stamp_chat
-- [ ] jingle_win（約3秒）
-- [ ] jingle_lose（約2.5秒）
-- [ ] 重ね：大ダメージ＝se_hit_big＋se_pen、きぜつ＝se_ko のあと se_stamp など
+- [x] se_click
+- [x] se_hover
+- [x] se_page
+- [x] se_pen
+- [x] se_stamp
+- [x] se_dice_roll
+- [x] se_dice_land
+- [x] se_card_draw
+- [x] se_card_place
+- [x] se_tape
+- [x] se_swap
+- [x] se_hit_small
+- [x] se_hit_big
+- [x] se_heal
+- [x] se_ko
+- [x] se_item_kusuri
+- [x] se_item_yaiba
+- [x] se_item_drink
+- [x] se_item_spodori
+- [x] se_turn_start
+- [x] se_error
+- [x] se_match_found
+- [x] se_stamp_chat
+- [x] jingle_win（約3秒）
+- [x] jingle_lose（約2.5秒）
+- [x] 重ね：大ダメージ＝se_hit_big＋se_pen、きぜつ＝se_ko のあと se_stamp など
 
 **BGM（§10-2）**
-- [ ] howler.js で再生。mp3（同名 ogg があれば併用）
-- [ ] 対応表 src/audio/soundMap.ts と public/audio/README.md
-- [ ] bgm_title／bgm_deck／bgm_lobby／bgm_battle／bgm_battle_pinch（あと1体で勝つ状態で切り替え）
-- [ ] 0.8秒のクロスフェード
-- [ ] ループ開始・終了位置（秒）を soundMap.ts で指定
-- [ ] ファイルが無い間は無音で動く
+- [x] howler.js で再生。mp3（同名 ogg があれば併用）
+- [x] 対応表 src/audio/soundMap.ts と public/audio/README.md
+- [x] bgm_title／bgm_deck／bgm_lobby／bgm_battle／bgm_battle_pinch（あと1体で勝つ状態で切り替え）
+- [x] 0.8秒のクロスフェード
+- [x] ループ開始・終了位置（秒）を soundMap.ts で指定
+- [x] ファイルが無い間は無音で動く
 
 **試聴ページ（§10-4）**
-- [ ] ?debug=1 のメニューに「こうかおん テスト」
-- [ ] 全効果音の再生ボタン、連打テスト（5回）、重ねテスト
-- [ ] 手順：test／build／スクショ2サイズ／サブエージェント確認／コミット
+- [x] ?debug=1 のメニューに「こうかおん テスト」
+- [x] 全効果音の再生ボタン、連打テスト（5回）、重ねテスト
+- [x] 手順：test／build／スクショ2サイズ／サブエージェント確認／コミット
 
 ## 5-4 スタンプ・ルールせつめい・データを まもろう・ヒント1行（§8-4、§7 S07、§12-6、§8-2）
 - [ ] スタンプ6種（よろしく！／ナイス！／うそでしょ！？／まだまだ！／ありがとう／おてあげ〜＋イラスト）
@@ -242,4 +242,5 @@
 - 4-2：完了。
 - 5-1：完了。デバッグの「えんしゅつ テスト」で §9-2 の対戦中の行を全部再生して撮影。ふつう→さいそく で ターン開始 1.3→0.5秒、攻撃＋ダメージ 3.3→1.3秒。5-1 のコミットには 5-3 の音の合成エンジン（src/audio）の書きかけも入っている。
 - 5-2：完了（突き合わせは1回目が上限エラーで失敗し、別のエージェントでやり直した。指摘7件を直した）。このコミットにも 5-3 の書きかけ（こうかおん テスト・音の自動チェック・public/audio/README.md）が入っている。
-- 5-3：作業中。
+- 5-3：完了。全25音を OfflineAudioContext に書き出して、全部鳴っていること・音割れしていないこと・長さを確認（scripts/shots-5-3.mjs）。se_hover はわざと小さい。BGM は無音の mp3 を一時的に置いて、置くと再生・無い画面では止まることを確認（scripts/check-bgm.mjs）。耳での聞こえ方は企画者が確認する。
+- 5-4：作業中（ルールせつめい・スタンプは作成ずみ）。

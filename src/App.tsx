@@ -16,7 +16,8 @@ import { DebugScene } from './scenes/Debug/DebugScene';
 import { LobbyScene } from './scenes/Lobby/LobbyScene';
 import { FxTestScene } from './scenes/Debug/FxTestScene';
 import { SoundTestScene } from './scenes/Debug/SoundTestScene';
-import { ComingSoonScene, UnderConstructionScene } from './scenes/Placeholder/PlaceholderScene';
+import { RulesScene } from './scenes/Rules/RulesScene';
+import { ComingSoonScene } from './scenes/Placeholder/PlaceholderScene';
 
 /**
  * ルーター：行き先 → 画面 の対応表（SPEC §3、§13-5）
@@ -29,7 +30,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   battle: BattleScene,
   result: ResultScene,
   settings: SettingsScene,
-  rules: UnderConstructionScene,
+  rules: RulesScene,
   debug: DebugScene,
   fxtest: FxTestScene,
   soundtest: SoundTestScene,
@@ -67,6 +68,13 @@ export function App() {
   const value = useMemo<Nav>(() => ({ route: nav.route, payload: nav.payload, go }), [nav, go]);
   const Scene = ROUTES[nav.route];
   const { save } = useSave();
+
+  // 画面に触ったら、いつでも音を有効にし直す（スマホで裏に回して戻った時など）
+  useEffect(() => {
+    const on = () => audio.unlock();
+    document.addEventListener('pointerdown', on);
+    return () => document.removeEventListener('pointerdown', on);
+  }, []);
 
   // 音量は設定の値（0〜10）
   useEffect(() => audio.setVolumes(save.settings.bgm, save.settings.se), [save.settings.bgm, save.settings.se]);
