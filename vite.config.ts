@@ -44,11 +44,13 @@ function battleBgm(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // 公開パス：GitHub Pages（https://<ユーザー名>.github.io/oteca/）用に、公開用ビルドだけ /oteca/。開発中は /
+  base: command === 'build' ? '/oteca/' : '/',
   plugins: [react(), battleBgm()],
   test: {
     include: ['tests/**/*.test.ts'],
     passWithNoTests: true,
     testTimeout: 30000,
   },
-});
+}));

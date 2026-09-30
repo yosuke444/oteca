@@ -451,7 +451,7 @@ type RuleSet = {
 └──────────────────┘
 ```
 
-- イラスト（`public/cards/<id>.png`）は、余白と関係ない部分を切り取り、全カードで同じ大きさ・中央ぞろえに作り直したものを使う（元の画像は `public/cards/original/`）。白い部分は乗算（`mix-blend-mode: multiply`）で表示し、紙になじませる。
+- イラスト（`public/cards/<id>.png`）は、余白と関係ない部分を切り取り、全カードで同じ大きさ・中央ぞろえに作り直したものを使う（元の画像は `assets-original/cards/`。公開しない）。白い部分は乗算（`mix-blend-mode: multiply`）で表示し、紙になじませる。
 - 技表の行は **サイコロの目アイコン**（手描きのサイコロ面）で表す。
 - 回復は緑ペン、ダメージは黒ペン。
 - 効果が変わっている時は **元の数字に赤ペンで取り消し線を引き、横に新しい数字を書く**（例：~~30~~ **50**）。やいば・ドリンクの影響が一目でわかる。
@@ -982,7 +982,7 @@ JSONのままだと長すぎるので、バイト列に詰める。数値は **�
 
 - バイト列 → base64url 文字列 → **64文字の表を使ったヴィジュネル暗号** → Cookie。
 - 1つのCookieは約4KBまでなので、3500文字ごとに `oteca_s0`, `oteca_s1`, … に分割し、`oteca_meta` に分割数とチェック値を入れる。
-- 属性：`path=/; max-age=34560000（400日）; SameSite=Lax`。https では `Secure` も付ける。
+- 属性：`path=<公開パス>; max-age=34560000（400日）; SameSite=Lax`。https では `Secure` も付ける。公開パスは開発中 `/`、GitHub Pages では `/oteca/`（同じ github.io の別のサイトと Cookie を分けるため）。
 - 起動のたびに保存し直して期限を延ばす。
 
 ### 12-6. 保存が消えるリスクへの対策
@@ -1026,7 +1026,7 @@ export const features = {
 ### 13-4. 新しいカードの追加手順（企画者向け）
 
 1. `src/data/cards.json` に1件追加（No は 13 から順番）。
-2. 画像を `public/cards/original/` に置き、Claude Code に「カードの絵を作って」と頼む（`scripts/prepare-art.mjs` が余白を切り取り、全カード同じ大きさ・中央ぞろえにした `public/cards/<id>.png` を作る）。
+2. 画像を `assets-original/cards/` に置き、Claude Code に「カードの絵を作って」と頼む（`scripts/prepare-art.mjs` が余白を切り取り、全カード同じ大きさ・中央ぞろえにした `public/cards/<id>.png` を作る）。
 3. 新しい効果タイプが必要なら、Claude Code に「効果 ○○ を追加して」と頼む（`effectHandlers` とテストが増える）。
 
 ### 13-5. 画面の備え
@@ -1047,8 +1047,8 @@ oteca/
 ├─ package.json
 ├─ vite.config.ts
 ├─ public/
-│   ├─ cards/                 # カード画像（企画者から届く。元の画像は cards/original/）
-│   ├─ images/                # おてあげの絵など（企画者から届く。元の画像は images/original/）
+│   ├─ cards/                 # カード画像（scripts/prepare-art.mjs で作ったもの）
+│   ├─ images/                # おてあげの絵など（scripts/prepare-art.mjs で作ったもの）
 │   └─ audio/bgm/             # BGM（企画者から届く。戦闘曲は audio/bgm/battle/）
 ├─ src/
 │   ├─ main.tsx

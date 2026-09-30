@@ -80,4 +80,8 @@
 | 74 | 素材 | 「よこむきにしてね」とリザルトには、もともと おてあげの落書きが無かったので、絵を足した。「よこむきにしてね」の回るスマホの絵は、おてあげではないので残した。スタンプの吹き出しの「ポンと出てしぼむ」動きは吹き出しの動きなので残した（絵そのものは動かさない） | 指示の場所の一覧に入っていたため |
 | 75 | 素材 | 手を上げ下げする おてあげの落書き（OteageDoodle）と、その動きの CSS は消した。絵の画像が無い時は、同じ大きさの見えない空きにする | 絵を動かさないため。画像が無くても並びがくずれないように |
 | 76 | 素材 | scripts/check-bgm.mjs（5-3 の確認）を、本物の bgm_title.mp3 がある時は上書き・削除しないように直した | 元のままだと、動かすと届いた曲を消してしまうため |
-| 77 | 素材 | public/cards/original/・public/images/original/ は公開用ビルド（dist）にも入る（合わせて約0.3MB） | public/ の中は全部公開されるため。影響は小さい |
+| 77 | 素材 | （フェーズ6で変更）元の画像は assets-original/cards/・assets-original/images/ に移し、公開サイトにも git にも入れない | 企画者の指示（元画像を公開しない） |
+| 78 | 6 | Vite の公開パスは、公開用ビルドの時だけ /oteca/（開発中は /）。Cookie の path は公開パスに合わせる（公開サイトでは /oteca/） | https://yosuke444.github.io/oteca/ で動かし、同じ github.io の別のサイトと Cookie を分けるため。SPEC §12-5 の path=/ を書き換えた |
+| 79 | 6 | 公開は GitHub Actions（.github/workflows/deploy.yml）。main ブランチに push すると、テスト → ビルド → GitHub Pages。テストが失敗したら公開しない。手元のブランチ名を master から main に変えた | 壊れたものを公開しないため。Actions は main への push で動かす |
+| 80 | 6 | このリポジトリだけ、コミットに使うメールアドレスを GitHub の noreply アドレスにした（git config user.email）。過去の14コミットも書き換え済み | 公開リポジトリに本物のメールアドレスを残さないため |
+| 81 | 6 | 公開用に短い README.md を足した。.claude/（Claude Code の手元の設定）も .gitignore に入れた | 公開リポジトリの入口として。手元の設定は公開しないため |

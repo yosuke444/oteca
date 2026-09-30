@@ -63,7 +63,7 @@ describe('Cookie への保存', () => {
     expect(jar.store.get(COOKIE_META)!.startsWith(`${names.length}.`)).toBe(true);
     expect(readCookies(jar)).toBe(sealed);
 
-    // 属性：path=/・400日・SameSite=Lax・（https なら）Secure
+    // 属性：path＝公開パス（テストでは /）・400日・SameSite=Lax・（https なら）Secure
     for (const w of jar.writes) expect(w).toMatch(/; path=\/; max-age=34560000; SameSite=Lax; Secure$/);
 
     // 小さいデータで保存し直すと、余った分割 Cookie は消える

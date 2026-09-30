@@ -55,8 +55,14 @@ export function parseCookies(text: string): Map<string, string> {
   return map;
 }
 
+/**
+ * Cookie の path は公開パス（開発中は /、GitHub Pages では /oteca/。vite.config.ts の base）。
+ * 同じ github.io の別のサイトと Cookie を分けるため
+ */
+const COOKIE_PATH = import.meta.env.BASE_URL || '/';
+
 function cookieAttrs(maxAge: number, secure: boolean): string {
-  return `; path=/; max-age=${maxAge}; SameSite=Lax${secure ? '; Secure' : ''}`;
+  return `; path=${COOKIE_PATH}; max-age=${maxAge}; SameSite=Lax${secure ? '; Secure' : ''}`;
 }
 
 /** 分割して書く。前回より分割数が減った時は、余った Cookie を消す */

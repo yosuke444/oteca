@@ -1,2 +1,8 @@
 node_modules/
 dist/
+# 画面の確認用スクリーンショット（手元だけ）
+screenshots/
+# 元の画像（公開しない。scripts/prepare-art.mjs の材料）
+assets-original/
+# Claude Code の手元の設定
+.claude/

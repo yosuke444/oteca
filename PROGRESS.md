@@ -256,6 +256,12 @@
 - [x] 音量：曲の差を 0.1dB にそろえた。BGM 全体を下げて効果音が埋もれないようにした（scripts/measure-bgm.mjs）
 - [x] Playwright：曲の終わりまで早送り → 別の曲へ（scripts/check-battle-bgm.mjs。開発サーバー・公開用ビルドの両方、こうかおん テストと対戦画面の両方）
 - [x] public/audio/README.md を新しい置き方に
-- [x] カードの絵12枚：余白・端の線・点を切り取り、480×240 に同じ大きさ・中央ぞろえ、乗算で表示（scripts/prepare-art.mjs）。元の画像は public/cards/original/
-- [x] おてあげの絵：タイトル・メニュー・ルール・スタンプ・よこむきにしてね・リザルト。動かさない・余白を切る・乗算で方眼を透かす。元の画像は public/images/original/
+- [x] カードの絵12枚：余白・端の線・点を切り取り、480×240 に同じ大きさ・中央ぞろえ、乗算で表示（scripts/prepare-art.mjs）。元の画像は assets-original/cards/（フェーズ6で public の外へ移した）
+- [x] おてあげの絵：タイトル・メニュー・ルール・スタンプ・よこむきにしてね・リザルト。動かさない・余白を切る・乗算で方眼を透かす。元の画像は assets-original/images/
 - [x] npm test（81件）・npm run build・スクショ2サイズ（screenshots/art_*.png。scripts/shots-art.mjs）
+
+## フェーズ6 公開
+- [x] 元画像を assets-original/ へ（公開しない・git に入れない）。screenshots/ も git から外した（ファイルは残す）
+- [x] 過去のコミットから screenshots/ と元画像を履歴ごと消した。作者のメールアドレスを noreply に置き換えた
+- [x] 公開されるファイルに個人情報が無いことを確認
+- [x] 公開パス /oteca/、Cookie の path /oteca/、GitHub Actions で自動公開

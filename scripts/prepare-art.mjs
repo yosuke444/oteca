@@ -1,6 +1,7 @@
 // カードのイラストと、おてあげの絵を、表示用に作り直す（元の画像は変えない）
-//   public/cards/original/*.png   → public/cards/<id>.png   （全カード同じ大きさ・中央ぞろえ）
-//   public/images/original/*.png  → public/images/<名前>.png （余白を切り取るだけ）
+// 元の画像は公開しない（assets-original/ は git にも入れない。.gitignore）
+//   assets-original/cards/*.png   → public/cards/<id>.png   （全カード同じ大きさ・中央ぞろえ）
+//   assets-original/images/*.png  → public/images/<名前>.png （余白を切り取るだけ）
 // やること：
 //   1. 端に写りこんだ色つきの線（スクリーンショットの枠など）を切り落とす
 //   2. 白に近い色を白にそろえる（乗算で表示した時に、うすい四角が見えないように）
@@ -176,17 +177,17 @@ async function rework(path, mode) {
 
 const problems = [];
 const jobs = [];
-for (const f of readdirSync('public/cards/original').filter((f) => /\.png$/i.test(f))) {
+for (const f of readdirSync('assets-original/cards').filter((f) => /\.png$/i.test(f))) {
   const id = cardIdOf(f);
   if (!id) {
-    problems.push(`public/cards/original/${f}：どのカードか わからない（cards.json の id か名前にしてください）`);
+    problems.push(`assets-original/cards/${f}：どのカードか わからない（cards.json の id か名前にしてください）`);
     continue;
   }
   const want = byId.get(id).image; // 例 cards/oteage.png
-  jobs.push({ src: join('public/cards/original', f), dst: join('public', want), mode: 'card' });
+  jobs.push({ src: join('assets-original/cards', f), dst: join('public', want), mode: 'card' });
 }
-for (const f of readdirSync('public/images/original').filter((f) => /\.png$/i.test(f))) {
-  jobs.push({ src: join('public/images/original', f), dst: join('public/images', f), mode: 'image' });
+for (const f of readdirSync('assets-original/images').filter((f) => /\.png$/i.test(f))) {
+  jobs.push({ src: join('assets-original/images', f), dst: join('public/images', f), mode: 'image' });
 }
 
 for (const j of jobs) {
