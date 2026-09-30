@@ -5,6 +5,7 @@ import { useSave } from './state/SaveContext';
 import { NavContext, type Nav, type RouteId } from './router';
 import { Stage } from './ui/common/Stage';
 import { RotateHint } from './ui/common/RotateHint';
+import { PageTurn, turnPage } from './ui/common/PageTurn';
 import { TitleScene } from './scenes/Title/TitleScene';
 import { MenuScene } from './scenes/Menu/MenuScene';
 import { DeckEditScene } from './scenes/DeckEdit/DeckEditScene';
@@ -14,6 +15,7 @@ import { ResultScene } from './scenes/Result/ResultScene';
 import { DebugScene } from './scenes/Debug/DebugScene';
 import { LobbyScene } from './scenes/Lobby/LobbyScene';
 import { FxTestScene } from './scenes/Debug/FxTestScene';
+import { SoundTestScene } from './scenes/Debug/SoundTestScene';
 import { ComingSoonScene, UnderConstructionScene } from './scenes/Placeholder/PlaceholderScene';
 
 /**
@@ -30,7 +32,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   rules: UnderConstructionScene,
   debug: DebugScene,
   fxtest: FxTestScene,
-  soundtest: UnderConstructionScene,
+  soundtest: SoundTestScene,
   // 🔒 後で実装
   story: ComingSoonScene,
   gacha: ComingSoonScene,
@@ -57,7 +59,11 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
 
 export function App() {
   const [nav, setNav] = useState<{ route: RouteId; payload: unknown; n: number }>({ route: 'title', payload: null, n: 0 });
-  const go = useCallback((to: RouteId, payload?: unknown) => setNav((cur) => ({ route: to, payload: payload ?? null, n: cur.n + 1 })), []);
+  const go = useCallback((to: RouteId, payload?: unknown) => {
+    // ノートのページが右下からめくれる（いまの画面を写し取ってからめくる）
+    turnPage(document.querySelector<HTMLElement>('.stage'));
+    setNav((cur) => ({ route: to, payload: payload ?? null, n: cur.n + 1 }));
+  }, []);
   const value = useMemo<Nav>(() => ({ route: nav.route, payload: nav.payload, go }), [nav, go]);
   const Scene = ROUTES[nav.route];
   const { save } = useSave();
@@ -75,6 +81,7 @@ export function App() {
       <Stage>
         <Scene key={`${nav.route}-${nav.n}`} />
       </Stage>
+      <PageTurn />
       <RotateHint />
     </NavContext.Provider>
   );

@@ -38,7 +38,7 @@
   opacity: 0;
   animation:
     title-fade calc(400ms / var(--fx-speed)) ease-out forwards,
-    title-blink 1.4s ease-in-out infinite;
+    title-blink calc(1.4s / var(--fx-speed)) ease-in-out infinite;
   animation-delay:
     calc((var(--logo-ms) + 500) * 1ms / var(--fx-speed)),
     calc((var(--logo-ms) + 900) * 1ms / var(--fx-speed));

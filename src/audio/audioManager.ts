@@ -29,7 +29,7 @@ class AudioManager {
   /** 音を使えるようにする（タイトルのタップで呼ぶ） */
   unlock(): void {
     const mx = this.ensureMixer();
-    if (mx && mx.ctx.state !== 'running') void mx.ctx.resume();
+    if (mx && mx.ctx.state !== 'running') void (mx.ctx as AudioContext).resume();
     // howler 側もタップの中で有効にする
     try {
       const ctx = Howler.ctx;

@@ -4,6 +4,8 @@
 }
 .result__title {
   position: absolute;
+  /* 蛍光ペン（z-index マイナス）を文字の後ろに置くため */
+  z-index: 1;
   left: 0;
   right: 0;
   top: 40px;
@@ -22,11 +24,14 @@
   color: var(--ink);
 }
 .result--win .result__title span {
+  display: inline-block;
   padding: 0 16px;
-  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%, var(--marker-yellow) 88%, transparent 88%);
 }
 .result--lose .result__title {
   color: var(--pencil);
+}
+.result--lose .result__title span {
+  display: inline-block;
 }
 .result__reason {
   position: absolute;
@@ -125,4 +130,32 @@
   font-size: 20px;
   white-space: nowrap;
   color: var(--pen-red);
+}
+
+/* 負けた時の「つぎは かてる！」 */
+.result__next {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 214px;
+  margin: 0;
+  text-align: center;
+  font-size: 28px;
+  color: var(--pen-blue);
+}
+.result .fx-overlay,
+.result .fx-particles {
+  z-index: 30;
+}
+/* 負けた時は、題の上に雨雲を描くので少し下げる */
+.result--lose .result__title {
+  top: 84px;
+  font-size: 90px;
+}
+.result--lose .result__reason {
+  top: 184px;
+}
+.result--lose .result__next {
+  top: 212px;
+  font-size: 26px;
 }

@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { audio } from '../../audio/audioManager';
+import { useFx } from '../../fx/fxSettings';
+import { Particles } from '../../fx/particles';
+import { playLose, playWin, stopResultFx } from '../../fx/resultFx';
 import { buildActionLog, downloadActionLog } from '../../battle/actionLog';
 import { type BattleSetup, badOnlineStart, onlineSetup } from '../../battle/setup';
 import { currentOnline, endOnline } from '../../net/online';
@@ -108,10 +112,47 @@ export function ResultScene() {
   }, [r.setup.record, r.setup.mode, update, win, agree]);
 
   const title = hotSeat ? `${r.setup.names[r.winner]} の かち！` : win ? 'かち！' : 'まけ…';
+  const happy = win || hotSeat;
+
+  // 勝ち・負けの演出（SPEC §9-2）
+  const fx = useFx();
+  const fxRef = useRef(fx);
+  fxRef.current = fx;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const mvpRef = useRef<HTMLDivElement>(null);
+  const nextRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    // 画面を離れたら（もういっかい・メニューへ）、途中でも止めて音も鳴らさない
+    let alive = true;
+    const particles = new Particles(canvasRef.current!, () => fxRef.current.speed);
+    const t = {
+      root: rootRef.current!,
+      overlay: overlayRef.current!,
+      canvas: canvasRef.current!,
+      title: titleRef.current!,
+      mvp: mvpRef.current,
+      next: nextRef.current,
+      speed: () => fxRef.current.speed,
+      reduce: () => fxRef.current.reduceFx,
+      sound: (k: string) => {
+        if (alive) audio.play(k);
+      },
+      particles,
+    };
+    void (happy ? playWin(t) : playLose(t));
+    return () => {
+      alive = false;
+      stopResultFx(t);
+      particles.dispose();
+    };
+  }, []);
 
   return (
-    <div className={`result ${win || hotSeat ? 'result--win' : 'result--lose'}`}>
-      <h1 className={[...title].length > 5 ? "result__title result__title--long" : "result__title"}>
+    <div className={`result ${happy ? 'result--win' : 'result--lose'}`} ref={rootRef}>
+      <h1 ref={titleRef} className={[...title].length > 5 ? "result__title result__title--long" : "result__title"}>
         <span>{title}</span>
       </h1>
       <p className="result__reason">
@@ -139,11 +180,19 @@ export function ResultScene() {
       </RoughBox>
 
       {mvp && (
-        <div className="result__mvp" data-zone="mvp">
+        <div className="result__mvp" data-zone="mvp" ref={mvpRef}>
           <CardMini def={mvp} seed="result-mvp" variant="tile" />
           <span className="result__mvp-label">MVP</span>
         </div>
       )}
+
+      {!happy && (
+        <p className="result__next" ref={nextRef}>
+          つぎは かてる！
+        </p>
+      )}
+      <div key="fx-overlay" className="fx-overlay" ref={overlayRef} />
+      <canvas key="fx-particles" className="fx-particles" ref={canvasRef} />
 
       <div className="result__buttons">
         <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone} disabled={waitingRematch || oppGone} onClick={again}>

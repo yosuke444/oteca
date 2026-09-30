@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { setFxSpeed } from './timing';
 
 /**
  * 演出の設定（SPEC §9-4）
@@ -39,6 +40,8 @@ export function FxSettingsProvider({ fxSpeed, reduceFx, children }: FxSettings &
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--fx-speed', String(value.speed));
+    // GSAP の演出も、どの画面でも演出スピードで短くなるように
+    setFxSpeed(value.speed);
     if (value.reduceFx) root.setAttribute('data-reduce-fx', '');
     else root.removeAttribute('data-reduce-fx');
   }, [value.speed, value.reduceFx]);

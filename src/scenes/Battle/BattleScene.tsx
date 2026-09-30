@@ -9,6 +9,7 @@ import { CARD_DB } from '../../data/cards';
 import { getLegalActions, hashState, validateAction } from '../../engine';
 import type { Action, GameState, Side } from '../../engine/types';
 import { type FxEnv } from '../../fx/env';
+import { audio } from '../../audio/audioManager';
 import { FxQueue } from '../../fx/fxQueue';
 import { Particles } from '../../fx/particles';
 import { setFxSpeed } from '../../fx/timing';
@@ -105,7 +106,10 @@ export function BattleScene() {
   fxRef.current = fx;
   useEffect(() => setFxSpeed(fx.speed), [fx.speed]);
 
-  const say = useCallback((text: string) => setToast((t) => ({ text, n: (t?.n ?? 0) + 1 })), []);
+  const say = useCallback((text: string) => {
+    audio.play('se_error');
+    setToast((t) => ({ text, n: (t?.n ?? 0) + 1 }));
+  }, []);
   useEffect(() => {
     if (!toast) return;
     const id = window.setTimeout(() => setToast(null), 1800);
@@ -153,13 +157,13 @@ export function BattleScene() {
       cardEl: (uid) => rootRef.current?.querySelector(`[data-uid="${uid}"]`) ?? null,
       zoneEl: (key) => rootRef.current?.querySelector(`[data-zone="${key}"]`) ?? null,
       markMove: (uid, move) => flushSync(() => setMarked(uid && move !== null ? { uid, move } : null)),
-      sound: () => {},
+      sound: (key) => audio.play(key),
       particles,
       slowMo: (factor) => {
         slow = factor;
         setFxSpeed(fxRef.current.speed, factor);
       },
-      duckBgm: () => {},
+      duckBgm: () => audio.duckBgm(),
       nameOf: (side) => setup.names[side],
       turnLabel: (side) =>
         setup.mode === 'local'
@@ -213,6 +217,12 @@ export function BattleScene() {
     if (setup.mode === 'online') endOnline();
     go('menu');
   }, [go, setup.mode]);
+
+  // ---------------------------------------------------------------- BGM（SPEC §10-2）
+  const pinch = !!view && (['p1', 'p2'] as const).some((s) => view.players[s].koCount >= view.rules[s].koToWin - 1);
+  useEffect(() => {
+    audio.playBgm(pinch ? 'bgm_battle_pinch' : 'bgm_battle');
+  }, [pinch]);
 
   // ---------------------------------------------------------------- 決着 → リザルトへ
   useEffect(() => {

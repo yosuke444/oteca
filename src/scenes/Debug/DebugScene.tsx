@@ -61,6 +61,9 @@ export function DebugScene() {
       <RoughButton seed="debug-fxtest" className="debug-scene__tool" onClick={() => go('fxtest')}>
         えんしゅつ テスト
       </RoughButton>
+      <RoughButton seed="debug-soundtest" className="debug-scene__tool debug-scene__tool--2" onClick={() => go('soundtest')}>
+        こうかおん テスト
+      </RoughButton>
       <RoughBox seed="debug-panel" className="debug-panel" paper radius={8}>
         <DeckPick label="1P（あなた）" value={deck1} onChange={(i) => { setDeck1(i); setStack((st) => ({ ...st, p1: [] })); }} usable={ids} names={names} />
         <DeckPick label="2P（あいて・CPU）" value={deck2} onChange={(i) => { setDeck2(i); setStack((st) => ({ ...st, p2: [] })); }} usable={ids} names={names} />

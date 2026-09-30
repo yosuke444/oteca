@@ -338,10 +338,10 @@ export const RECIPES: Record<string, Recipe> = {
   jingle_lose: {
     gain: 0.75,
     layers: [
-      { src: 'triangle', gain: 0.4, env: { a: 0.02, d: 0.15, s: 0.6, r: 0.3 }, notes: [{ t: 0, f: N.G4, d: 0.55 }, { t: 0.65, f: N.E4, d: 0.55 }, { t: 1.3, f: N.C4, d: 0.75 }], reverb: 0.35, reverbLong: true },
-      { src: 'sine', gain: 0.2, partials: [1, 2], env: { a: 0.05, d: 0.3, s: 0.5, r: 0.4 }, notes: [{ t: 0, f: N.G3, d: 0.55 }, { t: 0.65, f: 164.81, d: 0.55 }, { t: 1.3, f: N.C3, d: 0.75 }] },
-      { src: 'sawtooth', gain: 0.05, filter: { type: 'lowpass', freq: [900, 400] }, env: { a: 0.2, d: 0.6, s: 0.5, r: 0.5 }, notes: [{ t: 0, f: N.A3, d: 1.9 }] },
-      { src: 'sine', gain: 0.18, partials: [1, 2.76, 5.4], env: { a: 0.001, d: 0.02, s: 0.4, r: 0.6 }, notes: [{ t: 2.15, f: N.E6, d: 0.05 }], reverb: 0.4, reverbLong: true },
+      { src: 'triangle', gain: 0.4, env: { a: 0.02, d: 0.15, s: 0.6, r: 0.3 }, notes: [{ t: 0, f: N.G4, d: 0.48 }, { t: 0.52, f: N.E4, d: 0.48 }, { t: 1.04, f: N.C4, d: 0.62 }], reverb: 0.3, reverbLong: true },
+      { src: 'sine', gain: 0.2, partials: [1, 2], env: { a: 0.05, d: 0.3, s: 0.5, r: 0.4 }, notes: [{ t: 0, f: N.G3, d: 0.48 }, { t: 0.52, f: 164.81, d: 0.48 }, { t: 1.04, f: N.C3, d: 0.62 }] },
+      { src: 'sawtooth', gain: 0.05, filter: { type: 'lowpass', freq: [900, 400] }, env: { a: 0.2, d: 0.6, s: 0.5, r: 0.5 }, notes: [{ t: 0, f: N.A3, d: 1.5 }] },
+      { src: 'sine', gain: 0.18, partials: [1, 2.76, 5.4], env: { a: 0.001, d: 0.02, s: 0.4, r: 0.45 }, notes: [{ t: 1.8, f: N.E6, d: 0.05 }], reverb: 0.3 },
     ],
   },
 };

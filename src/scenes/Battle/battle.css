@@ -145,7 +145,7 @@
   animation: battle-bob calc(2s / var(--fx-speed)) ease-in-out infinite;
 }
 .battle-idle--opp {
-  animation-delay: -1s;
+  animation-delay: calc(-1s / var(--fx-speed));
 }
 @keyframes battle-bob {
   0%, 100% { translate: 0 -3px; }

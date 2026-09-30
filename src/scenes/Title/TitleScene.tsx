@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { audio } from '../../audio/audioManager';
 import { useNav } from '../../router';
 import { Logo, LOGO_DRAW_MS } from '../../ui/common/Logo';
@@ -12,13 +12,19 @@ import './title.css';
  */
 export function TitleScene() {
   const { go } = useNav();
+  const started = useRef(false);
+  /** 1回だけメニューへ進む */
+  const start = () => {
+    if (started.current) return;
+    started.current = true;
+    audio.unlock();
+    go('menu');
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        audio.unlock();
-        go('menu');
-      }
+      if (e.repeat) return;
+      if (e.key === 'Enter' || e.key === ' ') start();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -32,7 +38,7 @@ export function TitleScene() {
         // タップで音を有効にする（スマホの自動再生制限のため。SPEC §7 S00）
         audio.unlock();
         audio.play('se_click');
-        go('menu');
+        start();
       }}
       role="button"
       aria-label="タップして はじめる"

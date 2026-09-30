@@ -232,3 +232,46 @@
 .numpad__key--word {
   font-size: 24px;
 }
+
+/* ---------- 画面切り替え：ページがめくれる（SPEC §9-2） ---------- */
+.pageturn {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  pointer-events: none;
+}
+.pageturn__page,
+.pageturn__flap,
+.pageturn__shade {
+  position: absolute;
+  inset: 0;
+}
+.pageturn__page {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+  background-size:
+    var(--grid-major-size) var(--grid-major-size),
+    var(--grid-major-size) var(--grid-major-size),
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size);
+  background-position: center center;
+  overflow: hidden;
+}
+.pageturn__page * {
+  animation: none !important;
+  transition: none !important;
+}
+/* めくれたページの裏（うすく方眼が透けて見える紙） */
+.pageturn__flap {
+  background:
+    linear-gradient(135deg, var(--fx-glow) 0%, var(--paper) 45%, var(--grid-minor) 100%);
+}
+.pageturn__shade {
+  background: var(--fx-shadow);
+  filter: blur(8px);
+}

@@ -10,7 +10,7 @@ import { makeReverb } from './reverb';
  * コンプレッサーを通すので、たくさん重ねても音割れしにくい。
  */
 export class Mixer {
-  readonly ctx: AudioContext;
+  readonly ctx: BaseAudioContext;
   readonly master: GainNode;
   readonly se: GainNode;
   /** 残響へ送る入口（短い／長い） */
@@ -19,9 +19,10 @@ export class Mixer {
   private readonly comp: DynamicsCompressorNode;
   private noiseCache = new Map<string, AudioBuffer>();
 
-  constructor() {
+  /** ctx を渡すと、その中で鳴らす（試聴ページの自動チェックで OfflineAudioContext に書き出す時） */
+  constructor(given?: BaseAudioContext) {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
+    const ctx = given ?? new Ctx();
     this.ctx = ctx;
     this.comp = ctx.createDynamicsCompressor();
     this.comp.threshold.value = -16;

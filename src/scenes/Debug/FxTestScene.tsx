@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { GameState } from '../../engine/types';
 import type { FxEnv } from '../../fx/env';
+import { audio } from '../../audio/audioManager';
 import { FxQueue } from '../../fx/fxQueue';
 import { Particles } from '../../fx/particles';
 import { setFxSpeed } from '../../fx/timing';
@@ -65,13 +66,13 @@ export function FxTestScene() {
       cardEl: (uid) => rootRef.current?.querySelector(`[data-uid="${uid}"]`) ?? null,
       zoneEl: (key) => rootRef.current?.querySelector(`[data-zone="${key}"]`) ?? null,
       markMove: (uid, move) => flushSync(() => setMarked(uid && move !== null ? { uid, move } : null)),
-      sound: () => {},
+      sound: (key) => audio.play(key),
       particles,
       slowMo: (f) => {
         slow = f;
         setFxSpeed(fxRef.current.speed, f);
       },
-      duckBgm: () => {},
+      duckBgm: () => audio.duckBgm(),
       nameOf: (side) => NAMES[side],
       turnLabel: (side) => (side === 'p1' ? { text: 'あなたの ターン', mine: true } : { text: 'あいての ターン', mine: false }),
       log: () => {},

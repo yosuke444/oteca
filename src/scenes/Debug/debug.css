@@ -171,3 +171,98 @@
     font-size: 19px;
   }
 }
+
+/* ---------- こうかおん テスト（SPEC §10-4） ---------- */
+.soundtest {
+  position: absolute;
+  inset: 0;
+  padding: 14px 28px;
+}
+.soundtest__head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.soundtest__title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: normal;
+  color: var(--pen-red);
+}
+.soundtest__vol {
+  font-size: 17px;
+}
+.soundtest__back {
+  margin-left: auto;
+  font-size: 20px;
+  padding: 6px 18px;
+}
+.soundtest__grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 18px;
+}
+.soundtest__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-bottom: 1px dashed var(--grid-major);
+}
+.soundtest__label {
+  flex: 1;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.soundtest__label small {
+  font-size: 12px;
+}
+.soundtest__row .fxtest-btn {
+  font-size: 16px;
+  padding: 2px 8px;
+}
+.soundtest__bottom {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 12px;
+}
+.soundtest__layers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 17px;
+}
+.soundtest__note {
+  font-size: 14px;
+}
+.soundtest__last {
+  margin: 6px 0 0;
+  font-size: 18px;
+  color: var(--pen-blue);
+  min-height: 24px;
+}
+@media (max-height: 500px) {
+  .soundtest__label {
+    font-size: 21px;
+  }
+  .soundtest__label small {
+    display: none;
+  }
+  .soundtest__row .fxtest-btn,
+  .soundtest__layers .fxtest-btn {
+    font-size: 19px;
+  }
+  .soundtest__layers,
+  .soundtest__vol {
+    font-size: 20px;
+  }
+}
+.debug-scene__tool--2 {
+  right: 452px;
+}

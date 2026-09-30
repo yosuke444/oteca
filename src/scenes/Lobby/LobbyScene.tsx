@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { badOnlineStart, onlineSetup } from '../../battle/setup';
 import { CARD_DB } from '../../data/cards';
 import { validateDeck } from '../../engine';
+import { audio } from '../../audio/audioManager';
 import { isValidRoomNumber } from '../../net/protocol';
 import { type OnlineLink, currentOnline, endOnline, startOnline } from '../../net/online';
 import type { SessionStatus } from '../../net/session';
@@ -111,7 +112,10 @@ export function LobbyScene() {
         const text = errorText(s);
         if (text) fail(text);
       }),
-      link.on('matched', (opp) => setPhase({ kind: 'found', opp })),
+      link.on('matched', (opp) => {
+        audio.play('se_match_found');
+        setPhase({ kind: 'found', opp });
+      }),
       link.on('waitingTick', (ms) => setWaitedMs(ms)),
       link.on('start', () => tryGo()),
       // 相手が見つかった後に、相手が消えてしまった
