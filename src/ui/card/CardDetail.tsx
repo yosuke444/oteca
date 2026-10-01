@@ -4,16 +4,20 @@ import { Sticky } from '../common/Sticky';
 import { RoughBox } from '../rough/RoughBox';
 import { CardArt } from './CardArt';
 import { effectLabel } from './cardText';
+import { local } from '../../i18n';
+import { useLang, useT } from '../../i18n/useT';
 import './card.css';
 
 /** 大きく表示したカード（長押し／右クリックのカード詳細。SPEC §6-6） */
 export function CardDetail({ def, seed }: { def: CardDef; seed: string }) {
+  const tr = useT();
+  const lang = useLang();
   if (def.kind === 'item') {
     return (
       <Sticky seed={seed} color={def.color ?? 'yellow'} className="card-detail card-detail--item">
         <span className="card-detail__name">{def.name}</span>
-        <span className="card-detail__text">{def.text}</span>
-        <span className="card-detail__kind">アイテム（つかいきり）</span>
+        <span className="card-detail__text">{local(def.text, lang)}</span>
+        <span className="card-detail__kind">{tr.card.itemKind}</span>
       </Sticky>
     );
   }

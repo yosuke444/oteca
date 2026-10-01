@@ -12,7 +12,7 @@ export { decideCpuAction } from '../cpu/normal';
 /** 考える時間（ふつう速度, ms）。実際に考えた時間がこれより長ければ、待たずにすぐ操作する */
 export const CPU_THINK_MS = 350;
 
-/** スタンプの番号（scenes/Battle/Stamps.tsx の STAMPS の順） */
+/** スタンプの番号（辞書 stamps.list の順。scenes/Battle/Stamps.tsx） */
 export const CPU_STAMP = { hello: 0, nice: 1, oops: 2, notYet: 3, thanks: 4, giveUp: 5 } as const;
 /** CPU がスタンプを送る間隔の下限（ms）。人と同じ3秒より長めにして、送りすぎない */
 export const CPU_STAMP_GAP_MS = 6000;

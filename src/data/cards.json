@@ -54,29 +54,29 @@
       "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
       "useCondition": "notFullHp",
       "effects": [{ "type": "heal", "amount": 30 }],
-      "text": "じぶんの おてあげ 1たいの HPを 30 かいふく", "image": "cards/kusuri.png" },
+      "text": { "hira": "じぶんの おてあげ 1たいの HPを 30 かいふく", "kanji": "自分のおてあげ1体のHPを30回復" }, "image": "cards/kusuri.png" },
 
     { "no": 10, "id": "himitsu_yaiba", "name": "ひみつのやいば", "kind": "item", "color": "red",
       "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
       "blockedIfUsedThisTurn": ["kimyou_drink"],
-      "afterUseNote": "やいばを つかった おてあげには つかえないよ",
+      "afterUseNote": { "hira": "やいばを つかった おてあげには つかえないよ", "kanji": "やいばを使ったおてあげには使えません" },
       "effects": [{ "type": "addAttack", "amount": 20, "duration": "thisTurn" }],
-      "text": "このターン、ダメージ +20（やいば どうしは かさねがけ OK）", "image": "cards/himitsu_yaiba.png" },
+      "text": { "hira": "このターン、ダメージ +20（やいば どうしは かさねがけ OK）", "kanji": "このターン、ダメージ+20（やいば同士は重ねがけOK）" }, "image": "cards/himitsu_yaiba.png" },
 
     { "no": 11, "id": "kimyou_drink", "name": "きみょうなドリンク", "kind": "item", "color": "purple",
       "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
       "blockedIfUsedThisTurn": ["himitsu_yaiba", "kimyou_drink"],
-      "afterUseNote": "ドリンクを のんだ おてあげには つかえないよ",
+      "afterUseNote": { "hira": "ドリンクを のんだ おてあげには つかえないよ", "kanji": "ドリンクを飲んだおてあげには使えません" },
       "effects": [
         { "type": "setHp", "value": 10 },
         { "type": "addAttack", "amount": 50, "duration": "thisTurn" }
       ],
-      "text": "HPが 10 になる。このターン、ダメージわざの ダメージ +50", "image": "cards/kimyou_drink.png" },
+      "text": { "hira": "HPが 10 になる。このターン、ダメージわざの ダメージ +50", "kanji": "HPが10になる。このターン、ダメージ技のダメージ+50" }, "image": "cards/kimyou_drink.png" },
 
     { "no": 12, "id": "supodori", "name": "スポドリ", "kind": "item", "color": "blue",
       "target": { "side": "self", "zones": ["bench"], "rarity": ["normal"] },
       "useCondition": "notFullHp",
       "effects": [{ "type": "heal", "amount": 70 }],
-      "text": "ベンチの つうじょう おてあげ 1たいの HPを 70 かいふく", "image": "cards/supodori.png" }
+      "text": { "hira": "ベンチの つうじょう おてあげ 1たいの HPを 70 かいふく", "kanji": "ベンチの通常おてあげ1体のHPを70回復" }, "image": "cards/supodori.png" }
   ]
 }

@@ -3,6 +3,7 @@ import { audio } from '../../audio/audioManager';
 import { useNav } from '../../router';
 import { Logo, LOGO_DRAW_MS } from '../../ui/common/Logo';
 import { OtegeArt } from '../../ui/common/OtegeArt';
+import { useT } from '../../i18n/useT';
 import './title.css';
 
 /**
@@ -12,6 +13,7 @@ import './title.css';
  */
 export function TitleScene() {
   const { go } = useNav();
+  const tr = useT();
   const started = useRef(false);
   /** 1回だけメニューへ進む */
   const start = () => {
@@ -41,14 +43,14 @@ export function TitleScene() {
         start();
       }}
       role="button"
-      aria-label="タップして はじめる"
+      aria-label={tr.title.tap}
     >
       <div className="title-scene__logo-row">
         <Logo draw width={520} />
         <OtegeArt width={190} className="title-scene__art" />
       </div>
-      <p className="title-scene__sub">おてあげカードバトル</p>
-      <p className="title-scene__tap">タップして はじめる</p>
+      <p className="title-scene__sub">{tr.title.sub}</p>
+      <p className="title-scene__tap">{tr.title.tap}</p>
     </div>
   );
 }

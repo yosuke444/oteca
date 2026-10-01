@@ -15,22 +15,14 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { addCard, autoFill, blockText, checkAdd, problemText, removeAt, summarize } from './deckOps';
+import { useT } from '../../i18n/useT';
 import './deckEdit.css';
 
 type Filter = 'all' | 'otege' | 'item' | 'super';
 type Sort = 'no' | 'hp' | 'name';
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: 'ぜんぶ' },
-  { id: 'otege', label: 'おてあげ' },
-  { id: 'item', label: 'アイテム' },
-  { id: 'super', label: 'スーパー' },
-];
-const SORTS: { id: Sort; label: string }[] = [
-  { id: 'no', label: 'ばんごう' },
-  { id: 'hp', label: 'HP' },
-  { id: 'name', label: 'なまえ' },
-];
+const FILTERS: Filter[] = ['all', 'otege', 'item', 'super'];
+const SORTS: Sort[] = ['no', 'hp', 'name'];
 
 const rules = DEFAULT_RULES;
 
@@ -38,6 +30,7 @@ const rules = DEFAULT_RULES;
 export function DeckEditScene() {
   const { go } = useNav();
   const { save, update } = useSave();
+  const tr = useT();
   const [slot, setSlot] = useState(save.selectedDeck);
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('no');
@@ -88,7 +81,7 @@ export function DeckEditScene() {
     });
   }, [filter, sort]);
 
-  const nextSort = () => setSort(SORTS[(SORTS.findIndex((s) => s.id === sort) + 1) % SORTS.length].id);
+  const nextSort = () => setSort(SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length]);
 
   return (
     <div className="deck-scene">
@@ -105,7 +98,7 @@ export function DeckEditScene() {
                 setSlot(i);
                 setEditingName(false);
               }}
-              aria-label={`スロット${i + 1}`}
+              aria-label={tr.deck.slotAria(i + 1)}
             >
               <Sticky seed={`deck-tab-${i}`} color={i === slot ? 'yellow' : 'blue'} angle={i === slot ? 0 : undefined} className="deck-tab__note">
                 <span className="num deck-tab__num">{i + 1}</span>
@@ -116,13 +109,13 @@ export function DeckEditScene() {
         })}
       </div>
       <RoughButton seed="deck-back" className="deck-scene__back" onClick={() => go('menu')}>
-        もどる
+        {tr.common.back}
       </RoughButton>
       <SavedToast />
 
       {/* デッキ名 */}
       <div className="deck-scene__name">
-        <span className="pencil">デッキめい：</span>
+        <span className="pencil">{tr.deck.nameLabel}</span>
         {editingName ? (
           <input
             className="pen-input deck-scene__name-input"
@@ -150,18 +143,20 @@ export function DeckEditScene() {
             <span className="deck-scene__pen">✎</span>
           </button>
         )}
-        <span className="pencil deck-scene__name-hint">（{DECK_NAME_MAX}もじ まで）</span>
+        <span className="pencil deck-scene__name-hint">{tr.deck.nameHint(DECK_NAME_MAX)}</span>
       </div>
 
       {/* デッキ（15まいちょうど） */}
       <RoughBox seed={`deck-panel-${slot}`} className="deck-panel" paper radius={8}>
         <div className="deck-panel__head">
-          <span className="deck-panel__title">デッキ（{rules.deckSize}まい ちょうど）</span>
+          <span className="deck-panel__title">{tr.deck.panelTitle(rules.deckSize)}</span>
           <span className={`num deck-panel__total ${summary.total === rules.deckSize ? 'is-ok' : ''}`}>
             {summary.total}/{rules.deckSize}
           </span>
           <span className="deck-panel__counts">
-            おてあげ <b className="num">{summary.otege}</b>　アイテム <b className="num">{summary.item}</b>　S{' '}
+            {tr.deck.summaryOtege} <b className="num">{summary.otege}</b>{'  '}
+            {tr.deck.summaryItem} <b className="num">{summary.item}</b>{'  '}
+            {tr.deck.summarySuper}{' '}
             <b className={`num ${summary.super > rules.superMaxPerDeck ? 'red-pen' : ''}`}>
               {summary.super}/{rules.superMaxPerDeck}
             </b>
@@ -190,7 +185,7 @@ export function DeckEditScene() {
               ⚠ {problemText(p)}
             </li>
           ))}
-          {problems.length === 0 && <li className="deck-panel__ok">✓ この デッキで あそべるよ</li>}
+          {problems.length === 0 && <li className="deck-panel__ok">{tr.deck.ok}</li>}
         </ul>
       </RoughBox>
 
@@ -202,23 +197,23 @@ export function DeckEditScene() {
 
       {/* カードいちらん */}
       <RoughBox seed="deck-list-panel" className="list-panel" paper radius={8}>
-        <span className="list-panel__title">カードいちらん</span>
+        <span className="list-panel__title">{tr.deck.listTitle}</span>
         <div className="list-panel__head">
           <div className="list-panel__filters">
             {FILTERS.map((f) => (
               <RoughButton
-                key={f.id}
-                seed={`filter-${f.id}`}
+                key={f}
+                seed={`filter-${f}`}
                 className="list-panel__filter"
-                highlight={filter === f.id}
-                onClick={() => setFilter(f.id)}
+                highlight={filter === f}
+                onClick={() => setFilter(f)}
               >
-                {f.label}
+                {tr.deck.filter[f]}
               </RoughButton>
             ))}
           </div>
           <RoughButton seed="sort" className="list-panel__sort" onClick={nextSort}>
-            ならび：{SORTS.find((s) => s.id === sort)!.label}
+            {tr.deck.sortLabel(tr.deck.sort[sort])}
           </RoughButton>
         </div>
         <div className="list-panel__grid">
@@ -239,7 +234,7 @@ export function DeckEditScene() {
             );
           })}
         </div>
-        <p className="list-panel__hint pencil">タップで いれる／ながおし・みぎクリックで おおきく みる</p>
+        <p className="list-panel__hint pencil">{tr.deck.hint}</p>
       </RoughBox>
 
       {/* 下のボタン */}
@@ -250,7 +245,7 @@ export function DeckEditScene() {
           disabled={deck.cards.length >= rules.deckSize}
           onClick={() => setCards(autoFill(deck.cards, CARD_DB, rules, owned, Math.random))}
         >
-          おまかせで うめる
+          {tr.deck.autoFill}
         </RoughButton>
         <RoughButton
           seed="deck-clear"
@@ -258,17 +253,17 @@ export function DeckEditScene() {
           disabled={deck.cards.length === 0}
           onClick={() => setDialog('clear')}
         >
-          からに する
+          {tr.deck.clear}
         </RoughButton>
         <RoughButton seed="deck-copy" className="deck-scene__action" onClick={() => setDialog('copy')}>
-          ほかの スロットへ コピー
+          {tr.deck.copy}
         </RoughButton>
       </div>
 
       {detail && (
         <Dialog seed="card-detail" width={420} onClose={() => setDetail(null)} actions={
           <RoughButton seed="detail-close" onClick={() => setDetail(null)}>
-            とじる
+            {tr.common.close}
           </RoughButton>
         }>
           <div className="deck-scene__detail">
@@ -280,12 +275,12 @@ export function DeckEditScene() {
       {dialog === 'clear' && (
         <Dialog
           seed="deck-clear-dialog"
-          title="デッキを からに する？"
+          title={tr.deck.clearTitle}
           onClose={() => setDialog(null)}
           actions={
             <>
               <RoughButton seed="clear-no" onClick={() => setDialog(null)}>
-                やめる
+                {tr.common.cancel}
               </RoughButton>
               <RoughButton
                 seed="clear-yes"
@@ -295,27 +290,27 @@ export function DeckEditScene() {
                   setDialog(null);
                 }}
               >
-                からに する
+                {tr.deck.clear}
               </RoughButton>
             </>
           }
         >
-          「{deck.name}」の カードを ぜんぶ はずすよ。
+          {tr.deck.clearText(deck.name)}
         </Dialog>
       )}
 
       {dialog === 'copy' && (
         <Dialog
           seed="deck-copy-dialog"
-          title="どの スロットに コピーする？"
+          title={tr.deck.copyTitle}
           onClose={() => setDialog(null)}
           actions={
             <RoughButton seed="copy-cancel" onClick={() => setDialog(null)}>
-              やめる
+              {tr.common.cancel}
             </RoughButton>
           }
         >
-          <p className="deck-scene__copy-note pencil">コピーさきの デッキは うわがき されるよ</p>
+          <p className="deck-scene__copy-note pencil">{tr.deck.copyNote}</p>
           <div className="deck-scene__copy-slots">
             {Array.from({ length: DECK_SLOTS }, (_, i) => (
               <RoughButton
@@ -332,7 +327,7 @@ export function DeckEditScene() {
                 }}
               >
                 <span className="num">{i + 1}</span>
-                <small>{save.decks[i].cards.length}まい</small>
+                <small>{tr.common.cards(save.decks[i].cards.length)}</small>
               </RoughButton>
             ))}
           </div>

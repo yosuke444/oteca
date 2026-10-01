@@ -9,6 +9,7 @@ import {
 } from '../save/backupReminder';
 import { type KeyValueStore, type SaveStorage, browserCookieJar, load, persist, wipe } from '../save/cookieStore';
 import { type SaveData, createDefaultSave, normalizeSave } from '../save/saveData';
+import { t } from '../i18n';
 
 /**
  * 画面からセーブデータを使う窓口。
@@ -146,6 +147,6 @@ export function SaveProvider({ children }: { children: ReactNode }) {
 
 export function useSave(): SaveContextValue {
   const ctx = useContext(SaveContext);
-  if (!ctx) throw new Error('SaveProvider の外で useSave は使えません');
+  if (!ctx) throw new Error(t().common.providerMissing('SaveProvider'));
   return ctx;
 }

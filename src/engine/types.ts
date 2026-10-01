@@ -70,6 +70,9 @@ export type OtegeCardDef = {
 
 export type ItemUseCondition = 'notFullHp';
 
+/** 2つの言語を持つ文（にほんご＝hira、日本語＝kanji。SPEC §6-4b）。エンジンは使わない（画面用） */
+export type LocalText = { hira: string; kanji: string };
+
 /** アイテム（ふせん）の色。画面の見た目だけに使う */
 export type NoteColor = 'yellow' | 'green' | 'red' | 'purple' | 'blue';
 
@@ -85,10 +88,11 @@ export type ItemCardDef = {
    * 重ねがけ禁止（SPEC §4-7・v1.4）：このターンに、ここに書いた id のアイテムを使ったおてあげには使えない
    */
   blockedIfUsedThisTurn?: string[];
-  /** このアイテムを使ったおてあげに、重ねがけ禁止のアイテムを使おうとした時の一言（例「ドリンクを のんだ おてあげには つかえないよ」） */
-  afterUseNote?: string;
+  /** このアイテムを使ったおてあげに、重ねがけ禁止のアイテムを使おうとした時の一言（にほんご・日本語） */
+  afterUseNote?: LocalText;
   effects: Effect[];
-  text: string;
+  /** 効果の説明（にほんご・日本語。SPEC §5-2） */
+  text: LocalText;
   image: string;
 };
 

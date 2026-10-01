@@ -1,4 +1,5 @@
 import { CARD_DB } from '../../data/cards';
+import type { Dict } from '../../i18n';
 import { BIG_DAMAGE, createGame } from '../../engine';
 import type { CardDef, GameEvent, GameState, OtegeCardDef, Side } from '../../engine/types';
 import { itemFxKind } from '../../fx/itemFx';
@@ -10,8 +11,8 @@ import { applyEventToView } from '../../fx/viewReducer';
  */
 
 export type FxScene = {
-  id: string;
-  label: string;
+  /** 場面の名前は辞書（debug.fx.scene） */
+  id: keyof Dict['debug']['fx']['scene'];
   /** 再生する前の盤面（省略時は見本の盤面） */
   pre?: (s: GameState) => GameState;
   events: (s: GameState) => GameEvent[];
@@ -111,7 +112,6 @@ function attack(s: GameState, uid: string, want: 'damage' | 'heal' | 'big'): Gam
 export const FX_SCENES: FxScene[] = [
   {
     id: 'order',
-    label: 'せんこう きめ',
     events: () => [
       { type: 'DiceRolled', purpose: 'order', player: 'p1', value: 3 },
       { type: 'DiceRolled', purpose: 'order', player: 'p2', value: 3 },
@@ -119,10 +119,9 @@ export const FX_SCENES: FxScene[] = [
       { type: 'DiceRolled', purpose: 'order', player: 'p2', value: 2 },
     ],
   },
-  { id: 'mulligan', label: 'ひきなおし', events: () => [{ type: 'Mulligan', player: 'p1' }, { type: 'Mulligan', player: 'p2' }] },
+  { id: 'mulligan', events: () => [{ type: 'Mulligan', player: 'p1' }, { type: 'Mulligan', player: 'p2' }] },
   {
     id: 'reveal',
-    label: 'バトルば オープン',
     pre: (s) => {
       const v = structuredClone(s);
       for (const side of ['p1', 'p2'] as const) {
@@ -134,15 +133,14 @@ export const FX_SCENES: FxScene[] = [
     },
     events: (s) => [{ type: 'ActivesRevealed', p1: s.players.p1.hand[0], p2: s.players.p2.hand[0] }],
   },
-  { id: 'turn', label: 'ターン かいし', events: () => [{ type: 'TurnStarted', player: 'p1', turn: 3 }] },
-  { id: 'turnOpp', label: 'あいての ターン', events: () => [{ type: 'TurnStarted', player: 'p2', turn: 3 }] },
-  { id: 'draw', label: 'ドロー', events: (s) => [{ type: 'TurnStarted', player: 'p1', turn: 3 }, { type: 'Drew', player: 'p1', uid: s.players.p1.deck[0] }] },
-  { id: 'bench', label: 'ベンチに だす', events: (s) => [{ type: 'BenchPlaced', player: 'p1', uid: s.players.p1.hand[0] }] },
-  { id: 'benchOpp', label: 'あいての ベンチ', pre: (s) => { const v = structuredClone(s); v.players.p2.hand.push(v.players.p2.bench.pop()!); return v; }, events: (s) => [{ type: 'BenchPlaced', player: 'p2', uid: s.players.p2.hand.at(-1)! }] },
-  { id: 'swap', label: 'こうたい', events: (s) => [{ type: 'Swapped', player: 'p1', toActive: s.players.p1.bench[0], toBench: s.players.p1.active! }] },
+  { id: 'turn', events: () => [{ type: 'TurnStarted', player: 'p1', turn: 3 }] },
+  { id: 'turnOpp', events: () => [{ type: 'TurnStarted', player: 'p2', turn: 3 }] },
+  { id: 'draw', events: (s) => [{ type: 'TurnStarted', player: 'p1', turn: 3 }, { type: 'Drew', player: 'p1', uid: s.players.p1.deck[0] }] },
+  { id: 'bench', events: (s) => [{ type: 'BenchPlaced', player: 'p1', uid: s.players.p1.hand[0] }] },
+  { id: 'benchOpp', pre: (s) => { const v = structuredClone(s); v.players.p2.hand.push(v.players.p2.bench.pop()!); return v; }, events: (s) => [{ type: 'BenchPlaced', player: 'p2', uid: s.players.p2.hand.at(-1)! }] },
+  { id: 'swap', events: (s) => [{ type: 'Swapped', player: 'p1', toActive: s.players.p1.bench[0], toBench: s.players.p1.active! }] },
   {
     id: 'kusuri',
-    label: 'アイテム かいふく',
     events: (s) => {
       const target = s.players.p1.active!;
       const amount = (defOf(s, itemIn(s, 'heal')) as { effects: { type: string; amount?: number }[] }).effects.find((e) => e.type === 'heal')?.amount ?? 0;
@@ -155,7 +153,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'yaiba',
-    label: 'アイテム ＋こうげき',
     events: (s) => {
       const target = s.players.p1.active!;
       const add = (defOf(s, itemIn(s, 'power')) as { effects: { type: string; amount?: number }[] }).effects.find((e) => e.type === 'addAttack')?.amount ?? 0;
@@ -167,7 +164,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'drink',
-    label: 'アイテム ふしぎ',
     events: (s) => {
       const target = s.players.p1.active!;
       const eff = (defOf(s, itemIn(s, 'weird')) as { effects: { type: string; value?: number }[] }).effects;
@@ -180,7 +176,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'spodori',
-    label: 'アイテム だいかいふく',
     events: (s) => {
       const target = s.players.p1.bench[0];
       const amount = (defOf(s, itemIn(s, 'bigHeal')) as { effects: { type: string; amount?: number }[] }).effects.find((e) => e.type === 'heal')?.amount ?? 0;
@@ -191,10 +186,9 @@ export const FX_SCENES: FxScene[] = [
       ];
     },
   },
-  { id: 'dice', label: 'サイコロ', events: (s) => attack(s, s.players.p1.active!, 'damage') },
+  { id: 'dice', events: (s) => attack(s, s.players.p1.active!, 'damage') },
   {
     id: 'hit',
-    label: 'ダメージ 小',
     events: (s) => {
       const t = s.players.p2.active!;
       const m = pickMove(s, s.players.p1.active!, 'damage');
@@ -204,7 +198,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'bigHit',
-    label: 'ダメージ 大',
     pre: (s) => withActive(s, bigHitter(s)),
     events: (s) => {
       const t = s.players.p2.active!;
@@ -215,7 +208,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'heal',
-    label: 'わざの かいふく',
     pre: (s) => {
       const h = healer(s);
       return h ? withActive(s, h) : structuredClone(s);
@@ -229,7 +221,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'faint',
-    label: 'きぜつ',
     events: (s) => {
       const t = s.players.p2.active!;
       const m = pickMove(s, s.players.p1.active!, 'damage');
@@ -243,7 +234,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'promote',
-    label: 'くりだし',
     pre: (s) => {
       const v = structuredClone(s);
       v.players.p2.discard.push(v.players.p2.active!);
@@ -256,7 +246,6 @@ export const FX_SCENES: FxScene[] = [
   },
   {
     id: 'finish',
-    label: 'けっちゃく',
     pre: (s) => {
       const v = withActive(s, bigHitter(s));
       v.players.p1.koCount = 2;

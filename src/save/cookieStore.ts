@@ -35,7 +35,12 @@ export function browserCookieJar(): CookieJar {
 
 /** SaveData → Cookie に入れる暗号文 */
 export function sealSave(data: SaveData): string {
-  return encrypt64(toBase64Url(encodeSave(data)));
+  return sealBytes(encodeSave(data));
+}
+
+/** バイト列 → Cookie の暗号文（テストで、古い形式のバイト列から当時と同じ Cookie を作るのにも使う） */
+export function sealBytes(bytes: Uint8Array): string {
+  return encrypt64(toBase64Url(bytes));
 }
 
 /** 暗号文 → SaveData（読めなければエラー） */

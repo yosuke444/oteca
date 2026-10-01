@@ -3,6 +3,7 @@ import type { SaveData } from '../../save/saveData';
 import { decodeTransferCode, encodeTransferCode } from '../../save/transferCode';
 import { Dialog } from '../../ui/common/Dialog';
 import { RoughButton } from '../../ui/rough/RoughButton';
+import { useT } from '../../i18n/useT';
 
 /**
  * データひきつぎ（SPEC §12-4）
@@ -21,7 +22,8 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
     if (Date.now() - openedAt >= SHOWN_ENOUGH_MS) onCreated();
     onClose();
   };
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const tr = useT();
+  const [msg, setMsg] = useState<'copied' | 'failed' | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const digits = code.replace(/-/g, '').length;
 
@@ -36,7 +38,7 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
     try {
       await navigator.clipboard.writeText(code);
       onCreated();
-      setMsg({ text: 'コピーしたよ！ メモアプリなどに はりつけて とっておいてね', ok: true });
+      setMsg('copied');
       return;
     } catch {
       // クリップボードが使えない（http・古いブラウザ・許可なし）→ 次の方法へ
@@ -45,34 +47,35 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
     try {
       if (document.execCommand('copy')) {
         onCreated();
-        setMsg({ text: 'コピーしたよ！ メモアプリなどに はりつけて とっておいてね', ok: true });
+        setMsg('copied');
         return;
       }
     } catch {
       // 使えない
     }
     selectAll();
-    setMsg({ text: 'じどうで コピー できなかったよ。えらばれている コードを ながおし（みぎクリック）して コピーしてね', ok: false });
+    setMsg('failed');
   };
 
   return (
     <Dialog
       seed="make-code"
-      title="ひきつぎコード"
+      title={tr.transfer.codeTitle}
       width={760}
       actions={
         <>
           <RoughButton seed="make-code-close" onClick={close}>
-            とじる
+            {tr.common.close}
           </RoughButton>
           <RoughButton seed="make-code-copy" highlight onClick={copy}>
-            コピー
+            {tr.transfer.copy}
           </RoughButton>
         </>
       }
     >
       <p className="settings-dialog__note">
-        べつの たんまつで この コードを いれると、いまの データが つかえるよ。<span className="pencil">（{digits}けた）</span>
+        {tr.transfer.codeText}
+        <span className="pencil">{tr.transfer.digits(digits)}</span>
       </p>
       <textarea
         ref={field}
@@ -82,9 +85,9 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
         value={code}
         onFocus={selectAll}
         onClick={selectAll}
-        aria-label="ひきつぎコード"
+        aria-label={tr.transfer.codeTitle}
       />
-      {msg && <p className={`settings-dialog__msg ${msg.ok ? 'is-ok' : 'red-pen'}`}>{msg.text}</p>}
+      {msg && <p className={`settings-dialog__msg ${msg === 'copied' ? 'is-ok' : 'red-pen'}`}>{msg === 'copied' ? tr.transfer.copied : tr.transfer.copyFailed}</p>}
     </Dialog>
   );
 }
@@ -94,19 +97,20 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
   const [error, setError] = useState(false);
   const [pending, setPending] = useState<SaveData | null>(null);
   const [done, setDone] = useState(false);
+  const tr = useT();
 
   if (done) {
     return (
       <Dialog
         seed="enter-code-done"
-        title="ふっかつ したよ！"
+        title={tr.transfer.restoredTitle}
         actions={
           <RoughButton seed="enter-code-done-ok" onClick={onClose}>
             OK
           </RoughButton>
         }
       >
-        デッキや せっていが もどったよ。
+        {tr.transfer.restoredText}
       </Dialog>
     );
   }
@@ -115,11 +119,11 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
     return (
       <Dialog
         seed="enter-code-confirm"
-        title="ほんとうに いい？"
+        title={tr.transfer.confirmTitle}
         actions={
           <>
             <RoughButton seed="enter-code-no" onClick={() => setPending(null)}>
-              やめる
+              {tr.common.cancel}
             </RoughButton>
             <RoughButton
               seed="enter-code-yes"
@@ -129,15 +133,14 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
                 setDone(true);
               }}
             >
-              うわがき する
+              {tr.transfer.overwrite}
             </RoughButton>
           </>
         }
       >
-        <span className="red-pen">いまの データは うわがき されるよ。</span>
+        <span className="red-pen">{tr.transfer.overwriteWarn}</span>
         <br />
-        コードの データ：なまえ「{pending.playerName}」／ デッキ{' '}
-        {pending.decks.filter((d) => d.cards.length > 0).length}こ
+        {tr.transfer.codeData(pending.playerName, pending.decks.filter((d) => d.cards.length > 0).length)}
       </Dialog>
     );
   }
@@ -145,12 +148,12 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
   return (
     <Dialog
       seed="enter-code"
-      title="コードを いれる"
+      title={tr.transfer.enterTitle}
       width={760}
       actions={
         <>
           <RoughButton seed="enter-code-cancel" onClick={onClose}>
-            やめる
+            {tr.common.cancel}
           </RoughButton>
           <RoughButton
             seed="enter-code-go"
@@ -162,12 +165,12 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
               else setError(true);
             }}
           >
-            ふっかつ する
+            {tr.transfer.restore}
           </RoughButton>
         </>
       }
     >
-      <p className="settings-dialog__note">コードを はりつけてね（ハイフンや くうはくは あっても だいじょうぶ）</p>
+      <p className="settings-dialog__note">{tr.transfer.enterNote}</p>
       <textarea
         className="pen-textarea settings-dialog__code"
         rows={6}
@@ -178,9 +181,9 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
           setText(e.target.value);
           setError(false);
         }}
-        aria-label="ひきつぎコードの にゅうりょく"
+        aria-label={tr.transfer.inputAria}
       />
-      {error && <p className="settings-dialog__msg red-pen">コードが ちがうみたい。もういちど たしかめてね</p>}
+      {error && <p className="settings-dialog__msg red-pen">{tr.transfer.wrong}</p>}
     </Dialog>
   );
 }

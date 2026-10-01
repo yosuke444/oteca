@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'r
 import { audio } from './audio/audioManager';
 import type { BgmKey } from './audio/soundMap';
 import { useSave } from './state/SaveContext';
+import { setLang } from './i18n';
 import { NavContext, type Nav, type RouteId } from './router';
 import { Stage } from './ui/common/Stage';
 import { RotateHint } from './ui/common/RotateHint';
@@ -72,6 +73,8 @@ export function App() {
   const value = useMemo<Nav>(() => ({ route: nav.route, payload: nav.payload, go }), [nav, go]);
   const Scene = ROUTES[nav.route];
   const { save } = useSave();
+  // ことば：React の外（演出・対戦ログ）でも今の言語の辞書を使えるように、描く前に知らせる（SPEC §6-4b）
+  setLang(save.settings.lang);
 
   // 画面に触ったら、いつでも音を有効にし直す（スマホで裏に回して戻った時など）
   useEffect(() => {

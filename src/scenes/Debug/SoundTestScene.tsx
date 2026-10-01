@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { checkAllSounds } from '../../audio/soundCheck';
-import { BGM, type BgmKey, SE_KEYS, SE_LABEL, type SeKey, battleTracks } from '../../audio/soundMap';
+import { BGM, type BgmKey, SE_KEYS, type SeKey, battleTracks } from '../../audio/soundMap';
 import { recipeLength } from '../../audio/sfx/synth';
 import { RECIPES } from '../../audio/sfx/recipes';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import './debug.css';
+import { useT } from '../../i18n/useT';
 
 /** 重ねテスト（SPEC §10-4 の例と、演出で実際に重ねる組み合わせ） */
-const LAYERS: { label: string; keys: SeKey[]; gapMs?: number }[] = [
-  { label: 'おおきい ダメージ＋ペン＋はんこ', keys: ['se_hit_big', 'se_pen', 'se_stamp'] },
-  { label: 'きぜつ → はんこ', keys: ['se_ko', 'se_stamp'], gapMs: 650 },
-  { label: 'サイコロ ころがる → とまる', keys: ['se_dice_roll', 'se_dice_land'], gapMs: 900 },
-  { label: 'カードを ひく＋おく＋テープ', keys: ['se_card_draw', 'se_card_place', 'se_tape'], gapMs: 150 },
-  { label: 'アイテム かいふく＋かいふく', keys: ['se_item_kusuri', 'se_heal'], gapMs: 300 },
-  { label: 'ちいさい ダメージ ×3 れんぞく', keys: ['se_hit_small', 'se_hit_small', 'se_hit_small'], gapMs: 120 },
+const LAYERS: { id: 'bigHit' | 'ko' | 'dice' | 'card' | 'heal' | 'smallHits'; keys: SeKey[]; gapMs?: number }[] = [
+  { id: 'bigHit', keys: ['se_hit_big', 'se_pen', 'se_stamp'] },
+  { id: 'ko', keys: ['se_ko', 'se_stamp'], gapMs: 650 },
+  { id: 'dice', keys: ['se_dice_roll', 'se_dice_land'], gapMs: 900 },
+  { id: 'card', keys: ['se_card_draw', 'se_card_place', 'se_tape'], gapMs: 150 },
+  { id: 'heal', keys: ['se_item_kusuri', 'se_heal'], gapMs: 300 },
+  { id: 'smallHits', keys: ['se_hit_small', 'se_hit_small', 'se_hit_small'], gapMs: 120 },
 ];
 
 /**
@@ -25,6 +26,8 @@ const LAYERS: { label: string; keys: SeKey[]; gapMs?: number }[] = [
 export function SoundTestScene() {
   const { go } = useNav();
   const { save } = useSave();
+  const tr = useT();
+  const S = tr.debug.sound;
   const [last, setLast] = useState('');
   const [bgm, setBgm] = useState<BgmKey | null>(audio.bgmKey);
   // いま流れている戦闘曲（曲が切りかわるのを目で見られるように）
@@ -43,7 +46,7 @@ export function SoundTestScene() {
   const play = (key: SeKey) => {
     audio.unlock();
     audio.play(key);
-    setLast(`${key}（${recipeLength(RECIPES[key]).toFixed(2)}びょう）`);
+    setLast(S.seconds(key, recipeLength(RECIPES[key]).toFixed(2)));
   };
   const burst = (key: SeKey) => {
     audio.unlock();
@@ -53,7 +56,7 @@ export function SoundTestScene() {
   const layer = (l: (typeof LAYERS)[number]) => {
     audio.unlock();
     l.keys.forEach((k, i) => window.setTimeout(() => audio.play(k), i * (l.gapMs ?? 0)));
-    setLast(l.label);
+    setLast(S.layer[l.id]);
   };
   const switchBgm = (k: BgmKey | null) => {
     audio.unlock();
@@ -64,23 +67,23 @@ export function SoundTestScene() {
   return (
     <div className="soundtest" data-testid="soundtest">
       <div className="soundtest__head">
-        <h1 className="soundtest__title">こうかおん テスト</h1>
+        <h1 className="soundtest__title">{S.title}</h1>
         <span className="soundtest__vol pencil">
-          おんりょう：こうかおん {save.settings.se}／BGM {save.settings.bgm}（せっていで かえられるよ）
+          {S.volume(save.settings.se, save.settings.bgm)}
         </span>
         <button type="button" className="fxtest-btn soundtest__back" onClick={() => go('debug')}>
-          もどる
+          {tr.common.back}
         </button>
       </div>
       <div className="soundtest__grid">
         {SE_KEYS.map((k) => (
           <div key={k} className="soundtest__row">
             <span className="soundtest__label">
-              {SE_LABEL[k]}
+              {S.se[k]}
               <small className="pencil"> {k}</small>
             </span>
             <button type="button" className="fxtest-btn" data-se={k} onClick={() => play(k)}>
-              ▶ きく
+              {S.play}
             </button>
             <button type="button" className="fxtest-btn" data-burst={k} onClick={() => burst(k)}>
               ×5
@@ -90,33 +93,33 @@ export function SoundTestScene() {
       </div>
       <div className="soundtest__bottom">
         <div className="soundtest__layers">
-          <b>かさね：</b>
+          <b>{S.layers}</b>
           {LAYERS.map((l) => (
-            <button key={l.label} type="button" className="fxtest-btn" onClick={() => layer(l)}>
-              {l.label}
+            <button key={l.id} type="button" className="fxtest-btn" onClick={() => layer(l)}>
+              {S.layer[l.id]}
             </button>
           ))}
         </div>
         <div className="soundtest__layers">
-          <b>BGM：</b>
+          <b>{S.bgm}</b>
           {([...Object.keys(BGM), 'battle'] as BgmKey[]).map((k) => (
             <button key={k} type="button" className={`fxtest-btn ${bgm === k ? 'is-on' : ''}`} onClick={() => switchBgm(k)}>
-              {k === 'battle' ? `せんとう（${battleTracks.length}きょく）` : k}
+              {k === 'battle' ? S.battle(battleTracks.length) : k}
             </button>
           ))}
           <button type="button" className="fxtest-btn" onClick={() => switchBgm(null)}>
-            とめる
+            {S.stop}
           </button>
           <button type="button" className="fxtest-btn" onClick={() => audio.seekNearEnd(5)}>
-            きょくの おわりへ（のこり5びょう）
+            {S.toEnd}
           </button>
           <span className="soundtest__note" data-testid="bgm-now">
-            {song && `いま：${song}`}
+            {song && S.now(song)}
           </span>
-          <span className="pencil soundtest__note">（public/audio/bgm/ に ファイルが ないと むおん）</span>
+          <span className="pencil soundtest__note">{S.noFile}</span>
         </div>
         <p className="soundtest__last" data-testid="last-played">
-          {last && `いま：${last}`}
+          {last && S.now(last)}
         </p>
       </div>
     </div>

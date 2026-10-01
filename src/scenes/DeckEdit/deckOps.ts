@@ -1,4 +1,5 @@
 import type { DeckProblem } from '../../engine/deckValidate';
+import { t } from '../../i18n';
 import type { CardDb, RuleSet } from '../../engine/types';
 
 /**
@@ -95,13 +96,13 @@ export function autoFill(
 export function problemText(p: DeckProblem): string {
   switch (p.code) {
     case 'size':
-      return p.count < p.need ? `あと ${p.need - p.count}まい いれてね` : `${p.count - p.need}まい おおいよ`;
+      return p.count < p.need ? t().deck.problem.fewer(p.need - p.count) : t().deck.problem.more(p.count - p.need);
     case 'noOtege':
-      return 'おてあげが 1まいも ないよ';
+      return t().deck.problem.noOtege;
     case 'tooManySuper':
-      return `スーパーは ${p.max}まい までだよ`;
+      return t().deck.problem.superMax(p.max);
     case 'unknownCard':
-      return 'つかえない カードが はいってるよ';
+      return t().deck.problem.unknown;
   }
 }
 
@@ -109,10 +110,10 @@ export function problemText(p: DeckProblem): string {
 export function blockText(b: AddBlock, rules: RuleSet): string {
   switch (b) {
     case 'full':
-      return `もう ${rules.deckSize}まい はいってるよ`;
+      return t().deck.problem.full(rules.deckSize);
     case 'super':
-      return `スーパーは ${rules.superMaxPerDeck}まい までだよ`;
+      return t().deck.problem.superMax(rules.superMaxPerDeck);
     case 'owned':
-      return 'もう もっていないよ';
+      return t().deck.problem.notOwned;
   }
 }

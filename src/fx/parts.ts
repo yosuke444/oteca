@@ -2,6 +2,7 @@ import { gsap } from 'gsap';
 import type { FxEnv } from './env';
 import { type Box, type Point, STAGE_CENTER, boxOf, centerOf, rand, spawn, spawnSvg } from './overlay';
 import { play, wait } from './timing';
+import { t } from '../i18n';
 
 /**
  * 演出の共通パーツ（SPEC §9-1）
@@ -279,7 +280,7 @@ export async function tape(env: FxEnv, card: Box): Promise<void> {
   const el = spawn(env, 'fx-tape', { x: card.x + card.w / 2, y: card.y + 2 });
   env.sound('se_tape');
   await play(gsap.fromTo(el, { scaleX: 0.2, scaleY: 1.6, rotate: rand(-10, 10), opacity: 0 }, { scaleX: 1, scaleY: 1, rotate: rand(-4, 4), opacity: 1, duration: 0.14, ease: 'back.out(2.5)' }));
-  const label = spawn(env, 'fx-sfx-text', { x: card.x + card.w + 26, y: card.y + 6 }, 'ペタッ');
+  const label = spawn(env, 'fx-sfx-text', { x: card.x + card.w + 26, y: card.y + 6 }, t().fx.tape);
   gsap.fromTo(label, { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.12 });
   await wait(260);
   gsap.to([el, label], { opacity: 0, duration: 0.3, onComplete: () => (el.remove(), label.remove()) });

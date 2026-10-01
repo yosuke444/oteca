@@ -12,7 +12,6 @@ import { type Rand, pick } from './random';
 
 export type CpuLevel = 'weak' | 'normal' | 'strong' | 'strongest';
 export const CPU_LEVELS: readonly CpuLevel[] = ['weak', 'normal', 'strong', 'strongest'];
-export const CPU_LEVEL_LABEL: Record<CpuLevel, string> = { weak: 'よわい', normal: 'ふつう', strong: 'つよい', strongest: 'さいきょう' };
 
 type Of<T extends Action['type']> = Extract<Action, { type: T }>;
 const only = <T extends Action['type']>(legal: Action[], type: T) => legal.filter((a): a is Of<T> => a.type === type);

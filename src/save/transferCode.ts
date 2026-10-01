@@ -18,7 +18,11 @@ export type DecodeResult = { ok: true; data: SaveData } | { ok: false; reason: '
 
 /** コードを作る。salt を省略するとランダム（同じデータでも毎回違うコードになる） */
 export function encodeTransferCode(data: SaveData, salt = Math.floor(Math.random() * 100)): string {
-  const bytes = encodeSave(data);
+  return encodeTransferBytes(encodeSave(data), salt);
+}
+
+/** バイト列 → コード（テストで、古い形式のバイト列から当時と同じコードを作るのにも使う） */
+export function encodeTransferBytes(bytes: Uint8Array, salt: number): string {
   const plain = bytesToDecimal(bytes);
   const cipher = encryptDigits(plain, salt);
   const check = String(crc16Text(plain) % 10000).padStart(CHECK_DIGITS, '0');

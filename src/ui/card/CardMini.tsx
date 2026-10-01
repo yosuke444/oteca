@@ -5,6 +5,8 @@ import { useLongPress } from '../common/useLongPress';
 import { RoughBox } from '../rough/RoughBox';
 import { tiltFrom } from '../rough/seed';
 import { effectLabel, faceLabel } from './cardText';
+import { local } from '../../i18n';
+import { useLang } from '../../i18n/useT';
 import './card.css';
 
 export type CardMiniProps = {
@@ -24,6 +26,7 @@ export type CardMiniProps = {
 
 /** デッキ編集などで使う小さいカード（SPEC §6-6 を小さくしたもの） */
 export function CardMini({ def, seed, variant, count, dim = false, onTap, onDetail }: CardMiniProps) {
+  const lang = useLang();
   const press = useLongPress(
     () => onTap?.(),
     () => onDetail?.(),
@@ -33,7 +36,7 @@ export function CardMini({ def, seed, variant, count, dim = false, onTap, onDeta
       {def.kind === 'otege' ? <OtegeMini def={def} seed={seed} variant={variant} dim={dim} /> : (
         <Sticky seed={seed} color={def.color ?? 'yellow'} angle={variant === 'tile' ? tiltFrom(seed, 2.5) : 0} className="card-mini__note">
           <span className="card-mini__name">{def.name}</span>
-          {variant === 'tile' && <span className="card-mini__text">{def.text}</span>}
+          {variant === 'tile' && <span className="card-mini__text">{local(def.text, lang)}</span>}
         </Sticky>
       )}
       {count !== undefined && count > 0 && <span className="card-mini__count num">×{count}</span>}

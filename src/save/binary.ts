@@ -15,11 +15,13 @@ import {
  * 項目を増やす時は末尾に足し、FORMAT_VERSION を上げ、migrate.ts に読み方を足す。
  */
 
-/** 形式版数（バイト列の先頭1バイト）。1＝v1.3 まで／2＝v1.4（末尾に cpuStats） */
-export const FORMAT_VERSION = 2;
+/** 形式版数（バイト列の先頭1バイト）。1＝v1.3 まで／2＝v1.4（末尾に cpuStats）／3＝v2.0-A（末尾に lang） */
+export const FORMAT_VERSION = 3;
 
-/** 形式版数1の形（cpuStats が無い） */
-export type SaveDataV1 = Omit<SaveData, 'cpuStats'>;
+/** 形式版数2の形（settings.lang が無い） */
+export type SaveDataV2 = Omit<SaveData, 'settings'> & { settings: Omit<SaveData['settings'], 'lang'> };
+/** 形式版数1の形（cpuStats も無い） */
+export type SaveDataV1 = Omit<SaveDataV2, 'cpuStats'>;
 
 /** 読み込み時の上限（壊れたデータで固まらないように） */
 const LIMITS = { deckCards: 60, collection: 10000, story: 10000, cardNo: 65535 };
@@ -136,11 +138,21 @@ export function encodeSave(data: SaveData): Uint8Array {
     w.uint(data.cpuStats[i]?.wins ?? 0);
     w.uint(data.cpuStats[i]?.losses ?? 0);
   }
+  // 形式版数3：ことば（0＝にほんご、1＝日本語）
+  w.byte(data.settings.lang === 'kanji' ? 1 : 0);
   return w.toBytes();
 }
 
+/** 形式版数3の本体を読む（形式版数2の本体 ＋ ことば） */
+export function readSaveV3(r: ByteReader): SaveData {
+  const v2 = readSaveV2(r);
+  const lang = r.byte();
+  if (lang > 1) throw new Error('ことば の値が不正です');
+  return { ...v2, settings: { ...v2.settings, lang: lang === 1 ? 'kanji' : 'hira' } };
+}
+
 /** 形式版数2の本体を読む（形式版数1の本体 ＋ cpuStats） */
-export function readSaveV2(r: ByteReader): SaveData {
+export function readSaveV2(r: ByteReader): SaveDataV2 {
   const v1 = readSaveV1(r);
   const cpuStats = Array.from({ length: CPU_LEVEL_COUNT }, () => ({ wins: r.uint(), losses: r.uint() }));
   return { ...v1, cpuStats };

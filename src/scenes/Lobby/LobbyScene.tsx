@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../../i18n';
+import { useT } from '../../i18n/useT';
 import { badOnlineStart, onlineSetup } from '../../battle/setup';
 import { CARD_DB } from '../../data/cards';
 import { validateDeck } from '../../engine';
@@ -38,13 +40,13 @@ const MAX_DIGITS = 8;
 function errorText(s: SessionStatus): string | null {
   switch (s.kind) {
     case 'full':
-      return 'このへやは まんいんだよ。\nちがう ばんごうに してね';
+      return t().lobby.full;
     case 'version':
-      return 'バージョンが ちがうよ。\nふたりとも ページを よみこみなおしてね';
+      return t().lobby.version;
     case 'error':
-      return 'つながらなかったよ。\nネットワークを かえると つながることが あるよ';
+      return t().lobby.failed;
     case 'aborted':
-      return s.reason === 'cheat' ? 'データが おかしいみたい。\nもういちど へやに はいってね' : 'あいてが やめたみたい';
+      return s.reason === 'cheat' ? t().lobby.cheat : t().lobby.oppQuit;
     default:
       return null;
   }
@@ -54,6 +56,7 @@ function errorText(s: SessionStatus): string | null {
 export function LobbyScene() {
   const { go } = useNav();
   const { save } = useSave();
+  const tr = useT();
   const usable = save.decks.map((d, i) => ({ i, d })).filter(({ d }) => validateDeck(d.cards, CARD_DB).length === 0);
   const [room, setRoom] = useState('');
   const [deck, setDeck] = useState(usable.some((u) => u.i === save.selectedDeck) ? save.selectedDeck : (usable[0]?.i ?? -1));
@@ -80,7 +83,7 @@ export function LobbyScene() {
     const g = linkRef.current?.lastStart;
     if (!vsDone.current || !g || toBattle.current) return;
     if (badOnlineStart(g)) {
-      fail('データが おかしいみたい。\nもういちど へやに はいってね');
+      fail(t().lobby.cheat);
       return;
     }
     toBattle.current = true;
@@ -135,7 +138,7 @@ export function LobbyScene() {
     if (phase.kind === 'vs') {
       // VS に入る前に中止されていないか
       const st = linkRef.current?.session.status;
-      const text = st ? errorText(st) : 'つながらなかったよ';
+      const text = st ? errorText(st) : t().lobby.failedShort;
       if (text) {
         fail(text);
         return;
@@ -185,19 +188,20 @@ export function LobbyScene() {
   if (phase.kind === 'waiting') {
     return (
       <div className="lobby lobby--wait">
-        <p className="lobby-wait__label">へやばんごう</p>
+        <p className="lobby-wait__label">{tr.lobby.roomLabel}</p>
         <RoughBox seed="lobby-wait-num" className="lobby-wait__num" paper radius={10} strokeWidth={3}>
           <span className="num" data-testid="room-number">
             {room}
           </span>
         </RoughBox>
-        <p className="lobby-wait__tell">この ばんごうを ともだちに おしえてね</p>
+        <p className="lobby-wait__tell">{tr.lobby.tell}</p>
         <p className="lobby-wait__waiting">
-          あいてを まってるよ<span className="lobby-wait__dots">{'・'.repeat(dots)}</span>
+          {tr.lobby.waiting}
+          <span className="lobby-wait__dots">{tr.lobby.dot.repeat(dots)}</span>
         </p>
-        {waitedMs >= HINT_AFTER_MS && <p className="lobby-wait__hint red-pen">ばんごうが あってるか たしかめてね</p>}
+        {waitedMs >= HINT_AFTER_MS && <p className="lobby-wait__hint red-pen">{tr.lobby.checkNumber}</p>}
         <RoughButton seed="lobby-cancel" className="lobby-wait__cancel" onClick={cancel}>
-          やめる
+          {tr.common.cancel}
         </RoughButton>
       </div>
     );
@@ -207,7 +211,7 @@ export function LobbyScene() {
     return (
       <div className="lobby lobby--found">
         <p className="lobby-found" style={tiltStyle('lobby-found')}>
-          あいてが きた！
+          {tr.lobby.came}
         </p>
       </div>
     );
@@ -217,12 +221,12 @@ export function LobbyScene() {
     return (
       <div className="lobby lobby--vs" data-testid="vs">
         <div className="lobby-vs__side lobby-vs__side--me">
-          <span className="lobby-vs__who pencil">じぶん</span>
+          <span className="lobby-vs__who pencil">{tr.common.me}</span>
           <span className="lobby-vs__name blue-pen">{save.playerName}</span>
         </div>
         <div className="lobby-vs__vs">VS</div>
         <div className="lobby-vs__side lobby-vs__side--opp">
-          <span className="lobby-vs__who pencil">あいて</span>
+          <span className="lobby-vs__who pencil">{tr.common.opp}</span>
           <span className="lobby-vs__name red-pen">{phase.opp}</span>
         </div>
       </div>
@@ -231,18 +235,18 @@ export function LobbyScene() {
 
   return (
     <div className="lobby">
-      <h1 className="lobby__title">フレンドたいせん</h1>
+      <h1 className="lobby__title">{tr.lobby.title}</h1>
       <RoughButton seed="lobby-back" className="lobby__back" onClick={() => go('menu')}>
-        もどる
+        {tr.common.back}
       </RoughButton>
 
       <section className="lobby__left">
-        <p className="lobby__label">へやばんごう（4〜8けた）</p>
+        <p className="lobby__label">{tr.lobby.roomInput}</p>
         <RoughBox seed="lobby-num" className="lobby__num" paper radius={10} strokeWidth={3}>
           <span className="lobby__digits" data-testid="room-input">
             {Array.from({ length: MAX_DIGITS }, (_, i) => (
               <span key={i} className={i < room.length ? 'num lobby__digit' : 'lobby__digit lobby__digit--empty'}>
-                {room[i] ?? '＿'}
+                {room[i] ?? tr.lobby.blank}
               </span>
             ))}
           </span>
@@ -251,26 +255,26 @@ export function LobbyScene() {
       </section>
 
       <section className="lobby__right">
-        <p className="lobby__label">つかう デッキ</p>
+        <p className="lobby__label">{tr.lobby.deckLabel}</p>
         <div className="lobby__decks">
           {save.decks.map((d, i) => {
             const ok = usable.some((u) => u.i === i);
             return (
               <RoughButton key={i} seed={`lobby-deck-${i}`} className="lobby__deck" disabled={!ok} highlight={deck === i} onClick={() => setDeck(i)}>
                 <span className="lobby__deck-name">{d.name}</span>
-                <span className={ok ? 'lobby__deck-note pencil' : 'lobby__deck-note red-pen'}>{ok ? `${d.cards.length}まい` : 'つかえない'}</span>
+                <span className={ok ? 'lobby__deck-note pencil' : 'lobby__deck-note red-pen'}>{ok ? tr.common.cards(d.cards.length) : tr.common.unusable}</span>
               </RoughButton>
             );
           })}
         </div>
         <RoughButton seed="lobby-join" className="lobby__join" strokeWidth={3} highlight={canJoin} disabled={!canJoin} onClick={join}>
-          へやに はいる
+          {tr.lobby.enter}
         </RoughButton>
         <p className="lobby__note pencil">
-          ともだちと おなじ ばんごうを いれてね。
+          {tr.lobby.note1}
           <br />
-          6けた いじょうが おすすめ
-          {room.length > 0 && room.length < MIN_DIGITS && <span className="lobby__more red-pen">（あと {MIN_DIGITS - room.length}けた）</span>}
+          {tr.lobby.note2}
+          {room.length > 0 && room.length < MIN_DIGITS && <span className="lobby__more red-pen">{tr.lobby.moreDigits(MIN_DIGITS - room.length)}</span>}
         </p>
       </section>
 
@@ -279,7 +283,7 @@ export function LobbyScene() {
           <RoughBox seed="lobby-error" className="lobby__error-box" paper radius={10} stroke="var(--pen-red)" strokeWidth={3}>
             <p className="lobby__error-text red-pen">{phase.text}</p>
             <RoughButton seed="lobby-error-ok" className="lobby__error-ok" onClick={() => setPhase({ kind: 'input' })}>
-              わかった
+              {tr.common.ok}
             </RoughButton>
           </RoughBox>
         </div>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { starterDeckNos } from '../src/data/starterDeck';
 import { toBase64Url } from '../src/save/base64url';
-import { type SaveDataV1, encodeSave } from '../src/save/binary';
+import { type SaveDataV1, type SaveDataV2, encodeSave } from '../src/save/binary';
 import {
   CHUNK_SIZE,
   COOKIE_META,
@@ -11,6 +11,8 @@ import {
   parseCookies,
   persist,
   readCookies,
+  openSave,
+  sealBytes,
   sealSave,
   writeCookies,
 } from '../src/save/cookieStore';
@@ -158,12 +160,12 @@ describe('形式の移行', () => {
   const hexToBytes = (hex: string) => new Uint8Array(hex.match(/../g)!.map((h) => parseInt(h, 16)));
 
   /** 形式版数1を読むと、CPU対戦の勝敗（v1.4）はすべて0になる */
-  const V1_AS_LATEST: SaveData = { ...V1_EXPECTED, cpuStats: emptyCpuStats() };
+  const V1_AS_LATEST: SaveData = { ...V1_EXPECTED, settings: { ...V1_EXPECTED.settings, lang: 'hira' }, cpuStats: emptyCpuStats() };
 
   /**
    * 形式版数2（v1.4）で保存したバイト列：形式版数1と同じ中身 ＋ CPU対戦 よわい3勝1敗・つよい5勝6敗・さいきょう0勝2敗
    */
-  const V2_EXPECTED: SaveData = {
+  const V2_EXPECTED: SaveDataV2 = {
     ...V1_EXPECTED,
     cpuStats: [
       { wins: 3, losses: 1 },
@@ -173,6 +175,11 @@ describe('形式の移行', () => {
     ],
   };
   const V2_FIXTURE_HEX = '02' + V1_FIXTURE_HEX.slice(2) + '0301000005060002';
+  /** 形式版数2を読むと、ことば は にほんご */
+  const V2_AS_LATEST: SaveData = { ...V2_EXPECTED, settings: { ...V2_EXPECTED.settings, lang: 'hira' } };
+  /** 形式版数3（v2.0-A）：形式版数2と同じ中身 ＋ ことば＝日本語 */
+  const V3_EXPECTED: SaveData = { ...V2_EXPECTED, settings: { ...V2_EXPECTED.settings, lang: 'kanji' } };
+  const V3_FIXTURE_HEX = '03' + V2_FIXTURE_HEX.slice(2) + '01';
 
   /** 形式版数1の時に作った引き継ぎコード（V1_EXPECTED の中身） */
   const V1_TRANSFER_CODE =
@@ -183,15 +190,20 @@ describe('形式の移行', () => {
     expect(migrate(1, V1_EXPECTED)).toEqual(V1_AS_LATEST);
   });
 
-  it('V05 今の形式（形式版数2）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    const hex = [...encodeSave(V2_EXPECTED)].map((b) => b.toString(16).padStart(2, '0')).join('');
-    expect(hex).toBe(V2_FIXTURE_HEX);
-    expect(decodeSave(hexToBytes(V2_FIXTURE_HEX))).toEqual(V2_EXPECTED);
-    expect(migrate(2, V2_EXPECTED)).toEqual(V2_EXPECTED);
+  it('V05 形式版数2のデータを読める（ことば は にほんご）', () => {
+    expect(decodeSave(hexToBytes(V2_FIXTURE_HEX))).toEqual(V2_AS_LATEST);
+    expect(migrate(2, V2_EXPECTED)).toEqual(V2_AS_LATEST);
+  });
+
+  it('V05 今の形式（形式版数3）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
+    const hex = [...encodeSave(V3_EXPECTED)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    expect(hex).toBe(V3_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V3_FIXTURE_HEX))).toEqual(V3_EXPECTED);
+    expect(migrate(3, V3_EXPECTED)).toEqual(V3_EXPECTED);
   });
 
   it('V05 読めない形式版数・余分なバイト・壊れた値はエラーになる', () => {
-    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX]) {
+    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX]) {
       const bytes = hexToBytes(hex);
       const future = bytes.slice();
       future[0] = 99;
@@ -201,7 +213,17 @@ describe('形式の移行', () => {
     }
   });
 
-  it('V06 形式版数1で作った古い引き継ぎコードが、v1.4 でも読める', () => {
+  /** 形式版数2（v1.4）で作った引き継ぎコード（V2_FIXTURE_HEX、ソルト57。当時の作り方 encodeTransferBytes で作って固定した） */
+  const V2_TRANSFER_CODE =
+    '5726-7570-1068-8805-2679-1170-5334-8252-2485-3465-5194-7515-5633-5254-1342-2085-1230-5340-9709-5959-3105-8946-8054-3566-8271-4770-6883-2664-3260-7408-8591-8731-1303-2630-6989-9598-2426-4';
+
+  it('V06 形式版数1・2で作った古い引き継ぎコードが、v2.0 でも読める', () => {
     expect(decodeTransferCode(V1_TRANSFER_CODE)).toEqual({ ok: true, data: V1_AS_LATEST });
+    expect(decodeTransferCode(V2_TRANSFER_CODE)).toEqual({ ok: true, data: V2_AS_LATEST });
+  });
+
+  it('V06 形式版数1・2の Cookie の中身（暗号文）が、v2.0 でも読める', () => {
+    expect(openSave(sealBytes(hexToBytes(V1_FIXTURE_HEX)))).toEqual(V1_AS_LATEST);
+    expect(openSave(sealBytes(hexToBytes(V2_FIXTURE_HEX)))).toEqual(V2_AS_LATEST);
   });
 });

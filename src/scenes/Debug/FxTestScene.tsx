@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../../i18n';
+import { useT } from '../../i18n/useT';
 import { flushSync } from 'react-dom';
 import type { GameState } from '../../engine/types';
 import type { FxEnv } from '../../fx/env';
@@ -14,12 +16,7 @@ import '../Battle/battle.css';
 import { FX_SCENES, foldEvents, fxFixture } from './fxScenes';
 import './debug.css';
 
-const NAMES = { p1: 'じぶん', p2: 'あいて' } as const;
-const SPEEDS: { v: FxSpeedIndex; label: string }[] = [
-  { v: 0, label: 'ふつう' },
-  { v: 1, label: 'はやい' },
-  { v: 2, label: 'さいそく' },
-];
+const SPEEDS: FxSpeedIndex[] = [0, 1, 2];
 
 /**
  * デバッグ画面の「演出テスト」（SPEC §9）
@@ -28,6 +25,7 @@ const SPEEDS: { v: FxSpeedIndex; label: string }[] = [
 export function FxTestScene() {
   const { go } = useNav();
   const { update } = useSave();
+  const tr = useT();
   const fx = useFx();
   const fxRef = useRef(fx);
   fxRef.current = fx;
@@ -73,8 +71,8 @@ export function FxTestScene() {
         setFxSpeed(fxRef.current.speed, f);
       },
       duckBgm: () => audio.duckBgm(),
-      nameOf: (side) => NAMES[side],
-      turnLabel: (side) => (side === 'p1' ? { text: 'あなたの ターン', mine: true } : { text: 'あいての ターン', mine: false }),
+      nameOf: (side) => t().debug.fx.names[side],
+      turnLabel: (side) => (side === 'p1' ? { text: t().battle.myTurn, mine: true } : { text: t().battle.oppTurn, mine: false }),
       log: () => {},
     };
     const q = new FxQueue(env);
@@ -117,7 +115,7 @@ export function FxTestScene() {
       <BattleBoard
         view={view}
         me="p1"
-        names={NAMES}
+        names={tr.debug.fx.names}
         mode="local"
         canAct={false}
         myDecision={false}
@@ -144,25 +142,25 @@ export function FxTestScene() {
 
       <div className="fxtest-panel" data-testid="fx-panel">
         <div className="fxtest-panel__head">
-          <b>えんしゅつ テスト</b>
+          <b>{tr.debug.fx.title}</b>
           <button type="button" className="fxtest-btn fxtest-btn--back" onClick={() => go('debug')}>
-            もどる
+            {tr.common.back}
           </button>
         </div>
         <div className="fxtest-row">
-          {SPEEDS.map((s) => (
-            <button key={s.v} type="button" className={`fxtest-btn ${fx.fxSpeed === s.v ? 'is-on' : ''}`} onClick={() => setSpeed(s.v)}>
-              {s.label}
+          {SPEEDS.map((v) => (
+            <button key={v} type="button" className={`fxtest-btn ${fx.fxSpeed === v ? 'is-on' : ''}`} onClick={() => setSpeed(v)}>
+              {tr.debug.fx.speed[v]}
             </button>
           ))}
           <button type="button" className={`fxtest-btn ${fx.reduceFx ? 'is-on' : ''}`} onClick={() => setReduce(!fx.reduceFx)}>
-            へらす{fx.reduceFx ? 'ON' : 'OFF'}
+            {tr.debug.fx.reduce(fx.reduceFx)}
           </button>
         </div>
         <div className="fxtest-list">
           {FX_SCENES.map((s) => (
             <button key={s.id} type="button" className="fxtest-btn" data-scene={s.id} disabled={busy} onClick={() => playScene(s.id)}>
-              {s.label}
+              {tr.debug.fx.scene[s.id]}
               {lastMs[s.id] !== undefined && <small className="num"> {(lastMs[s.id] / 1000).toFixed(1)}s</small>}
             </button>
           ))}

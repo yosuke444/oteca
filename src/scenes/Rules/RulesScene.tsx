@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { CARD_DB } from '../../data/cards';
 import { DEFAULT_RULES } from '../../engine';
 import type { CardDef, OtegeCardDef } from '../../engine/types';
@@ -10,6 +10,8 @@ import { turnPage } from '../../ui/common/PageTurn';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
+import { type Dict, type Lang, local } from '../../i18n';
+import { useLang, useT } from '../../i18n/useT';
 import './rules.css';
 
 /**
@@ -26,176 +28,138 @@ const items = cards.filter((c) => c.kind === 'item');
 const normalSample = otege.find((c) => c.rarity === 'normal');
 const superSample = otege.find((c) => c.rarity === 'super');
 /** ダメージを足すアイテム（「名前 +数」の並び。ダメージ計算の説明用） */
-const attackItems = items
-  .flatMap((c) => (c.kind === 'item' ? c.effects.filter((e) => e.type === 'addAttack').map((e) => `${c.name} +${e.type === 'addAttack' ? e.amount : 0}`) : []))
-  .join('、');
+function attackItems(tr: Dict): string {
+  return items
+    .flatMap((c) => (c.kind === 'item' ? c.effects.filter((e) => e.type === 'addAttack').map((e) => `${c.name} +${e.type === 'addAttack' ? e.amount : 0}`) : []))
+    .join(tr.rules.itemListJoin);
+}
 /** 重ねがけ禁止の説明（SPEC §4-7。cards.json の blockedIfUsedThisTurn から作る） */
-const stackRules = items
-  .filter((c) => c.kind === 'item' && (c.blockedIfUsedThisTurn?.length ?? 0) > 0)
-  .map((c) => {
-    const names = (c.kind === 'item' ? c.blockedIfUsedThisTurn ?? [] : []).map((id) => cards.find((x) => x.id === id)?.name ?? id);
-    return `${names.join('・')}を つかった おてあげに、おなじ ターンに ${c.name}は つかえない`;
-  });
+function stackRules(tr: Dict): string[] {
+  return items
+    .filter((c) => c.kind === 'item' && (c.blockedIfUsedThisTurn?.length ?? 0) > 0)
+    .map((c) => {
+      const names = (c.kind === 'item' ? (c.blockedIfUsedThisTurn ?? []) : []).map((id) => cards.find((x) => x.id === id)?.name ?? id);
+      return tr.rules.stackRule(names.join(tr.rules.nameJoin), c.name);
+    });
+}
 
 type Page = { title: string; body: ReactNode; art: ReactNode; more: ReactNode };
 
 const Mark = ({ children }: { children: ReactNode }) => <span className="rules-mark">{children}</span>;
 
-const PAGES: Page[] = [
-  {
-    title: 'オテカって なに？',
-    body: (
-      <>
-        <p>
-          ふたりで あそぶ <Mark>カードバトル</Mark> だよ。
-        </p>
-        <p>じぶんの「おてあげ」を たたかわせて、サイコロで でた めで わざが きまるよ。</p>
-        <p>
-          あいての おてあげを <Mark>{R.koToWin}たい たおしたら かち！</Mark>
-        </p>
-        <p>うんで きまる ところと、じゅんびで かわる ところが あるのが おもしろさ。</p>
-      </>
-    ),
-    art: (
-      <div className="rules-art rules-art--vs">
-        <OtegeArt width={240} />
-        <DiceDoodle seed="rules-p1-dice" size={80} face={6} float />
-      </div>
-    ),
-    more: '1しあいは だいたい 5〜10ぷん。「おてあげ」には「こうさん」という いみも あるよ。',
-  },
-  {
-    title: 'じゅんび',
-    body: (
-      <>
-        <p>
-          デッキは <Mark>ちょうど {R.deckSize}まい</Mark>。おてあげを 1まい いじょう いれてね。スーパーおてあげ（S）は デッキに {R.superMaxPerDeck}まい まで。
-        </p>
-        <p>① サイコロで せんこうを きめる（おおきい めが さき）</p>
-        <p>
-          ② カードを {R.initialHand}まい ひく。{R.mulliganIfNoOtege ? 'おてあげが いなかったら ひきなおし' : ''}
-        </p>
-        <p>③ バトルばに おてあげを 1たい、うらむきで だす。ふたり そろったら オープン！</p>
-      </>
-    ),
-    art: (
-      <div className="rules-art rules-art--cards">
-        {normalSample && <CardMini def={normalSample} seed="rules-normal" variant="tile" />}
-        {superSample && <CardMini def={superSample} seed="rules-super" variant="tile" />}
-      </div>
-    ),
-    more: 'おなじ カードは なんまい いれても いいよ（スーパーだけ かずが きまっている）。せんこうきめで おなじ めが でたら ふりなおし。じゅんびの あいだは ベンチに だせないよ。',
-  },
-  {
-    title: 'じぶんの ターン',
-    body: (
-      <>
-        <p>すきな じゅんばんで、なんかいでも できるよ。</p>
-        <p>
-          ・おてあげを <Mark>ベンチに だす</Mark>（1ターンに {R.benchPlacePerTurn}たい、ベンチは {R.benchMax}たい まで）
-        </p>
-        <p>・<Mark>アイテム</Mark> を つかう（なんまいでも）</p>
-        <p>
-          ・<Mark>こうたい</Mark>（バトルば ⇄ ベンチ）…でも こうたいした ターンは こうげき できないよ。
-          {R.swapCooldownTurns === 1 && 'ベンチに だした ターンは、その おてあげと こうたい できないよ'}
-          {R.swapCooldownTurns > 1 && `ベンチに だしてから じぶんの ターンが ${R.swapCooldownTurns}かい くるまで、その おてあげと こうたい できないよ`}
-        </p>
-        <p>カードは {R.drawEveryNTurns}ターンに 1かい、ターンの はじめに 1まい ひけるよ。</p>
-      </>
-    ),
-    art: (
-      <div className="rules-art rules-art--turn">
-        <div className="rules-slot">ベンチ</div>
-        <div className="rules-slot rules-slot--active">バトルば</div>
-        <div className="rules-slot">ベンチ</div>
-        <span className="rules-arrow">⇄</span>
-      </div>
-    ),
-    more: `カードを ひくのは、じぶんの ${R.drawEveryNTurns}・${R.drawEveryNTurns * 2}・${R.drawEveryNTurns * 3}ターンめ…。やまふだが なくなっても まけには ならないよ。`,
-  },
-  {
-    title: 'こうげき',
-    body: (
-      <>
-        <p>
-          「<Mark>ターンおわり＆こうげき！</Mark>」を おすと、サイコロが ころがるよ。
-        </p>
-        <p>でた めの わざを、バトルばの おてあげが つかう。</p>
-        <p>ダメージは あいての バトルばへ。かいふくは じぶん じしんを なおすよ（さいだいHPまで）。</p>
-        <p>こうげきは かならず する（さきに はじめる ひとの 1ターンめも）。こうたいした ターンだけ こうげき なし。</p>
-      </>
-    ),
-    art: (
-      <div className="rules-art rules-art--attack">
-        <DiceDoodle seed="rules-p4-dice" size={110} face={4} />
-        {normalSample && <CardMini def={normalSample} seed="rules-attack" variant="tile" />}
-      </div>
-    ),
-    more: (
-      <>
-        ダメージの けいさん：わざの ダメージ ＋ この ターンに つかった アイテムの ぶん（{attackItems}）。かいふくの わざは かわらない。あまった ダメージは つぎの おてあげに のこらないよ。
-      </>
-    ),
-  },
-  {
-    title: 'アイテム',
-    body: (
-      <>
-        <p>つかいきりの カード。じぶんの おてあげ 1たいに つかうよ。</p>
-        <ul className="rules-items">
-          {items.map((c: CardDef) => (
-            <li key={c.no}>
-              <b>{c.name}</b>：{c.kind === 'item' ? c.text : ''}
-            </li>
+/** 辞書の文 → 段落。**…** は蛍光ペンの強調、改行は <br /> */
+function Paragraphs({ lines }: { lines: string[] }) {
+  return (
+    <>
+      {lines.map((line, i) => (
+        <p key={i}>
+          {line.split('\n').map((row, j) => (
+            <span key={j}>
+              {j > 0 && <br />}
+              {row.split('**').map((part, k) => (k % 2 === 1 ? <Mark key={k}>{part}</Mark> : part))}
+            </span>
           ))}
-        </ul>
-      </>
-    ),
-    art: (
-      <div className="rules-art rules-art--items">
-        {items.slice(0, 4).map((c) => (
-          <CardMini key={c.no} def={c} seed={`rules-item-${c.no}`} variant="tile" />
-        ))}
-      </div>
-    ),
-    more: (
-      <>
-        HPが まんたんの おてあげには、かいふくの アイテムは つかえないよ。
-        {stackRules.map((t) => `${t}。`).join('')}
-        ベンチの おてあげに こうげきの アイテムを つかっても、その ターンは こうげきしないので むだに なるよ（つかう まえに おしえてくれる）。
-      </>
-    ),
-  },
-  {
-    title: 'きぜつと かちまけ',
-    body: (
-      <>
-        <p>
-          HPが 0いかに なった おてあげは <Mark>きぜつ</Mark>。すてふだへ いくよ。
         </p>
-        <p>
-          ・あいてを {R.koToWin}たい たおしたら かち
-          <br />・あいての ベンチが からっぽの ときに たおしても かち
-        </p>
-        <p>
-          そうでなければ、たおされた ほうが ベンチから 1たい えらんで バトルばへ（<Mark>くりだし</Mark>）。
-        </p>
-        <p>こまったら ⚙ の「おてあげする」で こうさん できるよ。</p>
-      </>
-    ),
-    art: (
-      <div className="rules-art rules-art--win">
-        {Array.from({ length: R.koToWin }, (_, i) => (
-          <StarDoodle key={i} seed={`rules-star-${i}`} size={80} float />
-        ))}
-      </div>
-    ),
-    more: 'くりだしは「こうたい」とは ちがうので、つぎの じぶんの ターンに ふつうに こうげき できるよ。',
-  },
-];
+      ))}
+    </>
+  );
+}
+
+/** 6ページ（ルールの数は RuleSet、アイテムの名前と説明は cards.json、文言は辞書から） */
+function buildPages(tr: Dict, lang: Lang): Page[] {
+  const P = tr.rules;
+  return [
+    {
+      title: P.p1.title,
+      body: <Paragraphs lines={P.p1.body(R.koToWin)} />,
+      art: (
+        <div className="rules-art rules-art--vs">
+          <OtegeArt width={240} />
+          <DiceDoodle seed="rules-p1-dice" size={80} face={6} float />
+        </div>
+      ),
+      more: P.p1.more,
+    },
+    {
+      title: P.p2.title,
+      body: <Paragraphs lines={P.p2.body(R.deckSize, R.superMaxPerDeck, R.initialHand, R.mulliganIfNoOtege)} />,
+      art: (
+        <div className="rules-art rules-art--cards">
+          {normalSample && <CardMini def={normalSample} seed="rules-normal" variant="tile" />}
+          {superSample && <CardMini def={superSample} seed="rules-super" variant="tile" />}
+        </div>
+      ),
+      more: P.p2.more,
+    },
+    {
+      title: P.p3.title,
+      body: <Paragraphs lines={P.p3.body(R.benchPlacePerTurn, R.benchMax, R.swapCooldownTurns, R.drawEveryNTurns)} />,
+      art: (
+        <div className="rules-art rules-art--turn">
+          <div className="rules-slot">{tr.battle.slotBench}</div>
+          <div className="rules-slot rules-slot--active">{tr.battle.slotActive}</div>
+          <div className="rules-slot">{tr.battle.slotBench}</div>
+          <span className="rules-arrow">⇄</span>
+        </div>
+      ),
+      more: P.p3.more(R.drawEveryNTurns, R.drawEveryNTurns * 2, R.drawEveryNTurns * 3),
+    },
+    {
+      title: P.p4.title,
+      body: <Paragraphs lines={P.p4.body()} />,
+      art: (
+        <div className="rules-art rules-art--attack">
+          <DiceDoodle seed="rules-p4-dice" size={110} face={4} />
+          {normalSample && <CardMini def={normalSample} seed="rules-attack" variant="tile" />}
+        </div>
+      ),
+      more: P.p4.more(attackItems(tr)),
+    },
+    {
+      title: P.p5.title,
+      body: (
+        <>
+          <Paragraphs lines={P.p5.body()} />
+          <ul className="rules-items">
+            {items.map((c: CardDef) => (
+              <li key={c.no}>
+                <b>{c.name}</b>
+                {tr.rules.itemSep}
+                {c.kind === 'item' ? local(c.text, lang) : ''}
+              </li>
+            ))}
+          </ul>
+        </>
+      ),
+      art: (
+        <div className="rules-art rules-art--items">
+          {items.slice(0, 4).map((c) => (
+            <CardMini key={c.no} def={c} seed={`rules-item-${c.no}`} variant="tile" />
+          ))}
+        </div>
+      ),
+      more: [P.p5.moreFullHp, ...stackRules(tr).map((x) => x + P.sentenceEnd), P.p5.moreBench].join(''),
+    },
+    {
+      title: P.p6.title,
+      body: <Paragraphs lines={P.p6.body(R.koToWin)} />,
+      art: (
+        <div className="rules-art rules-art--win">
+          {Array.from({ length: R.koToWin }, (_, i) => (
+            <StarDoodle key={i} seed={`rules-star-${i}`} size={80} float />
+          ))}
+        </div>
+      ),
+      more: P.p6.more,
+    },
+  ];
+}
 
 export function RulesScene() {
   const { go } = useNav();
+  const tr = useT();
+  const lang = useLang();
+  const PAGES = useMemo(() => buildPages(tr, lang), [tr, lang]);
   const [page, setPage] = useState(0);
   const last = PAGES.length - 1;
 
@@ -232,18 +196,18 @@ export function RulesScene() {
           {p.art}
         </div>
         <p className="rules-page__more pencil">
-          <b>もっと くわしく：</b>
+          <b>{tr.rules.more}</b>
           {p.more}
         </p>
       </RoughBox>
       <RoughButton seed="rules-prev" className="rules-nav rules-nav--prev" disabled={page === 0} onClick={() => turn(page - 1)}>
-        ← まえ
+        {tr.rules.prev}
       </RoughButton>
       <RoughButton seed="rules-next" className="rules-nav rules-nav--next" highlight={page < last} disabled={page === last} onClick={() => turn(page + 1)}>
-        つぎ →
+        {tr.rules.next}
       </RoughButton>
       <RoughButton seed="rules-back" className="rules-back" onClick={() => go('menu')}>
-        もどる
+        {tr.common.back}
       </RoughButton>
     </div>
   );

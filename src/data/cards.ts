@@ -46,7 +46,8 @@ export function parseCardData(data: unknown): CardData {
       check(c.useCondition === undefined || c.useCondition === 'notFullHp', `${where}: useCondition が不正です`);
       const blocked = c.blockedIfUsedThisTurn;
       check(blocked === undefined || (Array.isArray(blocked) && blocked.every((b) => typeof b === 'string')), `${where}: blockedIfUsedThisTurn が不正です`);
-      check(c.afterUseNote === undefined || typeof c.afterUseNote === 'string', `${where}: afterUseNote が不正です`);
+      check(c.afterUseNote === undefined || isLocalText(c.afterUseNote), `${where}: afterUseNote が不正です（hira と kanji の2つが必要）`);
+      check(isLocalText(c.text), `${where}: text が不正です（hira と kanji の2つが必要）`);
       checkEffects(c.effects, where);
     } else {
       check(false, `${where}: kind が不正です`);
@@ -59,6 +60,12 @@ export function parseCardData(data: unknown): CardData {
     }
   }
   return d as CardData;
+}
+
+/** にほんご・日本語の2つの文があるか */
+function isLocalText(v: unknown): boolean {
+  const t = v as { hira?: unknown; kanji?: unknown };
+  return typeof t === 'object' && t !== null && typeof t.hira === 'string' && t.hira !== '' && typeof t.kanji === 'string' && t.kanji !== '';
 }
 
 function checkEffects(effects: unknown, where: string): void {

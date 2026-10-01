@@ -9,6 +9,7 @@ import { Sticky } from '../../ui/common/Sticky';
 import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useSave } from '../../state/SaveContext';
+import { useT } from '../../i18n/useT';
 import './menu.css';
 
 type LockedId = 'story' | 'gacha';
@@ -18,6 +19,7 @@ export function MenuScene() {
   const { go } = useNav();
   const debug = isDebugMode();
   const { save, remindBackup } = useSave();
+  const tr = useT();
   // 🔒 じゅんびちゅう のふせんを揺らす合図（押した回数）
   const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0 });
 
@@ -45,7 +47,7 @@ export function MenuScene() {
             {save.playerName}
           </span>
         </RoughBox>
-        <RoughButton seed="menu-settings" className="menu-scene__gear" ariaLabel="せってい" onClick={() => go('settings')}>
+        <RoughButton seed="menu-settings" className="menu-scene__gear" ariaLabel={tr.menu.settings} onClick={() => go('settings')}>
           <GearIcon />
         </RoughButton>
       </div>
@@ -53,28 +55,28 @@ export function MenuScene() {
       {/* 左：フレンドたいせん（いちばん大きい）とロック中の2つ */}
       <RoughButton seed="menu-friend" className="menu-scene__friend" strokeWidth={3} onClick={() => go('lobby')}>
         <span className="menu-scene__friend-label">
-          フレンドたいせん
-          <small>ともだちと あそぶ</small>
+          {tr.menu.friend}
+          <small>{tr.menu.friendSub}</small>
         </span>
       </RoughButton>
 
       {/* CPUたいせん：フレンドたいせんの次に目立つ（SPEC §7 S01・v1.4） */}
       <RoughButton seed="menu-cpu" className="menu-scene__cpu" strokeWidth={2.8} onClick={() => go('cpu')}>
         <span className="menu-scene__cpu-label">
-          CPUたいせん
-          <small>ひとりで あそぶ</small>
+          {tr.menu.cpu}
+          <small>{tr.menu.cpuSub}</small>
         </span>
       </RoughButton>
 
-      <LockedButton id="story" label="ストーリー" shake={shake.story} onPress={pressLocked} />
-      <LockedButton id="gacha" label="ガチャ" shake={shake.gacha} onPress={pressLocked} />
+      <LockedButton id="story" label={tr.menu.story} shake={shake.story} onPress={pressLocked} />
+      <LockedButton id="gacha" label={tr.menu.gacha} shake={shake.gacha} onPress={pressLocked} />
 
       {/* 右：デッキ・ルール（・デバッグ） */}
       <RoughButton seed="menu-deck" className="menu-scene__sub menu-scene__deck" onClick={() => go('deck')}>
-        デッキへんしゅう
+        {tr.menu.deck}
       </RoughButton>
       <RoughButton seed="menu-rules" className="menu-scene__sub menu-scene__rules" onClick={() => go('rules')}>
-        ルールせつめい
+        {tr.menu.rules}
       </RoughButton>
       {debug && (
         <RoughButton
@@ -83,12 +85,12 @@ export function MenuScene() {
           stroke="var(--pen-red)"
           onClick={() => go('debug')}
         >
-          <span className="menu-scene__debug-label">デバッグ たいせん</span>
+          <span className="menu-scene__debug-label">{tr.menu.debug}</span>
         </RoughButton>
       )}
       {debug && (
         <RoughButton seed="menu-soundtest" className="menu-scene__sub menu-scene__debug menu-scene__soundtest" stroke="var(--pen-red)" onClick={() => go('soundtest')}>
-          <span className="menu-scene__debug-label">こうかおん テスト</span>
+          <span className="menu-scene__debug-label">{tr.menu.soundtest}</span>
         </RoughButton>
       )}
 
@@ -96,9 +98,9 @@ export function MenuScene() {
       {remindBackup && (
         <button type="button" className="menu-scene__backup" onClick={() => go('settings')}>
           <Sticky seed="menu-backup" color="green" angle={3}>
-            データを まもろう
+            {tr.menu.backup}
             <br />
-            <small>（コードを つくっておこう）</small>
+            <small>{tr.menu.backupSub}</small>
           </Sticky>
         </button>
       )}
@@ -125,6 +127,7 @@ function LockedButton({
   onPress: (id: LockedId) => void;
 }) {
   const locked = !features[id];
+  const tr = useT();
   return (
     <div className={`menu-scene__locked menu-scene__locked--${id}`}>
       <RoughButton seed={`menu-${id}`} className="menu-scene__locked-btn" onClick={() => onPress(id)}>
@@ -132,14 +135,14 @@ function LockedButton({
       </RoughButton>
       {locked && (
         <Sticky seed={`menu-${id}-sticky`} angle={id === 'story' ? -8 : 7} shake={shake} className="menu-scene__locked-sticky">
-          じゅんび
+          {tr.menu.lockedTop}
           <br />
-          ちゅう
+          {tr.menu.lockedBottom}
         </Sticky>
       )}
       {locked && shake > 0 && (
         <span key={shake} className="note-pop menu-scene__locked-msg">
-          もうすこし まってね
+          {tr.menu.lockedMsg}
         </span>
       )}
     </div>

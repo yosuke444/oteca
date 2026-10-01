@@ -1,8 +1,10 @@
 import { OtegeArt } from './OtegeArt';
+import { useT } from '../../i18n/useT';
 import './common.css';
 
 /** スマホ縦向きの時だけ重ねて出す「よこむきにしてね」（SPEC §6-2） */
 export function RotateHint() {
+  const tr = useT();
   return (
     <div className="rotate-hint" role="alert">
       <svg className="rotate-hint__svg" viewBox="0 0 200 160" aria-hidden>
@@ -14,7 +16,7 @@ export function RotateHint() {
         <path className="rotate-hint__arrow" d="M150 112 L160 121 L168 108" />
       </svg>
       <OtegeArt width={130} className="rotate-hint__art" />
-      <p className="rotate-hint__text">よこむきに してね</p>
+      <p className="rotate-hint__text">{tr.ui.rotate}</p>
     </div>
   );
 }

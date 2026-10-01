@@ -14,8 +14,6 @@ export type LoopBgmKey = 'bgm_title' | 'bgm_deck' | 'bgm_lobby';
 export type BgmKey = LoopBgmKey | 'battle';
 
 export type BgmInfo = {
-  /** 使う場面（説明） */
-  scene: string;
   /** ループの始まり（秒）。イントロ付きの曲はイントロの長さ。省略時は 0 */
   loopStart?: number;
   /** ループの終わり（秒）。mp3 の最後の無音を飛ばす時に。省略時は曲の最後 */
@@ -35,9 +33,9 @@ export const BGM_LEVEL = 0.45;
  * 測り方：npm run dev を動かしたまま node scripts/measure-bgm.mjs（曲を差し替えたら測り直す）
  */
 export const BGM: Record<LoopBgmKey, BgmInfo> = {
-  bgm_title: { scene: 'タイトル・メニュー', volume: 1 }, // -10.7 LUFS
-  bgm_deck: { scene: 'デッキ編集・設定・ルール', volume: 0.76 }, // -8.3
-  bgm_lobby: { scene: 'ロビー待機', volume: 0.87 }, // -9.5
+  bgm_title: { volume: 1 }, // タイトル・メニュー。-10.7 LUFS
+  bgm_deck: { volume: 0.76 }, // デッキ編集・設定・ルール。-8.3
+  bgm_lobby: { volume: 0.87 }, // ロビー待機。-9.5
 };
 
 /** BGM を置く場所 */
@@ -109,31 +107,4 @@ export const SE_KEYS = [
 
 export type SeKey = (typeof SE_KEYS)[number];
 
-/** 試聴ページでの説明（§10-3 の表の「場面」） */
-export const SE_LABEL: Record<SeKey, string> = {
-  se_click: 'ボタンを おした',
-  se_hover: 'ボタンに のせた',
-  se_page: 'がめん きりかえ',
-  se_pen: 'ペンで かく',
-  se_stamp: 'はんこ',
-  se_dice_roll: 'サイコロが ころがる',
-  se_dice_land: 'サイコロが とまる',
-  se_card_draw: 'カードを ひく',
-  se_card_place: 'カードを おく',
-  se_tape: 'テープを はる',
-  se_swap: 'こうたい',
-  se_hit_small: 'ダメージ（50いか）',
-  se_hit_big: 'ダメージ（60いじょう）',
-  se_heal: 'かいふく',
-  se_ko: 'きぜつ',
-  se_item_kusuri: 'かいふく アイテム',
-  se_item_yaiba: 'こうげき アイテム',
-  se_item_drink: 'ふしぎ アイテム',
-  se_item_spodori: 'だいかいふく アイテム',
-  se_turn_start: 'ターン かいし',
-  se_error: 'できない そうさ',
-  se_match_found: 'あいてが みつかった',
-  se_stamp_chat: 'スタンプ',
-  jingle_win: 'かち（ジングル）',
-  jingle_lose: 'まけ（ジングル）',
-};
+/** 試聴ページでの説明は辞書（debug.sound.se）にある */

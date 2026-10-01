@@ -1,4 +1,4 @@
-import { ByteReader, FORMAT_VERSION, type SaveDataV1, readSaveV1, readSaveV2 } from './binary';
+import { ByteReader, FORMAT_VERSION, type SaveDataV1, type SaveDataV2, readSaveV1, readSaveV2, readSaveV3 } from './binary';
 import { type SaveData, emptyCpuStats } from './saveData';
 
 /**
@@ -15,12 +15,18 @@ import { type SaveData, emptyCpuStats } from './saveData';
 const READERS: Record<number, (r: ByteReader) => unknown> = {
   1: readSaveV1,
   2: readSaveV2,
+  3: readSaveV3,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
 const UPGRADES: Record<number, (old: unknown) => unknown> = {
   /** 1 → 2（v1.4）：CPU対戦の勝敗を足す（全部0） */
-  1: (old) => ({ ...(old as SaveDataV1), cpuStats: emptyCpuStats() }) satisfies SaveData,
+  1: (old) => ({ ...(old as SaveDataV1), cpuStats: emptyCpuStats() }) satisfies SaveDataV2,
+  /** 2 → 3（v2.0-A）：ことばを足す（にほんご） */
+  2: (old) => {
+    const d = old as SaveDataV2;
+    return { ...d, settings: { ...d.settings, lang: 'hira' } } satisfies SaveData;
+  },
 };
 
 /** バイト列 → 最新の SaveData。読めなければエラー */

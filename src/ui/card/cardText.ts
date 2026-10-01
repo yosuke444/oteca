@@ -1,4 +1,5 @@
 import type { Effect } from '../../engine/types';
+import { t } from '../../i18n';
 
 /** サイコロの目の並び → 「1-5」「6」「1・3」 */
 export function faceLabel(faces: number[]): string {
@@ -6,27 +7,28 @@ export function faceLabel(faces: number[]): string {
   const consecutive = sorted.every((f, i) => i === 0 || f === sorted[i - 1] + 1);
   if (sorted.length === 1) return String(sorted[0]);
   if (consecutive) return `${sorted[0]}-${sorted[sorted.length - 1]}`;
-  return sorted.join('・');
+  return sorted.join(t().card.faceJoin);
 }
 
 export type EffectLabel = { text: string; tone: 'damage' | 'heal' | 'other' };
 
-/** 技の効果 → 表示（ダメージは黒ペン、回復は緑ペン。SPEC §6-6） */
+/** 技の効果 → 表示（ダメージは黒ペン、回復は緑ペン。SPEC §6-6）。文言は効果データから辞書の書き方で作る */
 export function effectLabel(effect: Effect): EffectLabel {
+  const c = t().card;
   switch (effect.type) {
     case 'damage':
-      return { text: `${effect.amount}ダメ`, tone: 'damage' };
+      return { text: c.damage(effect.amount), tone: 'damage' };
     case 'heal':
-      return { text: `${effect.amount}かいふく`, tone: 'heal' };
+      return { text: c.heal(effect.amount), tone: 'heal' };
     case 'selfDamage':
-      return { text: `じぶんに${effect.amount}ダメ`, tone: 'damage' };
+      return { text: c.selfDamage(effect.amount), tone: 'damage' };
     case 'setHp':
-      return { text: `HPが${effect.value}に`, tone: 'other' };
+      return { text: c.setHp(effect.value), tone: 'other' };
     case 'addAttack':
-      return { text: `ダメ+${effect.amount}`, tone: 'other' };
+      return { text: c.addAttack(effect.amount), tone: 'other' };
     case 'overrideAttack':
-      return { text: `ダメが${effect.value}に`, tone: 'other' };
+      return { text: c.overrideAttack(effect.value), tone: 'other' };
     case 'scheduled':
-      return { text: `あとで ${effectLabel(effect.effect).text}`, tone: 'other' };
+      return { text: c.later(effectLabel(effect.effect).text), tone: 'other' };
   }
 }

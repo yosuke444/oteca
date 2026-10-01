@@ -2,6 +2,8 @@
  * セーブデータの型と初期値（SPEC §12-2）
  */
 
+import type { Lang } from '../i18n';
+
 export type Settings = {
   /** BGM音量 0〜10 */
   bgm: number;
@@ -16,6 +18,8 @@ export type Settings = {
    * 読み書きはするが、どこにも使わない
    */
   hints: boolean;
+  /** ことば：にほんご（hira。初期値）／日本語（kanji）。形式版数3（v2.0-A）で追加 */
+  lang: Lang;
 };
 
 export type SavedDeck = { name: string; cards: number[] };
@@ -82,6 +86,7 @@ export function normalizeSave(data: SaveData): SaveData {
       ...data.settings,
       bgm: clampInt(data.settings.bgm, VOLUME_MAX),
       se: clampInt(data.settings.se, VOLUME_MAX),
+      lang: data.settings.lang === 'kanji' ? 'kanji' : 'hira',
     },
     decks: Array.from({ length: DECK_SLOTS }, (_, i) => {
       const deck = data.decks[i] ?? { name: '', cards: [] };
@@ -104,7 +109,7 @@ export function createDefaultSave(starterDeck: number[], reduceFx = false): Save
     saveVersion: SAVE_VERSION,
     saveCounter: 0,
     playerName: DEFAULT_PLAYER_NAME,
-    settings: { bgm: 7, se: 7, fxSpeed: 0, reduceFx, hints: true },
+    settings: { bgm: 7, se: 7, fxSpeed: 0, reduceFx, hints: true, lang: 'hira' },
     decks: Array.from({ length: DECK_SLOTS }, (_, i) => ({
       name: defaultDeckName(i),
       cards: i === 0 ? [...starterDeck] : [],

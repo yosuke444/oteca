@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { type BattleSetup, randomSeed } from '../../battle/setup';
-import { CPU_LEVELS, CPU_LEVEL_LABEL, type CpuLevel } from '../../cpu/brains';
+import { CPU_LEVELS, type CpuLevel } from '../../cpu/brains';
 import { CARD_DB } from '../../data/cards';
 import { validateDeck } from '../../engine';
 import { useNav } from '../../router';
@@ -8,21 +8,10 @@ import { useSave } from '../../state/SaveContext';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { Sticky } from '../../ui/common/Sticky';
 import './cpu.css';
-
-/** 強さの ひとこと説明 */
-const LEVEL_NOTE: Record<CpuLevel, string> = {
-  weak: 'てきとうに だすよ',
-  normal: 'すなおに たたかう',
-  strong: 'かくりつを けいさん',
-  strongest: 'さきを よみまくる',
-};
+import { useT } from '../../i18n/useT';
 
 type Step = 'level' | 'mine' | 'cpu';
-const STEPS: { id: Step; label: string }[] = [
-  { id: 'level', label: 'つよさ' },
-  { id: 'mine', label: 'じぶんの デッキ' },
-  { id: 'cpu', label: 'CPUの デッキ' },
-];
+const STEPS: Step[] = ['level', 'mine', 'cpu'];
 
 /**
  * S10 CPUたいせん（SPEC §7 S10・v1.4）
@@ -32,6 +21,7 @@ const STEPS: { id: Step; label: string }[] = [
 export function CpuScene() {
   const { go } = useNav();
   const { save } = useSave();
+  const tr = useT();
   const [step, setStep] = useState<Step>('level');
   const [level, setLevel] = useState<CpuLevel>('normal');
   const [mine, setMine] = useState(-1);
@@ -48,7 +38,7 @@ export function CpuScene() {
       mode: 'cpu',
       cpuLevel: level,
       decks: { p1: save.decks[mine].cards, p2: save.decks[cpuDeck].cards },
-      names: { p1: save.playerName, p2: `CPU（${CPU_LEVEL_LABEL[level]}）` },
+      names: { p1: save.playerName, p2: tr.cpu.cpuName(tr.cpu.level[level]) },
       seed: randomSeed(),
       me: 'p1',
       record: true,
@@ -61,7 +51,7 @@ export function CpuScene() {
       {save.decks.map((d, i) => (
         <RoughButton key={i} seed={`cpu-deck-${step}-${i}`} className="cpu-scene__deck" disabled={!usable[i]} highlight={chosen === i} onClick={() => onPick(i)}>
           <span className="cpu-scene__deck-name">{d.name}</span>
-          <span className={usable[i] ? 'cpu-scene__deck-note pencil' : 'cpu-scene__deck-note red-pen'}>{usable[i] ? `${d.cards.length}まい` : 'つかえない'}</span>
+          <span className={usable[i] ? 'cpu-scene__deck-note pencil' : 'cpu-scene__deck-note red-pen'}>{usable[i] ? tr.common.cards(d.cards.length) : tr.common.unusable}</span>
         </RoughButton>
       ))}
     </div>
@@ -69,16 +59,16 @@ export function CpuScene() {
 
   return (
     <div className="cpu-scene" data-testid="cpu-scene">
-      <h1 className="cpu-scene__title">CPUたいせん</h1>
+      <h1 className="cpu-scene__title">{tr.cpu.title}</h1>
       <RoughButton seed="cpu-back" className="cpu-scene__back" onClick={back}>
-        もどる
+        {tr.common.back}
       </RoughButton>
 
       {/* いま どこを選んでいるか */}
       <ol className="cpu-scene__steps">
         {STEPS.map((s, i) => (
-          <li key={s.id} className={s.id === step ? 'is-now' : STEPS.findIndex((x) => x.id === step) > i ? 'is-done' : ''}>
-            <span className="num">{i + 1}</span> {s.label}
+          <li key={s} className={s === step ? 'is-now' : STEPS.indexOf(step) > i ? 'is-done' : ''}>
+            <span className="num">{i + 1}</span> {tr.cpu.steps[s]}
           </li>
         ))}
       </ol>
@@ -100,10 +90,11 @@ export function CpuScene() {
                   setStep('mine');
                 }}
               >
-                <span className="cpu-scene__level-name">{CPU_LEVEL_LABEL[lv]}</span>
-                <span className="cpu-scene__level-note pencil">{LEVEL_NOTE[lv]}</span>
+                <span className="cpu-scene__level-name">{tr.cpu.level[lv]}</span>
+                <span className="cpu-scene__level-note pencil">{tr.cpu.levelNote[lv]}</span>
                 <span className="cpu-scene__level-rec" data-testid={`cpu-rec-${lv}`}>
-                  <span className="num">{rec.wins}</span> かち　<span className="num">{rec.losses}</span> まけ
+                  <span className="num">{rec.wins}</span> {tr.common.winsLosses.wins}{'  '}
+                  <span className="num">{rec.losses}</span> {tr.common.winsLosses.losses}
                 </span>
               </RoughButton>
             );
@@ -113,7 +104,7 @@ export function CpuScene() {
 
       {step === 'mine' && (
         <>
-          <p className="cpu-scene__ask">あなたが つかう デッキを えらんでね</p>
+          <p className="cpu-scene__ask">{tr.cpu.askMine}</p>
           {deckButtons((i) => {
             setMine(i);
             setStep('cpu');
@@ -123,24 +114,24 @@ export function CpuScene() {
 
       {step === 'cpu' && (
         <>
-          <p className="cpu-scene__ask">CPUに わたす デッキを えらんでね（おなじ デッキでも いいよ）</p>
+          <p className="cpu-scene__ask">{tr.cpu.askCpu}</p>
           {deckButtons(start, -1)}
         </>
       )}
 
       {step !== 'level' && (
         <Sticky seed="cpu-summary" color="yellow" angle={-2} className="cpu-scene__summary">
-          つよさ：{CPU_LEVEL_LABEL[level]}
+          {tr.cpu.summaryLevel(tr.cpu.level[level])}
           {step === 'cpu' && mine >= 0 && (
             <>
               <br />
-              あなた：{save.decks[mine].name}
+              {tr.cpu.summaryMine(save.decks[mine].name)}
             </>
           )}
         </Sticky>
       )}
 
-      {usable.every((u) => !u) && <p className="cpu-scene__none red-pen">つかえる デッキが ないよ。デッキへんしゅうで 15まい いれてね</p>}
+      {usable.every((u) => !u) && <p className="cpu-scene__none red-pen">{tr.cpu.none}</p>}
     </div>
   );
 }

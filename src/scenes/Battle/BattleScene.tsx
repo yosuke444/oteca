@@ -26,6 +26,8 @@ import { STAMP_COOLDOWN_MS, StampBalloon, StampPicker, isStampId } from './Stamp
 import { currentOnline, endOnline } from '../../net/online';
 import type { ResultPayload } from '../Result/ResultScene';
 import './battle.css';
+import { t } from '../../i18n';
+import { useT } from '../../i18n/useT';
 
 type Confirm = { title: string; text: string; yes: string; no?: string; onYes: () => void };
 
@@ -75,6 +77,7 @@ export function BattleScene() {
   const { payload, go } = useNav();
   const setup = payload as BattleSetup;
   const fx = useFx();
+  const tr = useT();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -176,10 +179,10 @@ export function BattleScene() {
       nameOf: (side) => setup.names[side],
       turnLabel: (side) =>
         setup.mode === 'local'
-          ? { text: `${setup.names[side]} の ターン`, mine: true }
+          ? { text: t().battle.sideTurn(setup.names[side]), mine: true }
           : side === setup.me
-            ? { text: 'あなたの ターン', mine: true }
-            : { text: 'あいての ターン', mine: false },
+            ? { text: t().battle.myTurn, mine: true }
+            : { text: t().battle.oppTurn, mine: false },
       log: (e, before) => {
         const line = logLine(e, before, setup.names);
         if (line) setLogLines((l) => [line, ...l].slice(0, 60));
@@ -279,10 +282,10 @@ export function BattleScene() {
     const onPop = () => {
       history.pushState({ oteca: 'battle' }, '');
       setConfirm({
-        title: 'たいせんを やめる？',
-        text: 'やめると おてあげ（こうさん）に なるよ。',
-        yes: 'たいせんを やめる',
-        no: 'つづける',
+        title: t().battle.quitTitle,
+        text: t().battle.quitText,
+        yes: t().battle.quitYes,
+        no: t().battle.continue,
         onYes: () => surrender(),
       });
     };
@@ -344,9 +347,9 @@ export function BattleScene() {
       const ps = v.players[a.player];
       if (a.type === 'SWAP' && !ps.swappedThisTurn) {
         setConfirm({
-          title: 'こうたい する？',
-          text: 'このターンは こうげき できなくなるよ。',
-          yes: 'こうたい する',
+          title: t().battle.swapTitle,
+          text: t().battle.swapText,
+          yes: t().battle.swapYes,
           onYes: () => submit(a),
         });
         return;
@@ -356,9 +359,9 @@ export function BattleScene() {
         const buff = item.kind === 'item' && item.effects.some((e) => e.type === 'addAttack' || e.type === 'overrideAttack');
         if (buff && (ps.bench.includes(a.targetUid) || ps.swappedThisTurn)) {
           setConfirm({
-            title: 'つかう？',
-            text: 'この おてあげは このターン こうげきしないよ。',
-            yes: 'つかう',
+            title: t().battle.useTitle,
+            text: t().battle.useText,
+            yes: t().battle.useYes,
             onYes: () => submit(a),
           });
           return;
@@ -381,12 +384,13 @@ export function BattleScene() {
   /** 出来ない理由の一言 */
   const reasonFor = (uid: string): string => {
     const v = view!;
-    if (v.phase === 'over') return 'もう けっちゃく したよ';
-    if (controllerKind !== 'human' || (v.phase === 'main' && v.currentPlayer !== me)) return 'いまは あいての ターンだよ';
+    const R = tr.battle.reason;
+    if (v.phase === 'over') return R.over;
+    if (controllerKind !== 'human' || (v.phase === 'main' && v.currentPlayer !== me)) return R.oppTurn;
     const def = v.cardDefs[v.cards[uid].no];
     const ps = v.players[me];
-    if (v.phase === 'setup') return def.kind === 'otege' ? 'えらべないよ' : 'バトルばには おてあげを だしてね';
-    if (v.phase === 'promote') return 'ベンチの おてあげを えらんでね';
+    if (v.phase === 'setup') return def.kind === 'otege' ? R.cannotChoose : R.setupOtege;
+    if (v.phase === 'promote') return R.promoteBench;
     if (ps.hand.includes(uid)) {
       if (def.kind === 'item') {
         // 重ねがけ禁止などで使えない時は、その理由（自分の場の おてあげ を順に見る）
@@ -395,14 +399,14 @@ export function BattleScene() {
           const r = validateAction(v, { type: 'USE_ITEM', player: me, uid, targetUid: t });
           if (r === 'stackBlocked') return useItemReason(v, r, uid, t);
         }
-        return 'つかえる おてあげが いないよ';
+        return R.noTarget;
       }
       const r = validateAction(v, { type: 'PLACE_BENCH', player: me, uid });
-      return r ? rejectText(r) : 'いまは できないよ';
+      return r ? rejectText(r) : R.cannotNow;
     }
     if (ps.bench.includes(uid)) {
       const r = validateAction(v, { type: 'SWAP', player: me, benchUid: uid });
-      return r ? rejectText(r) : 'いまは できないよ';
+      return r ? rejectText(r) : R.cannotNow;
     }
     return '';
   };
@@ -486,14 +490,14 @@ export function BattleScene() {
     if (a) perform(a);
     else {
       const target = key.startsWith('card:') ? key.slice(5) : key === `active:${me}` ? activeUid : null;
-      say((target && moveReason(uid, target)) || 'そこには おけないよ');
+      say((target && moveReason(uid, target)) || tr.battle.reason.cannotPut);
     }
   };
 
   const endTurn = () => {
     if (!view) return;
     if (!canAct || view.phase !== 'main' || view.currentPlayer !== me) {
-      say(view.phase === 'main' && view.currentPlayer !== me ? 'いまは あいての ターンだよ' : 'いまは できないよ');
+      say(view.phase === 'main' && view.currentPlayer !== me ? tr.battle.reason.oppTurn : tr.battle.reason.cannotNow);
       return;
     }
     submit({ type: 'END_TURN', player: me });
@@ -551,63 +555,66 @@ export function BattleScene() {
       <StampBalloon stamp={oppStamp} side="opp" />
       {cpuThinking && setup.mode === 'cpu' && view.phase !== 'over' && (
         <div className="cpu-thinking pencil" role="status" aria-live="polite">
-          かんがえちゅう<span className="cpu-thinking__dots" aria-hidden>…</span>
+          {tr.battle.thinking}
+          <span className="cpu-thinking__dots" aria-hidden>
+            …
+          </span>
         </div>
       )}
 
       {officialHash && (
         <div className="battle-hash" data-testid="state-hash">
-          ハッシュ <span className="num">{officialHash}</span>
-          <small>（そうさ {matchRef.current?.log.length ?? 0}）</small>
+          {tr.battle.hash} <span className="num">{officialHash}</span>
+          <small>{tr.battle.ops(matchRef.current?.log.length ?? 0)}</small>
         </div>
       )}
 
       {/* 相手の通信が止まっている（SPEC §11-7） */}
       {setup.mode === 'online' && online.connection === 'waiting' && !online.problem && view.phase !== 'over' && (
         <div className="battle-netwait" role="status">
-          あいての つうしんを まっています…
+          {tr.battle.waitNet}
         </div>
       )}
 
       {lostOpen && (
         <Dialog
           seed="net-lost"
-          title="つうしんが きれたよ"
+          title={tr.battle.lostTitle}
           actions={
             <>
               <RoughButton seed="net-lost-menu" onClick={quitToMenu}>
-                メニューへ
+                {tr.common.toMenu}
               </RoughButton>
               <RoughButton seed="net-lost-wait" highlight onClick={() => currentOnline()?.session.waitMore()}>
-                もうすこし まつ
+                {tr.battle.waitMore}
               </RoughButton>
             </>
           }
         >
-          あいてから 30びょう へんじが ないよ。この たいせんは きろく されないよ。
+          {tr.battle.lostText}
         </Dialog>
       )}
 
       {online.problem && view.phase !== 'over' && (
         <Dialog
           seed={`net-problem-${online.problem}`}
-          title={online.problem === 'left' ? 'あいてが いなく なったよ' : 'データの ずれが おきたよ'}
+          title={online.problem === 'left' ? tr.battle.leftTitle : tr.battle.desyncTitle}
           actions={
             <>
               {online.problem !== 'left' && (
                 <RoughButton seed="net-problem-log" onClick={saveLog}>
-                  ログを ほぞん
+                  {tr.battle.saveLog}
                 </RoughButton>
               )}
               <RoughButton seed="net-problem-menu" highlight onClick={quitToMenu}>
-                メニューへ
+                {tr.common.toMenu}
               </RoughButton>
             </>
           }
         >
           {online.problem === 'left'
-            ? 'あいてが たいせんを やめたみたい。この たいせんは きろく されないよ。'
-            : 'ふたりの がめんの けっかが ちがって しまったので、たいせんを ちゅうだん するよ。この たいせんは きろく されないよ。'}
+            ? tr.battle.leftText
+            : tr.battle.desyncText}
         </Dialog>
       )}
 
@@ -624,7 +631,7 @@ export function BattleScene() {
           onClose={() => setDetailUid(null)}
           actions={
             <RoughButton seed="battle-detail-close" onClick={() => setDetailUid(null)}>
-              とじる
+              {tr.common.close}
             </RoughButton>
           }
         >
@@ -637,11 +644,11 @@ export function BattleScene() {
       {menuOpen && (
         <Dialog
           seed="battle-menu"
-          title="メニュー"
+          title={tr.battle.menuTitle}
           onClose={() => setMenuOpen(false)}
           actions={
             <RoughButton seed="battle-menu-close" onClick={() => setMenuOpen(false)}>
-              つづける
+              {tr.battle.continue}
             </RoughButton>
           }
         >
@@ -653,18 +660,18 @@ export function BattleScene() {
               onClick={() => {
                 setMenuOpen(false);
                 setConfirm({
-                  title: 'おてあげする？',
-                  text: 'こうさん すると、すぐに まけに なるよ。',
-                  yes: 'おてあげする',
+                  title: tr.battle.surrenderTitle,
+                  text: tr.battle.surrenderText,
+                  yes: tr.battle.surrenderYes,
                   onYes: () => surrender(),
                 });
               }}
             >
-              <span className="red-pen">おてあげする（こうさん）</span>
+              <span className="red-pen">{tr.battle.surrenderButton}</span>
             </RoughButton>
             {setup.debug && (
               <RoughButton seed="battle-savelog" className="battle-menu__surrender" onClick={saveLog}>
-                こうどうログを ほぞん（JSON）
+                {tr.battle.saveLogJson}
               </RoughButton>
             )}
           </div>
@@ -679,7 +686,7 @@ export function BattleScene() {
           actions={
             <>
               <RoughButton seed="confirm-no" onClick={() => setConfirm(null)}>
-                {confirm.no ?? 'やめる'}
+                {confirm.no ?? tr.common.cancel}
               </RoughButton>
               <RoughButton
                 seed="confirm-yes"

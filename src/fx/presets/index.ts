@@ -30,6 +30,7 @@ import {
 } from '../parts';
 import { play, wait } from '../timing';
 import '../fx.css';
+import { t } from '../../i18n';
 
 /**
  * イベントごとの演出（SPEC §9-2 の表の「対戦中」の行すべて）
@@ -45,7 +46,7 @@ const other = (s: Side): Side => (s === 'p1' ? 'p2' : 'p1');
 
 /** カードの裏面（演出の層に一時的に出す） */
 function spawnBack(env: FxEnv, at: Point, w: number, h: number): HTMLElement {
-  const el = spawn(env, 'fx-cardback', at, '<span class="fx-cardback__logo">オテカ</span>');
+  const el = spawn(env, 'fx-cardback', at, `<span class="fx-cardback__logo">${t().fx.cardBackLogo}</span>`);
   el.style.width = `${w}px`;
   el.style.height = `${h}px`;
   return el;
@@ -120,7 +121,7 @@ async function orderDice(env: FxEnv, ctx: StepContext): Promise<void> {
   const right = other(left);
   const y = 330;
   const cover = veil(env);
-  const title = spawn(env, 'fx-write fx-write--big', { x: 640, y: 150 }, 'せんこう きめ');
+  const title = spawn(env, 'fx-write fx-write--big', { x: 640, y: 150 }, t().fx.orderTitle);
   gsap.fromTo(title, { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.3 });
   const labels = [
     spawn(env, 'fx-die-label blue-pen', { x: 500, y: y + 80 }, env.nameOf(left)),
@@ -154,7 +155,7 @@ async function orderDice(env: FxEnv, ctx: StepContext): Promise<void> {
       dl.innerHTML = dieSvg('?');
       dr.innerHTML = dieSvg('?');
       env.sound('se_error');
-      const same = spawn(env, 'fx-write red-pen', { x: 640, y: y - 110 }, 'おなじ！ もういちど');
+      const same = spawn(env, 'fx-write red-pen', { x: 640, y: y - 110 }, t().fx.orderSame);
       await play(gsap.fromTo([dl, dr], { rotate: -14 }, { rotate: 14, duration: 0.12, yoyo: true, repeat: 3, ease: 'sine.inOut' }));
       await wait(350);
       await play(gsap.to([dl, dr, same], { opacity: 0, duration: 0.2 }));
@@ -165,7 +166,7 @@ async function orderDice(env: FxEnv, ctx: StepContext): Promise<void> {
     const winLeft = pair[left] > pair[right];
     const winAt = { x: winLeft ? 500 : 780, y };
     const circle = await redCircle(env, winAt, 64, 60);
-    await stamp(env, { x: winAt.x, y: y - 110 }, 'せんこう！', winLeft ? 'fx-stamp--blue' : '', 650);
+    await stamp(env, { x: winAt.x, y: y - 110 }, t().fx.orderWin, winLeft ? 'fx-stamp--blue' : '', 650);
     await play(gsap.to([dl, dr, circle, title, ...labels], { opacity: 0, duration: 0.25 }));
     [dl, dr, circle, title, ...labels].forEach((e) => e.remove());
     await unveil(cover);
@@ -182,7 +183,7 @@ async function mulligan(env: FxEnv, side: Side): Promise<void> {
   const cover = veil(env, 0.6);
   const handAt = zoneCenter(env, `${side}-hand`, { x: 640, y: mine ? 640 : 40 });
   const deckAt = zoneCenter(env, `${side}-deck`, { x: 1060, y: mine ? 430 : 120 });
-  const text = spawn(env, `fx-write ${mine ? 'fx-write--me' : 'fx-write--opp'}`, { x: 640, y: 300 }, `${mine ? '' : 'あいて：'}おてあげが いない！ ひきなおし`);
+  const text = spawn(env, `fx-write ${mine ? 'fx-write--me' : 'fx-write--opp'}`, { x: 640, y: 300 }, t().fx.mulligan(!mine));
   gsap.fromTo(text, { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: 'back.out(2)' });
   env.sound('se_error');
   // 手札が山札に吸い込まれる
@@ -230,7 +231,7 @@ async function revealAfter(env: FxEnv, e: Extract<GameEvent, { type: 'ActivesRev
   // 集中線＋「バトル スタート！」に黄色の蛍光ペンで下線
   void focusLines(env, STAGE_CENTER, 1.1);
   env.sound('se_stamp');
-  const text = await penWrite(env, { x: 640, y: 300 }, 'バトル スタート！', 'fx-write--big', 0.45);
+  const text = await penWrite(env, { x: 640, y: 300 }, t().fx.battleStart, 'fx-write--big', 0.45);
   const b = boxOf(env, text);
   const line = b ? await marker(env, { x: b.x, y: b.y + b.h * 0.55, w: b.w, h: b.h * 0.4 }, 'var(--marker-yellow)', 0.3) : null;
   if (line) line.style.zIndex = '-1';
@@ -292,7 +293,11 @@ function clearDie(ctx: StepContext): void {
 
 // ---------------------------------------------------------------- ダメージ（§9-2）
 
-const SMALL_WORDS = ['ドカッ', 'バキッ', 'ドンッ', 'ボコッ'];
+/** 小さいダメージの擬音（辞書 fx.smallHits からランダム） */
+const smallWord = () => {
+  const words = t().fx.smallHits;
+  return words[Math.floor(Math.random() * words.length)];
+};
 
 async function damageBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Damaged' }>, ctx: StepContext): Promise<void> {
   const target = env.cardEl(e.uid);
@@ -325,7 +330,7 @@ async function damageBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Damaged' 
   inkBurst(env, tAt, e.big ? ['var(--ink)', 'var(--pen-red)'] : ['var(--ink)'], e.big ? 56 : 26, e.big ? 1.5 : 1);
   void hatchFlash(env, target);
   if (target) gsap.fromTo(target, { x: -10 }, { x: 0, duration: 0.35, ease: 'elastic.out(3, 0.3)', clearProps: 'transform' });
-  void onomatopoeia(env, { x: tAt.x - (e.big ? 150 : 110), y: tAt.y + 20 }, e.big ? 'ズドーン' : SMALL_WORDS[Math.floor(Math.random() * SMALL_WORDS.length)], e.big);
+  void onomatopoeia(env, { x: tAt.x - (e.big ? 150 : 110), y: tAt.y + 20 }, e.big ? t().fx.bigHit : smallWord(), e.big);
 }
 
 async function damageAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Damaged' }>, ctx: StepContext): Promise<void> {
@@ -361,7 +366,7 @@ async function healBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Healed' }>,
     particles(env, { kind: 'splash', x: at.x, y: at.y, count: 44, colors: ['var(--pen-sky)', 'var(--fx-splash-light)', 'var(--pen-blue)'], speed: [220, 620], size: [3, 7], life: [0.5, 0.9], gravity: 900, spread: Math.PI * 0.9 });
     const ring = spawn(env, 'fx-splash-ring', at);
     gsap.fromTo(ring, { scale: 0.2, opacity: 0.9 }, { scale: 2.2, opacity: 0, duration: 0.5, ease: 'power2.out', onComplete: () => ring.remove() });
-    void onomatopoeia(env, at, 'バシャッ');
+    void onomatopoeia(env, at, t().fx.splash);
     ctx.flags.heal = { before, max, mode: 'big' };
   } else if (item === 'heal') {
     // くすり：緑の「＋」の落書きが3〜5個わき上がり、HPバーが緑ペンで塗り足される（塗り足しは after）
@@ -413,7 +418,7 @@ async function itemBefore(env: FxEnv, e: Extract<GameEvent, { type: 'ItemUsed' }
   }
   const note = spawn(env, `fx-note fx-note--${noteColorOf(def)}`, from, `<b>${def?.name ?? ''}</b>`);
   // ふせんが手札からペリッとはがれて飛び、対象に貼り付く
-  const peel = spawn(env, 'fx-sfx-text', { x: from.x + 50, y: from.y - 70 }, 'ペリッ');
+  const peel = spawn(env, 'fx-sfx-text', { x: from.x + 50, y: from.y - 70 }, t().fx.peel);
   gsap.fromTo(peel, { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.12 });
   await play(gsap.fromTo(note, { rotate: 0 }, { rotate: -22, y: -30, scale: 1.15, duration: 0.18, ease: 'power2.out' }));
   gsap.to(peel, { opacity: 0, duration: 0.2, onComplete: () => peel.remove() });
@@ -440,7 +445,7 @@ async function hpSetBefore(env: FxEnv, e: Extract<GameEvent, { type: 'HpSet' }>,
     turns.push(`${i === 0 ? 'M' : 'L'}${(at.x + Math.cos(a) * r).toFixed(1)} ${(at.y + Math.sin(a) * r).toFixed(1)}`);
   }
   const svg = spawnSvg(env, 'fx-swirl', `<path d="${turns.join(' ')}" fill="none" stroke="var(--pen-purple)" stroke-width="4" stroke-linecap="round"/>`);
-  void onomatopoeia(env, at, 'ゴポゴポ');
+  void onomatopoeia(env, at, t().fx.gurgle);
   await Promise.all([drawPaths(svg.querySelectorAll('path'), 0.5), play(gsap.to(svg, { rotate: 200, transformOrigin: `${at.x}px ${at.y}px`, duration: 0.8, ease: 'power1.in' }))]);
   const card = env.cardEl(e.uid);
   particles(env, { kind: 'bubble', x: at.x, y: at.y + 40, count: 14, colors: ['var(--pen-purple)'], angle: -Math.PI / 2, spread: 0.6, speed: [60, 160], size: [4, 9], life: [0.6, 1.1], gravity: -80, area: 40 });
@@ -474,7 +479,7 @@ async function buffBefore(env: FxEnv, e: Extract<GameEvent, { type: 'BuffChanged
     `<path d="M${b.x - 20} ${b.y + 20} L${b.x + b.w + 20} ${b.y + b.h - 30}" stroke="var(--pen-red)" stroke-width="7" stroke-linecap="round"/>
      <path d="M${b.x + b.w + 20} ${b.y + 30} L${b.x - 20} ${b.y + b.h - 20}" stroke="var(--pen-red)" stroke-width="7" stroke-linecap="round"/>`,
   );
-  void onomatopoeia(env, { x: b.x + b.w / 2, y: b.y + 20 }, 'シャキーン');
+  void onomatopoeia(env, { x: b.x + b.w / 2, y: b.y + 20 }, t().fx.slash);
   await drawPaths(svg.querySelectorAll('path'), 0.12, 0.1);
   particles(env, { kind: 'spark', x: b.x + b.w / 2, y: b.y + b.h / 2, count: 18, colors: ['var(--super-gold)', 'var(--pen-red)'], speed: [120, 380], size: [5, 10], life: [0.4, 0.8], gravity: 0 });
   await wait(200);
@@ -533,7 +538,7 @@ async function faintBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Fainted' }
 
 async function faintAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Fainted' }>, ctx: StepContext): Promise<void> {
   const at = (ctx.flags.faintAt as Point | undefined) ?? STAGE_CENTER;
-  await stamp(env, at, 'きぜつ！', '', 450);
+  await stamp(env, at, t().fx.faint, '', 450);
   // 攻撃側の☆がペンで描かれて、蛍光ペンで塗られる
   const stars = env.zoneEl(`${e.by}-stars`)?.querySelectorAll('.battle-star');
   const star = stars?.[e.koCount - 1] as HTMLElement | undefined;
@@ -567,7 +572,7 @@ async function promoteAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Promoted'
   await play(gsap.to(card, { x: 0, y: 0, scale: 1, rotate: 0, duration: 0.16, ease: 'power4.in', clearProps: 'transform' }));
   env.sound('se_stamp');
   void shake(env, false);
-  void onomatopoeia(env, { x: to.x + to.w / 2, y: to.y + to.h - 10 }, 'ドン');
+  void onomatopoeia(env, { x: to.x + to.w / 2, y: to.y + to.h - 10 }, t().fx.land);
   dust(env, { x: to.x + to.w / 2, y: to.y + to.h - 6 }, 170);
   await wait(250);
 }

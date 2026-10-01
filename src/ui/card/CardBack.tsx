@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { RoughBox } from '../rough/RoughBox';
+import { useT } from '../../i18n/useT';
 import './card.css';
 
 /** カードの裏面：方眼ノートを四つ折りにした絵＋「オテカ」の手書きロゴ（SPEC §6-6） */
@@ -16,6 +17,7 @@ export function CardBack({
   className?: string;
   style?: CSSProperties;
 }) {
+  const tr = useT();
   return (
     <RoughBox seed={seed} className={`card-back ${className ?? ''}`} paper radius={6} strokeWidth={2.2} style={{ width, height, ...style }}>
       <div className="card-back__grid" />
@@ -24,7 +26,7 @@ export function CardBack({
       <span className="card-back__fold card-back__fold--h" />
       <span className="card-back__corner" />
       <span className="card-back__logo" style={{ fontSize: Math.round(width * 0.24) }}>
-        オテカ
+        {tr.common.logo}
       </span>
     </RoughBox>
   );

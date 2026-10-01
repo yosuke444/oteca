@@ -8,6 +8,8 @@ import { RoughHpBar } from '../rough/RoughHpBar';
 import { tiltFrom } from '../rough/seed';
 import { itemFxKind } from '../../fx/itemFx';
 import { CardArt } from './CardArt';
+import { local } from '../../i18n';
+import { useLang, useT } from '../../i18n/useT';
 import { effectLabel, faceLabel } from './cardText';
 import './card.css';
 
@@ -56,6 +58,7 @@ export function BattleCard({
   style,
   ...rest
 }: BattleCardProps) {
+  const lang = useLang();
   const { w, h } = CARD_SIZE[size];
   const classes = `battle-card battle-card--${size} ${highlight ? 'is-highlight' : ''} ${selected ? 'is-selected' : ''} ${dim ? 'is-dim' : ''} ${className ?? ''}`;
 
@@ -64,7 +67,7 @@ export function BattleCard({
       <div className={classes} style={{ width: w, height: h, ...style }} data-uid={card.uid} {...rest}>
         <Sticky seed={`note-${card.uid}`} color={def.color ?? 'yellow'} angle={tiltFrom(card.uid, 3)} className="battle-card__note">
           <span className="battle-card__name">{def.name}</span>
-          <span className="battle-card__text">{def.text}</span>
+          <span className="battle-card__text">{local(def.text, lang)}</span>
         </Sticky>
         {highlight && <span className="battle-card__marker" aria-hidden />}
       </div>
@@ -100,6 +103,7 @@ function OtegeFace({
   highlight: boolean;
   markedMove: number | null;
 }) {
+  const tr = useT();
   const isSuper = def.rarity === 'super';
   const { w } = CARD_SIZE[size];
   // 使えない時もスーパーの金の縁と星は残す（§6-6）。えんぴつ色は透明度で表す
@@ -149,7 +153,7 @@ function OtegeFace({
                   if (now !== e.amount) {
                     return (
                       <span key={j} className="card-moves__effect is-damage">
-                        <s className="card-moves__old">{e.amount}</s> <b className="card-moves__new num">{now}</b>ダメ
+                        <s className="card-moves__old">{e.amount}</s> <b className="card-moves__new num">{now}</b>{tr.card.damageUnit}
                       </span>
                     );
                   }
@@ -175,7 +179,7 @@ function OtegeFace({
       {/* バフのバッジ（やいば・ドリンク） */}
       {onField && (card.attackAdd > 0 || card.attackOverride !== null) && (
         <div className="battle-card__badges">
-          {card.attackOverride !== null && <span className="buff-badge buff-badge--drink">攻{card.attackOverride}</span>}
+          {card.attackOverride !== null && <span className="buff-badge buff-badge--drink">={card.attackOverride}</span>}
           {card.attackAdd > 0 && (
             // ドリンク（ふしぎな アイテム）で増えた時は紫、やいばは赤
             <span className={`buff-badge ${card.itemsThisTurn.some((no) => itemFxKind(view.cardDefs[no]) === 'weird') ? 'buff-badge--drink' : 'buff-badge--yaiba'}`}>+{card.attackAdd}</span>
@@ -185,7 +189,7 @@ function OtegeFace({
       {/* 出したばかり（このターンは交代でバトル場に出せない。SPEC §8-3・v1.4） */}
       {onField && justPlaced(view, card) && (
         <Sticky seed={`just-${card.uid}`} color="yellow" angle={-8} className="just-placed">
-          でたばかり
+          {tr.battle.justPlaced}
         </Sticky>
       )}
       {/* HPが少ない時の汗（§9-3） */}

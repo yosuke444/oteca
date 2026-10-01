@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { t as dict } from '../../i18n';
 import './common.css';
 
 /**
@@ -43,7 +44,7 @@ export function Logo({
       height={(width * 126) / 356}
       style={style}
       role="img"
-      aria-label="オテカ"
+      aria-label={dict().common.logo}
     >
       {STROKES.map((s, i) => {
         const delay = t;

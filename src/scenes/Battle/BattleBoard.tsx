@@ -9,6 +9,7 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { drawCounterText } from './battleText';
 import { useCardGesture } from './useCardGesture';
+import { useT } from '../../i18n/useT';
 
 export type BoardSel = { uid: string };
 
@@ -44,6 +45,7 @@ const other = (s: Side): Side => (s === 'p1' ? 'p2' : 'p1');
 /** 対戦画面のレイアウト（SPEC §8-1） */
 export function BattleBoard(p: Props) {
   const { view, me } = p;
+  const tr = useT();
   const opp = other(me);
   const [drag, setDrag] = useState<{ uid: string; x: number; y: number; w: number; h: number } | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -131,7 +133,7 @@ export function BattleBoard(p: Props) {
         ) : setupHidden ? (
           <CardBack seed={`setup-${side}`} width={150} height={210} />
         ) : (
-          <span className="battle-slot__label pencil">{side === me && view.phase === 'setup' ? 'ここに だす' : 'バトルば'}</span>
+          <span className="battle-slot__label pencil">{side === me && view.phase === 'setup' ? tr.battle.slotHere : tr.battle.slotActive}</span>
         )}
       </div>
     );
@@ -144,7 +146,7 @@ export function BattleBoard(p: Props) {
     const isDrop = !uid && side === me && isTarget(key);
     return (
       <div className={`battle-slot battle-slot--bench battle-slot--bench${i} battle-slot--${side === me ? 'me' : 'opp'} ${isDrop ? 'is-drop' : ''}`} data-zone={`${side}-bench-${i}`} data-drop={uid ? undefined : key} onClick={() => !uid && p.onTapZone(key)}>
-        {uid ? renderCard(uid, 'bench', true) : <span className="battle-slot__label pencil">ベンチ</span>}
+        {uid ? renderCard(uid, 'bench', true) : <span className="battle-slot__label pencil">{tr.battle.slotBench}</span>}
       </div>
     );
   };
@@ -165,7 +167,7 @@ export function BattleBoard(p: Props) {
           <span className="battle-pile__empty" />
         )}
         <span className="battle-pile__label">
-          {kind === 'deck' ? 'やまふだ' : 'すてふだ'} <b className="num">{n}</b>
+          {kind === 'deck' ? tr.battle.deck : tr.battle.discard} <b className="num">{n}</b>
         </span>
       </div>
     );
@@ -175,7 +177,7 @@ export function BattleBoard(p: Props) {
     const need = view.rules[side].koToWin;
     const got = view.players[side].koCount;
     return (
-      <span className="battle-stars" data-zone={`${side}-stars`} aria-label={`たおした ${got}`}>
+      <span className="battle-stars" data-zone={`${side}-stars`} aria-label={tr.battle.koAria(got)}>
         {Array.from({ length: need }, (_, i) => (
           <StarDoodle key={i} seed={`star-${side}-${i}`} size={26} className={`battle-star ${i < got ? 'is-on' : ''}`} />
         ))}
@@ -189,15 +191,15 @@ export function BattleBoard(p: Props) {
   const draw = drawCounterText(view, me);
   const endLabel = myPs.swappedThisTurn ? (
     <>
-      ターンおわり
+      {tr.battle.endTurn}
       <br />
-      <small>（こうげきなし）</small>
+      <small>{tr.battle.noAttack}</small>
     </>
   ) : (
     <>
-      ターンおわり＆
+      {tr.battle.endTurnAttack1}
       <br />
-      こうげき！
+      {tr.battle.endTurnAttack2}
     </>
   );
   const endLegal = p.legal.some((a) => a.type === 'END_TURN');
@@ -215,9 +217,11 @@ export function BattleBoard(p: Props) {
             {p.names[opp]}
           </span>
         </RoughBox>
-        <span className="battle-top__item">たおした {stars(opp)}</span>
+        <span className="battle-top__item">
+          {tr.battle.ko} {stars(opp)}
+        </span>
         <span className="battle-top__item" data-zone={`${opp}-hand`}>
-          てふだ
+          {tr.battle.hand}
           <span className="battle-top__backs">
             {oppHand.map((u) => (
               <span key={u} className="battle-top__back" />
@@ -226,23 +230,23 @@ export function BattleBoard(p: Props) {
           <b className="num">{oppHand.length}</b>
         </span>
         <span className="battle-top__item">
-          やまふだ <b className="num">{oppPs.deck.length}</b>
+          {tr.battle.deck} <b className="num">{oppPs.deck.length}</b>
         </span>
         <span className="battle-top__item">
-          すてふだ <b className="num">{oppPs.discard.length}</b>
+          {tr.battle.discard} <b className="num">{oppPs.discard.length}</b>
         </span>
         <div className="battle-top__buttons">
-          <RoughButton seed="log-btn" className="battle-top__btn" highlight={p.logOpen} onClick={p.onToggleLog} ariaLabel="ログ">
-            📝 ログ
+          <RoughButton seed="log-btn" className="battle-top__btn" highlight={p.logOpen} onClick={p.onToggleLog} ariaLabel={tr.battle.logAria}>
+            {tr.battle.logButton}
           </RoughButton>
-          <RoughButton seed="gear-btn" className="battle-top__btn battle-top__btn--gear" onClick={p.onOpenMenu} ariaLabel="メニュー">
+          <RoughButton seed="gear-btn" className="battle-top__btn battle-top__btn--gear" onClick={p.onOpenMenu} ariaLabel={tr.battle.menuAria}>
             ⚙
           </RoughButton>
         </div>
       </div>
 
       {/* 相手の番の間は、画面上部に「あいての ターン」バナー（§8-3） */}
-      {view.phase === 'main' && view.currentPlayer === opp && <div className="battle-opp-banner">あいての ターン</div>}
+      {view.phase === 'main' && view.currentPlayer === opp && <div className="battle-opp-banner">{tr.battle.oppBanner}</div>}
 
       {/* ---------------- あいての場 ---------------- */}
       {benchSlot(opp, 0)}
@@ -255,16 +259,16 @@ export function BattleBoard(p: Props) {
       <div className="battle-fold" aria-hidden />
       <div className={`battle-turn ${view.phase === 'setup' || view.phase === 'over' ? '' : view.currentPlayer === me ? 'is-me' : 'is-opp'}`}>
         {view.phase === 'setup'
-          ? 'じゅんび'
+          ? tr.battle.phaseSetup
           : view.phase === 'over'
-            ? 'けっちゃく'
+            ? tr.battle.phaseOver
             : view.currentPlayer === me
-              ? 'あなたの ターン'
-              : 'あいての ターン'}
+              ? tr.battle.myTurn
+              : tr.battle.oppTurn}
       </div>
       <div className="battle-dice" data-zone="dice" aria-hidden>
         <DiceDoodle seed="dice-home" size={40} face={5} className="battle-dice__icon" />
-        <span className="pencil">サイコロおきば</span>
+        <span className="pencil">{tr.battle.diceZone}</span>
       </div>
       <div className={`battle-draw ${draw.soon ? 'is-soon' : ''}`}>{draw.text}</div>
 
@@ -282,7 +286,9 @@ export function BattleBoard(p: Props) {
             {p.names[me]}
           </span>
         </RoughBox>
-        <span className="battle-me__stars">たおした {stars(me)}</span>
+        <span className="battle-me__stars">
+          {tr.battle.ko} {stars(me)}
+        </span>
       </div>
 
       <div className="battle-hand" data-zone={`${me}-hand`}>
@@ -307,22 +313,22 @@ export function BattleBoard(p: Props) {
         <div className="battle-actionbar">
           {selectedActions.some((a) => a.type === 'PLACE_BENCH') && (
             <RoughButton seed="act-bench" highlight onClick={() => p.onPerform(selectedActions.find((a) => a.type === 'PLACE_BENCH')!)}>
-              ベンチに だす
+              {tr.battle.toBench}
             </RoughButton>
           )}
           {selectedActions.some((a) => a.type === 'SETUP_ACTIVE') && (
             <RoughButton seed="act-setup" highlight onClick={() => p.onPerform(selectedActions.find((a) => a.type === 'SETUP_ACTIVE')!)}>
-              バトルばに だす
+              {tr.battle.toActive}
             </RoughButton>
           )}
           {selectedActions.some((a) => a.type === 'SWAP') && (
             <RoughButton seed="act-swap" highlight onClick={() => p.onPerform(selectedActions.find((a) => a.type === 'SWAP')!)}>
-              こうたい
+              {tr.battle.swap}
             </RoughButton>
           )}
-          {selectedActions.some((a) => a.type === 'USE_ITEM') && <span className="battle-actionbar__note">つかう おてあげを えらんでね</span>}
+          {selectedActions.some((a) => a.type === 'USE_ITEM') && <span className="battle-actionbar__note">{tr.battle.chooseTarget}</span>}
           <RoughButton seed="act-cancel" onClick={() => p.onSelect(null)}>
-            やめる
+            {tr.common.cancel}
           </RoughButton>
         </div>
       )}
@@ -331,19 +337,19 @@ export function BattleBoard(p: Props) {
 
       {/* くりだし・準備の案内 */}
       {view.phase === 'promote' && view.pendingPromote.includes(me) && p.canAct && (
-        <div className="battle-prompt">ベンチから くりだす おてあげを えらんでね</div>
+        <div className="battle-prompt">{tr.battle.promptPromote}</div>
       )}
       {view.phase === 'setup' && p.canAct && myPs.setupChoice === null && (
-        <div className="battle-prompt">バトルばに だす おてあげを えらんでね</div>
+        <div className="battle-prompt">{tr.battle.promptSetup}</div>
       )}
       {view.phase === 'setup' && myPs.setupChoice !== null && oppPs.setupChoice === null && (
-        <div className="battle-prompt battle-prompt--wait">あいてが えらぶのを まってるよ…</div>
+        <div className="battle-prompt battle-prompt--wait">{tr.battle.promptWait}</div>
       )}
 
       {/* ログ（余白メモ） */}
       {p.logOpen && (
         <div className="battle-log">
-          <div className="battle-log__title">📝 メモ</div>
+          <div className="battle-log__title">{tr.battle.logTitle}</div>
           <ul className="battle-log__list">
             {p.logLines.map((l, i) => (
               <li key={p.logLines.length - i}>{l}</li>

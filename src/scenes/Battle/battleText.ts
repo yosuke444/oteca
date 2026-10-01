@@ -1,42 +1,10 @@
 import { blockedItemOn } from '../../engine';
+import { local, t } from '../../i18n';
 import type { GameEvent, GameState, RejectReason, Side } from '../../engine/types';
 
 /** 出来ない操作を押した時の一言（SPEC §8-2） */
 export function rejectText(r: RejectReason): string {
-  switch (r) {
-    case 'notYourTurn':
-      return 'いまは あいての ターンだよ';
-    case 'benchFull':
-      return 'ベンチは いっぱいだよ';
-    case 'benchLimit':
-      return 'ベンチは このターン もう だしたよ';
-    case 'fullHp':
-      return 'HPが まんたんだよ';
-    case 'badTarget':
-      return 'その おてあげには つかえないよ';
-    case 'notOtege':
-      return 'おてあげ じゃないよ';
-    case 'notItem':
-      return 'アイテム じゃないよ';
-    case 'notOnBench':
-      return 'ベンチに いないよ';
-    case 'noActive':
-      return 'バトルばに おてあげが いないよ';
-    case 'alreadyChosen':
-      return 'もう えらんだよ';
-    case 'notPending':
-      return 'いまは えらばなくて いいよ';
-    case 'wrongPhase':
-      return 'いまは できないよ';
-    case 'gameOver':
-      return 'もう けっちゃく したよ';
-    case 'notInHand':
-      return 'てふだに ないよ';
-    case 'stackBlocked':
-      return 'このターンは もう その おてあげに つかえないよ';
-    case 'justPlaced':
-      return 'だした ターンは こうたい できないよ';
-  }
+  return t().battle.reject[r];
 }
 
 /**
@@ -48,7 +16,7 @@ export function useItemReason(view: GameState, r: RejectReason, itemUid: string,
     const item = view.cardDefs[view.cards[itemUid].no];
     const no = item.kind === 'item' ? blockedItemOn(view, item.blockedIfUsedThisTurn, view.cards[targetUid].itemsThisTurn) : null;
     const used = no !== null ? view.cardDefs[no] : null;
-    if (used?.kind === 'item' && used.afterUseNote) return used.afterUseNote;
+    if (used?.kind === 'item' && used.afterUseNote) return local(used.afterUseNote);
   }
   return rejectText(r);
 }
@@ -64,37 +32,39 @@ export function cardName(view: GameState, uid: string): string {
  * @param view イベントが起きる前の表示状態
  */
 export function logLine(e: GameEvent, view: GameState, names: Record<Side, string>): string | null {
+  const L = t().battle.log;
+  const nm = (uid: string) => cardName(view, uid);
   switch (e.type) {
     case 'DiceRolled':
-      return e.purpose === 'order' ? `・${names[e.player]} の サイコロ：${e.value}` : `・サイコロ：${e.value}`;
+      return e.purpose === 'order' ? L.orderDice(names[e.player], e.value) : L.attackDice(e.value);
     case 'Mulligan':
-      return `・${names[e.player]} は おてあげが いないので ひきなおし`;
+      return L.mulligan(names[e.player]);
     case 'Drew':
-      return `・${names[e.player]} が 1まい ひいた`;
+      return L.drew(names[e.player]);
     case 'TurnStarted':
-      return `― ${names[e.player]} の ${e.turn}ターンめ ―`;
+      return L.turn(names[e.player], e.turn);
     case 'BenchPlaced':
-      return `・${cardName(view, e.uid)} を ベンチに だした`;
+      return L.bench(nm(e.uid));
     case 'Swapped':
-      return `・${cardName(view, e.toActive)} と ${cardName(view, e.toBench)} を こうたい`;
+      return L.swap(nm(e.toActive), nm(e.toBench));
     case 'ItemUsed':
-      return `・${cardName(view, e.targetUid)} に ${cardName(view, e.itemUid)}`;
+      return L.item(nm(e.targetUid), nm(e.itemUid));
     case 'Damaged':
-      return `・${cardName(view, e.uid)} に ${e.amount} ダメージ！`;
+      return L.damage(nm(e.uid), e.amount);
     case 'Healed':
-      return `・${cardName(view, e.uid)} が ${e.amount} かいふく`;
+      return L.heal(nm(e.uid), e.amount);
     case 'HpSet':
-      return `・${cardName(view, e.uid)} の HPが ${e.hpAfter} に`;
+      return L.hpSet(nm(e.uid), e.hpAfter);
     case 'Fainted':
-      return `・${cardName(view, e.uid)} が きぜつ！`;
+      return L.faint(nm(e.uid));
     case 'Promoted':
-      return `・${cardName(view, e.uid)} を くりだした`;
+      return L.promote(nm(e.uid));
     case 'ActivesRevealed':
-      return `・バトル スタート！ ${cardName(view, e.p1)} vs ${cardName(view, e.p2)}`;
+      return L.start(nm(e.p1), nm(e.p2));
     case 'GameOver':
-      return `・${names[e.winner]} の かち！`;
+      return L.win(names[e.winner]);
     case 'TurnEnded':
-      return e.attacked ? null : `・${names[e.player]} は こうげき しなかった`;
+      return e.attacked ? null : L.noAttack(names[e.player]);
     default:
       return null;
   }
@@ -105,9 +75,10 @@ export function drawCounterText(view: GameState, side: Side): { text: string; so
   const ps = view.players[side];
   const n = view.rules[side].drawEveryNTurns;
   if (n <= 0) return { text: '', soon: false };
-  if (ps.deck.length === 0) return { text: 'やまふだが ないよ', soon: false };
+  const D = t().battle.draw;
+  if (ps.deck.length === 0) return { text: D.noDeck, soon: false };
   const next = ps.turnCount + 1;
   const left = ((n - (next % n)) % n) + 1;
-  if (left === 1) return { text: 'つぎの ターンで ひける！', soon: true };
-  return { text: `ドローまで あと${left}`, soon: false };
+  if (left === 1) return { text: D.nextTurn, soon: true };
+  return { text: D.left(left), soon: false };
 }

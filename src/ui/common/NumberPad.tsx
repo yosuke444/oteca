@@ -1,4 +1,5 @@
 import { RoughButton } from '../rough/RoughButton';
+import { useT } from '../../i18n/useT';
 
 /**
  * 大きな手描きテンキー（SPEC §7 S03。スマホでも押しやすいように大きく）
@@ -15,6 +16,7 @@ export function NumberPad({
   onChange: (v: string) => void;
   className?: string;
 }) {
+  const tr = useT();
   const push = (d: string) => {
     if (value.length < maxLength) onChange(value + d);
   };
@@ -27,13 +29,13 @@ export function NumberPad({
         </RoughButton>
       ))}
       <RoughButton seed="numpad-back" className="numpad__key numpad__key--word" disabled={value.length === 0} onClick={() => onChange(value.slice(0, -1))}>
-        けす
+        {tr.numpad.clear}
       </RoughButton>
       <RoughButton seed="numpad-0" className="numpad__key" disabled={value.length >= maxLength} onClick={() => push('0')} ariaLabel="0">
         <span className="num">0</span>
       </RoughButton>
       <RoughButton seed="numpad-clear" className="numpad__key numpad__key--word" disabled={value.length === 0} onClick={() => onChange('')}>
-        ぜんぶ
+        {tr.numpad.all}
       </RoughButton>
     </div>
   );

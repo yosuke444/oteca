@@ -8,12 +8,14 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { EnterCodeDialog, MakeCodeDialog } from './TransferDialogs';
+import { LANGS, DICTS } from '../../i18n';
+import { useT } from '../../i18n/useT';
 import './settings.css';
 
 const SPEEDS = [
-  { value: 0, label: 'ふつう' },
-  { value: 1, label: 'はやい' },
-  { value: 2, label: 'さいそく' },
+  { value: 0, key: 'normal' },
+  { value: 1, key: 'fast' },
+  { value: 2, key: 'fastest' },
 ] as const;
 
 /** S06 設定（SPEC §7） */
@@ -22,21 +24,22 @@ export function SettingsScene() {
   const { save, update, replace, reset, markCodeCreated } = useSave();
   const [dialog, setDialog] = useState<'make' | 'enter' | 'wipe1' | 'wipe2' | null>(null);
   const s = save.settings;
+  const tr = useT();
 
   return (
     <div className="settings-scene">
       <h1 className="settings-scene__title">
         <span className="tilt" style={tiltStyle('settings-title')}>
-          せってい
+          {tr.settings.title}
         </span>
       </h1>
       <RoughButton seed="settings-back" className="settings-scene__back" onClick={() => go('menu')}>
-        もどる
+        {tr.common.back}
       </RoughButton>
       <SavedToast />
 
       <RoughBox seed="settings-left" className="settings-panel settings-panel--left" paper radius={8}>
-        <Row label="なまえ" note={`${NAME_MAX}もじ まで。あいてに みえるよ`}>
+        <Row id="name" label={tr.settings.name} note={tr.settings.nameNote(NAME_MAX)}>
           <input
             key={save.playerName}
             className="pen-input settings-scene__name"
@@ -56,13 +59,13 @@ export function SettingsScene() {
             }}
           />
         </Row>
-        <Row label="BGM">
+        <Row id="bgm" label={tr.settings.bgm}>
           <Volume id="bgm" value={s.bgm} onChange={(v) => update((d) => void (d.settings.bgm = v))} />
         </Row>
-        <Row label="こうかおん">
+        <Row id="se" label={tr.settings.se}>
           <Volume id="se" value={s.se} onChange={(v) => update((d) => void (d.settings.se = v))} />
         </Row>
-        <Row label="えんしゅつ スピード">
+        <Row id="speed" label={tr.settings.fxSpeed}>
           <div className="settings-choice">
             {SPEEDS.map((sp) => (
               <RoughButton
@@ -72,34 +75,49 @@ export function SettingsScene() {
                 highlight={s.fxSpeed === sp.value}
                 onClick={() => update((d) => void (d.settings.fxSpeed = sp.value))}
               >
-                {sp.label}
+                {tr.settings.speed[sp.key]}
               </RoughButton>
             ))}
           </div>
         </Row>
-        <Row label="えんしゅつを へらす" note="がめんの ゆれ・ひかり・つぶを おさえる">
+        <Row id="reduce" label={tr.settings.reduceFx} note={tr.settings.reduceFxNote}>
           <OnOff id="reduce" value={s.reduceFx} onChange={(v) => update((d) => void (d.settings.reduceFx = v))} />
+        </Row>
+        {/* ことば（SPEC §6-4b）：ボタンの文字は、その言語での名前（にほんご／日本語） */}
+        <Row id="lang" label={tr.settings.lang} note={tr.settings.langNote}>
+          <div className="settings-choice">
+            {LANGS.map((l) => (
+              <RoughButton
+                key={l}
+                seed={`lang-${l}`}
+                className="settings-choice__btn"
+                highlight={s.lang === l}
+                onClick={() => update((d) => void (d.settings.lang = l))}
+              >
+                {l === 'hira' ? DICTS.hira.settings.langHira : DICTS.kanji.settings.langKanji}
+              </RoughButton>
+            ))}
+          </div>
         </Row>
       </RoughBox>
 
       <RoughBox seed="settings-right" className="settings-panel settings-panel--right" paper radius={8}>
-        <h2 className="settings-panel__title">データひきつぎ</h2>
-        <p className="settings-panel__note pencil">
-          ほかの たんまつや ブラウザに データを もっていけるよ。ブラウザの データを けすと きえるので、ときどき コードを つくっておこう。
-        </p>
+        <h2 className="settings-panel__title">{tr.settings.transfer}</h2>
+        <p className="settings-panel__note pencil">{tr.settings.transferText}</p>
         <div className="settings-transfer">
           <RoughButton seed="make-code-btn" className="settings-transfer__btn" onClick={() => setDialog('make')}>
-            コードを つくる
+            {tr.settings.makeCode}
           </RoughButton>
           <RoughButton seed="enter-code-btn" className="settings-transfer__btn" onClick={() => setDialog('enter')}>
-            コードを いれる
+            {tr.settings.enterCode}
           </RoughButton>
         </div>
         <p className="settings-panel__stats">
-          せいせき：<span className="num">{save.stats.wins}</span> かち　<span className="num">{save.stats.losses}</span> まけ
+          {tr.settings.record}
+          <span className="num">{save.stats.wins}</span> {tr.common.winsLosses.wins}{"  "}<span className="num">{save.stats.losses}</span> {tr.common.winsLosses.losses}
         </p>
         <RoughButton seed="wipe-btn" className="settings-wipe" stroke="var(--pen-red)" onClick={() => setDialog('wipe1')}>
-          <span className="red-pen">データを けす</span>
+          <span className="red-pen">{tr.settings.erase}</span>
         </RoughButton>
       </RoughBox>
 
@@ -108,29 +126,29 @@ export function SettingsScene() {
       {dialog === 'wipe1' && (
         <Dialog
           seed="wipe1"
-          title="データを けす？"
+          title={tr.settings.eraseTitle}
           actions={
             <>
               <RoughButton seed="wipe1-no" onClick={() => setDialog(null)}>
-                やめる
+                {tr.common.cancel}
               </RoughButton>
               <RoughButton seed="wipe1-yes" stroke="var(--pen-red)" onClick={() => setDialog('wipe2')}>
-                けす
+                {tr.settings.eraseYes}
               </RoughButton>
             </>
           }
         >
-          デッキ・なまえ・せってい・せいせきが ぜんぶ きえて、はじめの じょうたいに もどるよ。
+          {tr.settings.eraseText}
         </Dialog>
       )}
       {dialog === 'wipe2' && (
         <Dialog
           seed="wipe2"
-          title="もういちど きくよ"
+          title={tr.settings.eraseAgainTitle}
           actions={
             <>
               <RoughButton seed="wipe2-no" onClick={() => setDialog(null)}>
-                やめる
+                {tr.common.cancel}
               </RoughButton>
               <RoughButton
                 seed="wipe2-yes"
@@ -140,23 +158,24 @@ export function SettingsScene() {
                   go('title');
                 }}
               >
-                ほんとうに けす
+                {tr.settings.eraseAgainYes}
               </RoughButton>
             </>
           }
         >
-          <span className="red-pen">けしたら もとに もどせないよ。</span>ほんとうに いい？
+          <span className="red-pen">{tr.settings.eraseAgainWarn}</span>
+          {tr.settings.eraseAgainAsk}
         </Dialog>
       )}
     </div>
   );
 }
 
-function Row({ label, note, children }: { label: string; note?: string; children: ReactNode }) {
+function Row({ id, label, note, children }: { id: string; label: string; note?: string; children: ReactNode }) {
   return (
     <div className="settings-row">
       <div className="settings-row__label">
-        <span className="tilt" style={tiltStyle(`row-${label}`)}>
+        <span className="tilt" style={tiltStyle(`row-${id}`)}>
           {label}
         </span>
         {note && <small className="pencil">{note}</small>}
@@ -168,9 +187,10 @@ function Row({ label, note, children }: { label: string; note?: string; children
 
 /** 音量 0〜10：マスをタップ、または −／＋ */
 function Volume({ id, value, onChange }: { id: string; value: number; onChange: (v: number) => void }) {
+  const tr = useT();
   return (
     <div className="volume">
-      <RoughButton seed={`${id}-minus`} className="volume__step" disabled={value <= 0} onClick={() => onChange(value - 1)} ariaLabel="へらす">
+      <RoughButton seed={`${id}-minus`} className="volume__step" disabled={value <= 0} onClick={() => onChange(value - 1)} ariaLabel={tr.settings.minus}>
         −
       </RoughButton>
       <div className="volume__cells">
@@ -184,8 +204,8 @@ function Volume({ id, value, onChange }: { id: string; value: number; onChange: 
           />
         ))}
       </div>
-      <RoughButton seed={`${id}-plus`} className="volume__step" disabled={value >= VOLUME_MAX} onClick={() => onChange(value + 1)} ariaLabel="ふやす">
-        ＋
+      <RoughButton seed={`${id}-plus`} className="volume__step" disabled={value >= VOLUME_MAX} onClick={() => onChange(value + 1)} ariaLabel={tr.settings.plus}>
+        {tr.settings.plusSign}
       </RoughButton>
       <span className="volume__value num">{value}</span>
     </div>
@@ -193,13 +213,14 @@ function Volume({ id, value, onChange }: { id: string; value: number; onChange: 
 }
 
 function OnOff({ id, value, onChange }: { id: string; value: boolean; onChange: (v: boolean) => void }) {
+  const tr = useT();
   return (
     <div className="settings-choice">
       <RoughButton seed={`${id}-on`} className="settings-choice__btn" highlight={value} onClick={() => onChange(true)}>
-        オン
+        {tr.common.on}
       </RoughButton>
       <RoughButton seed={`${id}-off`} className="settings-choice__btn" highlight={!value} onClick={() => onChange(false)}>
-        オフ
+        {tr.common.off}
       </RoughButton>
     </div>
   );

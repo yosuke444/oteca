@@ -30,6 +30,7 @@ export function randomSave(seed: number): SaveData {
       bgm: r.int(0, 10),
       se: r.int(0, 10),
       fxSpeed: r.int(0, 2) as 0 | 1 | 2,
+      lang: r.int(0, 1) === 1 ? 'kanji' : 'hira',
       reduceFx: r.next() < 0.5,
       hints: r.next() < 0.5,
     },

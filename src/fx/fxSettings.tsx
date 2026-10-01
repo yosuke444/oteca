@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { setFxSpeed } from './timing';
+import { t } from '../i18n';
 
 /**
  * 演出の設定（SPEC §9-4）
@@ -51,6 +52,6 @@ export function FxSettingsProvider({ fxSpeed, reduceFx, children }: FxSettings &
 
 export function useFx(): FxContextValue {
   const ctx = useContext(FxContext);
-  if (!ctx) throw new Error('FxSettingsProvider の外で useFx は使えません');
+  if (!ctx) throw new Error(t().common.providerMissing('FxSettingsProvider'));
   return ctx;
 }

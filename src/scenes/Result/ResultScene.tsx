@@ -19,6 +19,7 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { rematchSetup } from '../Battle/BattleScene';
 import './result.css';
+import { useT } from '../../i18n/useT';
 
 export type ResultPayload = {
   setup: BattleSetup;
@@ -30,17 +31,12 @@ export type ResultPayload = {
   finalHash: string;
 };
 
-const REASON_TEXT: Record<EndReason, string> = {
-  ko: 'たおした かずで',
-  noBench: 'ベンチが からっぽに なって',
-  surrender: 'おてあげ（こうさん）で',
-};
-
 /** S05 リザルト（SPEC §7） */
 export function ResultScene() {
   const { payload, go } = useNav();
   const r = payload as ResultPayload;
   const { update } = useSave();
+  const tr = useT();
   const recorded = useRef(false);
   const me = r.setup.me;
   const opp: Side = me === 'p1' ? 'p2' : 'p1';
@@ -91,15 +87,15 @@ export function ResultScene() {
     go('menu');
   };
   const rematchNote = agree === false
-    ? 'ふたりの けっかが ちがったので きろく しないよ'
+    ? tr.result.disagree
     : oppGone
-    ? 'あいては メニューに もどったよ'
+    ? tr.result.oppLeft
     : waitingRematch
       ? oppWants
-        ? 'はじまるよ！'
-        : 'あいてを まってるよ…'
+        ? tr.result.starting
+        : tr.result.waitingOpp
       : oppWants
-        ? 'あいても まってるよ'
+        ? tr.result.oppWaiting
         : '';
 
   // 勝敗数をセーブデータに記録（フレンド対戦は stats、CPU対戦は強さごとの cpuStats。中断・切断は記録しない）
@@ -115,7 +111,7 @@ export function ResultScene() {
     });
   }, [r.setup.record, r.setup.mode, r.setup.cpuLevel, update, win, agree]);
 
-  const title = hotSeat ? `${r.setup.names[r.winner]} の かち！` : win ? 'かち！' : 'まけ…';
+  const title = hotSeat ? tr.result.winnerTitle(r.setup.names[r.winner]) : win ? tr.result.win : tr.result.lose;
   const happy = win || hotSeat;
 
   // 勝ち・負けの演出（SPEC §9-2）
@@ -160,25 +156,28 @@ export function ResultScene() {
         <span>{title}</span>
       </h1>
       <p className="result__reason">
-        {REASON_TEXT[r.reason]}
-        {hotSeat ? '' : win ? ' あなたの かち' : ` ${r.setup.names[opp]} の かち`}
+        {tr.result.reason[r.reason]}
+        {hotSeat ? '' : win ? tr.result.youWin : tr.result.oppWins(r.setup.names[opp])}
       </p>
 
       <RoughBox seed="result-memo" className="result__memo" paper radius={6}>
-        <h2 className="result__memo-title">きろく {hotSeat ? `（${r.setup.names[r.winner]}）` : ''}</h2>
+        <h2 className="result__memo-title">
+          {tr.result.memo} {hotSeat ? tr.result.memoWho(r.setup.names[r.winner]) : ''}
+        </h2>
         <ul className="result__list">
           <li>
-            ターンすう <b className="num">{r.stats.turns}</b>
+            {tr.result.turns} <b className="num">{r.stats.turns}</b>
           </li>
           <li>
-            あたえた ダメージ <b className="num">{s.damage}</b>
+            {tr.result.damage} <b className="num">{s.damage}</b>
           </li>
           <li>
-            たおした かず <b className="num">{s.kos}</b>
+            {tr.result.kos} <b className="num">{s.kos}</b>
           </li>
           <li>
-            MVP：{mvp ? <b>{mvp.name}</b> : 'なし'}
-            {mvp && <span className="pencil">（{s.mvpDamage} ダメージ）</span>}
+            {tr.result.mvp}
+            {mvp ? <b>{mvp.name}</b> : tr.result.none}
+            {mvp && <span className="pencil">{tr.result.mvpDamage(s.mvpDamage)}</span>}
           </li>
         </ul>
       </RoughBox>
@@ -195,7 +194,7 @@ export function ResultScene() {
 
       {!happy && (
         <p className="result__next" ref={nextRef}>
-          つぎは かてる！
+          {tr.result.nextTime}
         </p>
       )}
       <div key="fx-overlay" className="fx-overlay" ref={overlayRef} />
@@ -203,20 +202,20 @@ export function ResultScene() {
 
       <div className="result__buttons">
         <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone} disabled={waitingRematch || oppGone} onClick={again}>
-          もういっかい
+          {tr.result.again}
         </RoughButton>
         {r.setup.mode === 'cpu' && !r.setup.debug && (
           <RoughButton seed="result-level" className="result__btn" onClick={() => go('cpu')}>
-            つよさを かえる
+            {tr.result.changeLevel}
           </RoughButton>
         )}
         <RoughButton seed="result-menu" className="result__btn" onClick={toMenu}>
-          メニューへ
+          {tr.common.toMenu}
         </RoughButton>
       </div>
       {r.setup.debug && (
         <RoughButton seed="result-savelog" className="result__savelog" onClick={() => downloadActionLog(buildActionLog(r.setup, r.log, r.finalHash))}>
-          こうどうログを ほぞん
+          {tr.result.saveLog}
         </RoughButton>
       )}
       {rematchNote && (
