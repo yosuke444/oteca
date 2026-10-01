@@ -39,6 +39,7 @@ export function randomSave(seed: number): SaveData {
     })),
     selectedDeck: r.int(0, 4),
     stats: { wins: bigOrSmall(), losses: bigOrSmall() },
+    cpuStats: Array.from({ length: 4 }, () => ({ wins: bigOrSmall(), losses: bigOrSmall() })),
     coins: bigOrSmall(),
     collection: Array.from({ length: r.int(0, 5) }, () => ({ no: r.int(1, 300), qty: r.int(0, 99) })),
     unlockAll: r.next() < 0.5,

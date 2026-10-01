@@ -6,3 +6,4 @@ screenshots/
 assets-original/
 # Claude Code の手元の設定
 .claude/
+tests-slow/results/

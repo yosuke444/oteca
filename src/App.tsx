@@ -14,6 +14,7 @@ import { BattleScene } from './scenes/Battle/BattleScene';
 import { ResultScene } from './scenes/Result/ResultScene';
 import { DebugScene } from './scenes/Debug/DebugScene';
 import { LobbyScene } from './scenes/Lobby/LobbyScene';
+import { CpuScene } from './scenes/Cpu/CpuScene';
 import { FxTestScene } from './scenes/Debug/FxTestScene';
 import { SoundTestScene } from './scenes/Debug/SoundTestScene';
 import { RulesScene } from './scenes/Rules/RulesScene';
@@ -27,6 +28,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   menu: MenuScene,
   deck: DeckEditScene,
   lobby: LobbyScene,
+  cpu: CpuScene,
   battle: BattleScene,
   result: ResultScene,
   settings: SettingsScene,
@@ -53,6 +55,7 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   settings: 'bgm_deck',
   rules: 'bgm_deck',
   lobby: 'bgm_lobby',
+  cpu: 'bgm_lobby',
   battle: 'battle',
   fxtest: undefined,
   result: null,

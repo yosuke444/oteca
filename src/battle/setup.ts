@@ -1,11 +1,12 @@
 import { CARD_DB } from '../data/cards';
 import { validateDeck } from '../engine';
 import type { Side } from '../engine/types';
+import type { CpuLevel } from '../cpu/brains';
 
 /**
  * 対戦画面に渡す設定。
  * - local：ひとりで両方あやつる（1台で2人ぶん）
- * - cpu：かんたんCPU と対戦
+ * - cpu：CPU と対戦（CPU対戦 S10。デバッグの「かんたんCPU」は強さ ふつう）
  * - online：フレンド対戦（通信）
  */
 export type BattleMode = 'local' | 'cpu' | 'online';
@@ -18,8 +19,10 @@ export type BattleSetup = {
   seed: string;
   /** 画面の下側にいる人（online ではこの端末の役割） */
   me: Side;
-  /** 勝敗をセーブデータに記録するか（フレンド対戦だけ） */
+  /** 勝敗をセーブデータに記録するか（フレンド対戦は stats、CPU対戦は cpuStats） */
   record: boolean;
+  /** CPU の強さ（mode が cpu の時。省略時は ふつう） */
+  cpuLevel?: CpuLevel;
   /** デバッグ：サイコロの目を固定（毎回この目。null なら乱数） */
   fixedDie?: number | null;
   /** デバッグ：配ったあと山札の上に置くカード（カードNo、上から順） */

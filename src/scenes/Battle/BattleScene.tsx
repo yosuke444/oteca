@@ -97,6 +97,8 @@ export function BattleScene() {
   const [detailUid, setDetailUid] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  /** CPU が考えている（「かんがえちゅう…」） */
+  const [cpuThinking, setCpuThinking] = useState(false);
   const [idleSince, setIdleSince] = useState(0);
   /** 試合（Match）を作り直した回数（フレンド対戦のつなぎ直しに使う） */
   const [matchId, setMatchId] = useState(0);
@@ -117,7 +119,15 @@ export function BattleScene() {
 
   // ---------------------------------------------------------------- 試合と演出の準備
   useEffect(() => {
-    const controllers: Record<Side, Controller> = createControllers(setup, () => fxRef.current.speed);
+    const controllers: Record<Side, Controller> = createControllers(setup, () => fxRef.current.speed, {
+      // CPU対戦：考えている間は「かんがえちゅう…」、ときどきスタンプ（SPEC §7 S10）
+      onThinking: (b) => setCpuThinking(b),
+      onStamp: (id) => {
+        if (!isStampId(id)) return;
+        setOppStamp((s) => ({ id, n: (s?.n ?? 0) + 1 }));
+        audio.play('se_stamp_chat');
+      },
+    });
     const match = new Match(
       {
         seed: setup.seed,
@@ -539,6 +549,11 @@ export function BattleScene() {
       <StampPicker onSend={sendStamp} cooldownUntil={stampCooldown} />
       <StampBalloon stamp={myStamp} side="me" />
       <StampBalloon stamp={oppStamp} side="opp" />
+      {cpuThinking && setup.mode === 'cpu' && view.phase !== 'over' && (
+        <div className="cpu-thinking pencil" role="status" aria-live="polite">
+          かんがえちゅう<span className="cpu-thinking__dots" aria-hidden>…</span>
+        </div>
+      )}
 
       {officialHash && (
         <div className="battle-hash" data-testid="state-hash">

@@ -707,3 +707,33 @@
     font-size: 32px;
   }
 }
+
+/* CPU が考えている間（SPEC §7 S10・§8-3）。相手の名前の下に えんぴつで */
+.cpu-thinking {
+  position: absolute;
+  left: 30px;
+  top: 58px;
+  z-index: 30;
+  padding: 0 6px;
+  font-size: 20px;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%, var(--marker-yellow) 88%, transparent 88%);
+  pointer-events: none;
+}
+.cpu-thinking__dots {
+  display: inline-block;
+  animation: cpu-thinking-dots calc(1.2s / var(--fx-speed)) steps(4, end) infinite;
+  overflow: hidden;
+  vertical-align: bottom;
+  width: 1.2em;
+}
+@keyframes cpu-thinking-dots {
+  from { width: 0; }
+  to { width: 1.2em; }
+}
+@media (max-height: 500px) {
+  .cpu-thinking {
+    top: 60px;
+    font-size: 30px;
+    color: var(--ink);
+  }
+}

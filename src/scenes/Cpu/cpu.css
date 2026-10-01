@@ -1,0 +1,138 @@
+/* S10 CPUたいせん（SPEC §7 S10） */
+.cpu-scene {
+  position: absolute;
+  inset: 0;
+}
+.cpu-scene__title {
+  position: absolute;
+  left: 48px;
+  top: 16px;
+  margin: 0;
+  font-size: 40px;
+  font-weight: normal;
+}
+.cpu-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 18px;
+  width: 150px;
+  height: 60px;
+  font-size: 24px;
+}
+
+/* 1 つよさ → 2 じぶんの デッキ → 3 CPUの デッキ */
+.cpu-scene__steps {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100px;
+  display: flex;
+  justify-content: center;
+  gap: 54px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 24px;
+  color: var(--pencil);
+}
+.cpu-scene__steps li.is-now {
+  color: var(--ink);
+  background: linear-gradient(transparent 58%, var(--marker-yellow) 58%, var(--marker-yellow) 92%, transparent 92%);
+}
+.cpu-scene__steps li.is-done {
+  color: var(--pen-blue);
+}
+.cpu-scene__steps .num {
+  font-size: 26px;
+}
+
+/* 強さ：4つの大きいボタン */
+.cpu-scene__levels {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 190px;
+  display: flex;
+  justify-content: center;
+  gap: 34px;
+}
+.cpu-scene__level {
+  width: 250px;
+  height: 330px;
+}
+.cpu-scene__level .tilt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+.cpu-scene__level-name {
+  font-size: 42px;
+  white-space: nowrap;
+}
+.cpu-scene__level--strongest .cpu-scene__level-name {
+  color: var(--pen-red);
+}
+.cpu-scene__level-note {
+  font-size: 20px;
+}
+.cpu-scene__level-rec {
+  font-size: 24px;
+}
+.cpu-scene__level-rec .num {
+  font-size: 30px;
+  color: var(--pen-blue);
+}
+
+/* デッキ */
+.cpu-scene__ask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 176px;
+  margin: 0;
+  text-align: center;
+  font-size: 28px;
+}
+.cpu-scene__decks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 260px;
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+}
+.cpu-scene__deck {
+  width: 200px;
+  height: 180px;
+}
+.cpu-scene__deck .tilt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.cpu-scene__deck-name {
+  font-size: 30px;
+}
+.cpu-scene__deck-note {
+  font-size: 20px;
+}
+.cpu-scene__summary {
+  position: absolute;
+  left: 70px;
+  top: 500px;
+  width: 290px;
+  font-size: 24px;
+  text-align: left;
+}
+.cpu-scene__none {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 600px;
+  margin: 0;
+  text-align: center;
+  font-size: 24px;
+}

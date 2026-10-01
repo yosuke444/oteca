@@ -67,8 +67,9 @@ export default defineConfig(({ command, isPreview }) => ({
   base: command === 'build' || isPreview ? '/oteca/' : '/',
   plugins: [react(), battleBgm()],
   test: {
-    include: ['tests/**/*.test.ts'],
+    // 時間のかかる確認（CPU の強さの順番など）は tests-slow/。SLOW=1 を付けた時だけ動かす（npm run ladder）
+    include: process.env.SLOW ? ['tests-slow/**/*.test.ts'] : ['tests/**/*.test.ts'],
     passWithNoTests: true,
-    testTimeout: 30000,
+    testTimeout: process.env.SLOW ? 6 * 60 * 60 * 1000 : 30000,
   },
 }));

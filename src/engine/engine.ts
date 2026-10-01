@@ -1,6 +1,7 @@
 import {
   type Ctx,
   SIDES,
+  cloneState,
   defOf,
   drawOne,
   endGame,
@@ -23,7 +24,7 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
   const rejected = validateAction(state, action);
   if (rejected) return { state, events: [], rejected };
 
-  const ctx: Ctx = { s: structuredClone(state), events: [] };
+  const ctx: Ctx = { s: cloneState(state), events: [] };
   switch (action.type) {
     case 'SETUP_ACTIVE':
       doSetupActive(ctx, action.player, action.uid);

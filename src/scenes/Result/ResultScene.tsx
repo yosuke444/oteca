@@ -13,6 +13,7 @@ import type { Action, EndReason, Side } from '../../engine/types';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { CardMini } from '../../ui/card/CardMini';
+import { CPU_LEVELS } from '../../cpu/brains';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
@@ -101,16 +102,18 @@ export function ResultScene() {
         ? 'あいても まってるよ'
         : '';
 
-  // 勝敗数をセーブデータに記録（フレンド対戦だけ。中断・切断は記録しない）
+  // 勝敗数をセーブデータに記録（フレンド対戦は stats、CPU対戦は強さごとの cpuStats。中断・切断は記録しない）
   useEffect(() => {
     if (recorded.current || !r.setup.record) return;
     if (r.setup.mode === 'online' && agree !== true) return;
     recorded.current = true;
     update((d) => {
-      if (win) d.stats.wins += 1;
-      else d.stats.losses += 1;
+      const rec = r.setup.mode === 'cpu' ? d.cpuStats[CPU_LEVELS.indexOf(r.setup.cpuLevel ?? 'normal')] : d.stats;
+      if (!rec) return;
+      if (win) rec.wins += 1;
+      else rec.losses += 1;
     });
-  }, [r.setup.record, r.setup.mode, update, win, agree]);
+  }, [r.setup.record, r.setup.mode, r.setup.cpuLevel, update, win, agree]);
 
   const title = hotSeat ? `${r.setup.names[r.winner]} の かち！` : win ? 'かち！' : 'まけ…';
   const happy = win || hotSeat;
@@ -202,6 +205,11 @@ export function ResultScene() {
         <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone} disabled={waitingRematch || oppGone} onClick={again}>
           もういっかい
         </RoughButton>
+        {r.setup.mode === 'cpu' && !r.setup.debug && (
+          <RoughButton seed="result-level" className="result__btn" onClick={() => go('cpu')}>
+            つよさを かえる
+          </RoughButton>
+        )}
         <RoughButton seed="result-menu" className="result__btn" onClick={toMenu}>
           メニューへ
         </RoughButton>

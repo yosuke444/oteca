@@ -58,6 +58,14 @@ export function MenuScene() {
         </span>
       </RoughButton>
 
+      {/* CPUたいせん：フレンドたいせんの次に目立つ（SPEC §7 S01・v1.4） */}
+      <RoughButton seed="menu-cpu" className="menu-scene__cpu" strokeWidth={2.8} onClick={() => go('cpu')}>
+        <span className="menu-scene__cpu-label">
+          CPUたいせん
+          <small>ひとりで あそぶ</small>
+        </span>
+      </RoughButton>
+
       <LockedButton id="story" label="ストーリー" shake={shake.story} onPress={pressLocked} />
       <LockedButton id="gacha" label="ガチャ" shake={shake.gacha} onPress={pressLocked} />
 

@@ -9,6 +9,7 @@ export type RouteId =
   | 'menu'
   | 'deck'
   | 'lobby'
+  | 'cpu'
   | 'battle'
   | 'result'
   | 'settings'

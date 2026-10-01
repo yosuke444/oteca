@@ -1,4 +1,5 @@
 import {
+  CPU_LEVEL_COUNT,
   DECK_NAME_MAX,
   DECK_SLOTS,
   NAME_MAX,
@@ -14,8 +15,11 @@ import {
  * 項目を増やす時は末尾に足し、FORMAT_VERSION を上げ、migrate.ts に読み方を足す。
  */
 
-/** 形式版数（バイト列の先頭1バイト） */
-export const FORMAT_VERSION = 1;
+/** 形式版数（バイト列の先頭1バイト）。1＝v1.3 まで／2＝v1.4（末尾に cpuStats） */
+export const FORMAT_VERSION = 2;
+
+/** 形式版数1の形（cpuStats が無い） */
+export type SaveDataV1 = Omit<SaveData, 'cpuStats'>;
 
 /** 読み込み時の上限（壊れたデータで固まらないように） */
 const LIMITS = { deckCards: 60, collection: 10000, story: 10000, cardNo: 65535 };
@@ -127,11 +131,23 @@ export function encodeSave(data: SaveData): Uint8Array {
   }
   w.uint(data.story.cleared.length);
   for (const n of data.story.cleared) w.uint(n);
+  // 形式版数2：CPU対戦の勝敗（強さごと）
+  for (let i = 0; i < CPU_LEVEL_COUNT; i++) {
+    w.uint(data.cpuStats[i]?.wins ?? 0);
+    w.uint(data.cpuStats[i]?.losses ?? 0);
+  }
   return w.toBytes();
 }
 
+/** 形式版数2の本体を読む（形式版数1の本体 ＋ cpuStats） */
+export function readSaveV2(r: ByteReader): SaveData {
+  const v1 = readSaveV1(r);
+  const cpuStats = Array.from({ length: CPU_LEVEL_COUNT }, () => ({ wins: r.uint(), losses: r.uint() }));
+  return { ...v1, cpuStats };
+}
+
 /** 形式版数1の本体を読む（先頭の形式版数1バイトは読み終わっている前提） */
-export function readSaveV1(r: ByteReader): SaveData {
+export function readSaveV1(r: ByteReader): SaveDataV1 {
   const saveVersion = r.uint();
   if (saveVersion !== SAVE_VERSION) throw new Error(`saveVersion ${saveVersion} は読めません`);
   const saveCounter = r.uint();

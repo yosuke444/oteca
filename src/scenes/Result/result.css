@@ -103,6 +103,7 @@
   width: 260px;
   height: 80px;
   font-size: 28px;
+  white-space: nowrap;
 }
 .result__wait {
   position: absolute;

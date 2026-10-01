@@ -44,7 +44,7 @@ describe('引き継ぎコード', () => {
     const digits = (code: string) => code.replace(/-/g, '').length;
     const full = createDefaultSave(starterDeckNos());
     full.decks = full.decks.map(() => ({ name: 'あいうえおかきく', cards: starterDeckNos() }));
-    expect(digits(encodeTransferCode(createDefaultSave(starterDeckNos())))).toBeLessThan(150);
+    expect(digits(encodeTransferCode(createDefaultSave(starterDeckNos())))).toBeLessThan(170); // v1.4 で CPU対戦の記録（8バイト）が増えて約20桁のびた
     expect(digits(encodeTransferCode(full))).toBeLessThan(620);
   });
 

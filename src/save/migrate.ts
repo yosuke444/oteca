@@ -1,5 +1,5 @@
-import { ByteReader, FORMAT_VERSION, readSaveV1 } from './binary';
-import type { SaveData } from './saveData';
+import { ByteReader, FORMAT_VERSION, type SaveDataV1, readSaveV1, readSaveV2 } from './binary';
+import { type SaveData, emptyCpuStats } from './saveData';
 
 /**
  * 形式版数を見て、古い形式なら最新の SaveData へ変換する（SPEC §12-3）
@@ -14,10 +14,14 @@ import type { SaveData } from './saveData';
 /** 形式版数ごとの読み方。読んだ結果は「その版の形」 */
 const READERS: Record<number, (r: ByteReader) => unknown> = {
   1: readSaveV1,
+  2: readSaveV2,
 };
 
-/** 版 n の形 → 版 n+1 の形 への変換。今は形式版数1しか無いので空 */
-const UPGRADES: Record<number, (old: unknown) => unknown> = {};
+/** 版 n の形 → 版 n+1 の形 への変換 */
+const UPGRADES: Record<number, (old: unknown) => unknown> = {
+  /** 1 → 2（v1.4）：CPU対戦の勝敗を足す（全部0） */
+  1: (old) => ({ ...(old as SaveDataV1), cpuStats: emptyCpuStats() }) satisfies SaveData,
+};
 
 /** バイト列 → 最新の SaveData。読めなければエラー */
 export function decodeSave(bytes: Uint8Array): SaveData {

@@ -1,6 +1,6 @@
 import { BIG_DAMAGE, DICE_FACES } from './rules';
 import { nextInt } from './rng';
-import type { CardDef, CardInstance, EndReason, GameEvent, GameState, OtegeCardDef, Side } from './types';
+import type { CardDef, CardInstance, EndReason, GameEvent, GameState, OtegeCardDef, PlayerState, Side } from './types';
 
 /**
  * エンジン内部の共通処理。
@@ -11,6 +11,35 @@ import type { CardDef, CardInstance, EndReason, GameEvent, GameState, OtegeCardD
 export type Ctx = { s: GameState; events: GameEvent[] };
 
 export const SIDES: readonly Side[] = ['p1', 'p2'];
+
+/**
+ * 状態のコピー（applyAction で書き換える前に作る）。
+ * 書き換える部分（カードの状態・場・手札など）だけを新しく作り、書き換えないカードの定義（cardDefs）と
+ * ルールセット（rules）は元と共有する。structuredClone より何倍も速い（CPU が先を試算するため。SPEC §13-5）。
+ * GameState に「書き換える入れ物」を足した時は、ここでもコピーすること。
+ */
+export function cloneState(s: GameState): GameState {
+  const cards: Record<string, CardInstance> = {};
+  for (const uid in s.cards) {
+    const c = s.cards[uid];
+    cards[uid] = { ...c, itemsThisTurn: [...c.itemsThisTurn] };
+  }
+  const players = {} as Record<Side, PlayerState>;
+  for (const p of SIDES) {
+    const ps = s.players[p];
+    players[p] = { ...ps, deck: [...ps.deck], hand: [...ps.hand], bench: [...ps.bench], discard: [...ps.discard] };
+  }
+  return {
+    ...s,
+    rng: [...s.rng] as GameState['rng'],
+    forcedDice: [...s.forcedDice],
+    cards,
+    players,
+    pendingPromote: [...s.pendingPromote],
+    resumeAfterPromote: s.resumeAfterPromote ? { ...s.resumeAfterPromote } : null,
+    scheduled: s.scheduled.map((e) => ({ ...e })),
+  };
+}
 
 export function other(side: Side): Side {
   return side === 'p1' ? 'p2' : 'p1';
