@@ -98,6 +98,7 @@ export function arrange(state: GameState, side: Side, layout: Layout): GameState
     c.hp = c.maxHp;
     c.attackAdd = 0;
     c.attackOverride = null;
+    c.itemsThisTurn = [];
   }
   return s;
 }

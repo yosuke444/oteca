@@ -58,16 +58,20 @@
 
     { "no": 10, "id": "himitsu_yaiba", "name": "ひみつのやいば", "kind": "item", "color": "red",
       "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
+      "blockedIfUsedThisTurn": ["kimyou_drink"],
+      "afterUseNote": "やいばを つかった おてあげには つかえないよ",
       "effects": [{ "type": "addAttack", "amount": 20, "duration": "thisTurn" }],
-      "text": "このターン、ダメージ +20（かさねがけ OK）", "image": "cards/himitsu_yaiba.png" },
+      "text": "このターン、ダメージ +20（やいば どうしは かさねがけ OK）", "image": "cards/himitsu_yaiba.png" },
 
     { "no": 11, "id": "kimyou_drink", "name": "きみょうなドリンク", "kind": "item", "color": "purple",
       "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
+      "blockedIfUsedThisTurn": ["himitsu_yaiba", "kimyou_drink"],
+      "afterUseNote": "ドリンクを のんだ おてあげには つかえないよ",
       "effects": [
         { "type": "setHp", "value": 10 },
-        { "type": "overrideAttack", "value": 50, "duration": "thisTurn" }
+        { "type": "addAttack", "amount": 50, "duration": "thisTurn" }
       ],
-      "text": "HPが 10 になる。このターン、ダメージが 50 になる", "image": "cards/kimyou_drink.png" },
+      "text": "HPが 10 になる。このターン、ダメージわざの ダメージ +50", "image": "cards/kimyou_drink.png" },
 
     { "no": 12, "id": "supodori", "name": "スポドリ", "kind": "item", "color": "blue",
       "target": { "side": "self", "zones": ["bench"], "rarity": ["normal"] },

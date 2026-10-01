@@ -63,33 +63,26 @@ describe('技・アイテム・きぜつ', () => {
     ]);
   });
 
-  it('E09 ドリンク＋やいば1枚 → 50+20=70（元が50より大きくても50に置き換え）', () => {
+  it('E09 ドリンク → 元のダメージ+50（v1.4。置き換えではなく加算）。HPは10になる', () => {
     let s = startMain({ decks: { p1: BUFF_DECK } });
-    s = arrange(s, 'p1', { active: 'revolution', hand: ['kimyou_drink', 'himitsu_yaiba'] });
+    s = arrange(s, 'p1', { active: 'revolution', hand: ['kimyou_drink'] });
     s = arrange(s, 'p2', { active: 'mutsuashi' });
-    const [drink, yaiba] = s.players.p1.hand;
+    const [drink] = s.players.p1.hand;
 
     const d = ok(s, { type: 'USE_ITEM', player: 'p1', uid: drink, targetUid: p1Active(s) });
     expect(eventsOf(d.events, 'HpSet')).toEqual([{ type: 'HpSet', uid: p1Active(s), hpAfter: 10 }]);
-    expect(eventsOf(d.events, 'BuffChanged')[0]).toMatchObject({ attackAdd: 0, attackOverride: 50 });
+    expect(eventsOf(d.events, 'BuffChanged')[0]).toMatchObject({ attackAdd: 50, attackOverride: null });
 
-    // ドリンクだけ：レボリューション 目6（90）→ 50
-    const only = endTurn(d.state, 6);
-    expect(eventsOf(only.events, 'Damaged')[0]).toMatchObject({ amount: 50, big: false });
-
-    // ドリンク＋やいば：50 + 20 = 70
-    const y = ok(d.state, { type: 'USE_ITEM', player: 'p1', uid: yaiba, targetUid: p1Active(s) });
-    const both = endTurn(y.state, 6);
-    expect(eventsOf(both.events, 'Damaged')[0]).toMatchObject({ uid: p2Active(s), amount: 70 });
+    // レボリューション 目6（90）→ 140、目1（30）→ 80
+    expect(eventsOf(endTurn(d.state, 6).events, 'Damaged')[0]).toMatchObject({ uid: p2Active(s), amount: 140, big: true });
+    expect(eventsOf(endTurn(d.state, 1).events, 'Damaged')[0]).toMatchObject({ amount: 80 });
   });
 
   it('E09 ドリンク中の回復技は回復のまま', () => {
     let s = startMain({ decks: { p1: BUFF_DECK } });
-    s = arrange(s, 'p1', { active: 'mitsume', hand: ['kimyou_drink', 'himitsu_yaiba'] });
+    s = arrange(s, 'p1', { active: 'mitsume', hand: ['kimyou_drink'] });
     s = arrange(s, 'p2', { active: 'mutsuashi' });
-    const [drink, yaiba] = s.players.p1.hand;
-    s = ok(s, { type: 'USE_ITEM', player: 'p1', uid: drink, targetUid: p1Active(s) }).state;
-    s = ok(s, { type: 'USE_ITEM', player: 'p1', uid: yaiba, targetUid: p1Active(s) }).state;
+    s = ok(s, { type: 'USE_ITEM', player: 'p1', uid: s.players.p1.hand[0], targetUid: p1Active(s) }).state;
 
     const r = endTurn(s, 1); // みつめ 目1：30回復
     expect(eventsOf(r.events, 'Damaged')).toEqual([]);

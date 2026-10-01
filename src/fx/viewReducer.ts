@@ -50,6 +50,9 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       const ps = v.players[e.player];
       ps.hand = ps.hand.filter((u) => u !== e.itemUid);
       ps.discard.push(e.itemUid);
+      const item = v.cards[e.itemUid];
+      const target = v.cards[e.targetUid];
+      if (item && target) target.itemsThisTurn = [...target.itemsThisTurn, item.no];
       break;
     }
     case 'BuffChanged': {
@@ -69,6 +72,7 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
     }
     case 'Fainted': {
       removeEverywhere(e.uid);
+      if (v.cards[e.uid]) v.cards[e.uid].itemsThisTurn = [];
       v.players[ownerOf(e.uid)].discard.push(e.uid);
       v.players[e.by].koCount = e.koCount;
       break;
@@ -108,6 +112,8 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
     case 'Mulligan':
     case 'MoveSelected':
     case 'TurnEnded':
+      // 「このターン」に使ったアイテムの記録を消す（エンジンの clearTurnBuffs と同じ）
+      for (const c of Object.values(v.cards)) if (c.itemsThisTurn.length > 0) c.itemsThisTurn = [];
       break;
   }
   return v;

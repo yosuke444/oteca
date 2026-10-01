@@ -76,6 +76,12 @@ export type ItemCardDef = {
   color?: NoteColor;
   target: { side: 'self'; zones: Zone[]; rarity: Rarity[] };
   useCondition?: ItemUseCondition;
+  /**
+   * 重ねがけ禁止（SPEC §4-7・v1.4）：このターンに、ここに書いた id のアイテムを使ったおてあげには使えない
+   */
+  blockedIfUsedThisTurn?: string[];
+  /** このアイテムを使ったおてあげに、重ねがけ禁止のアイテムを使おうとした時の一言（例「ドリンクを のんだ おてあげには つかえないよ」） */
+  afterUseNote?: string;
   effects: Effect[];
   text: string;
   image: string;
@@ -98,8 +104,10 @@ export type CardInstance = {
   maxHp: number;
   /** このターンのダメージ加算（ひみつのやいば） */
   attackAdd: number;
-  /** このターンのダメージ上書き（きみょうなドリンク）。無ければ null */
+  /** このターンのダメージ上書き（予約。v1.4 ではどのカードも使わない）。無ければ null */
   attackOverride: number | null;
+  /** このターンに、このおてあげに使われたアイテム（カードNo。重ねがけ禁止の判定用。ターン終了で空になる） */
+  itemsThisTurn: number[];
 };
 
 export type PlayerState = {
@@ -218,6 +226,8 @@ export type RejectReason =
   | 'noActive'
   | 'badTarget'
   | 'fullHp'
+  /** 重ねがけ禁止（このターン、このおてあげには使えないアイテム） */
+  | 'stackBlocked'
   | 'notPending';
 
 export type ApplyResult = {

@@ -174,7 +174,7 @@ export const FX_SCENES: FxScene[] = [
       return [
         { type: 'ItemUsed', player: 'p1', itemUid: itemIn(s, 'weird'), targetUid: target },
         { type: 'HpSet', uid: target, hpAfter: eff.find((e) => e.type === 'setHp')?.value ?? 1 },
-        { type: 'BuffChanged', uid: target, attackAdd: 0, attackOverride: eff.find((e) => e.type === 'overrideAttack')?.value ?? null },
+        { type: 'BuffChanged', uid: target, attackAdd: (eff.find((e) => e.type === 'addAttack') as { amount?: number } | undefined)?.amount ?? 0, attackOverride: null },
       ];
     },
   },

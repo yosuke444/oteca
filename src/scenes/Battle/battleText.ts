@@ -1,3 +1,4 @@
+import { blockedItemOn } from '../../engine';
 import type { GameEvent, GameState, RejectReason, Side } from '../../engine/types';
 
 /** 出来ない操作を押した時の一言（SPEC §8-2） */
@@ -31,7 +32,23 @@ export function rejectText(r: RejectReason): string {
       return 'もう けっちゃく したよ';
     case 'notInHand':
       return 'てふだに ないよ';
+    case 'stackBlocked':
+      return 'このターンは もう その おてあげに つかえないよ';
   }
+}
+
+/**
+ * アイテムをその おてあげに使えない理由の一言。重ねがけ禁止（SPEC §4-7）なら、先に使ったアイテムの afterUseNote
+ * （例「ドリンクを のんだ おてあげには つかえないよ」）。
+ */
+export function useItemReason(view: GameState, r: RejectReason, itemUid: string, targetUid: string): string {
+  if (r === 'stackBlocked') {
+    const item = view.cardDefs[view.cards[itemUid].no];
+    const no = item.kind === 'item' ? blockedItemOn(view, item.blockedIfUsedThisTurn, view.cards[targetUid].itemsThisTurn) : null;
+    const used = no !== null ? view.cardDefs[no] : null;
+    if (used?.kind === 'item' && used.afterUseNote) return used.afterUseNote;
+  }
+  return rejectText(r);
 }
 
 /** カードの名前 */

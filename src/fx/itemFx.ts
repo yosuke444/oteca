@@ -6,7 +6,7 @@ import type { CardDef } from '../engine/types';
  * - heal：ふつうの回復（くすり）
  * - bigHeal：大きい回復・ベンチ用の回復（スポドリ）
  * - power：ダメージを足す（ひみつのやいば）
- * - weird：HPを変える・ダメージを置きかえる（きみょうなドリンク）
+ * - weird：HPを変える（きみょうなドリンク。ダメージ +50 も付くが、演出は「ふしぎ」）
  */
 export type ItemFxKind = 'heal' | 'bigHeal' | 'power' | 'weird';
 

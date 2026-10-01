@@ -6,6 +6,7 @@ import { Sticky } from '../common/Sticky';
 import { RoughBox } from '../rough/RoughBox';
 import { RoughHpBar } from '../rough/RoughHpBar';
 import { tiltFrom } from '../rough/seed';
+import { itemFxKind } from '../../fx/itemFx';
 import { CardArt } from './CardArt';
 import { effectLabel, faceLabel } from './cardText';
 import './card.css';
@@ -175,7 +176,10 @@ function OtegeFace({
       {onField && (card.attackAdd > 0 || card.attackOverride !== null) && (
         <div className="battle-card__badges">
           {card.attackOverride !== null && <span className="buff-badge buff-badge--drink">攻{card.attackOverride}</span>}
-          {card.attackAdd > 0 && <span className="buff-badge buff-badge--yaiba">+{card.attackAdd}</span>}
+          {card.attackAdd > 0 && (
+            // ドリンク（ふしぎな アイテム）で増えた時は紫、やいばは赤
+            <span className={`buff-badge ${card.itemsThisTurn.some((no) => itemFxKind(view.cardDefs[no]) === 'weird') ? 'buff-badge--drink' : 'buff-badge--yaiba'}`}>+{card.attackAdd}</span>
+          )}
         </div>
       )}
       {/* HPが少ない時の汗（§9-3） */}

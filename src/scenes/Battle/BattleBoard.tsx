@@ -81,6 +81,8 @@ export function BattleBoard(p: Props) {
   /** 黄色く光らせるか：選択中なら行き先、選んでいなければ操作できるカード */
   const isTarget = (key: string) => p.targets.has(key);
   const glow = (uid: string) => (p.selected ? isTarget(`card:${uid}`) : sources.has(uid));
+  /** 手札のアイテムを選んでいる時、使えない自分のおてあげは えんぴつ色にする（SPEC §4-7） */
+  const selItem = !!p.selected && view.players[me].hand.includes(p.selected.uid) && view.cardDefs[view.cards[p.selected.uid].no].kind === 'item';
 
   const renderCard = (uid: string, size: 'active' | 'bench' | 'hand', onField: boolean, extra?: { dropKey?: string; faceDown?: boolean }) => {
     const card = view.cards[uid];
@@ -100,7 +102,7 @@ export function BattleBoard(p: Props) {
         preview={onField && size === 'active' && view.phase === 'main' && view.currentPlayer === card.owner}
         highlight={glow(uid) || isActiveTarget}
         selected={p.selected?.uid === uid}
-        dim={mine && (!p.myDecision || (size === 'hand' && p.canAct && !sources.has(uid) && !p.selected))}
+        dim={mine && (!p.myDecision || (size === 'hand' && p.canAct && !sources.has(uid) && !p.selected) || (onField && selItem && !glow(uid)))}
         markedMove={p.marked?.uid === uid ? p.marked.move : null}
         data-drop={extra?.dropKey ?? `card:${uid}`}
         className={drag?.uid === uid ? 'is-dragging' : ''}

@@ -25,19 +25,17 @@ const otege = cards.filter((c): c is OtegeCardDef => c.kind === 'otege');
 const items = cards.filter((c) => c.kind === 'item');
 const normalSample = otege.find((c) => c.rarity === 'normal');
 const superSample = otege.find((c) => c.rarity === 'super');
-/** アイテムの効果の数（ダメージ計算の説明用） */
-const effectValue = (type: 'addAttack' | 'overrideAttack'): number | null => {
-  for (const c of items) {
-    if (c.kind !== 'item') continue;
-    for (const e of c.effects) {
-      if (e.type === 'addAttack' && type === 'addAttack') return e.amount;
-      if (e.type === 'overrideAttack' && type === 'overrideAttack') return e.value;
-    }
-  }
-  return null;
-};
-const itemName = (type: 'addAttack' | 'overrideAttack'): string =>
-  items.find((c) => c.kind === 'item' && c.effects.some((e) => e.type === type))?.name ?? '';
+/** ダメージを足すアイテム（「名前 +数」の並び。ダメージ計算の説明用） */
+const attackItems = items
+  .flatMap((c) => (c.kind === 'item' ? c.effects.filter((e) => e.type === 'addAttack').map((e) => `${c.name} +${e.type === 'addAttack' ? e.amount : 0}`) : []))
+  .join('、');
+/** 重ねがけ禁止の説明（SPEC §4-7。cards.json の blockedIfUsedThisTurn から作る） */
+const stackRules = items
+  .filter((c) => c.kind === 'item' && (c.blockedIfUsedThisTurn?.length ?? 0) > 0)
+  .map((c) => {
+    const names = (c.kind === 'item' ? c.blockedIfUsedThisTurn ?? [] : []).map((id) => cards.find((x) => x.id === id)?.name ?? id);
+    return `${names.join('・')}を つかった おてあげに、おなじ ターンに ${c.name}は つかえない`;
+  });
 
 type Page = { title: string; body: ReactNode; art: ReactNode; more: ReactNode };
 
@@ -133,7 +131,7 @@ const PAGES: Page[] = [
     ),
     more: (
       <>
-        ダメージの けいさん：わざの ダメージ →（{itemName('overrideAttack')}なら、もとが おおきくても {effectValue('overrideAttack')} に かわる）→（{itemName('addAttack')} 1まいごとに +{effectValue('addAttack')}）。かいふくの わざは かわらない。あまった ダメージは つぎの おてあげに のこらないよ。
+        ダメージの けいさん：わざの ダメージ ＋ この ターンに つかった アイテムの ぶん（{attackItems}）。かいふくの わざは かわらない。あまった ダメージは つぎの おてあげに のこらないよ。
       </>
     ),
   },
@@ -158,7 +156,13 @@ const PAGES: Page[] = [
         ))}
       </div>
     ),
-    more: 'HPが まんたんの おてあげには、かいふくの アイテムは つかえないよ。ベンチの おてあげに こうげきの アイテムを つかっても、その ターンは こうげきしないので むだに なるよ（つかう まえに おしえてくれる）。',
+    more: (
+      <>
+        HPが まんたんの おてあげには、かいふくの アイテムは つかえないよ。
+        {stackRules.map((t) => `${t}。`).join('')}
+        ベンチの おてあげに こうげきの アイテムを つかっても、その ターンは こうげきしないので むだに なるよ（つかう まえに おしえてくれる）。
+      </>
+    ),
   },
   {
     title: 'きぜつと かちまけ',

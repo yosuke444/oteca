@@ -113,6 +113,7 @@ export function faint(ctx: Ctx, uid: string, by: Side): void {
   else ps.bench = ps.bench.filter((u) => u !== uid);
   c.attackAdd = 0;
   c.attackOverride = null;
+  c.itemsThisTurn = [];
   ps.discard.push(uid);
 
   const killer = s.players[by];

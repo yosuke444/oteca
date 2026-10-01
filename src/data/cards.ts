@@ -44,9 +44,18 @@ export function parseCardData(data: unknown): CardData {
       check(Array.isArray(t.rarity) && t.rarity.every((r) => RARITIES.includes(r)), `${where}: target.rarity が不正です`);
       check(c.color === undefined || NOTE_COLORS.includes(c.color as NoteColor), `${where}: color が不正です`);
       check(c.useCondition === undefined || c.useCondition === 'notFullHp', `${where}: useCondition が不正です`);
+      const blocked = c.blockedIfUsedThisTurn;
+      check(blocked === undefined || (Array.isArray(blocked) && blocked.every((b) => typeof b === 'string')), `${where}: blockedIfUsedThisTurn が不正です`);
+      check(c.afterUseNote === undefined || typeof c.afterUseNote === 'string', `${where}: afterUseNote が不正です`);
       checkEffects(c.effects, where);
     } else {
       check(false, `${where}: kind が不正です`);
+    }
+  }
+  const all = d.cards as Record<string, unknown>[];
+  for (const c of all) {
+    for (const id of (c.blockedIfUsedThisTurn as string[] | undefined) ?? []) {
+      check(all.some((x) => x.id === id && x.kind === 'item'), `カード ${String(c.no)}: blockedIfUsedThisTurn の ${id} は アイテムの id ではありません`);
     }
   }
   return d as CardData;

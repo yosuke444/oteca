@@ -19,7 +19,7 @@ import { CardDetail } from '../../ui/card/CardDetail';
 import { Dialog } from '../../ui/common/Dialog';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { BattleBoard, type BoardSel } from './BattleBoard';
-import { logLine, rejectText } from './battleText';
+import { logLine, rejectText, useItemReason } from './battleText';
 import { createControllers } from './controllersFor';
 import { useOnlineBattle } from './useOnlineBattle';
 import { STAMP_COOLDOWN_MS, StampBalloon, StampPicker, isStampId } from './Stamps';
@@ -378,7 +378,15 @@ export function BattleScene() {
     if (v.phase === 'setup') return def.kind === 'otege' ? 'えらべないよ' : 'バトルばには おてあげを だしてね';
     if (v.phase === 'promote') return 'ベンチの おてあげを えらんでね';
     if (ps.hand.includes(uid)) {
-      if (def.kind === 'item') return 'つかえる おてあげが いないよ';
+      if (def.kind === 'item') {
+        // 重ねがけ禁止などで使えない時は、その理由（自分の場の おてあげ を順に見る）
+        for (const t of [ps.active, ...ps.bench]) {
+          if (!t) continue;
+          const r = validateAction(v, { type: 'USE_ITEM', player: me, uid, targetUid: t });
+          if (r === 'stackBlocked') return useItemReason(v, r, uid, t);
+        }
+        return 'つかえる おてあげが いないよ';
+      }
       const r = validateAction(v, { type: 'PLACE_BENCH', player: me, uid });
       return r ? rejectText(r) : 'いまは できないよ';
     }
@@ -387,6 +395,28 @@ export function BattleScene() {
       return r ? rejectText(r) : 'いまは できないよ';
     }
     return '';
+  };
+
+  /**
+   * 選んだカード（source）を、そのカード（target）へ使えない・出せない理由（アイテム→おてあげ、ベンチ→バトル場）。
+   * 当てはまらなければ null
+   */
+  const moveReason = (source: string, target: string): string | null => {
+    const v = view;
+    if (!v || v.phase !== 'main' || v.currentPlayer !== me || source === target) return null;
+    const ps = v.players[me];
+    const onField = ps.active === target || ps.bench.includes(target);
+    if (!onField) return null;
+    const def = v.cardDefs[v.cards[source].no];
+    if (ps.hand.includes(source) && def.kind === 'item') {
+      const r = validateAction(v, { type: 'USE_ITEM', player: me, uid: source, targetUid: target });
+      return r ? useItemReason(v, r, source, target) : null;
+    }
+    if (ps.bench.includes(source) && ps.active === target) {
+      const r = validateAction(v, { type: 'SWAP', player: me, benchUid: source });
+      return r ? rejectText(r) : null;
+    }
+    return null;
   };
 
   const onTapCard = (uid: string) => {
@@ -401,6 +431,12 @@ export function BattleScene() {
       }
       if (selected.uid === uid) {
         setSelected(null);
+        return;
+      }
+      // 選んだアイテムを使えない おてあげ（重ねがけ禁止など）を押した：理由を一言（選んだままにする）
+      const why = moveReason(selected.uid, uid);
+      if (why) {
+        say(why);
         return;
       }
     }
@@ -438,7 +474,10 @@ export function BattleScene() {
     const activeUid = view?.players[me].active;
     const a = map.get(key) ?? (key === `active:${me}` && activeUid ? map.get(`card:${activeUid}`) : undefined);
     if (a) perform(a);
-    else say('そこには おけないよ');
+    else {
+      const target = key.startsWith('card:') ? key.slice(5) : key === `active:${me}` ? activeUid : null;
+      say((target && moveReason(uid, target)) || 'そこには おけないよ');
+    }
   };
 
   const endTurn = () => {

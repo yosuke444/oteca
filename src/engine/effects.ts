@@ -84,7 +84,8 @@ export function runEffect(ctx: Ctx, effect: Effect, src: EffectSource): void {
 
 /**
  * 技のダメージ計算（SPEC §4-5）
- * 1. 基本値 → 2. ドリンク中なら 50 に置き換え → 3. + やいば → 4. + ルール補正
+ * 1. 基本値 → 2. + このターンの加算（やいば・ドリンク） → 3. + ルール補正
+ * （置き換え attackOverride は予約。v1.4 ではどのカードも使わない）
  * 画面の「このターン出る数値」の表示にも使う。
  */
 export function moveDamage(s: GameState, attacker: CardInstance, base: number): number {

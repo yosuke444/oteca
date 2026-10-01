@@ -463,6 +463,8 @@ async function buffBefore(env: FxEnv, e: Extract<GameEvent, { type: 'BuffChanged
   const c = env.view().cards[e.uid];
   ctx.flags.buffBefore = c ? { add: c.attackAdd, ov: c.attackOverride } : { add: 0, ov: null };
   if (!c || e.attackAdd <= c.attackAdd) return;
+  // ドリンクなど「ふしぎ」なアイテムで増えた時は、渦の演出（HpSet）だけにする（やいばの斬撃は出さない）
+  if (ctx.flags.item === 'weird') return;
   // ひみつのやいば：赤ペンで斬る線が2本交差（シャキーン）
   const b = boxOf(env, env.cardEl(e.uid));
   if (!b) return;
@@ -485,8 +487,7 @@ async function buffAfter(env: FxEnv, e: Extract<GameEvent, { type: 'BuffChanged'
   if (!card || !before) return;
   // 新しく付いた・増えたバッジがポンと出る（そのあとゆっくり脈打つ）
   const badges: Element[] = [];
-  if (e.attackAdd > before.add) badges.push(...card.querySelectorAll('.buff-badge--yaiba'));
-  if (e.attackOverride !== null && before.ov === null) badges.push(...card.querySelectorAll('.buff-badge--drink'));
+  if (e.attackAdd > before.add || (e.attackOverride !== null && before.ov === null)) badges.push(...card.querySelectorAll('.buff-badge'));
   if (badges.length === 0) return;
   await play(gsap.fromTo(badges, { scale: 0, rotate: -40 }, { scale: 1, rotate: 0, duration: 0.3, ease: 'back.out(3)', clearProps: 'transform' }));
 }

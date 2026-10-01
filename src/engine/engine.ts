@@ -103,6 +103,7 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
       if (!zone || !item.target.zones.includes(zone)) return 'badTarget';
       if (!item.target.rarity.includes(targetDef.rarity)) return 'badTarget';
       if (item.useCondition === 'notFullHp' && target.hp >= target.maxHp) return 'fullHp';
+      if (blockedItemOn(s, item.blockedIfUsedThisTurn, target.itemsThisTurn) !== null) return 'stackBlocked';
       return null;
     }
 
@@ -182,6 +183,7 @@ function doUseItem(ctx: Ctx, player: Side, itemUid: string, targetUid: string): 
   if (!item || item.kind !== 'item') return;
   ps.hand = ps.hand.filter((u) => u !== itemUid);
   ps.discard.push(itemUid);
+  ctx.s.cards[targetUid].itemsThisTurn.push(item.no);
   ctx.events.push({ type: 'ItemUsed', player, itemUid, targetUid });
   for (const effect of item.effects) {
     runEffect(ctx, effect, { kind: 'item', player, sourceUid: itemUid, targetUid });
@@ -281,9 +283,19 @@ function attack(ctx: Ctx, player: Side): void {
   }
 }
 
+/**
+ * 重ねがけ禁止（SPEC §4-7）：このターンに使われたアイテム（used）の中に、blocked の id のものがあれば、そのカードNo。無ければ null
+ */
+export function blockedItemOn(s: GameState, blocked: string[] | undefined, used: number[]): number | null {
+  if (!blocked || blocked.length === 0) return null;
+  for (const no of used) if (blocked.includes(s.cardDefs[no]?.id)) return no;
+  return null;
+}
+
 /** ひみつのやいば・きみょうなドリンクなど「このターン」だけの効果を消す */
 function clearTurnBuffs(ctx: Ctx): void {
   for (const c of Object.values(ctx.s.cards)) {
+    c.itemsThisTurn = [];
     if (c.attackAdd === 0 && c.attackOverride === null) continue;
     c.attackAdd = 0;
     c.attackOverride = null;
