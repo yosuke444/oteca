@@ -114,6 +114,7 @@ export function faint(ctx: Ctx, uid: string, by: Side): void {
   c.attackAdd = 0;
   c.attackOverride = null;
   c.itemsThisTurn = [];
+  c.benchedOnTurn = null;
   ps.discard.push(uid);
 
   const killer = s.players[by];
@@ -142,5 +143,7 @@ export function promote(ctx: Ctx, player: Side, benchUid: string): void {
   const ps = ctx.s.players[player];
   ps.bench = ps.bench.filter((u) => u !== benchUid);
   ps.active = benchUid;
+  // くりだしは交代制限を受けない（SPEC §4-6）
+  ctx.s.cards[benchUid].benchedOnTurn = null;
   ctx.events.push({ type: 'Promoted', player, uid: benchUid });
 }

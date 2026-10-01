@@ -22,6 +22,11 @@ export type RuleSet = {
   attackBonus: number;
   /** 初手におてあげがいなければ引き直し */
   mulliganIfNoOtege: boolean;
+  /**
+   * 手札からベンチに出したおてあげが、交代でバトル場に出られるまでの自分ターン数（SPEC §4-4・v1.4）。
+   * 1 なら「出したターンはだめ、次の自分ターンから」。0 なら制限なし
+   */
+  swapCooldownTurns: number;
 };
 
 // ---------------------------------------------------------------- カード定義（cards.json の形）
@@ -108,6 +113,8 @@ export type CardInstance = {
   attackOverride: number | null;
   /** このターンに、このおてあげに使われたアイテム（カードNo。重ねがけ禁止の判定用。ターン終了で空になる） */
   itemsThisTurn: number[];
+  /** 手札からベンチに出した時の、持ち主の自分ターン数（交代制限の判定用）。バトル場に出たら null */
+  benchedOnTurn: number | null;
 };
 
 export type PlayerState = {
@@ -228,6 +235,8 @@ export type RejectReason =
   | 'fullHp'
   /** 重ねがけ禁止（このターン、このおてあげには使えないアイテム） */
   | 'stackBlocked'
+  /** 出したばかりのおてあげは交代でバトル場に出せない */
+  | 'justPlaced'
   | 'notPending';
 
 export type ApplyResult = {

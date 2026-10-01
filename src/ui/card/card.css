@@ -522,6 +522,19 @@
   opacity: 0.6;
 }
 /* ベンチは技表が近いので、イラストの右下にのせる（技の文字を隠さない） */
+/* 出したばかり（このターンは交代できない）の小さな ふせん */
+.just-placed {
+  position: absolute;
+  left: -16px;
+  top: -14px;
+  z-index: 4;
+  padding: 3px 7px 2px;
+  font-size: 14px;
+  line-height: 1.1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .battle-card--bench .battle-card__badges {
   top: 40px;
   right: -10px;

@@ -36,6 +36,7 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       ps.hand = ps.hand.filter((u) => u !== e.uid);
       ps.bench.push(e.uid);
       ps.benchPlacedThisTurn += 1;
+      if (v.cards[e.uid]) v.cards[e.uid].benchedOnTurn = ps.turnCount;
       break;
     }
     case 'Swapped': {
@@ -44,6 +45,7 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       if (i >= 0) ps.bench[i] = e.toBench;
       ps.active = e.toActive;
       ps.swappedThisTurn = true;
+      if (v.cards[e.toActive]) v.cards[e.toActive].benchedOnTurn = null;
       break;
     }
     case 'ItemUsed': {
@@ -72,7 +74,10 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
     }
     case 'Fainted': {
       removeEverywhere(e.uid);
-      if (v.cards[e.uid]) v.cards[e.uid].itemsThisTurn = [];
+      if (v.cards[e.uid]) {
+        v.cards[e.uid].itemsThisTurn = [];
+        v.cards[e.uid].benchedOnTurn = null;
+      }
       v.players[ownerOf(e.uid)].discard.push(e.uid);
       v.players[e.by].koCount = e.koCount;
       break;
@@ -86,6 +91,7 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       const ps = v.players[e.player];
       ps.bench = ps.bench.filter((u) => u !== e.uid);
       ps.active = e.uid;
+      if (v.cards[e.uid]) v.cards[e.uid].benchedOnTurn = null;
       v.pendingPromote = v.pendingPromote.filter((p) => p !== e.player);
       break;
     }
@@ -108,12 +114,13 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       v.endReason = e.reason;
       break;
     }
-    case 'DiceRolled':
-    case 'Mulligan':
-    case 'MoveSelected':
     case 'TurnEnded':
       // 「このターン」に使ったアイテムの記録を消す（エンジンの clearTurnBuffs と同じ）
       for (const c of Object.values(v.cards)) if (c.itemsThisTurn.length > 0) c.itemsThisTurn = [];
+      break;
+    case 'DiceRolled':
+    case 'Mulligan':
+    case 'MoveSelected':
       break;
   }
   return v;

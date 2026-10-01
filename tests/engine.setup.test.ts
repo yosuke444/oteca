@@ -52,8 +52,10 @@ function checkInvariants(s: GameState) {
 
 describe('準備と決定論', () => {
   it('E01 同じ種・同じ操作列 → 同じ状態ハッシュになる', () => {
-    const a = randomPlay('seed-A', 'chooser-1');
-    const b = randomPlay('seed-A', 'chooser-1');
+    // 短すぎる試合だと確かめにならないので、10手より長く続く選び方の種を使う（ルールが変わると試合の長さも変わるため）
+    const chooser = ['chooser-1', 'chooser-2', 'chooser-3', 'chooser-4', 'chooser-5'].find((c) => randomPlay('seed-A', c, { withHash: false }).actions.length > 10)!;
+    const a = randomPlay('seed-A', chooser);
+    const b = randomPlay('seed-A', chooser);
     expect(a.hashes).toEqual(b.hashes);
     expect(a.actions.length).toBeGreaterThan(10);
 
@@ -63,7 +65,7 @@ describe('準備と決定論', () => {
     expect(hashState(state)).toBe(a.hashes[a.hashes.length - 1]);
 
     // 種が違えば結果も変わる
-    const c = randomPlay('seed-B', 'chooser-1');
+    const c = randomPlay('seed-B', chooser);
     expect(c.hashes).not.toEqual(a.hashes);
   });
 

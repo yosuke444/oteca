@@ -182,6 +182,12 @@ function OtegeFace({
           )}
         </div>
       )}
+      {/* 出したばかり（このターンは交代でバトル場に出せない。SPEC §8-3・v1.4） */}
+      {onField && justPlaced(view, card) && (
+        <Sticky seed={`just-${card.uid}`} color="yellow" angle={-8} className="just-placed">
+          でたばかり
+        </Sticky>
+      )}
       {/* HPが少ない時の汗（§9-3） */}
       {onField && card.hp > 0 && card.hp / card.maxHp <= 0.25 && (
         <svg className="battle-card__sweat" viewBox="0 0 24 32" width="20" height="27" aria-hidden>
@@ -191,4 +197,11 @@ function OtegeFace({
       )}
     </>
   );
+}
+
+/** 手札から出したばかりで、まだ交代でバトル場に出せないか（SPEC §4-4。ふせんは持ち主のターンの間だけ出す） */
+export function justPlaced(view: GameState, card: CardInstance): boolean {
+  if (card.benchedOnTurn === null || view.currentPlayer !== card.owner || view.phase === 'setup') return false;
+  const ps = view.players[card.owner];
+  return ps.bench.includes(card.uid) && ps.turnCount - card.benchedOnTurn < view.rules[card.owner].swapCooldownTurns;
 }

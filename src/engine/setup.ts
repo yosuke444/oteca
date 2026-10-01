@@ -44,7 +44,7 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
       cardDefs[no] = def;
       const uid = `${side}-${i}`;
       const hp = def.kind === 'otege' ? def.hp : 0;
-      cards[uid] = { uid, no, owner: side, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [] };
+      cards[uid] = { uid, no, owner: side, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [], benchedOnTurn: null };
     });
     players[side] = {
       deck: deck.map((_, i) => `${side}-${i}`),

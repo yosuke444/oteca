@@ -49,7 +49,14 @@ export function BattleBoard(p: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
 
   const sources = new Set(p.legal.map((a) => ('uid' in a ? a.uid : 'benchUid' in a ? a.benchUid : '')));
-  const draggable = (uid: string) => p.canAct && p.legal.some((a) => (a.type === 'PLACE_BENCH' || a.type === 'USE_ITEM' || a.type === 'SWAP' || a.type === 'SETUP_ACTIVE') && ('uid' in a ? a.uid === uid : a.benchUid === uid));
+  /**
+   * ドラッグできるカード：出来る操作があるカード。自分のメインの番は、手札とベンチのカードも
+   * （出したばかりで交代できない・重ねがけ禁止などでも、落とした所で理由の一言を出すため）
+   */
+  const myMain = p.canAct && view.phase === 'main' && view.currentPlayer === me;
+  const draggable = (uid: string) =>
+    (p.canAct && p.legal.some((a) => (a.type === 'PLACE_BENCH' || a.type === 'USE_ITEM' || a.type === 'SWAP' || a.type === 'SETUP_ACTIVE') && ('uid' in a ? a.uid === uid : a.benchUid === uid))) ||
+    (myMain && (view.players[me].hand.includes(uid) || view.players[me].bench.includes(uid)));
 
   const toStage = (clientX: number, clientY: number) => {
     const r = boardRef.current!.getBoundingClientRect();

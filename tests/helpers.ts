@@ -99,6 +99,7 @@ export function arrange(state: GameState, side: Side, layout: Layout): GameState
     c.attackAdd = 0;
     c.attackOverride = null;
     c.itemsThisTurn = [];
+    c.benchedOnTurn = null;
   }
   return s;
 }

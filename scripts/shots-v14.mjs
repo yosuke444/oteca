@@ -107,5 +107,44 @@ if (part === 'A') {
   console.log('手札の枚数（使えなかったアイテムは残る）', handCount);
 }
 
+if (part === 'B') {
+  await startBattle([['おてあげ', 1]]);
+  // 手札の おてあげを ベンチへ → 「でたばかり」
+  await (await handCard('おてあげ')).click();
+  await page.locator('.battle-slot.is-drop').first().click();
+  await waitIdle(page);
+  const bench = page.locator('.battle-slot--me.battle-slot--bench .battle-card').first();
+  const sticky = await bench.locator('.just-placed').count();
+  await shot(page, n('01_just_placed'));
+  // ベンチのおてあげを押す（交代しようとする）→ 一言
+  await bench.click({ force: true });
+  const t1 = await toast();
+  await shot(page, n('02_swap_reason'));
+  console.log('でたばかり の ふせん', sticky, '／交代しようとした時の一言', t1);
+  // ドラッグでバトル場へ → 一言
+  const from = await bench.boundingBox();
+  const to = await active.boundingBox();
+  await page.waitForTimeout(1900);
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2 + 30, from.y + from.height / 2 - 30, { steps: 5 });
+  const dragging = await page.locator('.battle-card.is-dragging').count();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  console.log('ドラッグ中', dragging > 0, '／ドラッグした時の一言', await toast());
+  // 次の自分のターン：ふせんが消えて交代できる
+  await page.locator('.battle-end button').click();
+  await waitIdle(page, 30000);
+  await page.locator('.battle-end button').click(); // 2P のターン終わり
+  await waitIdle(page, 30000);
+  const benchNow = page.locator('.battle-slot--me.battle-slot--bench .battle-card').first();
+  const stickyNext = await benchNow.locator('.just-placed').count().catch(() => -1);
+  await benchNow.click({ force: true }).catch(() => {});
+  await page.waitForTimeout(300);
+  const swapBtn = await page.getByRole('button', { name: 'こうたい', exact: true }).count();
+  await shot(page, n('03_next_turn'));
+  console.log('次の自分のターン：ふせん', stickyNext, '／こうたい ボタン', swapBtn);
+}
+
 console.log(size.name, 'errors:', errors.length ? errors : 'なし');
 await browser.close();

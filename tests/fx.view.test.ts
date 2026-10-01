@@ -11,7 +11,7 @@ function visible(s: GameState) {
     const ps = s.players[p];
     return { deck: ps.deck.length, hand: [...ps.hand].sort(), active: ps.active, bench: ps.bench, discard: ps.discard, ko: ps.koCount, turn: ps.turnCount };
   });
-  const hp = Object.values(s.cards).map((c) => [c.uid, c.hp, c.attackAdd, c.attackOverride]);
+  const hp = Object.values(s.cards).map((c) => [c.uid, c.hp, c.attackAdd, c.attackOverride, c.itemsThisTurn, c.benchedOnTurn]);
   return { sides, hp, current: s.currentPlayer, winner: s.winner };
 }
 

@@ -107,10 +107,14 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
       return null;
     }
 
-    case 'SWAP':
+    case 'SWAP': {
       if (!ps.active) return 'noActive';
       if (!ps.bench.includes(action.benchUid)) return 'notOnBench';
+      // 出したばかりのおてあげは交代でバトル場に出せない（SPEC §4-4）
+      const placed = s.cards[action.benchUid].benchedOnTurn;
+      if (placed !== null && ps.turnCount - placed < s.rules[p].swapCooldownTurns) return 'justPlaced';
       return null;
+    }
 
     case 'END_TURN':
       if (!ps.active) return 'noActive';
@@ -174,6 +178,7 @@ function doPlaceBench(ctx: Ctx, player: Side, uid: string): void {
   ps.hand = ps.hand.filter((u) => u !== uid);
   ps.bench.push(uid);
   ps.benchPlacedThisTurn += 1;
+  ctx.s.cards[uid].benchedOnTurn = ps.turnCount;
   ctx.events.push({ type: 'BenchPlaced', player, uid });
 }
 
@@ -196,6 +201,7 @@ function doSwap(ctx: Ctx, player: Side, benchUid: string): void {
   const i = ps.bench.indexOf(benchUid);
   ps.bench[i] = oldActive;
   ps.active = benchUid;
+  ctx.s.cards[benchUid].benchedOnTurn = null;
   ps.swappedThisTurn = true;
   ctx.events.push({ type: 'Swapped', player, toActive: benchUid, toBench: oldActive });
 }

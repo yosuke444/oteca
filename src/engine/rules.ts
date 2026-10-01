@@ -11,6 +11,7 @@ export const DEFAULT_RULES: RuleSet = {
   superMaxPerDeck: 1,
   attackBonus: 0,
   mulliganIfNoOtege: true,
+  swapCooldownTurns: 1,
 };
 
 /** 大ダメージ演出に切り替えるダメージ量（SPEC §14-3 の big） */

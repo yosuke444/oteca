@@ -34,6 +34,8 @@ export function rejectText(r: RejectReason): string {
       return 'てふだに ないよ';
     case 'stackBlocked':
       return 'このターンは もう その おてあげに つかえないよ';
+    case 'justPlaced':
+      return 'だした ターンは こうたい できないよ';
   }
 }
 
