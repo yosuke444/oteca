@@ -251,6 +251,8 @@ export const hira = {
   },
 
   result: {
+    rewardLimit: 'きょうの コインは もう もらったよ',
+    rewardShort: '2ターン いじょう たたかうと コインが もらえるよ',
     reason: { ko: 'たおした かずで', noBench: 'ベンチが からっぽに なって', surrender: 'おてあげ（こうさん）で' },
     disagree: 'ふたりの けっかが ちがったので きろく しないよ',
     oppLeft: 'あいては メニューに もどったよ',
@@ -362,6 +364,13 @@ export const hira = {
     ask: 'チュートリアルを やってみる？',
     yes: 'やる',
     later: 'あとで',
+  },
+
+  coin: {
+    plus: (n: number) => `+${n}`,
+    present: 'プレゼント',
+    presentAria: 'プレゼントを あける（ログインボーナス）',
+    aria: (n: number) => `おてあげコイン ${n}まい`,
   },
 
   settings: {
@@ -521,6 +530,15 @@ export const hira = {
     fxtest: 'えんしゅつ テスト',
     soundtest: 'こうかおん テスト',
     cardlab: 'カードを ためす',
+    tools: 'デバッグの どうぐ',
+    addCoins: (n: number) => `コインを ふやす（+${n}）`,
+    nextDay: 'ログボの日付を 1日 すすめる',
+    tutorialRestart: 'チュートリアルを はじめから',
+    wipe: 'セーブを まっさらにする',
+    wipeTitle: 'セーブを まっさらにする？',
+    wipeText: 'カード・コイン・デッキ・せいせきが ぜんぶ きえて、はじめて あそぶ ときと おなじに なるよ。',
+    wipeYes: 'まっさらにする',
+    done: 'できたよ',
     lab: {
       title: 'カードを ためす',
       note: 'わくを えらんでから、したの カードを おしてね（ながおしで くわしく みる）',
@@ -630,6 +648,9 @@ export const hira = {
         se_error: 'できない そうさ',
         se_match_found: 'あいてが みつかった',
         se_stamp_chat: 'スタンプ',
+        se_coin: 'コイン 1まい',
+        se_coin_burst: 'コインが いっぱい',
+        se_present: 'プレゼントを あける',
         jingle_win: 'かち（ジングル）',
         jingle_lose: 'まけ（ジングル）',
       },

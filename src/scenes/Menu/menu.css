@@ -36,12 +36,23 @@
 }
 
 .menu-scene__coins {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 90px;
-  height: 56px;
-  font-size: 28px;
+  height: 52px;
+}
+/* ログインボーナスのプレゼントボックス（v2.0-D） */
+.menu-scene__present {
+  position: absolute;
+  left: 520px;
+  top: 0;
+  z-index: 5;
+  transform: scale(0.85);
+  transform-origin: top center;
+}
+.menu-scene__fx {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  overflow: visible;
 }
 
 .menu-scene__gear {

@@ -167,3 +167,34 @@
   left: 1016px;
   top: 282px;
 }
+
+/* 対戦の報酬（v2.0-D） */
+.result__reward {
+  position: absolute;
+  right: 40px;
+  top: 24px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.result__reward-got {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 14px 2px 8px;
+  background: var(--marker-yellow);
+  border-radius: 6px;
+  transform: rotate(-4deg);
+}
+.result__reward-got .num {
+  font-size: 40px;
+  color: var(--pen-red);
+}
+.result__reward-note {
+  max-width: 300px;
+  margin: 0;
+  font-size: 17px;
+  text-align: right;
+}

@@ -276,6 +276,36 @@ export const RECIPES: Record<string, Recipe> = {
       { src: 'white', gain: 0.15, filter: { type: 'highpass', freq: [4000, 4000] }, env: { a: 0.001, d: 0.01, s: 0, r: 0.01 } },
     ],
   },
+  // コインが1枚入る（v2.0-D）：高い金属の「チャリン」（2つの金属音を少しずらして重ねる）
+  se_coin: {
+    gain: 0.6,
+    layers: [
+      { src: 'sine', gain: 0.32, freq: [2637, 2600], partials: [1, 2.41, 3.98], env: { a: 0.001, d: 0.05, s: 0.25, r: 0.32 }, reverb: 0.25 },
+      { src: 'sine', gain: 0.26, freq: [3520, 3480], partials: [1, 2.2], env: { a: 0.001, d: 0.04, s: 0.2, r: 0.28 }, delay: 0.055, reverb: 0.3 },
+      { src: 'white', gain: 0.18, filter: { type: 'highpass', freq: [7000, 7000] }, env: { a: 0.0005, d: 0.01, s: 0, r: 0.01 } },
+    ],
+  },
+  // コインがたくさん噴き出す（v2.0-D）：チャリンの粒をたくさん＋低い「ドン」＋きらきら
+  se_coin_burst: {
+    gain: 0.7,
+    layers: [
+      kick(0, 0.5),
+      { src: 'sine', gain: 0.16, freq: [2800, 2600], partials: [1, 2.4, 4], env: { a: 0.001, d: 0.04, s: 0.2, r: 0.18 }, grains: { count: 22, spread: 0.9, jitter: 0.9, pitchJitter: 0.25, gainJitter: 0.5, fade: 0.4 }, reverb: 0.3, pan: [-0.5, 0.5] },
+      { src: 'white', gain: 0.2, filter: { type: 'bandpass', freq: [5000, 2500], q: 0.8, time: 0.3 }, env: { a: 0.005, d: 0.25, s: 0, r: 0.08 } },
+      sparkle(0.25, 0.8, 18, 0.08),
+    ],
+  },
+  // プレゼントボックスが開く（v2.0-D）：リボンの「シュルッ」→ ふたの「ポンッ」→ 上がる3音
+  se_present: {
+    gain: 0.75,
+    layers: [
+      { src: 'pink', gain: 0.35, filter: { type: 'bandpass', freq: [900, 4200], q: 1.2, time: 0.3 }, env: { a: 0.04, d: 0.25, s: 0, r: 0.05 }, pan: [-0.5, 0.5] },
+      { src: 'sine', gain: 0.55, freq: [300, 900], freqTime: 0.05, env: { a: 0.002, d: 0.1, s: 0, r: 0.05 }, delay: 0.34 },
+      { src: 'white', gain: 0.2, filter: { type: 'highpass', freq: [3500, 3500] }, env: { a: 0.001, d: 0.015, s: 0, r: 0.01 }, delay: 0.34 },
+      { src: 'triangle', gain: 0.32, env: { a: 0.004, d: 0.08, s: 0.5, r: 0.25 }, notes: [{ t: 0.42, f: N.C5, d: 0.1 }, { t: 0.52, f: N.E5, d: 0.1 }, { t: 0.62, f: N.G5, d: 0.1 }, { t: 0.72, f: N.C6, d: 0.45, g: 1.1 }], reverb: 0.3 },
+      sparkle(0.72, 0.6, 16, 0.08),
+    ],
+  },
   // 勝利（約3秒）：メロディ＋和音＋合成ドラム＋最後にきらきら
   jingle_win: {
     gain: 0.8,

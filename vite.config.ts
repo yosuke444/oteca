@@ -2,13 +2,14 @@ import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { existsSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 
 /**
  * 音のファイルの一覧（SPEC §10）。public/audio/ の中を数えて渡す。
  * - `virtual:battle-bgm`：戦闘曲（public/audio/bgm/battle/ の .mp3）。曲を足す時はファイルを置くだけでよい
  * - `virtual:audio-files`：public/audio/ の中の全部の音のファイル（例 bgm/bgm_title.mp3、se/se_click.mp3）。
  *   置いていないファイル（.ogg・効果音の差し替え）をネット越しに確かめない（公開サイトで 404 を出さない）ため
+ * - `virtual:image-files`：public/images・public/packs・public/story の中の絵（v2.0。コイン・パック・ボスの絵。無ければ仮表示）
  * 開発サーバー：フォルダを見張り、ファイルを足す・消すとページを読み込み直す。公開用ビルド：ビルドした時のファイルが入る
  */
 function battleBgm(): Plugin {
@@ -18,6 +19,14 @@ function battleBgm(): Plugin {
   const filesResolved = '\0' + filesId;
   const audioDir = resolve(import.meta.dirname, 'public/audio');
   const dir = resolve(audioDir, 'bgm/battle');
+  const imagesId = 'virtual:image-files';
+  const imagesResolved = '\0' + imagesId;
+  const imageDirs = ['images', 'packs', 'story'].map((d) => resolve(import.meta.dirname, 'public', d));
+  const imageFiles = () =>
+    imageDirs
+      .filter((d) => existsSync(d))
+      .flatMap((d) => readdirSync(d).filter((f) => /\.(png|jpe?g|webp)$/i.test(f)).map((f) => `${basename(d)}/${f}`))
+      .sort();
   const audioFiles = () =>
     existsSync(audioDir)
       ? readdirSync(audioDir, { recursive: true, encoding: 'utf8' })
@@ -39,17 +48,20 @@ function battleBgm(): Plugin {
   };
   return {
     name: 'oteca-battle-bgm',
-    resolveId: (source) => (source === id ? resolved : source === filesId ? filesResolved : undefined),
+    resolveId: (source) => (source === id ? resolved : source === filesId ? filesResolved : source === imagesId ? imagesResolved : undefined),
     load: (source) => {
       if (source === resolved) return `export default ${JSON.stringify(list())};`;
       if (source === filesResolved) return `export default ${JSON.stringify(audioFiles())};`;
+      if (source === imagesResolved) return `export default ${JSON.stringify(imageFiles())};`;
       return undefined;
     },
     configureServer(server) {
       server.watcher.add(audioDir);
+      for (const d of imageDirs) server.watcher.add(d);
       const onChange = (file: string) => {
-        if (!resolve(file).startsWith(audioDir)) return;
-        for (const r of [resolved, filesResolved]) {
+        const f = resolve(file);
+        if (!f.startsWith(audioDir) && !imageDirs.some((d) => f.startsWith(d))) return;
+        for (const r of [resolved, filesResolved, imagesResolved]) {
           const mod = server.moduleGraph.getModuleById(r);
           if (mod) server.moduleGraph.invalidateModule(mod);
         }

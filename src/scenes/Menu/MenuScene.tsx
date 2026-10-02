@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { features } from '../../config/features';
 import { isDebugMode, useNav } from '../../router';
 import { RoughBox } from '../../ui/rough/RoughBox';
@@ -11,6 +11,9 @@ import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useSave } from '../../state/SaveContext';
 import { useT } from '../../i18n/useT';
+import { CoinCounter } from '../../ui/coin/Coin';
+import { PresentBox } from '../../ui/coin/PresentBox';
+import { ECONOMY, canClaimLoginBonus, claimLoginBonus, todayKey } from '../../economy/rewards';
 import './menu.css';
 
 type LockedId = 'story' | 'gacha';
@@ -23,6 +26,14 @@ export function MenuScene() {
   const tr = useT();
   // 🔒 じゅんびちゅう のふせんを揺らす合図（押した回数）
   const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0 });
+
+  // ログインボーナス（SPEC §7 S11）：その日初めてメニューを開いたら、プレゼントボックスを置く
+  const today = todayKey(new Date());
+  const fxLayer = useRef<HTMLDivElement>(null);
+  const [opening, setOpening] = useState(false);
+  /** コインが飛んでくるまで、コイン表示は前の枚数のままにする */
+  const [heldCoins, setHeldCoins] = useState<number | null>(null);
+  const showPresent = features.coins && (opening || canClaimLoginBonus(save, today));
 
   const pressLocked = (id: LockedId) => {
     // 機能フラグが ON になったら、その画面へ進む
@@ -38,11 +49,7 @@ export function MenuScene() {
       {/* 上の帯：小さいロゴ／コイン／なまえ／設定 */}
       <Logo width={170} className="menu-scene__logo" />
       <div className="menu-scene__top-right">
-        {features.coins && (
-          <RoughBox seed="menu-coins" className="menu-scene__coins" radius={20}>
-            <span className="num">{save.coins}</span>
-          </RoughBox>
-        )}
+        {features.coins && <CoinCounter value={heldCoins ?? save.coins} className="menu-scene__coins" />}
         <RoughBox seed="menu-name" className="menu-scene__name" paper>
           <span className="tilt" style={tiltStyle('menu-name')}>
             {save.playerName}
@@ -115,6 +122,25 @@ export function MenuScene() {
           }}
         />
       )}
+
+      {/* ログインボーナスのプレゼントボックス */}
+      {showPresent && (
+        <div className="menu-scene__present">
+          <PresentBox
+            amount={Math.min(ECONOMY.loginBonus, ECONOMY.coinsMax - save.coins)}
+            layer={() => fxLayer.current}
+            onOpen={() => {
+              setHeldCoins(save.coins);
+              setOpening(true);
+              // 押した瞬間に「コイン +50」と「今日受け取った」を同じ保存で書く（日付は押した時に読む。0時をまたいでも正しく）
+              update((d) => void claimLoginBonus(d, todayKey(new Date())));
+            }}
+            onCoins={() => setHeldCoins(null)}
+            onDone={() => setOpening(false)}
+          />
+        </div>
+      )}
+      <div className="menu-scene__fx" ref={fxLayer} aria-hidden />
 
       {/* 余白の落書き（星・サイコロはゆっくり動く。おてあげの絵は動かさない） */}
       <OtegeArt width={150} className="menu-scene__doodle menu-scene__doodle--oteage" />

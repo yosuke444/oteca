@@ -1,3 +1,4 @@
+import { gsap } from 'gsap';
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { useFx } from '../../fx/fxSettings';
@@ -20,6 +21,8 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { rematchSetup } from '../Battle/BattleScene';
 import './result.css';
 import { useT } from '../../i18n/useT';
+import { ECONOMY, type MatchInfo, type RewardResult, applyMatchReward, matchReward, rewardKindFor, todayKey } from '../../economy/rewards';
+import { CoinCounter, CoinIcon, centerIn, flyCoins } from '../../ui/coin/Coin';
 
 export type ResultPayload = {
   setup: BattleSetup;
@@ -35,7 +38,7 @@ export type ResultPayload = {
 export function ResultScene() {
   const { payload, go } = useNav();
   const r = payload as ResultPayload;
-  const { update } = useSave();
+  const { save, update } = useSave();
   const tr = useT();
   const recorded = useRef(false);
   const me = r.setup.me;
@@ -98,18 +101,53 @@ export function ResultScene() {
         ? tr.result.oppWaiting
         : '';
 
+  /** もらった報酬（表示用）。before はもらう前の枚数（コインが飛んでくるまで前の枚数を見せる） */
+  const [reward, setReward] = useState<(RewardResult & { before: number }) | null>(null);
+  const [coinsLanded, setCoinsLanded] = useState(false);
+
   // 勝敗数をセーブデータに記録（フレンド対戦は stats、CPU対戦は強さごとの cpuStats。中断・切断は記録しない）
   useEffect(() => {
     if (recorded.current || !r.setup.record) return;
     if (r.setup.mode === 'online' && agree !== true) return;
     recorded.current = true;
+    // 対戦の報酬（SPEC §7 S11）：勝敗の記録と同じ保存で、コイン（と今日の試合数）を足す
+    const kind = rewardKindFor(r.setup, agree);
+    const today = todayKey(new Date());
+    const info: MatchInfo = { kind, cpuLevel: r.setup.cpuLevel, win, turnCounts: r.stats.turnCounts };
+    // 表示用の見積もり（保存は下の update の中で、同じ計算で行う）
+    const got = matchReward(save, info, today);
+    const before = save.coins;
     update((d) => {
       const rec = r.setup.mode === 'cpu' ? d.cpuStats[CPU_LEVELS.indexOf(r.setup.cpuLevel ?? 'normal')] : d.stats;
-      if (!rec) return;
-      if (win) rec.wins += 1;
-      else rec.losses += 1;
+      if (rec) {
+        if (win) rec.wins += 1;
+        else rec.losses += 1;
+      }
+      applyMatchReward(d, info, today);
     });
-  }, [r.setup.record, r.setup.mode, r.setup.cpuLevel, update, win, agree]);
+    setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
+  }, [r.setup.record, r.setup.mode, r.setup.cpuLevel, r.stats.turnCounts, update, win, agree, save]);
+
+  // もらったコインが飛んでくる（勝ち・負けの演出が落ち着いてから）
+  const rewardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!reward || reward.status !== 'ok' || reward.coins <= 0) return;
+    let alive = true;
+    const id = window.setTimeout(async () => {
+      const layer = overlayRef.current;
+      const from = rewardRef.current;
+      if (!alive || !layer || !from) return;
+      audio.play('se_coin_burst');
+      // 「+50」がポンとはねてから、コインが飛んでくる
+      if (!fxRef.current.reduceFx) gsap.fromTo(from, { scale: 0.2, rotate: -20 }, { scale: 1, rotate: -4, duration: 0.5, ease: 'back.out(3)' });
+      await flyCoins(layer, centerIn(layer, from), Math.min(20, 4 + Math.round(reward.coins / 5)), { reduce: fxRef.current.reduceFx, burst: true, alive: () => alive });
+      if (alive) setCoinsLanded(true);
+    }, fxRef.current.dur(1600));
+    return () => {
+      alive = false;
+      window.clearTimeout(id);
+    };
+  }, [reward]);
 
   const title = hotSeat ? tr.result.winnerTitle(r.setup.names[r.winner]) : win ? tr.result.win : tr.result.lose;
   const happy = win || hotSeat;
@@ -217,6 +255,20 @@ export function ResultScene() {
         <RoughButton seed="result-savelog" className="result__savelog" onClick={() => downloadActionLog(buildActionLog(r.setup, r.log, r.finalHash))}>
           {tr.result.saveLog}
         </RoughButton>
+      )}
+      {/* 対戦の報酬（SPEC §7 S11） */}
+      {reward && reward.status !== 'none' && reward.status !== 'lose' && (
+        <div className="result__reward" data-testid="result-reward">
+          <CoinCounter value={reward.status === 'ok' && !coinsLanded ? reward.before : save.coins} />
+          {reward.status === 'ok' && reward.coins > 0 && (
+            <div ref={rewardRef} className="result__reward-got">
+              <CoinIcon size={34} />
+              <span className="num">{tr.coin.plus(reward.coins)}</span>
+            </div>
+          )}
+          {reward.status === 'limit' && <p className="result__reward-note pencil">{tr.result.rewardLimit}</p>}
+          {reward.status === 'short' && <p className="result__reward-note pencil">{tr.result.rewardShort}</p>}
+        </div>
       )}
       {rematchNote && (
         <p className={`result__wait ${oppWants && !oppGone ? 'blue-pen' : 'pencil'}`} data-testid="rematch-note">

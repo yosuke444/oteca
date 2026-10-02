@@ -101,6 +101,9 @@ export const SE_KEYS = [
   'se_error',
   'se_match_found',
   'se_stamp_chat',
+  'se_coin',
+  'se_coin_burst',
+  'se_present',
   'jingle_win',
   'jingle_lose',
 ] as const;

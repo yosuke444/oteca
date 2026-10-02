@@ -3,7 +3,7 @@ import { audio } from './audio/audioManager';
 import type { BgmKey } from './audio/soundMap';
 import { useSave } from './state/SaveContext';
 import { setLang } from './i18n';
-import { NavContext, type Nav, type RouteId } from './router';
+import { NavContext, type Nav, type RouteId, isDebugMode } from './router';
 import { Stage } from './ui/common/Stage';
 import { RotateHint } from './ui/common/RotateHint';
 import { PageTurn, turnPage } from './ui/common/PageTurn';
@@ -76,6 +76,15 @@ export function App() {
     setNav((cur) => ({ route: to, payload: payload ?? null, n: cur.n + 1 }));
   }, []);
   const value = useMemo<Nav>(() => ({ route: nav.route, payload: nav.payload, go }), [nav, go]);
+  // デバッグ（?debug=1）の時だけ、確認用の自動操作（scripts/shots-*.mjs）が画面を直接開けるようにする
+  useEffect(() => {
+    if (!isDebugMode()) return;
+    const w = window as unknown as { __otecaGo?: typeof go };
+    w.__otecaGo = go;
+    return () => {
+      delete w.__otecaGo;
+    };
+  }, [go]);
   const Scene = ROUTES[nav.route];
   const { save } = useSave();
   // ことば：React の外（演出・対戦ログ）でも今の言語の辞書を使えるように、描く前に知らせる（SPEC §6-4b）

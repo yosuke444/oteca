@@ -10,6 +10,8 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import './debug.css';
 import { useT } from '../../i18n/useT';
+import { ECONOMY, addCoins, debugNextDay } from '../../economy/rewards';
+import { Dialog } from '../../ui/common/Dialog';
 
 /** 山札の上に積めるのは何枚まで（画面に並べる都合） */
 const STACK_MAX = 6;
@@ -17,7 +19,13 @@ const STACK_MAX = 6;
 /** S99 デバッグ対戦（SPEC §7。?debug=1 の時だけメニューに出る） */
 export function DebugScene() {
   const { go } = useNav();
-  const { save } = useSave();
+  const { save, update, reset } = useSave();
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [toolMsg, setToolMsg] = useState(0);
+  const tool = (fn: () => void) => {
+    fn();
+    setToolMsg((n) => n + 1);
+  };
   const tr = useT();
   const D = tr.debug;
   const usable = usableDecks(save)
@@ -132,6 +140,31 @@ export function DebugScene() {
           <span className="debug-row__note pencil">{D.logNote}</span>
         </div>
 
+        {/* デバッグの道具（v2.0-D）：コイン・ログボの日付・チュートリアル・セーブ */}
+        <div className="debug-row">
+          <span className="debug-row__label">{D.tools}</span>
+          <div className="debug-row__choices debug-tools">
+            <RoughButton seed="tool-coins" className="debug-row__choice debug-tool" onClick={() => tool(() => update((d) => void addCoins(d, ECONOMY.debugAddCoins)))}>
+              {D.addCoins(ECONOMY.debugAddCoins)}
+            </RoughButton>
+            <RoughButton seed="tool-day" className="debug-row__choice debug-tool" onClick={() => tool(() => update((d) => debugNextDay(d)))}>
+              {D.nextDay}
+            </RoughButton>
+            <RoughButton seed="tool-tutorial" className="debug-row__choice debug-tool" onClick={() => {
+              update((d) => {
+                d.tutorial = { done: false, gachaInviteShown: false };
+              });
+              go('tutorial');
+            }}>
+              {D.tutorialRestart}
+            </RoughButton>
+            <RoughButton seed="tool-wipe" className="debug-row__choice debug-tool" stroke="var(--pen-red)" onClick={() => setWipeOpen(true)}>
+              <span className="red-pen">{D.wipe}</span>
+            </RoughButton>
+          </div>
+          {toolMsg > 0 && <span key={toolMsg} className="debug-row__note blue-pen debug-tool-done">{D.done}</span>}
+        </div>
+
         <div className="debug-starts">
           <RoughButton seed="debug-local" className="debug-scene__start" highlight disabled={usable.length === 0} onClick={() => start('local')}>
             {D.local}
@@ -141,6 +174,33 @@ export function DebugScene() {
           </RoughButton>
         </div>
       </RoughBox>
+      {wipeOpen && (
+        <Dialog
+          seed="debug-wipe"
+          title={D.wipeTitle}
+          onClose={() => setWipeOpen(false)}
+          actions={
+            <>
+              <RoughButton seed="debug-wipe-no" onClick={() => setWipeOpen(false)}>
+                {tr.common.cancel}
+              </RoughButton>
+              <RoughButton
+                seed="debug-wipe-yes"
+                stroke="var(--pen-red)"
+                onClick={() => {
+                  setWipeOpen(false);
+                  reset();
+                  go('title');
+                }}
+              >
+                <span className="red-pen">{D.wipeYes}</span>
+              </RoughButton>
+            </>
+          }
+        >
+          {D.wipeText}
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -269,3 +269,22 @@
 .debug-scene__tool--3 {
   right: 624px;
 }
+
+/* デバッグの道具（v2.0-D） */
+.debug-tools {
+  gap: 8px;
+}
+.debug-tool {
+  height: 44px;
+  font-size: 16px;
+}
+.debug-tool .rough-btn__label {
+  padding: 0 10px;
+}
+.debug-tool-done {
+  animation: debug-done 1.6s ease-out forwards;
+}
+@keyframes debug-done {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}

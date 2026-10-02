@@ -2,6 +2,7 @@
  * セーブデータの型と初期値（SPEC §12-2。形式版数4・v2.0-B）
  */
 
+import economy from '../data/economy.json';
 import { STARTER_COINS, STARTER_DECK_NAME, starterDeckNos } from '../data/starterDeck';
 import type { Lang } from '../i18n';
 
@@ -90,7 +91,7 @@ export const DECK_CARDS_MAX = 60;
 /** 1枚あたりの所持数の上限 */
 export const OWN_MAX = 999;
 /** コインの上限 */
-export const COINS_MAX = 99999;
+export const COINS_MAX = economy.coinsMax;
 /** レートの初期値 */
 export const RATE_START = 100;
 /** 覚えておく交換IDの数 */

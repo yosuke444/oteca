@@ -1,0 +1,118 @@
+/* おてあげコイン・プレゼントボックス（SPEC §7 S11。v2.0-D） */
+.coin-icon {
+  display: block;
+  flex: none;
+}
+.coin-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px 2px 6px;
+  border: 2px solid var(--ink);
+  border-radius: 22px 18px 24px 16px;
+  background: var(--paper);
+  box-shadow: 2px 3px 0 var(--note-shadow);
+}
+.coin-counter__num {
+  display: inline-block;
+  min-width: 64px;
+  font-size: 30px;
+  line-height: 1;
+  text-align: right;
+}
+/* 飛んでくるコイン */
+.coin-fly {
+  position: absolute;
+  z-index: 60;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+.coin-fly img,
+.coin-fly svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+.coin-plus {
+  position: absolute;
+  z-index: 61;
+  font-size: 64px;
+  color: var(--pen-red);
+  -webkit-text-stroke: 2px var(--paper);
+  text-shadow: 3px 3px 0 var(--marker-yellow);
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* プレゼントボックス：小さく揺れて光る */
+.present-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  animation: present-wobble calc(1.6s / var(--fx-speed)) ease-in-out infinite;
+  filter: drop-shadow(0 0 10px var(--marker-yellow)) drop-shadow(0 0 4px var(--marker-yellow));
+}
+.present-box.is-opening {
+  animation: none;
+}
+.present-box__img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+}
+.present-box__label {
+  margin-top: -2px;
+  padding: 0 8px;
+  font-size: 17px;
+  background: var(--paper);
+  border-radius: 6px;
+}
+@keyframes present-wobble {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  68% {
+    transform: rotate(-7deg) scale(1.04);
+  }
+  76% {
+    transform: rotate(6deg) scale(1.04);
+  }
+  84% {
+    transform: rotate(-3deg);
+  }
+}
+/* 演出をへらす：揺らさない・光らせない */
+html[data-reduce-fx] .present-box {
+  animation: none;
+  filter: none;
+}
+
+/* 箱が開く時の光・紙吹雪 */
+.coin-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  background: var(--fx-flash);
+  pointer-events: none;
+}
+.coin-confetti {
+  position: absolute;
+  z-index: 56;
+  pointer-events: none;
+}
+.coin-confetti span {
+  display: block;
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+}
+.present-box.is-opening {
+  z-index: 40;
+}

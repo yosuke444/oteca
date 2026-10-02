@@ -252,6 +252,8 @@ export const kanji: Dict = {
   },
 
   result: {
+    rewardLimit: '今日のコインはもうもらいました',
+    rewardShort: '2ターン以上戦うと、コインがもらえます',
     reason: { ko: '倒した数で', noBench: 'ベンチが空になって', surrender: 'おてあげ（降参）で' },
     disagree: '2人の結果が食い違ったので記録しません',
     oppLeft: '相手はメニューに戻りました',
@@ -363,6 +365,13 @@ export const kanji: Dict = {
     ask: 'チュートリアルをやってみますか？',
     yes: 'やる',
     later: '後で',
+  },
+
+  coin: {
+    plus: (n) => `+${n}`,
+    present: 'プレゼント',
+    presentAria: 'プレゼントを開ける（ログインボーナス）',
+    aria: (n) => `おてあげコイン ${n}枚`,
   },
 
   settings: {
@@ -522,6 +531,15 @@ export const kanji: Dict = {
     fxtest: '演出テスト',
     soundtest: '効果音テスト',
     cardlab: 'カードを試す',
+    tools: 'デバッグの道具',
+    addCoins: (n) => `コインを増やす（+${n}）`,
+    nextDay: 'ログボの日付を1日進める',
+    tutorialRestart: 'チュートリアルを最初から',
+    wipe: 'セーブをまっさらにする',
+    wipeTitle: 'セーブをまっさらにしますか？',
+    wipeText: 'カード・コイン・デッキ・成績がすべて消えて、初めて遊ぶ時と同じになります。',
+    wipeYes: 'まっさらにする',
+    done: 'できました',
     lab: {
       title: 'カードを試す',
       note: '枠を選んでから、下のカードを押してね（長押しで詳しく見る）',
@@ -631,6 +649,9 @@ export const kanji: Dict = {
         se_error: 'できない操作',
         se_match_found: '相手が見つかった',
         se_stamp_chat: 'スタンプ',
+        se_coin: 'コイン1枚',
+        se_coin_burst: 'コインがいっぱい',
+        se_present: 'プレゼントを開ける',
         jingle_win: '勝ち（ジングル）',
         jingle_lose: '負け（ジングル）',
       },
