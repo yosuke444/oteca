@@ -261,6 +261,44 @@
   background: linear-gradient(transparent 50%, var(--marker-yellow) 50%);
 }
 
+/* のこり（このデッキに入れた分を引いた残り。v2.0-B） */
+.card-mini__left {
+  position: absolute;
+  left: -4px;
+  bottom: -9px;
+  z-index: 3;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--pen-green);
+  background: var(--paper);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.card-mini__left.is-zero {
+  color: var(--pen-red);
+}
+/* 持っていないカード：えんぴつ色のシルエットと「？」 */
+.card-mini.is-unowned {
+  color: var(--pencil);
+}
+.card-mini.is-unowned .card-mini__frame,
+.card-mini.is-unowned .card-mini__note {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.card-mini__unknown {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  color: var(--pencil);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* ---------- 大きいカード ---------- */
 .card-detail-wrap {
   position: relative;
@@ -358,6 +396,10 @@
 .battle-card__name.is-long {
   font-size: 14px;
   letter-spacing: -0.5px;
+}
+.battle-card__name.is-xlong {
+  font-size: 12px;
+  letter-spacing: -1px;
 }
 .battle-card--active .battle-card__name {
   font-size: 19px;

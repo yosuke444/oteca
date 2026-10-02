@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { starterDeckNos } from '../data/starterDeck';
 import { FxSettingsProvider, prefersReducedMotion } from '../fx/fxSettings';
 import {
   type BackupInfo,
@@ -52,13 +51,26 @@ function makeStorage(): SaveStorage {
 }
 
 function freshSave(): SaveData {
-  return createDefaultSave(starterDeckNos(), prefersReducedMotion());
+  return createDefaultSave(prefersReducedMotion());
+}
+
+/** ランダムな8バイトの ID（16桁の16進数） */
+export function randomId(): string {
+  const b = new Uint8Array(8);
+  crypto.getRandomValues(b);
+  const hex = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return /^0+$/.test(hex) ? randomId() : hex;
+}
+
+/** playerId がまだ無ければ作る（新しいセーブ・古いセーブからの移行・引き継ぎ） */
+function withPlayerId(data: SaveData): SaveData {
+  return data.playerId ? data : { ...data, playerId: randomId() };
 }
 
 /** 起動時の読み込み。無ければ初期データ。起動のたびに保存し直して期限を延ばす（SPEC §12-5） */
 function boot(storage: SaveStorage): SaveData {
   const loaded = load(storage) ?? freshSave();
-  const data = { ...normalizeSave(loaded), saveCounter: loaded.saveCounter + 1 };
+  const data = withPlayerId({ ...normalizeSave(loaded), saveCounter: loaded.saveCounter + 1 });
   persist(storage, data);
   return data;
 }
@@ -107,7 +119,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const replace = useCallback(
     (data: SaveData) => {
       // 復元したデータの保存回数が小さくても、次の読み込みで古い方に負けないようにする
-      commit({ ...normalizeSave(data), saveCounter: Math.max(save.saveCounter, data.saveCounter) + 1 });
+      commit(withPlayerId({ ...normalizeSave(data), saveCounter: Math.max(save.saveCounter, data.saveCounter) + 1 }));
     },
     [commit, save.saveCounter],
   );
@@ -120,7 +132,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       // 何もしない
     }
     setBackup(loadBackupInfo(storage.local, Date.now()));
-    commit({ ...freshSave(), saveCounter: 1 });
+    commit(withPlayerId({ ...freshSave(), saveCounter: 1 }));
   }, [commit, storage]);
 
   const value = useMemo<SaveContextValue>(

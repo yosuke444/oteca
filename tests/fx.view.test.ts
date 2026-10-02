@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import { type GameState, applyAction, createGame, getLegalActions, seedRng } from '../src/engine';
 import { nextInt } from '../src/engine/rng';
 import { applyEventToView } from '../src/fx/viewReducer';
@@ -18,7 +18,7 @@ function visible(s: GameState) {
 describe('表示用の状態（viewReducer）', () => {
   it('イベントを1つずつ進めた表示は、操作のあとのエンジンの状態と一致する（ランダム30試合）', () => {
     for (let g = 0; g < 30; g++) {
-      let { state } = createGame({ seed: `view-${g}`, decks: { p1: starterDeckNos(), p2: starterDeckNos() }, cardDb: CARD_DB });
+      let { state } = createGame({ seed: `view-${g}`, decks: { p1: classicDeckNos(), p2: classicDeckNos() }, cardDb: CARD_DB });
       const pick = seedRng(`vpick-${g}`);
       for (let step = 0; step < 400 && state.phase !== 'over'; step++) {
         const legal = [...getLegalActions(state, 'p1'), ...getLegalActions(state, 'p2')];

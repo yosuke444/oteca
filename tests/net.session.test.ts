@@ -4,7 +4,7 @@ import { CpuController } from '../src/controllers/cpu';
 import { Match } from '../src/controllers/match';
 import { RemoteController } from '../src/controllers/remote';
 import { CARD_DB } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import { type Side, hashState } from '../src/engine';
 import { makeMsg } from '../src/net/protocol';
 import { type Clock, type GameStart, LOST_AFTER_MS, OnlineSession, PICK_AFTER_MS, type SessionStatus, WAITING_AFTER_MS } from '../src/net/session';
@@ -48,7 +48,7 @@ function makePeer(hub: MemoryHub, clock: FakeClock, id: string, opts: { name?: s
   const r = makeRandom(opts.seed ?? id.charCodeAt(id.length - 1));
   const s = new OnlineSession(t, {
     name: opts.name ?? id,
-    deck: opts.deck ?? starterDeckNos(),
+    deck: opts.deck ?? classicDeckNos(),
     protocol: opts.protocol ?? 1,
     appVersion: '0.0.0',
     playerId: opts.playerId ?? `player-${id}`,

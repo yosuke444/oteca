@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "packs": [
+    { "id": "ganso", "name": "元祖パック", "short": "元祖",
+      "normal": ["oteage", "mitsume", "otesage", "yotsuashi", "sanbon", "mutsuashi", "himitsu_yaiba", "kusuri", "kimyou_drink", "supodori"],
+      "super": ["kami", "revolution"] },
+    { "id": "shin", "name": "真・パック", "short": "真",
+      "normal": ["oteage", "mutsuashi", "kusuri", "himitsu_yaiba", "kimyou_drink", "supodori"],
+      "super": [] },
+    { "id": "yoseatsume", "name": "よせあつめパック", "short": "よせあつめ",
+      "normal": ["oteage", "kusuri", "himitsu_yaiba", "kimyou_drink", "supodori"],
+      "super": [] }
+  ],
+  "limited": []
+}

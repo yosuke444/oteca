@@ -87,42 +87,24 @@
 /* デッキ */
 .cpu-scene__ask {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 176px;
+  left: 380px;
+  right: 40px;
+  top: 168px;
   margin: 0;
   text-align: center;
   font-size: 28px;
 }
+/* デッキ選択パネル（4列×5段。SPEC §7 S02） */
 .cpu-scene__decks {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 260px;
-  display: flex;
-  justify-content: center;
-  gap: 26px;
-}
-.cpu-scene__deck {
-  width: 200px;
-  height: 180px;
-}
-.cpu-scene__deck .tilt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-.cpu-scene__deck-name {
-  font-size: 30px;
-}
-.cpu-scene__deck-note {
-  font-size: 20px;
+  left: 380px;
+  right: 40px;
+  top: 226px;
 }
 .cpu-scene__summary {
   position: absolute;
-  left: 70px;
-  top: 500px;
+  left: 50px;
+  top: 250px;
   width: 290px;
   font-size: 24px;
   text-align: left;
@@ -131,7 +113,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 600px;
+  top: 640px;
   margin: 0;
   text-align: center;
   font-size: 24px;

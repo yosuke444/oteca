@@ -27,6 +27,8 @@ async function overflow(label) {
         for (let el = n.parentElement; el && el !== box; el = el.parentElement) {
           const pos = getComputedStyle(el).position;
           if (pos === 'absolute' || pos === 'fixed') deco = true;
+          // スクロールする欄（カードいちらん）の外に隠れている分は、はみ出しではない
+          if (['auto', 'scroll'].includes(getComputedStyle(el).overflowY)) deco = true;
         }
         if (deco) continue;
         const range = document.createRange();

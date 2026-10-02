@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 /**
  * 画面の行き先（SPEC §3）。
  * story・gacha は 🔒後で実装。今は「じゅんびちゅう」画面を返す（SPEC §13-5）。
+ * tutorial は UPDATE_v2 T で作る。それまでは同じ「じゅんびちゅう」（アップデートの おしらせ の「やる」の行き先。SPEC §7 S01）。
  */
 export type RouteId =
   | 'title'
@@ -16,6 +17,7 @@ export type RouteId =
   | 'rules'
   | 'story'
   | 'gacha'
+  | 'tutorial'
   | 'debug'
   | 'fxtest'
   | 'soundtest';

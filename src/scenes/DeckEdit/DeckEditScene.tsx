@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CARD_DB, CARD_LIST } from '../../data/cards';
-import { DEFAULT_RULES, validateDeck } from '../../engine';
+import { PACK_DATA, inPack } from '../../data/packs';
+import { DEFAULT_RULES } from '../../engine';
 import type { CardDef } from '../../engine/types';
 import { useNav } from '../../router';
-import { getOwnedCount } from '../../save/collection';
-import { DECK_NAME_MAX, DECK_SLOTS, clampText } from '../../save/saveData';
+import { checkSavedDeck, getOwnedCount } from '../../save/collection';
+import { DECK_NAME_MAX, clampText } from '../../save/saveData';
 import { useSave } from '../../state/SaveContext';
 import { CardDetail } from '../../ui/card/CardDetail';
 import { CardMini } from '../../ui/card/CardMini';
 import { Dialog } from '../../ui/common/Dialog';
 import { SavedToast } from '../../ui/common/SavedToast';
 import { Sticky } from '../../ui/common/Sticky';
+import { DeckPickerDialog } from '../../ui/deck/DeckPicker';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
@@ -18,25 +20,28 @@ import { addCard, autoFill, blockText, checkAdd, problemText, removeAt, summariz
 import { useT } from '../../i18n/useT';
 import './deckEdit.css';
 
-type Filter = 'all' | 'otege' | 'item' | 'super';
-type Sort = 'no' | 'hp' | 'name';
+type Filter = 'all' | 'owned' | 'otege' | 'item' | 'super';
+type Sort = 'no' | 'name' | 'hp' | 'owned';
 
-const FILTERS: Filter[] = ['all', 'otege', 'item', 'super'];
-const SORTS: Sort[] = ['no', 'hp', 'name'];
+const FILTERS: Filter[] = ['all', 'owned', 'otege', 'item', 'super'];
+const SORTS: Sort[] = ['no', 'name', 'hp', 'owned'];
+/** パックの絞り込み：ぜんぶ（null）→ 各パック → 限定 */
+const PACKS: (string | null)[] = [null, ...PACK_DATA.packs.map((p) => p.id), 'limited'];
 
 const rules = DEFAULT_RULES;
 
-/** S02 デッキ編集（SPEC §7） */
+/** S02 デッキ編集（SPEC §7。v2.0-B：デッキ20個・所持数・絞り込みと並び替え） */
 export function DeckEditScene() {
   const { go } = useNav();
   const { save, update } = useSave();
   const tr = useT();
   const [slot, setSlot] = useState(save.selectedDeck);
   const [filter, setFilter] = useState<Filter>('all');
+  const [pack, setPack] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>('no');
   const [editingName, setEditingName] = useState(false);
   const [detail, setDetail] = useState<CardDef | null>(null);
-  const [dialog, setDialog] = useState<'copy' | 'clear' | null>(null);
+  const [dialog, setDialog] = useState<'copy' | 'clear' | 'pick' | null>(null);
   const [reject, setReject] = useState<{ text: string; n: number } | null>(null);
 
   // 弾いた理由のふせんは2秒で消す
@@ -49,25 +54,37 @@ export function DeckEditScene() {
   const deck = save.decks[slot];
   const owned = (no: number) => getOwnedCount(save, no);
   const summary = summarize(deck.cards, CARD_DB);
-  const problems = validateDeck(deck.cards, CARD_DB, rules);
+  const check = checkSavedDeck(save, slot, rules);
+  const inDeck = (no: number) => deck.cards.filter((c) => c === no).length;
 
   const setCards = (cards: number[]) =>
     update((d) => {
       d.decks[slot].cards = cards;
     }, { deck: true });
 
+  /** デッキを選ぶ（「いまのデッキ」になる） */
+  const pickSlot = (i: number) => {
+    setSlot(i);
+    setEditingName(false);
+    if (save.selectedDeck !== i) update((d) => void (d.selectedDeck = i));
+  };
+
   const tryAdd = (no: number) => {
     const block = checkAdd(deck.cards, no, CARD_DB, rules, owned);
     if (block) {
-      // 違反カードは弾いて、ふせんを揺らす
-      setReject((r) => ({ text: blockText(block, rules), n: (r?.n ?? 0) + 1 }));
+      // 違反カードは弾いて、ふせんを揺らす。持っていないカードは「まだ もっていないよ」
+      const text = block === 'owned' && owned(no) === 0 ? tr.deck.problem.notOwnedYet : blockText(block, rules);
+      setReject((r) => ({ text, n: (r?.n ?? 0) + 1 }));
       return;
     }
     setCards(addCard(deck.cards, no));
   };
 
   const list = useMemo(() => {
+    const own = (c: CardDef) => getOwnedCount(save, c.no);
     const filtered = CARD_LIST.filter((c) => {
+      if (pack && !inPack(c.id, pack)) return false;
+      if (filter === 'owned') return own(c) > 0;
       if (filter === 'otege') return c.kind === 'otege';
       if (filter === 'item') return c.kind === 'item';
       if (filter === 'super') return c.kind === 'otege' && c.rarity === 'super';
@@ -77,45 +94,21 @@ export function DeckEditScene() {
     return [...filtered].sort((a, b) => {
       if (sort === 'hp') return hp(b) - hp(a) || a.no - b.no;
       if (sort === 'name') return a.name.localeCompare(b.name, 'ja') || a.no - b.no;
+      if (sort === 'owned') return own(b) - own(a) || a.no - b.no;
       return a.no - b.no;
     });
-  }, [filter, sort]);
+  }, [filter, pack, sort, save]);
 
   const nextSort = () => setSort(SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length]);
+  const nextPack = () => setPack(PACKS[(PACKS.indexOf(pack) + 1) % PACKS.length]);
+  const packLabel =
+    pack === null ? tr.deck.packAll : pack === 'limited' ? tr.deck.packLimited : (PACK_DATA.packs.find((p) => p.id === pack)?.short ?? pack);
 
   return (
     <div className="deck-scene">
-      {/* スロットタブ（ふせん型） */}
-      <div className="deck-scene__tabs">
-        {save.decks.map((d, i) => {
-          const invalid = validateDeck(d.cards, CARD_DB, rules).length > 0;
-          return (
-            <button
-              key={i}
-              type="button"
-              className={`deck-tab ${i === slot ? 'is-current' : ''}`}
-              onClick={() => {
-                setSlot(i);
-                setEditingName(false);
-              }}
-              aria-label={tr.deck.slotAria(i + 1)}
-            >
-              <Sticky seed={`deck-tab-${i}`} color={i === slot ? 'yellow' : 'blue'} angle={i === slot ? 0 : undefined} className="deck-tab__note">
-                <span className="num deck-tab__num">{i + 1}</span>
-              </Sticky>
-              {invalid && <span className="deck-tab__bad num">!</span>}
-            </button>
-          );
-        })}
-      </div>
-      <RoughButton seed="deck-back" className="deck-scene__back" onClick={() => go('menu')}>
-        {tr.common.back}
-      </RoughButton>
-      <SavedToast />
-
-      {/* デッキ名 */}
+      {/* いまのデッキ：名前 ✎ ／ デッキを えらぶ */}
       <div className="deck-scene__name">
-        <span className="pencil">{tr.deck.nameLabel}</span>
+        <span className="pencil deck-scene__name-label">{tr.deck.current}</span>
         {editingName ? (
           <input
             className="pen-input deck-scene__name-input"
@@ -136,15 +129,23 @@ export function DeckEditScene() {
             }}
           />
         ) : (
-          <button type="button" className="deck-scene__name-btn" onClick={() => setEditingName(true)}>
+          <button type="button" className="deck-scene__name-btn" onClick={() => setEditingName(true)} data-testid="deck-name">
             <span className="tilt" style={tiltStyle(`deck-name-${slot}`)}>
               {deck.name}
             </span>{' '}
             <span className="deck-scene__pen">✎</span>
           </button>
         )}
+        {!check.usable && deck.cards.length > 0 && <span className="deck-scene__bad num">{tr.deckPicker.bad}</span>}
         <span className="pencil deck-scene__name-hint">{tr.deck.nameHint(DECK_NAME_MAX)}</span>
       </div>
+      <RoughButton seed="deck-choose" className="deck-scene__choose" onClick={() => setDialog('pick')}>
+        {tr.deck.choose}
+      </RoughButton>
+      <RoughButton seed="deck-back" className="deck-scene__back" onClick={() => go('menu')}>
+        {tr.common.back}
+      </RoughButton>
+      <SavedToast />
 
       {/* デッキ（15まいちょうど） */}
       <RoughBox seed={`deck-panel-${slot}`} className="deck-panel" paper radius={8}>
@@ -179,13 +180,18 @@ export function DeckEditScene() {
             );
           })}
         </div>
-        <ul className="deck-panel__problems">
-          {problems.map((p, i) => (
-            <li key={i} className="red-pen">
+        <ul className="deck-panel__problems" data-testid="deck-problems">
+          {check.problems.map((p, i) => (
+            <li key={`p${i}`} className="red-pen">
               ⚠ {problemText(p)}
             </li>
           ))}
-          {problems.length === 0 && <li className="deck-panel__ok">{tr.deck.ok}</li>}
+          {check.shortages.map((s) => (
+            <li key={`s${s.no}`} className="red-pen">
+              ⚠ {tr.deck.problem.short(CARD_DB[s.no]?.name ?? String(s.no), s.missing)}
+            </li>
+          ))}
+          {check.usable && <li className="deck-panel__ok">{tr.deck.ok}</li>}
         </ul>
       </RoughBox>
 
@@ -212,13 +218,17 @@ export function DeckEditScene() {
               </RoughButton>
             ))}
           </div>
+          <RoughButton seed="pack" className="list-panel__pack" highlight={pack !== null} onClick={nextPack}>
+            {tr.deck.pack(packLabel)}
+          </RoughButton>
           <RoughButton seed="sort" className="list-panel__sort" onClick={nextSort}>
             {tr.deck.sortLabel(tr.deck.sort[sort])}
           </RoughButton>
         </div>
         <div className="list-panel__grid">
           {list.map((def) => {
-            const count = deck.cards.filter((c) => c === def.no).length;
+            const own = owned(def.no);
+            const finite = Number.isFinite(own);
             const blocked = checkAdd(deck.cards, def.no, CARD_DB, rules, owned) !== null;
             return (
               <CardMini
@@ -226,8 +236,11 @@ export function DeckEditScene() {
                 def={def}
                 seed={`list-${def.no}`}
                 variant="tile"
-                count={count}
-                dim={blocked}
+                count={inDeck(def.no)}
+                owned={finite ? own : undefined}
+                left={finite ? Math.max(0, own - inDeck(def.no)) : undefined}
+                unowned={own === 0}
+                dim={blocked && own > 0}
                 onTap={() => tryAdd(def.no)}
                 onDetail={() => setDetail(def)}
               />
@@ -272,6 +285,19 @@ export function DeckEditScene() {
         </Dialog>
       )}
 
+      {dialog === 'pick' && (
+        <DeckPickerDialog
+          save={save}
+          current={slot}
+          mode="edit"
+          onClose={() => setDialog(null)}
+          onPick={(i) => {
+            pickSlot(i);
+            setDialog(null);
+          }}
+        />
+      )}
+
       {dialog === 'clear' && (
         <Dialog
           seed="deck-clear-dialog"
@@ -300,38 +326,23 @@ export function DeckEditScene() {
       )}
 
       {dialog === 'copy' && (
-        <Dialog
-          seed="deck-copy-dialog"
+        <DeckPickerDialog
+          save={save}
+          current={-1}
+          mode="edit"
           title={tr.deck.copyTitle}
+          note={tr.deck.copyNote}
+          disabledSlot={slot}
           onClose={() => setDialog(null)}
-          actions={
-            <RoughButton seed="copy-cancel" onClick={() => setDialog(null)}>
-              {tr.common.cancel}
-            </RoughButton>
-          }
-        >
-          <p className="deck-scene__copy-note pencil">{tr.deck.copyNote}</p>
-          <div className="deck-scene__copy-slots">
-            {Array.from({ length: DECK_SLOTS }, (_, i) => (
-              <RoughButton
-                key={i}
-                seed={`copy-to-${i}`}
-                className="deck-scene__copy-slot"
-                disabled={i === slot}
-                onClick={() => {
-                  update((d) => {
-                    d.decks[i].cards = [...deck.cards];
-                  }, { deck: true });
-                  setDialog(null);
-                  setSlot(i);
-                }}
-              >
-                <span className="num">{i + 1}</span>
-                <small>{tr.common.cards(save.decks[i].cards.length)}</small>
-              </RoughButton>
-            ))}
-          </div>
-        </Dialog>
+          onPick={(i) => {
+            // コピー先のデッキは うわがき（在庫はデッキごとなので、所持数は関係ない）
+            update((d) => {
+              d.decks[i].cards = [...deck.cards];
+            }, { deck: true });
+            setDialog(null);
+            pickSlot(i);
+          }}
+        />
       )}
     </div>
   );

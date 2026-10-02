@@ -35,6 +35,8 @@ export function checkAdd(
   owned: (no: number) => number,
 ): AddBlock | null {
   const def = db[no];
+  // 持っていないカードは、デッキがいっぱいでも「まだ もっていないよ」を先に出す
+  if (owned(no) === 0) return 'owned';
   if (cards.length >= rules.deckSize) return 'full';
   if (def?.kind === 'otege' && def.rarity === 'super' && summarize(cards, db).super >= rules.superMaxPerDeck) {
     return 'super';

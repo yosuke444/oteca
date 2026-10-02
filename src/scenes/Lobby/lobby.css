@@ -66,31 +66,13 @@
   width: 580px;
 }
 .lobby__decks {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.lobby__deck {
   width: 580px;
-  height: 58px;
-  font-size: 24px;
-}
-.lobby__deck .rough-btn__label {
-  width: 100%;
-}
-.lobby__deck .tilt {
+  min-height: 58px;
   display: flex;
+  align-items: center;
+}
+.lobby__decks .deck-chooser {
   width: 100%;
-  justify-content: space-between;
-}
-.lobby__deck-name {
-  flex: 1;
-  text-align: left;
-  padding-left: 18px;
-}
-.lobby__deck-note {
-  padding-right: 18px;
-  font-size: 20px;
 }
 .lobby__join {
   margin-top: 24px;
@@ -264,8 +246,8 @@
     font-size: 26px;
     line-height: 1.35;
   }
-  .lobby__deck-note {
-    font-size: 24px;
+  .lobby__decks .deck-chooser__label {
+    font-size: 22px;
   }
   .lobby-wait__label {
     font-size: 34px;

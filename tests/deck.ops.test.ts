@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import { DEFAULT_RULES, validateDeck } from '../src/engine';
 import { addCard, autoFill, checkAdd, removeAt, summarize } from '../src/scenes/DeckEdit/deckOps';
 import { noOf } from './helpers';
@@ -10,7 +10,7 @@ const unlimited = () => Infinity;
 
 describe('デッキ編集の処理', () => {
   it('15枚を超えては入れられない。スーパーは合計1枚まで', () => {
-    const full = starterDeckNos();
+    const full = classicDeckNos();
     expect(checkAdd(full, noOf('oteage'), CARD_DB, DEFAULT_RULES, unlimited)).toBe('full');
     const withKami = [noOf('kami')];
     expect(checkAdd(withKami, noOf('revolution'), CARD_DB, DEFAULT_RULES, unlimited)).toBe('super');
@@ -38,7 +38,7 @@ describe('デッキ編集の処理', () => {
   });
 
   it('おまかせでうめる：満杯なら何もしない', () => {
-    const full = starterDeckNos();
+    const full = classicDeckNos();
     expect(autoFill(full, CARD_DB, DEFAULT_RULES, unlimited, Math.random)).toEqual(full);
   });
 });

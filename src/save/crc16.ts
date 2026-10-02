@@ -10,7 +10,15 @@ export function crc16(bytes: Uint8Array): number {
   return crc;
 }
 
-/** 文字列（ASCII想定）の CRC16 */
+/** 文字列（ASCII想定）の CRC16。ASCII だけなら UTF-8 にせず直接計算する（長いコードを何度も調べるため） */
 export function crc16Text(text: string): number {
-  return crc16(new TextEncoder().encode(text));
+  if (!/^[\x00-\x7f]*$/.test(text)) return crc16(new TextEncoder().encode(text));
+  let crc = 0xffff;
+  for (let j = 0; j < text.length; j++) {
+    crc ^= text.charCodeAt(j) << 8;
+    for (let i = 0; i < 8; i++) {
+      crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
+    }
+  }
+  return crc;
 }

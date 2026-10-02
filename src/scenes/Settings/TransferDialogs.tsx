@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SaveData } from '../../save/saveData';
 import { decodeTransferCode, encodeTransferCode } from '../../save/transferCode';
 import { Dialog } from '../../ui/common/Dialog';
@@ -10,20 +10,38 @@ import { useT } from '../../i18n/useT';
  * 「コードを つくる」：コードを全選択できる欄に出す＋コピーボタン。
  *   クリップボードが使えない時は、欄を全選択して「ながおしで コピーしてね」と案内する。
  * 「コードを いれる」：貼り付け欄 → 確認「いまの データは うわがき されるよ」→ 復元。
+ * どちらにも「まえの たんまつでは もう つかわないでね」を出す（同じデータを2台で使うと、カードやコインが2倍になるため。v2.0-B）。
  */
 
 /** コードを見せて「つくった」と数える時間（書き写すのに使ったとみなす） */
 const SHOWN_ENOUGH_MS = 5000;
 
 export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; onClose: () => void; onCreated: () => void }) {
-  const [code] = useState(() => encodeTransferCode(save));
+  // コードは圧縮してから作る（CompressionStream は非同期）。開いた時のデータで1回だけ作る
+  const [snapshot] = useState(save);
+  const [code, setCode] = useState('');
+  const [msg, setMsg] = useState<'copied' | 'failed' | null>(null);
+  useEffect(() => {
+    let alive = true;
+    // CompressionStream が動かない時は、予備の fflate で作り直す
+    void encodeTransferCode(snapshot)
+      .catch(() => encodeTransferCode(snapshot, { engine: 'fflate' }))
+      .then((c) => {
+        if (alive) setCode(c);
+      })
+      .catch(() => {
+        if (alive) setMsg('failed');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [snapshot]);
   const [openedAt] = useState(() => Date.now());
   const close = () => {
-    if (Date.now() - openedAt >= SHOWN_ENOUGH_MS) onCreated();
+    if (code && Date.now() - openedAt >= SHOWN_ENOUGH_MS) onCreated();
     onClose();
   };
   const tr = useT();
-  const [msg, setMsg] = useState<'copied' | 'failed' | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const digits = code.replace(/-/g, '').length;
 
@@ -35,6 +53,7 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
   };
 
   const copy = async () => {
+    if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
       onCreated();
@@ -67,7 +86,7 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
           <RoughButton seed="make-code-close" onClick={close}>
             {tr.common.close}
           </RoughButton>
-          <RoughButton seed="make-code-copy" highlight onClick={copy}>
+          <RoughButton seed="make-code-copy" highlight={!!code} disabled={!code} onClick={copy}>
             {tr.transfer.copy}
           </RoughButton>
         </>
@@ -75,14 +94,15 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
     >
       <p className="settings-dialog__note">
         {tr.transfer.codeText}
-        <span className="pencil">{tr.transfer.digits(digits)}</span>
+        {code && <span className="pencil">{tr.transfer.digits(digits)}</span>}
       </p>
+      <p className="settings-dialog__note red-pen">{tr.transfer.oldDevice}</p>
       <textarea
         ref={field}
         className="pen-textarea settings-dialog__code"
         readOnly
         rows={6}
-        value={code}
+        value={code || tr.transfer.making}
         onFocus={selectAll}
         onClick={selectAll}
         aria-label={tr.transfer.codeTitle}
@@ -97,6 +117,7 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
   const [error, setError] = useState(false);
   const [pending, setPending] = useState<SaveData | null>(null);
   const [done, setDone] = useState(false);
+  const [reading, setReading] = useState(false);
   const tr = useT();
 
   if (done) {
@@ -111,6 +132,8 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
         }
       >
         {tr.transfer.restoredText}
+        <br />
+        <span className="red-pen">{tr.transfer.oldDevice}</span>
       </Dialog>
     );
   }
@@ -141,6 +164,8 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
         <span className="red-pen">{tr.transfer.overwriteWarn}</span>
         <br />
         {tr.transfer.codeData(pending.playerName, pending.decks.filter((d) => d.cards.length > 0).length)}
+        <br />
+        <span className="red-pen">{tr.transfer.oldDevice}</span>
       </Dialog>
     );
   }
@@ -158,9 +183,11 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
           <RoughButton
             seed="enter-code-go"
             highlight={text.trim().length > 0}
-            disabled={text.trim().length === 0}
-            onClick={() => {
-              const r = decodeTransferCode(text);
+            disabled={text.trim().length === 0 || reading}
+            onClick={async () => {
+              setReading(true);
+              const r = await decodeTransferCode(text);
+              setReading(false);
               if (r.ok) setPending(r.data);
               else setError(true);
             }}

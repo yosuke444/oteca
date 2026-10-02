@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { type BattleMode, type BattleSetup, randomSeed } from '../../battle/setup';
 import { CARD_DB } from '../../data/cards';
-import { validateDeck } from '../../engine';
+import { usableDecks } from '../../save/collection';
+import { DeckChooser } from '../../ui/deck/DeckPicker';
 import type { Side } from '../../engine/types';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
@@ -19,9 +20,12 @@ export function DebugScene() {
   const { save } = useSave();
   const tr = useT();
   const D = tr.debug;
-  const usable = save.decks.map((d, i) => ({ i, d })).filter(({ d }) => validateDeck(d.cards, CARD_DB).length === 0);
-  const [deck1, setDeck1] = useState(usable[0]?.i ?? 0);
-  const [deck2, setDeck2] = useState(usable[0]?.i ?? 0);
+  const usable = usableDecks(save)
+    .map((ok, i) => ({ ok, i }))
+    .filter((u) => u.ok);
+  const first = usable.some((u) => u.i === save.selectedDeck) ? save.selectedDeck : (usable[0]?.i ?? 0);
+  const [deck1, setDeck1] = useState(first);
+  const [deck2, setDeck2] = useState(first);
   const [die, setDie] = useState<number | null>(null);
   const [stackSide, setStackSide] = useState<Side>('p1');
   const [stack, setStack] = useState<Record<Side, number[]>>({ p1: [], p2: [] });
@@ -51,8 +55,6 @@ export function DebugScene() {
     go('battle', setup);
   };
 
-  const names = save.decks.map((d) => d.name);
-  const ids = usable.map((u) => u.i);
   const choice = stackable(stackSide);
 
   return (
@@ -68,8 +70,8 @@ export function DebugScene() {
         {D.soundtest}
       </RoughButton>
       <RoughBox seed="debug-panel" className="debug-panel" paper radius={8}>
-        <DeckPick label={D.p1Deck} value={deck1} onChange={(i) => { setDeck1(i); setStack((st) => ({ ...st, p1: [] })); }} usable={ids} names={names} />
-        <DeckPick label={D.p2Deck} value={deck2} onChange={(i) => { setDeck2(i); setStack((st) => ({ ...st, p2: [] })); }} usable={ids} names={names} />
+        <DeckPick label={D.p1Deck} seed="debug-p1" value={deck1} onChange={(i) => { setDeck1(i); setStack((st) => ({ ...st, p1: [] })); }} />
+        <DeckPick label={D.p2Deck} seed="debug-p2" value={deck2} onChange={(i) => { setDeck2(i); setStack((st) => ({ ...st, p2: [] })); }} />
 
         <div className="debug-row">
           <span className="debug-row__label">{D.fixDie}</span>
@@ -140,16 +142,14 @@ export function DebugScene() {
   );
 }
 
-export function DeckPick({ label, value, onChange, usable, names }: { label: string; value: number; onChange: (i: number) => void; usable: number[]; names: string[] }) {
+/** 1P・2P のデッキ：デッキ選択パネル（SPEC §7 S02）で選ぶ */
+function DeckPick({ label, seed, value, onChange }: { label: string; seed: string; value: number; onChange: (i: number) => void }) {
+  const { save } = useSave();
   return (
     <div className="debug-row">
       <span className="debug-row__label">{label}</span>
       <div className="debug-row__choices">
-        {names.map((n, i) => (
-          <RoughButton key={i} seed={`${label}-${i}`} className="debug-row__choice" disabled={!usable.includes(i)} highlight={value === i} onClick={() => onChange(i)}>
-            {n}
-          </RoughButton>
-        ))}
+        <DeckChooser save={save} seed={seed} label="" value={value} onChange={onChange} />
       </div>
     </div>
   );

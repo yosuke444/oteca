@@ -6,6 +6,7 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { Logo } from '../../ui/common/Logo';
 import { Sticky } from '../../ui/common/Sticky';
+import { Dialog } from '../../ui/common/Dialog';
 import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useSave } from '../../state/SaveContext';
@@ -18,7 +19,7 @@ type LockedId = 'story' | 'gacha';
 export function MenuScene() {
   const { go } = useNav();
   const debug = isDebugMode();
-  const { save, remindBackup } = useSave();
+  const { save, update, remindBackup } = useSave();
   const tr = useT();
   // 🔒 じゅんびちゅう のふせんを揺らす合図（押した回数）
   const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0 });
@@ -105,12 +106,51 @@ export function MenuScene() {
         </button>
       )}
 
+      {/* アップデートの おしらせ（古いセーブから移行した人に1回だけ。SPEC §7 S01） */}
+      {!save.updateNoticeSeen && (
+        <UpdateNotice
+          onAnswer={(tryTutorial) => {
+            update((d) => void (d.updateNoticeSeen = true));
+            if (tryTutorial) go('tutorial');
+          }}
+        />
+      )}
+
       {/* 余白の落書き（星・サイコロはゆっくり動く。おてあげの絵は動かさない） */}
       <OtegeArt width={150} className="menu-scene__doodle menu-scene__doodle--oteage" />
       <StarDoodle seed="menu-star-1" size={54} float className="menu-scene__doodle menu-scene__doodle--star1" />
       <StarDoodle seed="menu-star-2" size={36} float className="menu-scene__doodle menu-scene__doodle--star2" />
       <DiceDoodle seed="menu-dice" size={58} face={6} float className="menu-scene__doodle menu-scene__doodle--dice" />
     </div>
+  );
+}
+
+/** アップデートの おしらせ。最後に「チュートリアルを やってみる？」（やる／あとで。強制しない） */
+function UpdateNotice({ onAnswer }: { onAnswer: (tryTutorial: boolean) => void }) {
+  const tr = useT();
+  return (
+    <Dialog
+      seed="update-notice"
+      title={tr.notice.title}
+      width={760}
+      actions={
+        <>
+          <RoughButton seed="update-notice-later" onClick={() => onAnswer(false)}>
+            {tr.notice.later}
+          </RoughButton>
+          <RoughButton seed="update-notice-yes" highlight onClick={() => onAnswer(true)}>
+            {tr.notice.yes}
+          </RoughButton>
+        </>
+      }
+    >
+      <ul className="menu-notice__list" data-testid="update-notice">
+        {tr.notice.lines.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ul>
+      <p className="menu-notice__ask">{tr.notice.ask}</p>
+    </Dialog>
   );
 }
 

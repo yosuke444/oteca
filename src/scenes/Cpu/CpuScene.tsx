@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { type BattleSetup, randomSeed } from '../../battle/setup';
 import { CPU_LEVELS, type CpuLevel } from '../../cpu/brains';
-import { CARD_DB } from '../../data/cards';
-import { validateDeck } from '../../engine';
+import { usableDecks } from '../../save/collection';
+import { DeckPicker } from '../../ui/deck/DeckPicker';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { RoughButton } from '../../ui/rough/RoughButton';
@@ -15,17 +15,17 @@ const STEPS: Step[] = ['level', 'mine', 'cpu'];
 
 /**
  * S10 CPUたいせん（SPEC §7 S10・v1.4）
- * 強さ → 自分のデッキ → CPU に渡すデッキ を選ぶ。デッキは保存している5つのスロットから（使えるものだけ。同じデッキも選べる）。
+ * 強さ → 自分のデッキ → CPU に渡すデッキ を選ぶ。デッキは保存している20のスロットから、デッキ選択パネルで（使えるものだけ。同じデッキも選べる）。
  * 通信は使わない（オフラインでも遊べる）。
  */
 export function CpuScene() {
   const { go } = useNav();
-  const { save } = useSave();
+  const { save, update } = useSave();
   const tr = useT();
   const [step, setStep] = useState<Step>('level');
   const [level, setLevel] = useState<CpuLevel>('normal');
   const [mine, setMine] = useState(-1);
-  const usable = save.decks.map((d) => validateDeck(d.cards, CARD_DB).length === 0);
+  const usable = usableDecks(save);
 
   const back = () => {
     if (step === 'cpu') setStep('mine');
@@ -48,12 +48,7 @@ export function CpuScene() {
 
   const deckButtons = (onPick: (i: number) => void, chosen: number) => (
     <div className="cpu-scene__decks">
-      {save.decks.map((d, i) => (
-        <RoughButton key={i} seed={`cpu-deck-${step}-${i}`} className="cpu-scene__deck" disabled={!usable[i]} highlight={chosen === i} onClick={() => onPick(i)}>
-          <span className="cpu-scene__deck-name">{d.name}</span>
-          <span className={usable[i] ? 'cpu-scene__deck-note pencil' : 'cpu-scene__deck-note red-pen'}>{usable[i] ? tr.common.cards(d.cards.length) : tr.common.unusable}</span>
-        </RoughButton>
-      ))}
+      <DeckPicker save={save} current={chosen} mode="battle" onPick={onPick} />
     </div>
   );
 
@@ -108,7 +103,9 @@ export function CpuScene() {
           {deckButtons((i) => {
             setMine(i);
             setStep('cpu');
-          }, mine)}
+            // 自分のデッキは「いまのデッキ」にする
+            if (save.selectedDeck !== i) update((d) => void (d.selectedDeck = i));
+          }, mine >= 0 ? mine : save.selectedDeck)}
         </>
       )}
 

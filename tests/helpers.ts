@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { CARD_DB, cardById } from '../src/data/cards';
-import { buildDeck, starterDeckNos } from '../src/data/starterDeck';
+import { buildDeck, classicDeckNos } from '../src/data/starterDeck';
 import {
   type Action,
   type CardDb,
@@ -36,7 +36,7 @@ export function startMain(opts: StartOptions = {}): GameState {
   const cardDb = opts.cardDb ?? CARD_DB;
   let { state } = createGame({
     seed: opts.seed ?? 'test-seed',
-    decks: { p1: opts.decks?.p1 ?? starterDeckNos(), p2: opts.decks?.p2 ?? starterDeckNos() },
+    decks: { p1: opts.decks?.p1 ?? classicDeckNos(), p2: opts.decks?.p2 ?? classicDeckNos() },
     cardDb,
     rules: opts.rules,
     forcedDice: [6, 1], // 先攻は p1

@@ -6,7 +6,7 @@ import { RoughBox } from '../rough/RoughBox';
 import { tiltFrom } from '../rough/seed';
 import { effectLabel, faceLabel } from './cardText';
 import { local } from '../../i18n';
-import { useLang } from '../../i18n/useT';
+import { useLang, useT } from '../../i18n/useT';
 import './card.css';
 
 export type CardMiniProps = {
@@ -15,8 +15,14 @@ export type CardMiniProps = {
   seed: string;
   /** tile＝カード一覧用（技表あり）／slot＝デッキ枠用（名前とHPだけ） */
   variant: 'tile' | 'slot';
-  /** 右上に出す枚数（×2 など） */
+  /** 右下に出す枚数（×2 など。所持数が無制限の時の、デッキに入れた枚数） */
   count?: number;
+  /** 所持数（右下に「×3」。v2.0-B） */
+  owned?: number;
+  /** このデッキに入れた分を引いた残り（「のこり 1」） */
+  left?: number;
+  /** 持っていない：えんぴつ色のシルエットと「？」（名前と効果は読める） */
+  unowned?: boolean;
   /** えんぴつ色にする（入れられない等） */
   dim?: boolean;
   onTap?: () => void;
@@ -25,21 +31,30 @@ export type CardMiniProps = {
 };
 
 /** デッキ編集などで使う小さいカード（SPEC §6-6 を小さくしたもの） */
-export function CardMini({ def, seed, variant, count, dim = false, onTap, onDetail }: CardMiniProps) {
+export function CardMini({ def, seed, variant, count, owned, left, unowned = false, dim = false, onTap, onDetail }: CardMiniProps) {
   const lang = useLang();
+  const tr = useT();
   const press = useLongPress(
     () => onTap?.(),
     () => onDetail?.(),
   );
   return (
-    <button type="button" className={`card-mini card-mini--${variant} ${dim ? 'is-dim' : ''}`} {...press}>
+    <button
+      type="button"
+      className={`card-mini card-mini--${variant} ${dim ? 'is-dim' : ''} ${unowned ? 'is-unowned' : ''}`}
+      aria-label={unowned ? tr.deck.unownedAria(def.name) : undefined}
+      {...press}
+    >
       {def.kind === 'otege' ? <OtegeMini def={def} seed={seed} variant={variant} dim={dim} /> : (
         <Sticky seed={seed} color={def.color ?? 'yellow'} angle={variant === 'tile' ? tiltFrom(seed, 2.5) : 0} className="card-mini__note">
           <span className="card-mini__name">{def.name}</span>
           {variant === 'tile' && <span className="card-mini__text">{local(def.text, lang)}</span>}
         </Sticky>
       )}
-      {count !== undefined && count > 0 && <span className="card-mini__count num">×{count}</span>}
+      {unowned && <span className="card-mini__unknown" aria-hidden>{tr.deck.unknownMark}</span>}
+      {owned !== undefined && !unowned && <span className="card-mini__count num">{tr.deck.owned(owned)}</span>}
+      {left !== undefined && !unowned && <span className={`card-mini__left ${left === 0 ? 'is-zero' : ''}`}>{tr.deck.left(left)}</span>}
+      {owned === undefined && count !== undefined && count > 0 && <span className="card-mini__count num">×{count}</span>}
     </button>
   );
 }
@@ -61,7 +76,13 @@ function OtegeMini({ def, seed, variant, dim }: { def: OtegeCardDef; seed: strin
       <span className="card-tape" aria-hidden />
       {isSuper && <span className="card-stamp">S</span>}
       <div className="card-mini__head">
-        <span className={`card-mini__name ${[...def.name].length >= 7 ? 'is-long' : ''}`}>{def.name}</span>
+        <span
+          className={`card-mini__name ${[...def.name].length >= 7 ? 'is-long' : ''}`}
+          // デッキ枠（幅100）では長い名前（7文字以上）を枠に収まる大きさまで小さくする
+          style={variant === 'slot' && [...def.name].length >= 7 ? { fontSize: `${Math.floor(86 / [...def.name].length)}px` } : undefined}
+        >
+          {def.name}
+        </span>
         <span className="card-hp">
           <small>HP</small>
           <span className="num">{def.hp}</span>

@@ -5,12 +5,12 @@ import { selfPlay } from '../src/cpu/selfPlay';
 import { CpuController } from '../src/controllers/cpu';
 import { Match } from '../src/controllers/match';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import { type GameState, type Side, applyAction, createGame } from '../src/engine';
 
 /** CPU対戦（SPEC §13-5・§16-1b）。強さの順番（C04）は時間がかかるので npm run ladder で別に動かす */
 
-const decks = { p1: starterDeckNos(), p2: starterDeckNos() };
+const decks = { p1: classicDeckNos(), p2: classicDeckNos() };
 /** テストを速くするため、さいきょうの試算は少なめ（止まらないことの確認だけ。本物の回数の確認は npm run ladder） */
 const FAST = { maxRollouts: 6, timeMs: 1e9 };
 

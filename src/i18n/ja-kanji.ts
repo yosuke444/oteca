@@ -198,7 +198,7 @@ export const kanji: Dict = {
     askCpu: 'CPUに渡すデッキを選んでね（同じデッキでもOK）',
     summaryLevel: (level) => `強さ：${level}`,
     summaryMine: (deck) => `あなた：${deck}`,
-    none: '使えるデッキがありません。デッキ編集で15枚入れてね',
+    none: '使えるデッキがありません。デッキ編集で作るか、直してね',
   },
 
   result: {
@@ -241,7 +241,6 @@ export const kanji: Dict = {
     checkNumber: '番号が合っているか確かめてね',
     came: '相手が来た！',
     roomInput: '部屋番号（4〜8桁）',
-    deckLabel: '使うデッキ',
     enter: '部屋に入る',
     note1: '友だちと同じ番号を入れてね。',
     note2: '6桁以上がおすすめ',
@@ -253,10 +252,17 @@ export const kanji: Dict = {
   numpad: { clear: '消す', all: '全部' },
 
   deck: {
-    filter: { all: '全部', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
-    sort: { no: '番号', hp: 'HP', name: '名前' },
-    slotAria: (n) => `スロット${n}`,
-    nameLabel: 'デッキ名：',
+    filter: { all: '全部', owned: '持っている', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
+    pack: (name) => `パック：${name}`,
+    packAll: '全部',
+    packLimited: '限定',
+    sort: { no: '番号', name: '名前', hp: 'HP', owned: '持っている数' },
+    current: '今のデッキ：',
+    choose: 'デッキを選ぶ',
+    owned: (n) => `×${n}`,
+    left: (n) => `残り ${n}`,
+    unknownMark: '？',
+    unownedAria: (name) => `${name}（まだ持っていない）`,
     nameHint: (n) => `（${n}文字まで）`,
     panelTitle: (n) => `デッキ（ちょうど${n}枚）`,
     summaryOtege: 'おてあげ',
@@ -281,7 +287,32 @@ export const kanji: Dict = {
       unknown: '使えないカードが入っています',
       full: (n) => `もう${n}枚入っています`,
       notOwned: 'もう持っていません',
+      notOwnedYet: 'まだ持っていません',
+      short: (name, n) => `足りないカード：${name} ×${n}`,
     },
+  },
+
+  deckPicker: {
+    title: 'デッキを選ぶ',
+    cards: (n, size) => `${n}/${size}枚`,
+    bad: '!',
+    note: '赤い「!」のデッキは、まだ使えません（デッキ編集で直してね）',
+    noteEdit: '赤い「!」のデッキは、まだ対戦に使えません',
+    aria: (n, name) => `スロット${n}「${name}」`,
+    none: '使えるデッキがありません。デッキ編集で作ってね',
+  },
+
+  notice: {
+    title: 'アップデートのお知らせ',
+    lines: [
+      'カードを集めるようになりました。デッキには、持っている枚数まで入れられます',
+      '今までのデッキは、すべてそのまま使えます',
+      '最初のカード15枚と、おてあげコイン200枚をプレゼント！',
+      'デッキが20個まで作れるようになりました',
+    ],
+    ask: 'チュートリアルをやってみますか？',
+    yes: 'やる',
+    later: '後で',
   },
 
   settings: {
@@ -334,6 +365,8 @@ export const kanji: Dict = {
     enterNote: 'コードを貼り付けてね（ハイフンや空白があっても大丈夫）',
     inputAria: '引き継ぎコードの入力',
     wrong: 'コードが違うようです。もう一度確かめてね',
+    oldDevice: '前の端末では、もう使わないでね（同じデータを2台で使うと、カードやコインが2倍になってしまいます）',
+    making: 'コードを作っています…',
   },
 
   rules: {
@@ -363,7 +396,7 @@ export const kanji: Dict = {
         `② カードを${hand}枚引く。${mulligan ? 'おてあげがいなかったら引き直し' : ''}`,
         '③ バトル場におてあげを1体、裏向きで出す。2人そろったらオープン！',
       ],
-      more: '同じカードは何枚入れてもいいです（スーパーだけ数が決まっている）。先攻決めで同じ目が出たら振り直し。準備の間はベンチに出せません。',
+      more: '同じカードは、持っている枚数まで入れられます（ほかのデッキで使っていても大丈夫）。先攻決めで同じ目が出たら振り直し。準備の間はベンチに出せません。',
     },
     p3: {
       title: '自分のターン',

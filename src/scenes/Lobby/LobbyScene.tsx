@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import { useT } from '../../i18n/useT';
 import { badOnlineStart, onlineSetup } from '../../battle/setup';
-import { CARD_DB } from '../../data/cards';
-import { validateDeck } from '../../engine';
+import { usableDecks } from '../../save/collection';
+import { DeckChooser } from '../../ui/deck/DeckPicker';
 import { audio } from '../../audio/audioManager';
 import { isValidRoomNumber } from '../../net/protocol';
 import { type OnlineLink, currentOnline, endOnline, startOnline } from '../../net/online';
@@ -55,9 +55,11 @@ function errorText(s: SessionStatus): string | null {
 /** S03 フレンド対戦ロビー（SPEC §7） */
 export function LobbyScene() {
   const { go } = useNav();
-  const { save } = useSave();
+  const { save, update } = useSave();
   const tr = useT();
-  const usable = save.decks.map((d, i) => ({ i, d })).filter(({ d }) => validateDeck(d.cards, CARD_DB).length === 0);
+  const usable = usableDecks(save)
+    .map((ok, i) => ({ ok, i }))
+    .filter((u) => u.ok);
   const [room, setRoom] = useState('');
   const [deck, setDeck] = useState(usable.some((u) => u.i === save.selectedDeck) ? save.selectedDeck : (usable[0]?.i ?? -1));
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
@@ -255,17 +257,17 @@ export function LobbyScene() {
       </section>
 
       <section className="lobby__right">
-        <p className="lobby__label">{tr.lobby.deckLabel}</p>
         <div className="lobby__decks">
-          {save.decks.map((d, i) => {
-            const ok = usable.some((u) => u.i === i);
-            return (
-              <RoughButton key={i} seed={`lobby-deck-${i}`} className="lobby__deck" disabled={!ok} highlight={deck === i} onClick={() => setDeck(i)}>
-                <span className="lobby__deck-name">{d.name}</span>
-                <span className={ok ? 'lobby__deck-note pencil' : 'lobby__deck-note red-pen'}>{ok ? tr.common.cards(d.cards.length) : tr.common.unusable}</span>
-              </RoughButton>
-            );
-          })}
+          <DeckChooser
+            save={save}
+            seed="lobby-deck"
+            value={deck}
+            onChange={(i) => {
+              setDeck(i);
+              // 選んだデッキは「いまのデッキ」にする
+              if (save.selectedDeck !== i) update((d) => void (d.selectedDeck = i));
+            }}
+          />
         </div>
         <RoughButton seed="lobby-join" className="lobby__join" strokeWidth={3} highlight={canJoin} disabled={!canJoin} onClick={join}>
           {tr.lobby.enter}

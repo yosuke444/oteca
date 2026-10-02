@@ -40,6 +40,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   // 🔒 後で実装
   story: ComingSoonScene,
   gacha: ComingSoonScene,
+  tutorial: ComingSoonScene,
 };
 
 /**
@@ -51,6 +52,7 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   menu: 'bgm_title',
   story: 'bgm_title',
   gacha: 'bgm_title',
+  tutorial: 'bgm_title',
   debug: 'bgm_title',
   deck: 'bgm_deck',
   settings: 'bgm_deck',

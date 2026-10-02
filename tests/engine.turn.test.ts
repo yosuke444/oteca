@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type Action, type GameState, type Side, applyAction, getLegalActions, hashState } from '../src/engine';
 import { CARD_DB } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import { createGame } from '../src/engine';
 import { arrange, deckOf, eventsOf, forceDice, ok, startMain } from './helpers';
 
@@ -129,7 +129,7 @@ describe('ターンの流れ', () => {
   });
 
   it('E18 準備中：選び直し・おてあげ以外・準備中のメイン操作は無視される', () => {
-    const created = createGame({ seed: 'setup', decks: { p1: starterDeckNos(), p2: starterDeckNos() }, cardDb: CARD_DB, forcedDice: [6, 1] });
+    const created = createGame({ seed: 'setup', decks: { p1: classicDeckNos(), p2: classicDeckNos() }, cardDb: CARD_DB, forcedDice: [6, 1] });
     let s = arrange(created.state, 'p1', { hand: ['oteage', 'kusuri'] });
     s = arrange(s, 'p2', { hand: ['mitsume'] });
     const [oteage, kusuri] = s.players.p1.hand;

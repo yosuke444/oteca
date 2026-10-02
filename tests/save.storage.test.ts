@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { STARTER_COINS, STARTER_DECK_NAME, starterCollection, starterDeckNos } from '../src/data/starterDeck';
+import { checkSavedDeck } from '../src/save/collection';
 import { toBase64Url } from '../src/save/base64url';
-import { type SaveDataV1, type SaveDataV2, encodeSave } from '../src/save/binary';
 import {
   CHUNK_SIZE,
   COOKIE_META,
@@ -11,14 +11,10 @@ import {
   parseCookies,
   persist,
   readCookies,
-  openSave,
-  sealBytes,
   sealSave,
   writeCookies,
 } from '../src/save/cookieStore';
-import { decodeSave, migrate } from '../src/save/migrate';
-import { createDefaultSave, emptyCpuStats, type SaveData } from '../src/save/saveData';
-import { decodeTransferCode } from '../src/save/transferCode';
+import { DECK_SLOTS, createDefaultSave, defaultDeckName, normalizeSave, type SaveData } from '../src/save/saveData';
 import { randomSave } from './save.helpers';
 
 /** document.cookie のまねをする偽物（max-age=0 で消える） */
@@ -47,8 +43,8 @@ function fakeLocal(): KeyValueStore & { map: Map<string, string> } {
 
 /** 分割が起きるくらい大きいデータ */
 function bigSave(): SaveData {
-  const d = createDefaultSave(starterDeckNos());
-  d.collection = Array.from({ length: 2500 }, (_, i) => ({ no: i + 1, qty: 200 + (i % 50) }));
+  const d = createDefaultSave();
+  d.collection = Object.fromEntries(Array.from({ length: 4000 }, (_, i) => [i + 1, 200 + (i % 50)]));
   return d;
 }
 
@@ -70,7 +66,7 @@ describe('Cookie への保存', () => {
     for (const w of jar.writes) expect(w).toMatch(/; path=\/; max-age=34560000; SameSite=Lax; Secure$/);
 
     // 小さいデータで保存し直すと、余った分割 Cookie は消える
-    const small = createDefaultSave(starterDeckNos());
+    const small = createDefaultSave();
     writeCookies(jar, sealSave(small), false);
     expect([...jar.store.keys()].filter((k) => k.startsWith('oteca_s'))).toEqual(['oteca_s0']);
     expect(readCookies(jar)).toBe(sealSave(small));
@@ -89,7 +85,7 @@ describe('Cookie への保存', () => {
   });
 
   it('V04 Cookie の中身は暗号化されていて、そのままでは読めない', () => {
-    const data = createDefaultSave(starterDeckNos());
+    const data = createDefaultSave();
     data.playerName = 'ABCDEFGH';
     const sealed = sealSave(data);
     expect(sealed).toMatch(/^[A-Za-z0-9_-]+$/);
@@ -124,106 +120,58 @@ describe('Cookie への保存', () => {
   });
 });
 
-describe('形式の移行', () => {
-  /**
-   * 形式版数1で保存したバイト列（16進）。今後形式を変えても、これが読めなければいけない。
-   * 中身：名前「おてか」、BGM 3・効果音 9・はやい・演出をへらす ON・ヒント OFF、
-   *      スロット2（index 1）を選択、デッキ1＝No1×3・名前なし、デッキ2＝名前「つよい」No7・No9、
-   *      3勝2敗、コイン5、unlockAll、所持 No12×4、ストーリー 1・2 クリア、保存回数 300
-   */
-  const V1_FIXTURE_HEX =
-    '0101ac0209e3818ae381a6e3818b3906010003010101' +
-    '09e381a4e38288e38184020709000000000000030205' +
-    '01010c04020102';
-
-  /** 形式版数1の中身（cpuStats が無い形） */
-  const V1_EXPECTED: SaveDataV1 = {
-    saveVersion: 1,
-    saveCounter: 300,
-    playerName: 'おてか',
-    settings: { bgm: 3, se: 9, fxSpeed: 1, reduceFx: true, hints: false },
-    decks: [
-      { name: 'デッキ1', cards: [1, 1, 1] },
-      { name: 'つよい', cards: [7, 9] },
-      { name: 'デッキ3', cards: [] },
-      { name: 'デッキ4', cards: [] },
-      { name: 'デッキ5', cards: [] },
-    ],
-    selectedDeck: 1,
-    stats: { wins: 3, losses: 2 },
-    coins: 5,
-    collection: [{ no: 12, qty: 4 }],
-    unlockAll: true,
-    story: { cleared: [1, 2] },
-  };
-
-  const hexToBytes = (hex: string) => new Uint8Array(hex.match(/../g)!.map((h) => parseInt(h, 16)));
-
-  /** 形式版数1を読むと、CPU対戦の勝敗（v1.4）はすべて0になる */
-  const V1_AS_LATEST: SaveData = { ...V1_EXPECTED, settings: { ...V1_EXPECTED.settings, lang: 'hira' }, cpuStats: emptyCpuStats() };
-
-  /**
-   * 形式版数2（v1.4）で保存したバイト列：形式版数1と同じ中身 ＋ CPU対戦 よわい3勝1敗・つよい5勝6敗・さいきょう0勝2敗
-   */
-  const V2_EXPECTED: SaveDataV2 = {
-    ...V1_EXPECTED,
-    cpuStats: [
-      { wins: 3, losses: 1 },
-      { wins: 0, losses: 0 },
-      { wins: 5, losses: 6 },
-      { wins: 0, losses: 2 },
-    ],
-  };
-  const V2_FIXTURE_HEX = '02' + V1_FIXTURE_HEX.slice(2) + '0301000005060002';
-  /** 形式版数2を読むと、ことば は にほんご */
-  const V2_AS_LATEST: SaveData = { ...V2_EXPECTED, settings: { ...V2_EXPECTED.settings, lang: 'hira' } };
-  /** 形式版数3（v2.0-A）：形式版数2と同じ中身 ＋ ことば＝日本語 */
-  const V3_EXPECTED: SaveData = { ...V2_EXPECTED, settings: { ...V2_EXPECTED.settings, lang: 'kanji' } };
-  const V3_FIXTURE_HEX = '03' + V2_FIXTURE_HEX.slice(2) + '01';
-
-  /** 形式版数1の時に作った引き継ぎコード（V1_EXPECTED の中身） */
-  const V1_TRANSFER_CODE =
-    '4222-2366-6946-5057-1122-1685-0719-9836-2694-5024-2064-0510-0134-4187-0039-8155-1864-8453-3977-0014-8028-1622-2292-4991-0581-1010-8895-9562-2237-7290-2958-7199-8';
-
-  it('V05 古い形式版数のデータを migrate で読める（形式版数1 → 2：cpuStats は0）', () => {
-    expect(decodeSave(hexToBytes(V1_FIXTURE_HEX))).toEqual(V1_AS_LATEST);
-    expect(migrate(1, V1_EXPECTED)).toEqual(V1_AS_LATEST);
+describe('V08 新しいセーブ', () => {
+  it('初期カード15枚・コイン200枚、スロット1に初期デッキ（使える）、ほかは空。おしらせは出さない', () => {
+    const d = createDefaultSave();
+    expect(d.collection).toEqual(starterCollection());
+    expect(Object.values(d.collection).reduce((a, b) => a + b, 0)).toBe(15);
+    expect(d.coins).toBe(STARTER_COINS);
+    expect(d.coins).toBe(200);
+    expect(d.decks).toHaveLength(DECK_SLOTS);
+    expect(d.decks[0]).toEqual({ name: STARTER_DECK_NAME, cards: starterDeckNos() });
+    expect(checkSavedDeck(d, 0)).toEqual({ problems: [], shortages: [], usable: true });
+    for (let i = 1; i < DECK_SLOTS; i++) expect(d.decks[i]).toEqual({ name: defaultDeckName(i), cards: [] });
+    expect(d.unlockAll).toBe(false);
+    expect(d.updateNoticeSeen).toBe(true);
+    expect(d.tutorial).toEqual({ done: false, gachaInviteShown: false });
+    expect(normalizeSave(d)).toEqual(d);
   });
+});
 
-  it('V05 形式版数2のデータを読める（ことば は にほんご）', () => {
-    expect(decodeSave(hexToBytes(V2_FIXTURE_HEX))).toEqual(V2_AS_LATEST);
-    expect(migrate(2, V2_EXPECTED)).toEqual(V2_AS_LATEST);
+describe('V12 デッキ20個を保存し、読み込み直しても残る', () => {
+  it('Cookie・localStorage に20個保存して読み直す（片方が消えても残る）', () => {
+    const jar = fakeJar();
+    const local = fakeLocal();
+    const storage = { jar, local, secure: false };
+    const d = createDefaultSave();
+    d.decks = d.decks.map((_, i) => ({ name: `デッキ${i + 1}ばん`.slice(0, 8), cards: i % 2 ? starterDeckNos() : [1, 2, 3, 1 + (i % 12)] }));
+    d.selectedDeck = 19;
+    d.saveCounter = 3;
+    persist(storage, d);
+    const back = load(storage)!;
+    expect(back.decks).toHaveLength(20);
+    expect(back).toEqual(d);
+    jar.store.clear();
+    expect(load(storage)).toEqual(d);
+    const jar2 = fakeJar();
+    persist({ jar: jar2, local: null, secure: false }, d);
+    expect(load({ jar: jar2, local: null, secure: false })).toEqual(d);
   });
+});
 
-  it('V05 今の形式（形式版数3）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    const hex = [...encodeSave(V3_EXPECTED)].map((b) => b.toString(16).padStart(2, '0')).join('');
-    expect(hex).toBe(V3_FIXTURE_HEX);
-    expect(decodeSave(hexToBytes(V3_FIXTURE_HEX))).toEqual(V3_EXPECTED);
-    expect(migrate(3, V3_EXPECTED)).toEqual(V3_EXPECTED);
-  });
-
-  it('V05 読めない形式版数・余分なバイト・壊れた値はエラーになる', () => {
-    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX]) {
-      const bytes = hexToBytes(hex);
-      const future = bytes.slice();
-      future[0] = 99;
-      expect(() => decodeSave(future)).toThrow('形式版数 99');
-      expect(() => decodeSave(new Uint8Array([...bytes, 0]))).toThrow('余分');
-      expect(() => decodeSave(bytes.slice(0, -1))).toThrow();
+describe('保存の前の整え（normalizeSave）', () => {
+  it('おかしな値が入っても、整えたものは必ず保存して読み直せる（読めずに初期化されない）', async () => {
+    const { encodeSave } = await import('../src/save/binary');
+    const { decodeSave } = await import('../src/save/migrate');
+    for (let i = 0; i < 200; i++) {
+      const d = randomSave(i);
+      d.decks[i % 20].cards = [...Array.from({ length: 70 }, (_, k) => k + 1), 70000, -3, 1.5];
+      d.collection[100000] = 5;
+      d.collection[7] = 5000;
+      d.settings.fxSpeed = 7 as 0;
+      const n = normalizeSave(d);
+      expect(n.decks[i % 20].cards).toHaveLength(60);
+      expect(decodeSave(encodeSave(n))).toEqual(n);
     }
-  });
-
-  /** 形式版数2（v1.4）で作った引き継ぎコード（V2_FIXTURE_HEX、ソルト57。当時の作り方 encodeTransferBytes で作って固定した） */
-  const V2_TRANSFER_CODE =
-    '5726-7570-1068-8805-2679-1170-5334-8252-2485-3465-5194-7515-5633-5254-1342-2085-1230-5340-9709-5959-3105-8946-8054-3566-8271-4770-6883-2664-3260-7408-8591-8731-1303-2630-6989-9598-2426-4';
-
-  it('V06 形式版数1・2で作った古い引き継ぎコードが、v2.0 でも読める', () => {
-    expect(decodeTransferCode(V1_TRANSFER_CODE)).toEqual({ ok: true, data: V1_AS_LATEST });
-    expect(decodeTransferCode(V2_TRANSFER_CODE)).toEqual({ ok: true, data: V2_AS_LATEST });
-  });
-
-  it('V06 形式版数1・2の Cookie の中身（暗号文）が、v2.0 でも読める', () => {
-    expect(openSave(sealBytes(hexToBytes(V1_FIXTURE_HEX)))).toEqual(V1_AS_LATEST);
-    expect(openSave(sealBytes(hexToBytes(V2_FIXTURE_HEX)))).toEqual(V2_AS_LATEST);
   });
 });

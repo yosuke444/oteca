@@ -132,7 +132,7 @@ function OtegeFace({
         <span className="card-tape" aria-hidden />
         {isSuper && <span className="card-stamp">S</span>}
         <div className="battle-card__head">
-          <span className={`battle-card__name ${[...def.name].length >= 7 ? 'is-long' : ''}`}>{def.name}</span>
+          <span className={`battle-card__name ${[...def.name].length >= 7 ? 'is-long' : ''} ${[...def.name].length >= 8 ? 'is-xlong' : ''}`}>{def.name}</span>
         </div>
         <div className="battle-card__art">
           <CardArt def={def} seed={`${card.uid}-${size}`} />

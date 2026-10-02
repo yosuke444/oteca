@@ -4,7 +4,7 @@ import { type CpuLevel, STRONGEST_SEARCH } from '../src/cpu/brains';
 import { seededRand } from '../src/cpu/random';
 import { selfPlay } from '../src/cpu/selfPlay';
 import { CARD_DB } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import type { Side } from '../src/engine/types';
 
 /**
@@ -13,7 +13,7 @@ import type { Side } from '../src/engine/types';
  * さいきょうの考える量は、画面と同じ STRONGEST_SEARCH の回数（時間ではなく回数で決まるので、PC の速さで変わらない）。
  */
 export function ladder(upper: CpuLevel, lower: CpuLevel, from: number, to: number) {
-  const decks = { p1: starterDeckNos(), p2: starterDeckNos() };
+  const decks = { p1: classicDeckNos(), p2: classicDeckNos() };
   let upperWins = 0;
   let upperFirstWins = 0;
   let upperSecondWins = 0;

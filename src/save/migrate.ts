@@ -1,12 +1,23 @@
-import { ByteReader, FORMAT_VERSION, type SaveDataV1, type SaveDataV2, readSaveV1, readSaveV2, readSaveV3 } from './binary';
-import { type SaveData, emptyCpuStats } from './saveData';
+import { STARTER_COINS, starterCollection } from '../data/starterDeck';
+import {
+  ByteReader,
+  FORMAT_VERSION,
+  type SaveDataV1,
+  type SaveDataV2,
+  type SaveDataV3,
+  readSaveV1,
+  readSaveV2,
+  readSaveV3,
+  readSaveV4,
+} from './binary';
+import { COINS_MAX, DECK_SLOTS, OWN_MAX, type SaveData, defaultDeckName, emptyCpuStats, laterFieldsDefault } from './saveData';
 
 /**
  * 形式版数を見て、古い形式なら最新の SaveData へ変換する（SPEC §12-3）
  *
  * 形式を変える時の手順（CLAUDE.md 守ること7）：
- *  1. binary.ts の FORMAT_VERSION を上げ、encodeSave の末尾に項目を足す
- *  2. 新しい形式の読み方（readSaveV2 など）を READERS に足す
+ *  1. binary.ts の FORMAT_VERSION を上げ、encodeSave を新しい形式にする
+ *  2. 新しい形式の読み方（readSaveV4 など）を READERS に足す
  *  3. 1つ前の形式から変換する関数を UPGRADES に足す
  *  4. テスト V05 に、古い形式のバイト列を読めることの確認を足す
  */
@@ -16,6 +27,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   1: readSaveV1,
   2: readSaveV2,
   3: readSaveV3,
+  4: readSaveV4,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -25,9 +37,51 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   /** 2 → 3（v2.0-A）：ことばを足す（にほんご） */
   2: (old) => {
     const d = old as SaveDataV2;
-    return { ...d, settings: { ...d.settings, lang: 'hira' } } satisfies SaveData;
+    return { ...d, settings: { ...d.settings, lang: 'hira' } } satisfies SaveDataV3;
   },
+  /** 3 → 4（v2.0-B）：カードの所持・デッキ20個など（SPEC §12-3b） */
+  3: (old) => upgradeToV4(old as SaveDataV3),
 };
+
+/**
+ * 今までのプレイヤーの移行（SPEC §12-3b・UPDATE_v2 §3-1）。
+ * 初期カード15枚とコイン200枚を配り、各カードの所持数を
+ * 「初期カードの枚数」「保存デッキのうち一番多く入れているデッキの枚数」「今までの collection の枚数」の最大にする。
+ * 在庫はデッキごとなので、これで保存していたデッキはすべて使えるままになる。
+ */
+export function upgradeToV4(d: SaveDataV3): SaveData {
+  const collection: Record<number, number> = { ...starterCollection() };
+  const raise = (no: number, qty: number) => {
+    if (!Number.isInteger(no) || no <= 0) return;
+    collection[no] = Math.min(OWN_MAX, Math.max(collection[no] ?? 0, qty));
+  };
+  for (const deck of d.decks) {
+    const counts = new Map<number, number>();
+    for (const no of deck.cards) counts.set(no, (counts.get(no) ?? 0) + 1);
+    for (const [no, qty] of counts) raise(no, qty);
+  }
+  for (const c of d.collection) raise(c.no, c.qty);
+  return {
+    saveVersion: d.saveVersion,
+    saveCounter: d.saveCounter,
+    playerName: d.playerName,
+    settings: d.settings,
+    // デッキは名前・中身・並び順もそのまま。足りない分（6〜20個目）を空で足す
+    decks: Array.from({ length: DECK_SLOTS }, (_, i) => {
+      const deck = d.decks[i];
+      return deck ? { name: deck.name, cards: [...deck.cards] } : { name: defaultDeckName(i), cards: [] };
+    }),
+    selectedDeck: d.selectedDeck,
+    collection,
+    unlockAll: false,
+    coins: Math.min(COINS_MAX, d.coins + STARTER_COINS),
+    stats: d.stats,
+    cpuStats: d.cpuStats,
+    story: { stages: [...new Set(d.story.cleared)].sort((a, b) => a - b).map((no) => ({ no, cleared: true, firstClear: true })) },
+    updateNoticeSeen: false,
+    ...laterFieldsDefault(),
+  };
+}
 
 /** バイト列 → 最新の SaveData。読めなければエラー */
 export function decodeSave(bytes: Uint8Array): SaveData {

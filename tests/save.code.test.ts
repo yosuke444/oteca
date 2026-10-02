@@ -1,88 +1,161 @@
 import { describe, expect, it } from 'vitest';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { encodeSave } from '../src/save/binary';
+import { deflateRaw, inflateRaw, streamAvailable } from '../src/save/compress';
 import { createDefaultSave } from '../src/save/saveData';
-import { decodeTransferCode, encodeTransferCode } from '../src/save/transferCode';
-import { randomSave } from './save.helpers';
+import { decodeTransferCode, encodeTransferBytes, encodeTransferCode } from '../src/save/transferCode';
+import { decryptDigits } from '../src/save/vigenere';
+import { codeLengthPatterns, randomSave } from './save.helpers';
 
-/** i 桁目（ハイフンを除いた数字の位置）の数字を変える */
-function changeDigit(code: string, index: number, delta: number): string {
-  let n = -1;
-  return code.replace(/[0-9]/g, (d) => {
-    n += 1;
-    return n === index ? String((Number(d) + delta) % 10) : d;
-  });
+/** i 桁目の数字を変える（d はハイフンを除いた数字だけのコード。ハイフン入りでも読めることは V03 で確かめる） */
+function changeDigit(d: string, index: number, delta: number): string {
+  return d.slice(0, index) + String((d.charCodeAt(index) - 48 + delta) % 10) + d.slice(index + 1);
+}
+
+const digits = (code: string) => code.replace(/-/g, '').length;
+
+/** コードの目印（復号した数字列の先頭バイト。0x01＝圧縮なし／0x02＝圧縮） */
+function markOf(code: string): number {
+  const d = code.replace(/[^0-9]/g, '');
+  const plain = decryptDigits(d.slice(2, -4), Number(d.slice(0, 2)));
+  const hex = BigInt(plain).toString(16);
+  return parseInt(hex.length % 2 ? `0${hex.slice(0, 1)}` : hex.slice(0, 2), 16);
 }
 
 describe('引き継ぎコード', () => {
-  it('V01 SaveData → 数字コード → SaveData で完全に元に戻る（ランダムなデータで1000回）', () => {
+  it('V01 SaveData → 数字コード → SaveData で完全に元に戻る（ランダムなデータで1000回）', async () => {
     for (let i = 0; i < 1000; i++) {
       const data = randomSave(i);
-      const code = encodeTransferCode(data, i % 100);
+      const code = await encodeTransferCode(data, { salt: i % 100 });
       expect(code).toMatch(/^[0-9]{1,4}(-[0-9]{1,4})*$/);
-      const back = decodeTransferCode(code);
+      const back = await decodeTransferCode(code);
       expect(back, `seed ${i}`).toEqual({ ok: true, data });
     }
   });
 
-  it('V01 使わない値 hints（v1.3 でヒント削除）も、true・false のまま読み書きされる（前に作ったコードが読める）', () => {
+  it('V01 使わない値 hints（v1.3 でヒント削除）も、true・false のまま読み書きされる（前に作ったコードが読める）', async () => {
     for (const hints of [true, false]) {
-      const data = createDefaultSave(starterDeckNos());
+      const data = createDefaultSave();
       data.settings.hints = hints;
-      expect(decodeTransferCode(encodeTransferCode(data, 7))).toEqual({ ok: true, data });
+      expect(await decodeTransferCode(await encodeTransferCode(data, { salt: 7 }))).toEqual({ ok: true, data });
     }
   });
 
-  it('V01 同じデータでもソルトで毎回違うコードになる', () => {
-    const data = createDefaultSave(starterDeckNos());
-    const a = encodeTransferCode(data, 12);
-    const b = encodeTransferCode(data, 57);
+  it('V01 同じデータでもソルトで毎回違うコードになる', async () => {
+    const data = createDefaultSave();
+    const a = await encodeTransferCode(data, { salt: 12 });
+    const b = await encodeTransferCode(data, { salt: 57 });
     expect(a).not.toBe(b);
-    expect(decodeTransferCode(a)).toEqual(decodeTransferCode(b));
+    expect(await decodeTransferCode(a)).toEqual(await decodeTransferCode(b));
   });
 
-  it('V01 コードの長さ：初期データは短く、全部埋めても SPEC の目安に収まる', () => {
-    const digits = (code: string) => code.replace(/-/g, '').length;
-    const full = createDefaultSave(starterDeckNos());
-    full.decks = full.decks.map(() => ({ name: 'あいうえおかきく', cards: starterDeckNos() }));
-    expect(digits(encodeTransferCode(createDefaultSave(starterDeckNos())))).toBeLessThan(170); // v1.4 で CPU対戦の記録（8バイト）が増えて約20桁のびた
-    expect(digits(encodeTransferCode(full))).toBeLessThan(620);
-  });
-
-  it('V02 コードの数字を1つ変えると復元に失敗する', () => {
+  it('V02 コードの数字を1つ変えると復元に失敗する', async () => {
+    // 読めてしまった変え方（あってはいけない）。expect を10万回呼ぶと遅いので、まとめて1回で確かめる
+    const accepted: string[] = [];
+    let tried = 0;
     for (let s = 0; s < 40; s++) {
-      const code = encodeTransferCode(randomSave(5000 + s), s);
-      const len = code.replace(/-/g, '').length;
+      const code = (await encodeTransferCode(randomSave(5000 + s), { salt: s })).replace(/-/g, '');
+      const len = code.length;
       // 数字の場所すべてについて、別の数字に変えてみる（最初の3件は 1〜9 の全部のずらし方）
       const deltas = s < 3 ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [1 + (s % 9)];
       for (let i = 0; i < len; i++) {
         for (const d of deltas) {
-          const r = decodeTransferCode(changeDigit(code, i, d));
-          expect(r.ok, `seed ${s} 位置 ${i} +${d}`).toBe(false);
+          const r = await decodeTransferCode(changeDigit(code, i, d));
+          tried += 1;
+          if (r.ok) accepted.push(`seed ${s} 位置 ${i} +${d}`);
         }
+      }
+    }
+    expect(tried).toBeGreaterThan(40 * 300);
+    expect(accepted).toEqual([]);
+  }, 180000); // コードが長くなった（デッキ20個）ので、調べる数も多い（約10万通り）
+
+  it('V02 桁が足りない・数字が無いコードも失敗する', async () => {
+    const code = await encodeTransferCode(createDefaultSave(), { salt: 3 });
+    expect((await decodeTransferCode(code.slice(0, -1))).ok).toBe(false);
+    expect((await decodeTransferCode(code.slice(1))).ok).toBe(false);
+    expect((await decodeTransferCode('')).ok).toBe(false);
+    expect((await decodeTransferCode('abc')).ok).toBe(false);
+  });
+
+  it('V03 ハイフン・空白入りのコードも読める', async () => {
+    const data = randomSave(77);
+    const code = await encodeTransferCode(data, { salt: 42 });
+    const d = code.replace(/-/g, '');
+    const variants = [
+      d,
+      code.replace(/-/g, ' '),
+      ` ${code}\n`,
+      code.replace(/-/g, ' - '),
+      d.replace(/(.{3})/g, '$1　'), // 全角空白
+      d.replace(/(.{5})/g, '$1\n'),
+    ];
+    for (const v of variants) expect(await decodeTransferCode(v)).toEqual({ ok: true, data });
+  });
+});
+
+describe('V11 引き継ぎコードの圧縮（deflate-raw）', () => {
+  it('このテストの環境では CompressionStream（deflate-raw）が使える', () => {
+    expect(streamAvailable()).toBe(true);
+  });
+
+  it('CompressionStream と予備の fflate のどちらで作ったコードも、どちらでも読める', async () => {
+    for (let i = 0; i < 60; i++) {
+      const data = randomSave(9000 + i);
+      const byStream = await encodeTransferCode(data, { salt: i, engine: 'stream' });
+      const byFflate = await encodeTransferCode(data, { salt: i, engine: 'fflate' });
+      for (const code of [byStream, byFflate]) {
+        expect(await decodeTransferCode(code, { engine: 'stream' }), `seed ${i}`).toEqual({ ok: true, data });
+        expect(await decodeTransferCode(code, { engine: 'fflate' }), `seed ${i}`).toEqual({ ok: true, data });
       }
     }
   });
 
-  it('V02 桁が足りない・数字が無いコードも失敗する', () => {
-    const code = encodeTransferCode(createDefaultSave(starterDeckNos()), 3);
-    expect(decodeTransferCode(code.slice(0, -1)).ok).toBe(false);
-    expect(decodeTransferCode(code.slice(1)).ok).toBe(false);
-    expect(decodeTransferCode('').ok).toBe(false);
-    expect(decodeTransferCode('abc').ok).toBe(false);
+  it('圧縮と元に戻すのは、どちらの組み合わせでも同じバイト列になる', async () => {
+    const bytes = encodeSave(randomSave(3));
+    for (const a of ['stream', 'fflate'] as const) {
+      for (const b of ['stream', 'fflate'] as const) expect(await inflateRaw(await deflateRaw(bytes, a), b)).toEqual(bytes);
+    }
   });
 
-  it('V03 ハイフン・空白入りのコードも読める', () => {
-    const data = randomSave(77);
-    const code = encodeTransferCode(data, 42);
-    const digits = code.replace(/-/g, '');
-    const variants = [
-      digits,
-      code.replace(/-/g, ' '),
-      ` ${code}\n`,
-      code.replace(/-/g, ' - '),
-      digits.replace(/(.{3})/g, '$1　'), // 全角空白
-      digits.replace(/(.{5})/g, '$1\n'),
-    ];
-    for (const v of variants) expect(decodeTransferCode(v)).toEqual({ ok: true, data });
+  it('デッキが入っていれば圧縮したコード（目印 0x02）になり、圧縮しない時より短い', async () => {
+    const data = randomSave(11);
+    const code = await encodeTransferCode(data, { salt: 5 });
+    expect(markOf(code)).toBe(2);
+    expect(digits(code)).toBeLessThan(digits(encodeTransferBytes(encodeSave(data), 5)));
+  });
+
+  it('古い（圧縮なし。目印 0x01）の形のコードも読める', async () => {
+    for (let i = 0; i < 30; i++) {
+      const data = randomSave(7000 + i);
+      const raw = encodeTransferBytes(encodeSave(data), i);
+      expect(markOf(raw)).toBe(1);
+      expect(await decodeTransferCode(raw)).toEqual({ ok: true, data });
+    }
+  });
+
+  it('圧縮した中身が壊れていたら「データが違う」として失敗する（チェック値は合っていても）', async () => {
+    const broken = encodeTransferBytes(new Uint8Array([0xff, 0xff, 0xff, 0x00, 0x12]), 9, 2);
+    expect(await decodeTransferCode(broken)).toEqual({ ok: false, reason: 'data' });
+  });
+});
+
+describe('V13 引き継ぎコードの桁数（UPDATE_v2 §3-4 の3パターン）', () => {
+  it('初期状態／全48種を各10枚・20スロットすべて15枚／それに8文字のデッキ名', async () => {
+    const patterns = codeLengthPatterns('0123456789abcdef');
+    const lines: string[] = [];
+    const packedAll: number[] = [];
+    for (const [label, data] of patterns) {
+      const packed = digits(await encodeTransferCode(data, { salt: 0 }));
+      const plain = digits(encodeTransferBytes(encodeSave(data), 0));
+      lines.push(`${label}: ${packed}けた（あっしゅく なしなら ${plain}けた）`);
+      expect(await decodeTransferCode(await encodeTransferCode(data, { salt: 1 }))).toEqual({ ok: true, data });
+      expect(packed).toBeLessThanOrEqual(plain);
+      packedAll.push(packed);
+    }
+    console.log(`[V13] ${lines.join(' / ')}`);
+    // 今の長さ（約240・790・1520桁）から大きく伸びていないこと（形式を変えて長くなったら気づけるように）
+    expect(packedAll[0]).toBeLessThan(300);
+    expect(packedAll[1]).toBeLessThan(900);
+    expect(packedAll[2]).toBeLessThan(1700);
   });
 });

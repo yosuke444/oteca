@@ -197,7 +197,7 @@ export const hira = {
     askCpu: 'CPUに わたす デッキを えらんでね（おなじ デッキでも いいよ）',
     summaryLevel: (level: string) => `つよさ：${level}`,
     summaryMine: (deck: string) => `あなた：${deck}`,
-    none: 'つかえる デッキが ないよ。デッキへんしゅうで 15まい いれてね',
+    none: 'つかえる デッキが ないよ。デッキへんしゅうで つくるか、なおしてね',
   },
 
   result: {
@@ -240,7 +240,6 @@ export const hira = {
     checkNumber: 'ばんごうが あってるか たしかめてね',
     came: 'あいてが きた！',
     roomInput: 'へやばんごう（4〜8けた）',
-    deckLabel: 'つかう デッキ',
     enter: 'へやに はいる',
     note1: 'ともだちと おなじ ばんごうを いれてね。',
     note2: '6けた いじょうが おすすめ',
@@ -252,10 +251,17 @@ export const hira = {
   numpad: { clear: 'けす', all: 'ぜんぶ' },
 
   deck: {
-    filter: { all: 'ぜんぶ', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
-    sort: { no: 'ばんごう', hp: 'HP', name: 'なまえ' },
-    slotAria: (n: number) => `スロット${n}`,
-    nameLabel: 'デッキめい：',
+    filter: { all: 'ぜんぶ', owned: 'もっている', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
+    pack: (name: string) => `パック：${name}`,
+    packAll: 'ぜんぶ',
+    packLimited: 'げんてい',
+    sort: { no: 'ばんごう', name: 'なまえ', hp: 'HP', owned: 'もっている かず' },
+    current: 'いまの デッキ：',
+    choose: 'デッキを えらぶ',
+    owned: (n: number) => `×${n}`,
+    left: (n: number) => `のこり ${n}`,
+    unknownMark: '？',
+    unownedAria: (name: string) => `${name}（まだ もっていない）`,
     nameHint: (n: number) => `（${n}もじ まで）`,
     panelTitle: (n: number) => `デッキ（${n}まい ちょうど）`,
     summaryOtege: 'おてあげ',
@@ -280,7 +286,32 @@ export const hira = {
       unknown: 'つかえない カードが はいってるよ',
       full: (n: number) => `もう ${n}まい はいってるよ`,
       notOwned: 'もう もっていないよ',
+      notOwnedYet: 'まだ もっていないよ',
+      short: (name: string, n: number) => `たりない カード：${name} ×${n}`,
     },
+  },
+
+  deckPicker: {
+    title: 'デッキを えらぶ',
+    cards: (n: number, size: number) => `${n}/${size}まい`,
+    bad: '!',
+    note: 'あかい「!」の デッキは まだ つかえないよ（デッキへんしゅうで なおしてね）',
+    noteEdit: 'あかい「!」の デッキは、まだ たいせんに つかえないよ',
+    aria: (n: number, name: string) => `スロット${n}「${name}」`,
+    none: 'つかえる デッキが ないよ。デッキへんしゅうで つくってね',
+  },
+
+  notice: {
+    title: 'アップデートの おしらせ',
+    lines: [
+      'カードを あつめる ように なったよ。デッキには、もっている まいすう まで いれられるよ',
+      'いままでの デッキは、ぜんぶ そのまま つかえるよ',
+      'はじめの カード 15まいと、おてあげコイン 200まいを プレゼント！',
+      'デッキが 20こ まで つくれる ように なったよ',
+    ],
+    ask: 'チュートリアルを やってみる？',
+    yes: 'やる',
+    later: 'あとで',
   },
 
   settings: {
@@ -333,6 +364,8 @@ export const hira = {
     enterNote: 'コードを はりつけてね（ハイフンや くうはくは あっても だいじょうぶ）',
     inputAria: 'ひきつぎコードの にゅうりょく',
     wrong: 'コードが ちがうみたい。もういちど たしかめてね',
+    oldDevice: 'まえの たんまつでは もう つかわないでね（おなじ データを 2だいで つかうと、カードや コインが 2ばいに なってしまうよ）',
+    making: 'コードを つくっているよ…',
   },
 
   rules: {
@@ -362,7 +395,7 @@ export const hira = {
         `② カードを ${hand}まい ひく。${mulligan ? 'おてあげが いなかったら ひきなおし' : ''}`,
         '③ バトルばに おてあげを 1たい、うらむきで だす。ふたり そろったら オープン！',
       ],
-      more: 'おなじ カードは なんまい いれても いいよ（スーパーだけ かずが きまっている）。せんこうきめで おなじ めが でたら ふりなおし。じゅんびの あいだは ベンチに だせないよ。',
+      more: 'おなじ カードは、もっている まいすう まで いれられるよ（ほかの デッキで つかっていても だいじょうぶ）。せんこうきめで おなじ めが でたら ふりなおし。じゅんびの あいだは ベンチに だせないよ。',
     },
     p3: {
       title: 'じぶんの ターン',

@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { RoughBox } from '../rough/RoughBox';
 import { tiltStyle } from '../rough/seed';
 import './dialog.css';
@@ -6,6 +7,7 @@ import './dialog.css';
 /**
  * ノートの切れ端のようなダイアログ。舞台（Stage）の上に重ねて出す。
  * ボタンは children か actions に RoughButton を並べる。
+ * 舞台（.stage）の上にじかに出す（どこに置いても、画面全体を覆う。位置の決まった欄の中に置いた時に欠けないように）。
  */
 export function Dialog({
   seed,
@@ -25,7 +27,7 @@ export function Dialog({
   width?: number;
   style?: CSSProperties;
 }) {
-  return (
+  const node = (
     <div className="dialog-backdrop" onClick={onClose} role="presentation">
       <div className="dialog" style={{ width, ...style }} onClick={(e) => e.stopPropagation()} role="dialog">
         <RoughBox seed={seed} paper strokeWidth={2.8} radius={12} className="dialog__box">
@@ -44,4 +46,6 @@ export function Dialog({
       </div>
     </div>
   );
+  const stage = typeof document !== 'undefined' ? document.querySelector('.stage') : null;
+  return stage ? createPortal(node, stage) : node;
 }

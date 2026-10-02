@@ -3,55 +3,6 @@
   inset: 0;
 }
 
-/* ---------- スロットタブ ---------- */
-.deck-scene__tabs {
-  position: absolute;
-  left: 36px;
-  top: 16px;
-  display: flex;
-  gap: 12px;
-}
-.deck-tab {
-  position: relative;
-  width: 72px;
-  height: 62px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-.deck-tab__note {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 0 0;
-  transition: transform calc(120ms / var(--fx-speed)) ease-out;
-}
-.deck-tab.is-current .deck-tab__note {
-  transform: translateY(6px) scale(1.08);
-  outline: 2px solid var(--ink);
-  outline-offset: -2px;
-}
-.deck-tab__num {
-  font-size: 30px;
-}
-.deck-tab__bad {
-  position: absolute;
-  right: -4px;
-  top: -8px;
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--pen-red);
-  color: var(--paper);
-  font-size: 22px;
-}
-
 .deck-scene__back {
   position: absolute;
   right: 36px;
@@ -61,22 +12,28 @@
   font-size: 24px;
 }
 
-/* ---------- デッキ名 ---------- */
+/* ---------- いまのデッキ：名前 ✎ ／ デッキを えらぶ ---------- */
 .deck-scene__name {
   position: absolute;
   left: 40px;
-  top: 98px;
+  top: 26px;
+  max-width: 700px;
   display: flex;
   align-items: baseline;
   gap: 6px;
   font-size: 22px;
 }
+.deck-scene__name-label {
+  font-size: 20px;
+  white-space: nowrap;
+}
 .deck-scene__name-btn {
   padding: 0 4px;
   border: none;
   background: none;
-  font-size: 26px;
+  font-size: 30px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .deck-scene__name-btn:hover {
   background: var(--marker-yellow);
@@ -85,19 +42,41 @@
   color: var(--pen-blue);
 }
 .deck-scene__name-input {
-  width: 230px;
+  width: 260px;
+  font-size: 26px;
 }
 .deck-scene__name-hint {
   font-size: 15px;
+  white-space: nowrap;
+}
+.deck-scene__bad {
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--pen-red);
+  color: var(--paper);
+  font-size: 22px;
+}
+.deck-scene__choose {
+  position: absolute;
+  right: 208px;
+  top: 18px;
+  width: 220px;
+  height: 60px;
+  font-size: 22px;
 }
 
 /* ---------- デッキ（左） ---------- */
 .deck-panel {
   position: absolute;
   left: 30px;
-  top: 146px;
+  top: 96px;
   width: 590px;
-  height: 468px;
+  height: 518px;
 }
 .deck-panel > .rough-box__content {
   display: flex;
@@ -131,8 +110,8 @@
   display: grid;
   grid-template-columns: repeat(5, 100px);
   grid-auto-rows: 74px;
-  gap: 20px 10px;
-  margin-top: 16px;
+  gap: 18px 10px;
+  margin-top: 14px;
   justify-content: center;
 }
 .deck-slot-empty {
@@ -146,8 +125,10 @@
   list-style: none;
   margin: auto 0 0;
   padding: 0;
-  font-size: 20px;
-  line-height: 1.4;
+  font-size: 19px;
+  line-height: 1.35;
+  max-height: 112px;
+  overflow-y: auto;
 }
 .deck-panel__ok {
   color: var(--pen-green);
@@ -194,26 +175,34 @@
 }
 .list-panel__filters {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 .list-panel__filter {
-  height: 44px;
-  font-size: 17px;
+  height: 42px;
+  font-size: 16px;
 }
 .list-panel__filter .rough-btn__label {
-  padding: 0 12px;
+  padding: 0 9px;
+}
+.list-panel__pack {
+  height: 42px;
+  font-size: 16px;
+}
+.list-panel__pack .rough-btn__label,
+.list-panel__sort .rough-btn__label {
+  padding: 0 10px;
 }
 .list-panel__sort {
   margin-left: auto;
-  height: 44px;
-  font-size: 17px;
+  height: 42px;
+  font-size: 16px;
 }
 .list-panel__grid {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(4, 128px);
   grid-auto-rows: 120px;
-  gap: 12px 12px;
+  gap: 24px 12px;
   justify-content: center;
   align-content: start;
   margin-top: 12px;
@@ -247,21 +236,4 @@
   display: flex;
   justify-content: center;
   padding: 10px 0;
-}
-.deck-scene__copy-note {
-  margin: 0 0 12px;
-  font-size: 17px;
-}
-.deck-scene__copy-slots {
-  display: flex;
-  gap: 12px;
-}
-.deck-scene__copy-slot {
-  width: 96px;
-  height: 90px;
-  font-size: 30px;
-}
-.deck-scene__copy-slot small {
-  display: block;
-  font-size: 15px;
 }

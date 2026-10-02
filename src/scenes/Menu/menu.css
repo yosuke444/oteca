@@ -180,3 +180,20 @@
   line-height: 1.2;
   word-break: keep-all;
 }
+
+/* アップデートの おしらせ（v2.0-B） */
+.menu-notice__list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 20px;
+  line-height: 1.5;
+}
+.menu-notice__list li + li {
+  margin-top: 4px;
+}
+.menu-notice__ask {
+  margin: 14px 0 0;
+  font-size: 24px;
+  text-align: center;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+}

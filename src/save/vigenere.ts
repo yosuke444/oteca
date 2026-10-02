@@ -14,21 +14,23 @@ export const KEY_DIGITS: string = [...KEY_TEXT].map((c) => c.charCodeAt(0)).join
 
 /** C[i] = (P[i] + K[(i + salt) mod 鍵の長さ]) mod 10 */
 export function encryptDigits(plain: string, salt: number): string {
-  let out = '';
-  for (let i = 0; i < plain.length; i++) {
-    const k = KEY_DIGITS.charCodeAt((i + salt) % KEY_DIGITS.length) - 48;
-    out += String((plain.charCodeAt(i) - 48 + k) % 10);
-  }
-  return out;
+  return shiftDigits(plain, salt, 1);
 }
 
 export function decryptDigits(cipher: string, salt: number): string {
-  let out = '';
-  for (let i = 0; i < cipher.length; i++) {
+  return shiftDigits(cipher, salt, -1);
+}
+
+const ascii = new TextDecoder();
+
+/** 1桁ずつ鍵の分だけずらす（dir 1＝暗号化／-1＝復号） */
+function shiftDigits(text: string, salt: number, dir: 1 | -1): string {
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) {
     const k = KEY_DIGITS.charCodeAt((i + salt) % KEY_DIGITS.length) - 48;
-    out += String((cipher.charCodeAt(i) - 48 - k + 10) % 10);
+    out[i] = 48 + ((text.charCodeAt(i) - 48 + dir * k + 10) % 10);
   }
-  return out;
+  return ascii.decode(out);
 }
 
 // ---------------------------------------------------------------- 64文字版（Cookie用）

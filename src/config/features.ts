@@ -3,5 +3,5 @@ export const features = {
   story: false, // ストーリーモード
   gacha: false, // カードガチャ
   coins: false, // おてあげコイン表示
-  collection: false, // 所持枚数の制限（false の間は全カード無制限）
+  collection: true, // 所持枚数の制限（v2.0-B で true。false にすると全カード無制限）
 };

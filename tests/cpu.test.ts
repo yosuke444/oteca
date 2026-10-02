@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CpuController, decideCpuAction } from '../src/controllers/cpu';
 import { Match } from '../src/controllers/match';
 import { CARD_DB } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import { applyAction, validateDeck } from '../src/engine';
 import { autoFill } from '../src/scenes/DeckEdit/deckOps';
 import { DEFAULT_RULES } from '../src/engine';
@@ -10,7 +10,7 @@ import { arrange, eventsOf, patchCard, startMain } from './helpers';
 import { makeRandom } from './save.helpers';
 
 /** CPU 同士で1試合。すぐに操作する scheduler を使い、演出の代わりに毎回 notifyIdle を呼ぶ */
-function cpuVsCpu(seed: string, decks = { p1: starterDeckNos(), p2: starterDeckNos() }) {
+function cpuVsCpu(seed: string, decks = { p1: classicDeckNos(), p2: classicDeckNos() }) {
   const pending: (() => void)[] = [];
   const sched = (fn: () => void) => {
     pending.push(fn);
@@ -32,7 +32,7 @@ describe('かんたんCPU', () => {
     for (let i = 0; i < 10; i++) {
       const r = makeRandom(1000 + i);
       const deck = (seed: number) => autoFill([], CARD_DB, DEFAULT_RULES, () => Infinity, makeRandom(seed).next);
-      const decks = i < 5 ? { p1: starterDeckNos(), p2: starterDeckNos() } : { p1: deck(i * 7 + 1), p2: deck(i * 7 + 2) };
+      const decks = i < 5 ? { p1: classicDeckNos(), p2: classicDeckNos() } : { p1: deck(i * 7 + 1), p2: deck(i * 7 + 2) };
       expect(validateDeck(decks.p1, CARD_DB)).toEqual([]);
       const { match } = cpuVsCpu(`cpu-${i}-${r.int(0, 9999)}`, decks);
       expect(match.state.phase, `試合 ${i}`).toBe('over');

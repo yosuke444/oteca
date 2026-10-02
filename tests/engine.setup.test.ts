@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
-import { starterDeckNos } from '../src/data/starterDeck';
+import { classicDeckNos } from '../src/data/starterDeck';
 import {
   type Action,
   type GameState,
@@ -17,7 +17,7 @@ import { deckOf, eventsOf, noOf } from './helpers';
 
 /** 合法手からランダムに選んで1試合進める。選んだ操作の列と、各手のあとのハッシュを返す */
 function randomPlay(seed: string, chooserSeed: string, { maxSteps = 3000, withHash = true } = {}) {
-  let { state } = createGame({ seed, decks: { p1: starterDeckNos(), p2: starterDeckNos() }, cardDb: CARD_DB });
+  let { state } = createGame({ seed, decks: { p1: classicDeckNos(), p2: classicDeckNos() }, cardDb: CARD_DB });
   const chooser = seedRng(chooserSeed);
   const actions: Action[] = [];
   const hashes: string[] = [];
@@ -60,7 +60,7 @@ describe('準備と決定論', () => {
     expect(a.actions.length).toBeGreaterThan(10);
 
     // 記録した操作の列を、最初の状態から流し直しても同じになる（ロックステップの前提）
-    let { state } = createGame({ seed: 'seed-A', decks: { p1: starterDeckNos(), p2: starterDeckNos() }, cardDb: CARD_DB });
+    let { state } = createGame({ seed: 'seed-A', decks: { p1: classicDeckNos(), p2: classicDeckNos() }, cardDb: CARD_DB });
     for (const action of a.actions) state = applyAction(state, action).state;
     expect(hashState(state)).toBe(a.hashes[a.hashes.length - 1]);
 
@@ -80,7 +80,7 @@ describe('準備と決定論', () => {
   });
 
   it('E02 先攻決めで同じ目なら振り直す', () => {
-    const decks = { p1: starterDeckNos(), p2: starterDeckNos() };
+    const decks = { p1: classicDeckNos(), p2: classicDeckNos() };
     const a = createGame({ seed: 's', decks, cardDb: CARD_DB, forcedDice: [3, 3, 5, 2] });
     expect(eventsOf(a.events, 'DiceRolled').map((e) => [e.player, e.value])).toEqual([
       ['p1', 3],
@@ -114,7 +114,7 @@ describe('準備と決定論', () => {
     ]);
     let mulligans = 0;
     for (let i = 0; i < 200; i++) {
-      const g = createGame({ seed: `mull-${i}`, decks: { p1: thin, p2: starterDeckNos() }, cardDb: CARD_DB });
+      const g = createGame({ seed: `mull-${i}`, decks: { p1: thin, p2: classicDeckNos() }, cardDb: CARD_DB });
       mulligans += eventsOf(g.events, 'Mulligan').filter((e) => e.player === 'p1').length;
       for (const side of ['p1', 'p2'] as Side[]) {
         const hand = g.state.players[side].hand;
@@ -137,11 +137,11 @@ describe('準備と決定論', () => {
   });
 
   it('E16 デッキ検証：15枚ちょうど／おてあげ1枚以上／スーパー合計1枚まで', () => {
-    expect(validateDeck(starterDeckNos(), CARD_DB)).toEqual([]);
+    expect(validateDeck(classicDeckNos(), CARD_DB)).toEqual([]);
 
-    const short = starterDeckNos().slice(0, 14);
+    const short = classicDeckNos().slice(0, 14);
     expect(validateDeck(short, CARD_DB)).toEqual([{ code: 'size', count: 14, need: 15 }]);
-    expect(validateDeck([...starterDeckNos(), noOf('kusuri')], CARD_DB)).toEqual([{ code: 'size', count: 16, need: 15 }]);
+    expect(validateDeck([...classicDeckNos(), noOf('kusuri')], CARD_DB)).toEqual([{ code: 'size', count: 16, need: 15 }]);
 
     const noOtege = deckOf([['kusuri', 15]]);
     expect(validateDeck(noOtege, CARD_DB)).toEqual([{ code: 'noOtege' }]);
@@ -163,14 +163,14 @@ describe('準備と決定論', () => {
     expect(validateDeck(deckOf([['oteage', 15]]), CARD_DB)).toEqual([]);
     expect(validateDeck(deckOf([['oteage', 1], ['supodori', 14]]), CARD_DB)).toEqual([]);
 
-    const unknown = [...starterDeckNos().slice(0, 14), 999];
+    const unknown = [...classicDeckNos().slice(0, 14), 999];
     expect(validateDeck(unknown, CARD_DB)).toContainEqual({ code: 'unknownCard', no: 999 });
   });
 });
 
 describe('デバッグ用の設定', () => {
   it('山札の上を指定できる（配ったあとの山札の上から順）', () => {
-    const decks = { p1: starterDeckNos(), p2: starterDeckNos() };
+    const decks = { p1: classicDeckNos(), p2: classicDeckNos() };
     const want = [noOf('kami'), noOf('supodori'), noOf('kusuri')];
     for (let i = 0; i < 20; i++) {
       const g = createGame({ seed: `stack-${i}`, decks, cardDb: CARD_DB, stackTop: { p1: want } });
@@ -191,7 +191,7 @@ describe('デバッグ用の設定', () => {
 
 describe('デバッグ用の設定（サイコロ）', () => {
   it('サイコロの目を固定すると、攻撃の目は毎回その目になる（先攻決めは乱数のまま）', () => {
-    const decks = { p1: starterDeckNos(), p2: starterDeckNos() };
+    const decks = { p1: classicDeckNos(), p2: classicDeckNos() };
     let { state } = createGame({ seed: 'fixed', decks, cardDb: CARD_DB, fixedDie: 6 });
     expect(state.fixedDie).toBe(6);
     for (const side of ['p1', 'p2'] as Side[]) {
