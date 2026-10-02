@@ -11,7 +11,7 @@ import type { Side } from '../../engine/types';
 export function createControllers(
   setup: BattleSetup,
   speed: () => number = () => 1,
-  hooks: Pick<CpuHooks, 'onThinking' | 'onStamp'> = {},
+  hooks: Pick<CpuHooks, 'onThinking' | 'onStamp' | 'think'> = {},
 ): Record<Side, Controller> {
   const other: Side = setup.me === 'p1' ? 'p2' : 'p1';
   const human = new HumanController(setup.me);
@@ -22,7 +22,10 @@ export function createControllers(
       const cpu = new CpuController(other, (fn, ms = CPU_THINK_MS) => setTimeout(fn, ms / speed()), {
         level: setup.cpuLevel ?? 'normal',
         // CPU対戦だけ：かんがえちゅう… とスタンプ（デバッグの かんたんCPU には出さない）
-        ...(setup.debug ? {} : hooks),
+        // （チュートリアルでは相手のスタンプも出さない）
+        ...(setup.debug ? {} : { onThinking: hooks.onThinking, onStamp: setup.tutorial ? undefined : hooks.onStamp }),
+        // チュートリアル：台本どおりに動く考え方
+        ...(hooks.think ? { think: hooks.think } : {}),
         later: (fn, ms) => setTimeout(fn, ms / speed()),
       });
       return setup.me === 'p1' ? { p1: human, p2: cpu } : { p1: cpu, p2: human };

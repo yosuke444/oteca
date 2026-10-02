@@ -1,0 +1,282 @@
+{
+  "_comment": "チュートリアルの台本（UPDATE_v2 §6T・SPEC §7 S13）。カードは id、場所は uid（p1-0 は自分のデッキの0番目＝手札の1枚目）で書く。デッキは書いた順に配る（先頭5枚が手札）。手順の増減はこのファイルで行う。",
+  "decks": {
+    "me": ["oteage", "mitsume", "oteage", "himitsu_yaiba", "kusuri", "himitsu_yaiba", "otesage", "oteage", "oteage", "oteage", "mitsume", "mitsume", "otesage", "revolution", "kusuri"],
+    "opp": ["oteage", "mutsuashi", "oteage", "mitsume", "kusuri", "mitsume", "oteage", "oteage", "oteage", "oteage", "mitsume", "mitsume", "mutsuashi", "mutsuashi", "kusuri"]
+  },
+  "dice": [5, 2, 2, 6, 1, 4, 2, 6, 6, 6],
+  "oppScript": [
+    { "type": "SETUP_ACTIVE", "uid": "p2-0" },
+    { "type": "PLACE_BENCH", "uid": "p2-1" },
+    { "type": "END_TURN" },
+    { "type": "PLACE_BENCH", "uid": "p2-2" },
+    { "type": "SWAP", "benchUid": "p2-1" },
+    { "type": "END_TURN" },
+    { "type": "END_TURN" },
+    { "type": "SWAP", "benchUid": "p2-0" },
+    { "type": "END_TURN" },
+    { "type": "END_TURN" },
+    { "type": "PROMOTE", "benchUid": "p2-2" },
+    { "type": "END_TURN" }
+  ],
+  "steps": [
+    {
+      "id": "hello",
+      "no": 1,
+      "kind": "tap",
+      "text": {
+        "hira": "やあ！ ぼくは おてあげせんせい。オテカの あそびかたを おしえるよ。かちかたは かんたん。あいての おてあげを 3たい たおしたら かち！",
+        "kanji": "やあ！ ぼくはおてあげ先生。オテカの遊び方を教えるよ。勝ち方はかんたん。相手のおてあげを3体倒したら勝ち！"
+      }
+    },
+    {
+      "id": "dice",
+      "no": 2,
+      "kind": "dice",
+      "spot": ["dice"],
+      "text": {
+        "hira": "まずは サイコロで せんこう（さきに うごく ひと）を きめるよ。サイコロを タップ！",
+        "kanji": "まずはサイコロで先攻（先に動く人）を決めるよ。サイコロをタップ！"
+      }
+    },
+    {
+      "id": "first",
+      "no": 2,
+      "kind": "tap",
+      "text": {
+        "hira": "きみの ほうが おおきい め！ きみが せんこうだよ。カードも 5まい くばられたね。",
+        "kanji": "君の方が大きい目！ 君が先攻だよ。カードも5枚配られたね。"
+      }
+    },
+    {
+      "id": "hand",
+      "no": 3,
+      "kind": "longPress",
+      "spot": ["card:p1-0"],
+      "text": {
+        "hira": "したに ならんでいるのが てふだ。カードを ながおし すると、くわしく みられるよ。この おてあげを ながおし してみて。",
+        "kanji": "下に並んでいるのが手札。カードを長押しすると、詳しく見られるよ。このおてあげを長押ししてみて。"
+      }
+    },
+    {
+      "id": "active",
+      "no": 4,
+      "kind": "act",
+      "spot": ["card:p1-0", "zone:p1-active"],
+      "allow": [{ "type": "SETUP_ACTIVE", "uid": "p1-0" }],
+      "text": {
+        "hira": "さいしょに たたかう おてあげを きめよう。おてあげを まんなかの バトルばへ ドラッグしてね（タップして「バトルばへ」でも いいよ）。",
+        "kanji": "最初に戦うおてあげを決めよう。おてあげを真ん中のバトル場へドラッグしてね（タップして「バトル場へ」でもいいよ）。"
+      }
+    },
+    {
+      "id": "bench",
+      "no": 5,
+      "kind": "act",
+      "when": { "turn": "me" },
+      "spot": ["card:p1-1", "zone:p1-bench-0"],
+      "allow": [{ "type": "PLACE_BENCH", "uid": "p1-1" }],
+      "text": {
+        "hira": "バトルばの よこは ベンチ。おてあげを ひかえに だしておけるよ。1ターンに 1たいまで、ぜんぶで 2たいまで。みつめを ベンチへ だそう。",
+        "kanji": "バトル場の横はベンチ。おてあげを控えに出しておけるよ。1ターンに1体まで、全部で2体まで。みつめをベンチへ出そう。"
+      }
+    },
+    {
+      "id": "firstEnd",
+      "no": 6,
+      "kind": "act",
+      "spot": ["end"],
+      "allow": [{ "type": "END_TURN" }],
+      "text": {
+        "hira": "せんこうの 1ターンめは こうげき できない きまり。「ターンおわり」を おそう。",
+        "kanji": "先攻の1ターン目は攻撃できない決まり。「ターンおわり」を押そう。"
+      }
+    },
+    {
+      "id": "oppTurn",
+      "no": 7,
+      "kind": "watch",
+      "until": { "turn": "me" },
+      "text": {
+        "hira": "あいての ターンだよ。なにを するか みていてね。",
+        "kanji": "相手のターンだよ。何をするか見ていてね。"
+      }
+    },
+    {
+      "id": "damaged",
+      "no": 7,
+      "kind": "tap",
+      "spot": ["card:p1-0"],
+      "text": {
+        "hira": "こうげきされて HPが へったね。HPが 0に なると「きぜつ」。たおされちゃうんだ。",
+        "kanji": "攻撃されてHPが減ったね。HPが0になると「きぜつ」。倒されちゃうんだ。"
+      }
+    },
+    {
+      "id": "bench2",
+      "no": 8,
+      "kind": "act",
+      "spot": ["card:p1-2", "zone:p1-bench-1"],
+      "allow": [{ "type": "PLACE_BENCH", "uid": "p1-2" }],
+      "text": {
+        "hira": "きみの ターン！ まずは もう 1たいの おてあげも ベンチへ だそう。",
+        "kanji": "君のターン！ まずはもう1体のおてあげもベンチへ出そう。"
+      }
+    },
+    {
+      "id": "moves",
+      "no": 8,
+      "kind": "tap",
+      "spot": ["card:p1-0"],
+      "text": {
+        "hira": "カードの わざひょうを みてね。ターンの おわりに サイコロを ふって、でた めの わざを つかうよ。おてあげは 1〜5なら 30、6なら 50 ダメージ！",
+        "kanji": "カードの技表を見てね。ターンの終わりにサイコロを振って、出た目の技を使うよ。おてあげは1〜5なら30、6なら50ダメージ！"
+      }
+    },
+    {
+      "id": "attack1",
+      "no": 8,
+      "kind": "act",
+      "spot": ["end"],
+      "allow": [{ "type": "END_TURN" }],
+      "text": {
+        "hira": "「ターンおわり＆こうげき」を おすと、サイコロを ふって こうげきするよ。",
+        "kanji": "「ターンおわり＆こうげき」を押すと、サイコロを振って攻撃するよ。"
+      }
+    },
+    {
+      "id": "six",
+      "no": 8,
+      "kind": "tap",
+      "spot": ["zone:p2-active"],
+      "text": {
+        "hira": "6が でた！ 50ダメージ！ いいね！",
+        "kanji": "6が出た！ 50ダメージ！ いいね！"
+      }
+    },
+    {
+      "id": "yaiba",
+      "no": 9,
+      "kind": "act",
+      "when": { "turn": "me" },
+      "spot": ["card:p1-3", "card:p1-0"],
+      "allow": [{ "type": "USE_ITEM", "uid": "p1-3", "targetUid": "p1-0" }],
+      "text": {
+        "hira": "あいては むつあしに こうたい したね。こんどは アイテム！「ひみつのやいば」を つかうと、この ターンだけ ダメージ +20。やいばを バトルばの おてあげへ。",
+        "kanji": "相手はむつあしに交代したね。今度はアイテム！「ひみつのやいば」を使うと、このターンだけダメージ+20。やいばをバトル場のおてあげへ。"
+      }
+    },
+    {
+      "id": "attack2",
+      "no": 9,
+      "kind": "act",
+      "spot": ["end"],
+      "allow": [{ "type": "END_TURN" }],
+      "text": {
+        "hira": "+20 の まま こうげき！",
+        "kanji": "+20のまま攻撃！"
+      }
+    },
+    {
+      "id": "kusuri",
+      "no": 10,
+      "kind": "act",
+      "when": { "turn": "me" },
+      "spot": ["card:p1-4", "card:p1-0"],
+      "allow": [{ "type": "USE_ITEM", "uid": "p1-4", "targetUid": "p1-0" }],
+      "text": {
+        "hira": "HPが へってきたね。「くすり」で HPを 30 かいふく しよう。くすりを きずついた おてあげへ。",
+        "kanji": "HPが減ってきたね。「くすり」でHPを30回復しよう。くすりを傷ついたおてあげへ。"
+      }
+    },
+    {
+      "id": "attack3",
+      "no": 10,
+      "kind": "act",
+      "spot": ["end"],
+      "allow": [{ "type": "END_TURN" }],
+      "text": {
+        "hira": "げんきに なった！ こうげきしよう。",
+        "kanji": "元気になった！ 攻撃しよう。"
+      }
+    },
+    {
+      "id": "swap",
+      "no": 11,
+      "kind": "act",
+      "when": { "turn": "me" },
+      "spot": ["card:p1-2", "card:p1-0"],
+      "allow": [{ "type": "SWAP", "benchUid": "p1-2" }],
+      "text": {
+        "hira": "「こうたい」で、バトルばと ベンチの おてあげを いれかえられるよ。ベンチの おてあげを バトルばへ。こうたいした ターンは こうげき できないし、だした ターンの おてあげは こうたい できないよ。",
+        "kanji": "「交代」で、バトル場とベンチのおてあげを入れ替えられるよ。ベンチのおてあげをバトル場へ。交代したターンは攻撃できないし、出したターンのおてあげは交代できないよ。"
+      }
+    },
+    {
+      "id": "swapEnd",
+      "no": 11,
+      "kind": "act",
+      "spot": ["end"],
+      "allow": [{ "type": "END_TURN" }],
+      "text": {
+        "hira": "こうたいした ので、この ターンは「ターンおわり」だけ。",
+        "kanji": "交代したので、このターンは「ターンおわり」だけ。"
+      }
+    },
+    {
+      "id": "draw",
+      "no": 12,
+      "kind": "tap",
+      "when": { "turn": "me" },
+      "spot": ["draw", "zone:p1-deck"],
+      "text": {
+        "hira": "いま カードを 1まい ひいたね。3ターンに 1かい、ターンの はじめに ドロー するよ。つぎの ドローまで あと なんターンかは ここに かいてあるよ。",
+        "kanji": "今カードを1枚引いたね。3ターンに1回、ターンの始めにドローするよ。次のドローまであと何ターンかは、ここに書いてあるよ。"
+      }
+    },
+    {
+      "id": "ko",
+      "no": 13,
+      "kind": "act",
+      "spot": ["end", "zone:p2-active"],
+      "allow": [{ "type": "END_TURN" }],
+      "text": {
+        "hira": "あいての おてあげは HPが すくない！ こうげきして たおそう！",
+        "kanji": "相手のおてあげはHPが少ない！ 攻撃して倒そう！"
+      }
+    },
+    {
+      "id": "koDone",
+      "no": 13,
+      "kind": "tap",
+      "when": { "turn": "opp" },
+      "spot": ["zone:p2-active", "zone:p1-stars"],
+      "text": {
+        "hira": "たおした！ ほしが 1つ ついたよ。あいては ベンチから つぎの おてあげを だしたね。これが「くりだし」。",
+        "kanji": "倒した！ 星が1つ付いたよ。相手はベンチから次のおてあげを出したね。これが「くりだし」。"
+      }
+    },
+    {
+      "id": "promote",
+      "no": 14,
+      "kind": "act",
+      "when": { "promote": "me" },
+      "spot": ["zone:p1-bench-0", "zone:p1-bench-1"],
+      "allow": [{ "type": "PROMOTE" }],
+      "text": {
+        "hira": "あっ、きみの おてあげが たおされちゃった。ベンチから つぎに たたかう おてあげを えらんで タップしよう（くりだし）。",
+        "kanji": "あっ、君のおてあげが倒されちゃった。ベンチから次に戦うおてあげを選んでタップしよう（くりだし）。"
+      }
+    },
+    {
+      "id": "free",
+      "no": 15,
+      "kind": "tap",
+      "when": { "turn": "me" },
+      "text": {
+        "hira": "ここからは じぶんで やってみよう！ さきに 3たい たおした ほうの かち。がんばれ！",
+        "kanji": "ここからは自分でやってみよう！ 先に3体倒した方の勝ち。がんばれ！"
+      }
+    }
+  ]
+}

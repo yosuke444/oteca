@@ -206,6 +206,10 @@ export function RulesScene() {
       <RoughButton seed="rules-next" className="rules-nav rules-nav--next" highlight={page < last} disabled={page === last} onClick={() => turn(page + 1)}>
         {tr.rules.next}
       </RoughButton>
+      {/* いちばん上に「チュートリアルを もういちど」（UPDATE_v2 §6T-1） */}
+      <RoughButton seed="rules-tutorial" className="tutorial-again rules-tutorial" onClick={() => go('tutorial')} data-testid="tutorial-again">
+        {tr.tutorial.again}
+      </RoughButton>
       <RoughButton seed="rules-back" className="rules-back" onClick={() => go('menu')}>
         {tr.common.back}
       </RoughButton>

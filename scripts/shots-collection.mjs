@@ -90,6 +90,7 @@ async function setSave(kind, lang) {
         cs.writeCookies(storage.jar, old.oldCookie(data, 3), false);
       } else {
         const data = sd.createDefaultSave();
+        data.tutorial = { done: true, gachaInviteShown: true }; // チュートリアルを終えた人（タイトルからメニューへ）
         data.settings.lang = lang;
         data.saveCounter = 5;
         if (kind === 'short') {

@@ -1,0 +1,61 @@
+.name-scene {
+  position: absolute;
+  inset: 0;
+}
+.name-scene__title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 70px;
+  margin: 0;
+  text-align: center;
+  font-size: 48px;
+  font-weight: normal;
+}
+.name-scene__title .tilt {
+  display: inline-block;
+  padding: 0 14px;
+  background: linear-gradient(transparent 58%, var(--marker-yellow) 58%, var(--marker-yellow) 90%, transparent 90%);
+}
+.name-scene__art {
+  position: absolute;
+  left: 150px;
+  top: 250px;
+}
+.name-scene__box {
+  position: absolute;
+  left: 390px;
+  top: 200px;
+  width: 560px;
+  height: 250px;
+}
+.name-scene__box > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 26px 30px;
+}
+.name-scene__text {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.5;
+  text-align: center;
+}
+.name-scene__input {
+  width: 380px;
+  font-size: 40px;
+  text-align: center;
+}
+.name-scene__warn {
+  margin: 0;
+  font-size: 20px;
+}
+.name-scene__ok {
+  position: absolute;
+  left: 540px;
+  top: 500px;
+  width: 260px;
+  height: 90px;
+  font-size: 34px;
+}

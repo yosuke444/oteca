@@ -179,3 +179,14 @@
   word-break: normal;
   overflow-wrap: normal;
 }
+
+/* チュートリアルを もういちど */
+.settings-tutorial {
+  position: absolute;
+  left: 420px;
+  top: 22px;
+  width: 420px;
+  height: 60px;
+  font-size: 22px;
+  white-space: nowrap;
+}

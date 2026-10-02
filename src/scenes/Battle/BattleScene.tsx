@@ -29,6 +29,20 @@ import type { ResultPayload } from '../Result/ResultScene';
 import './battle.css';
 import { t } from '../../i18n';
 import { useT } from '../../i18n/useT';
+import { type TutorialDriver, tutorialThink } from '../../tutorial/driver';
+import { think as defaultThink } from '../../cpu/thinker';
+import { GuideOverlay } from '../Tutorial/GuideOverlay';
+
+/** チュートリアル（UPDATE_v2 §6T）：案内の台本と、決着した時の行き先 */
+export type BattleGuide = {
+  driver: TutorialDriver;
+  /** 決着した（リザルトへは進まない。勝敗・コイン・レートに数えない） */
+  onOver: (winner: Side) => void;
+  /** 案内の途中で「戻る」・「おてあげする」を押した（スキップの確認を出す） */
+  onQuit: () => void;
+  /** スキップの確認などを出している間は、案内を隠す */
+  hidden?: boolean;
+};
 
 type Confirm = { title: string; text: string; yes: string; no?: string; onYes: () => void };
 
@@ -76,9 +90,9 @@ function targetKeyOf(a: Action, me: Side): string | null {
 }
 
 /** S04 対戦（SPEC §8） */
-export function BattleScene() {
+export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; guide?: BattleGuide } = {}) {
   const { payload, go } = useNav();
-  const setup = payload as BattleSetup;
+  const setup = setupProp ?? (payload as BattleSetup);
   const fx = useFx();
   const tr = useT();
 
@@ -108,7 +122,14 @@ export function BattleScene() {
   const [idleSince, setIdleSince] = useState(0);
   /** 試合（Match）を作り直した回数（フレンド対戦のつなぎ直しに使う） */
   const [matchId, setMatchId] = useState(0);
+  /** チュートリアル：先攻決めの演出を始める */
+  const startRef = useRef<(() => void) | null>(null);
+  /** チュートリアルの台本が進んだら描き直す（できる操作が変わる） */
+  const [guideTick, setGuideTick] = useState(0);
+  useEffect(() => guide?.driver.subscribe(() => setGuideTick((n) => n + 1)), [guide]);
 
+  const guideRef = useRef(guide);
+  guideRef.current = guide;
   const fxRef = useRef(fx);
   fxRef.current = fx;
   useEffect(() => setFxSpeed(fx.speed), [fx.speed]);
@@ -133,6 +154,8 @@ export function BattleScene() {
         setOppStamp((s) => ({ id, n: (s?.n ?? 0) + 1 }));
         audio.play('se_stamp_chat');
       },
+      // チュートリアル：相手は台本どおりに動く（案内を読んでいる間は待つ）。台本が終われば ふつうの CPU
+      think: guide ? tutorialThink(guide.driver, () => matchRef.current?.state ?? null, defaultThink) : undefined,
     });
     const match = new Match(
       {
@@ -143,6 +166,7 @@ export function BattleScene() {
         stackTop: setup.stackTop,
         sandbox: setup.sandbox,
         forcedDice: setup.forcedDice,
+        noShuffle: setup.noShuffle,
         // カードを ためす：準備を飛ばして p1 から始めるので、先攻1ターン目の攻撃禁止は使わない
         rules: setup.sandbox ? { p1: { firstPlayerFirstTurnNoAttack: false }, p2: { firstPlayerFirstTurnNoAttack: false } } : undefined,
       },
@@ -204,6 +228,7 @@ export function BattleScene() {
       meRef.current = next;
       setMe(next);
       setIdleSince(Date.now());
+      guide?.driver.idle(v);
       match.notifyIdle();
     };
 
@@ -211,8 +236,16 @@ export function BattleScene() {
     stepsRef.current = [match.initial];
     statsRef.current = new StatsCollector();
     statsRef.current.add(match.initial.events, match.initial.state);
-    queue.enqueue({ actor: null, gap: false, events: match.initial.events, state: match.initial.state });
+    // チュートリアル：先攻決めのサイコロは、案内で押してもらってから振る（それまでは何も演出しない）
+    const startFx = () => queue.enqueue({ actor: null, gap: false, events: match.initial.events, state: match.initial.state });
+    if (guide) {
+      startRef.current = startFx;
+      queue.enqueue({ actor: null, gap: false, events: [], state: match.initial.state });
+    } else startFx();
+    let before = match.initial.state;
     const unsub = match.subscribe((step) => {
+      if (guide && step.action) guide.driver.applied(step.action, before);
+      before = step.state;
       stepsRef.current.push(step);
       statsRef.current.add(step.events, step.state);
       const actor = step.action?.player ?? null;
@@ -269,6 +302,10 @@ export function BattleScene() {
   useEffect(() => {
     // 通信のずれ・相手の退室で止めた試合は、決着してもリザルトへ進まない（記録しない）
     if (!view || view.phase !== 'over' || busy || online.problem) return;
+    if (guide) {
+      const id = window.setTimeout(() => guide.onOver(view.winner!), fxRef.current.dur(400));
+      return () => window.clearTimeout(id);
+    }
     const match = matchRef.current!;
     const result: ResultPayload = {
       setup,
@@ -288,6 +325,11 @@ export function BattleScene() {
     if ((history.state as { oteca?: string } | null)?.oteca !== 'battle') history.pushState({ oteca: 'battle' }, '');
     const onPop = () => {
       history.pushState({ oteca: 'battle' }, '');
+      // チュートリアルの案内中は、スキップの確認を出す
+      if (guideRef.current && !guideRef.current.driver.free) {
+        guideRef.current.onQuit();
+        return;
+      }
       setConfirm({
         title: t().battle.quitTitle,
         text: t().battle.quitText,
@@ -324,7 +366,10 @@ export function BattleScene() {
           : view.phase === 'choose'
             ? view.pendingChoice?.player === me
             : false);
-  const legal = useMemo(() => (canAct && view ? getLegalActions(view, me) : []), [canAct, view, me]);
+  const legal = useMemo(
+    () => (canAct && view ? getLegalActions(view, me).filter((a) => !guide || guide.driver.allows(a, view)) : []),
+    [canAct, view, me, guide, guideTick],
+  );
 
   /** 選んでいるカードの行き先 → 操作 */
   const targets = useMemo(() => {
@@ -522,11 +567,17 @@ export function BattleScene() {
       say(view.phase === 'main' && view.currentPlayer !== me ? tr.battle.reason.oppTurn : tr.battle.reason.cannotNow);
       return;
     }
+    // チュートリアルの案内中は、決めた操作だけ
+    if (guide && !guide.driver.allows({ type: 'END_TURN', player: me }, view)) return;
     submit({ type: 'END_TURN', player: me });
   };
 
   if (!view) return <div className="battle" ref={rootRef}><div key="fx-overlay" className="fx-overlay" ref={overlayRef} /><canvas key="fx-particles" className="fx-particles" ref={canvasRef} /></div>;
 
+  const closeDetail = () => {
+    setDetailUid(null);
+    guide?.driver.detailClosed();
+  };
   const detailDef = detailUid ? view.cardDefs[view.cards[detailUid].no] : null;
   // デバッグ：エンジンの正式な状態のハッシュ（S99「状態ハッシュ表示」）
   const officialHash = setup.showHash && matchRef.current ? hashState(matchRef.current.state) : null;
@@ -559,7 +610,10 @@ export function BattleScene() {
         onOpenMenu={() => setMenuOpen(true)}
         onTapCard={onTapCard}
         onTapZone={onTapZone}
-        onLongPress={(uid) => setDetailUid(uid)}
+        onLongPress={(uid) => {
+          setDetailUid(uid);
+          guide?.driver.longPressed(uid);
+        }}
         onDrop={onDrop}
         onSelect={(sel) => {
           setIdleSince(Date.now());
@@ -572,10 +626,25 @@ export function BattleScene() {
       <div key="fx-overlay" className="fx-overlay" ref={overlayRef} />
       <canvas key="fx-particles" className="fx-particles" ref={canvasRef} />
 
-      <StampPicker onSend={sendStamp} cooldownUntil={stampCooldown} />
+      {guide && (
+        <GuideOverlay
+          driver={guide.driver}
+          view={view}
+          busy={busy}
+          hidden={!!detailUid || !!confirm || menuOpen || !!guide.hidden}
+          rootRef={rootRef}
+          onDice={() => {
+            if (guide.driver.rollDice()) startRef.current?.();
+          }}
+        />
+      )}
+
+      {/* チュートリアルでは スタンプの場所に「スキップ」を置く */}
+      {!guide && <StampPicker onSend={sendStamp} cooldownUntil={stampCooldown} />}
       <StampBalloon stamp={myStamp} side="me" />
       <StampBalloon stamp={oppStamp} side="opp" />
-      {cpuThinking && setup.mode === 'cpu' && view.phase !== 'over' && (
+      {/* チュートリアルで案内を読んでいる間は、相手は待っているだけなので出さない */}
+      {cpuThinking && setup.mode === 'cpu' && view.phase !== 'over' && !(guide && guide.driver.holdsCpu(view)) && (
         <div className="cpu-thinking pencil" role="status" aria-live="polite">
           {tr.battle.thinking}
           <span className="cpu-thinking__dots" aria-hidden>
@@ -658,9 +727,9 @@ export function BattleScene() {
         <Dialog
           seed="battle-detail"
           width={420}
-          onClose={() => setDetailUid(null)}
+          onClose={closeDetail}
           actions={
-            <RoughButton seed="battle-detail-close" onClick={() => setDetailUid(null)}>
+            <RoughButton seed="battle-detail-close" onClick={closeDetail}>
               {tr.common.close}
             </RoughButton>
           }
@@ -689,6 +758,11 @@ export function BattleScene() {
               className="battle-menu__surrender"
               onClick={() => {
                 setMenuOpen(false);
+                // チュートリアルの案内中は「おてあげする」ではなく、スキップの確認（自由に対戦する #15 では ふつうの降参）
+                if (guide && !guide.driver.free) {
+                  guide.onQuit();
+                  return;
+                }
                 setConfirm({
                   title: tr.battle.surrenderTitle,
                   text: tr.battle.surrenderText,

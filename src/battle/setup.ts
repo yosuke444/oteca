@@ -38,6 +38,10 @@ export type BattleSetup = {
   sandbox?: Record<Side, SandboxSide>;
   /** デバッグ「カードを ためす」：この順にサイコロの目を出す（そのあとは乱数） */
   forcedDice?: number[];
+  /** チュートリアル：山札を切らずに、decks に書いた順で配る（UPDATE_v2 §6T-5） */
+  noShuffle?: boolean;
+  /** チュートリアルの対戦（記録しない。リザルトへは進まない） */
+  tutorial?: boolean;
 };
 
 /** 乱数の種を作る（ローカル対戦用。オンラインはコミット・リビールで作る） */

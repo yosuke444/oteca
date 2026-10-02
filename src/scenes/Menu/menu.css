@@ -208,3 +208,29 @@
   text-align: center;
   background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
 }
+
+/* 遊べるようになった機能（ガチャ）は、ふつうのペンの色 */
+.menu-scene__locked-btn.is-open {
+  color: var(--ink);
+  font-size: 26px;
+  white-space: nowrap;
+}
+/* チュートリアルのあとに1回だけ：「コインで パックが ひけるよ」 */
+.menu-scene__gacha-invite {
+  position: absolute;
+  left: 500px;
+  top: 440px;
+  width: 210px;
+  font-size: 20px;
+  pointer-events: none;
+  animation: menu-invite-in calc(500ms / var(--fx-speed)) ease-out both;
+}
+@keyframes menu-invite-in {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) rotate(-14deg);
+  }
+}
+html[data-reduce-fx] .menu-scene__gacha-invite {
+  animation: none;
+}

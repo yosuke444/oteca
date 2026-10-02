@@ -145,3 +145,15 @@
 .rules-art--attack {
   gap: 60px;
 }
+
+/* チュートリアルを もういちど（ページの いちばん上） */
+.rules-tutorial {
+  position: absolute;
+  right: 190px;
+  top: 34px;
+  z-index: 2;
+  width: 360px;
+  height: 54px;
+  font-size: 22px;
+  white-space: nowrap;
+}

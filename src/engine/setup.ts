@@ -24,6 +24,11 @@ export type GameConfig = {
    * decks は使わず、ここに書いたカードでデッキを作る（バトル場 → ベンチ → 手札 → 山札 の順。山札は書いた順のまま）
    */
   sandbox?: Record<Side, SandboxSide>;
+  /**
+   * チュートリアルの台本（UPDATE_v2 §6T-5）：最初に山札を切らず、decks に書いた順のまま配る（先頭から手札、残りが山札の上から）。
+   * 引き直しが起きた時だけは、ふつうどおり種付き乱数で切る
+   */
+  noShuffle?: boolean;
 };
 
 /** カードを ためす：1人ぶんの置き方（カードNo） */
@@ -105,7 +110,7 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
   }
 
   // 2〜3. 切って配る → おてあげが来るまで引き直し
-  for (const side of SIDES) deal(ctx, side);
+  for (const side of SIDES) deal(ctx, side, !!config.noShuffle);
   for (const side of SIDES) stackDeck(state, side, config.stackTop?.[side] ?? []);
   const fixed = config.fixedDie;
   state.fixedDie = fixed && fixed >= 1 && fixed <= 6 ? Math.floor(fixed) : null;
@@ -113,13 +118,13 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
   return { state, events: ctx.events };
 }
 
-function deal(ctx: Ctx, side: Side): void {
+function deal(ctx: Ctx, side: Side, noShuffle: boolean): void {
   const { s } = ctx;
   const ps = s.players[side];
   const r = s.rules[side];
   const hasOtege = () => ps.hand.some((uid) => s.cardDefs[s.cards[uid].no].kind === 'otege');
 
-  shuffleInPlace(s.rng, ps.deck);
+  if (!noShuffle) shuffleInPlace(s.rng, ps.deck);
   ps.hand = ps.deck.splice(0, r.initialHand);
   while (r.mulliganIfNoOtege && !hasOtege()) {
     ctx.events.push({ type: 'Mulligan', player: side });

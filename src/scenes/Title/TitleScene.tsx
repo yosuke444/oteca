@@ -4,23 +4,26 @@ import { useNav } from '../../router';
 import { Logo, LOGO_DRAW_MS } from '../../ui/common/Logo';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useT } from '../../i18n/useT';
+import { useSave } from '../../state/SaveContext';
 import './title.css';
 
 /**
  * S00 タイトル
  * ロゴが書き順どおりに描かれる → 「おてあげカードバトル」 → 「タップしてはじめる」が点滅。ロゴの横に おてあげの絵（動かさない）。
- * タップで音声を有効化して、メニューへ。
+ * タップで音声を有効化して、メニューへ（新しく始めた人は なまえ → チュートリアルへ）。
  */
 export function TitleScene() {
   const { go } = useNav();
   const tr = useT();
+  const { save } = useSave();
   const started = useRef(false);
   /** 1回だけメニューへ進む */
   const start = () => {
     if (started.current) return;
     started.current = true;
     audio.unlock();
-    go('menu');
+    // 新しく始めた人は、名前を決めてからチュートリアルへ（UPDATE_v2 §6T-1）。古いセーブから来た人はメニューの おしらせ で聞く
+    go(!save.tutorial.done && save.updateNoticeSeen ? 'name' : 'menu');
   };
 
   useEffect(() => {
@@ -30,7 +33,7 @@ export function TitleScene() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go]);
+  }, [go, save]);
 
   return (
     <div

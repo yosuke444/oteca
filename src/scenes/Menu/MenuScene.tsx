@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { features } from '../../config/features';
 import { isDebugMode, useNav } from '../../router';
 import { RoughBox } from '../../ui/rough/RoughBox';
@@ -34,6 +34,12 @@ export function MenuScene() {
   /** コインが飛んでくるまで、コイン表示は前の枚数のままにする */
   const [heldCoins, setHeldCoins] = useState<number | null>(null);
   const showPresent = features.coins && (opening || canClaimLoginBonus(save, today));
+
+  // チュートリアルを終えた・とばした人に1回だけ、ガチャのボタンに「コインで パックが ひけるよ」のふせん（UPDATE_v2 §6T-6）
+  const [gachaInvite] = useState(() => features.gacha && save.tutorial.done && !save.tutorial.gachaInviteShown);
+  useEffect(() => {
+    if (gachaInvite) update((d) => void (d.tutorial.gachaInviteShown = true));
+  }, []);
 
   const pressLocked = (id: LockedId) => {
     // 機能フラグが ON になったら、その画面へ進む
@@ -78,6 +84,13 @@ export function MenuScene() {
 
       <LockedButton id="story" label={tr.menu.story} shake={shake.story} onPress={pressLocked} />
       <LockedButton id="gacha" label={tr.menu.gacha} shake={shake.gacha} onPress={pressLocked} />
+      {gachaInvite && (
+        <div className="menu-scene__gacha-invite" data-testid="gacha-invite">
+          <Sticky seed="menu-gacha-invite" color="yellow" angle={-6}>
+            {tr.menu.gachaInvite}
+          </Sticky>
+        </div>
+      )}
 
       {/* 右：デッキ・ルール（・デバッグ） */}
       <RoughButton seed="menu-deck" className="menu-scene__sub menu-scene__deck" onClick={() => go('deck')}>
@@ -117,7 +130,11 @@ export function MenuScene() {
       {!save.updateNoticeSeen && (
         <UpdateNotice
           onAnswer={(tryTutorial) => {
-            update((d) => void (d.updateNoticeSeen = true));
+            // 「あとで」でも、次から自動ではチュートリアルを始めない（ルールせつめい・せっていから いつでも）
+            update((d) => {
+              d.updateNoticeSeen = true;
+              if (!tryTutorial) d.tutorial.done = true;
+            });
             if (tryTutorial) go('tutorial');
           }}
         />
@@ -196,7 +213,7 @@ function LockedButton({
   const tr = useT();
   return (
     <div className={`menu-scene__locked menu-scene__locked--${id}`}>
-      <RoughButton seed={`menu-${id}`} className="menu-scene__locked-btn" onClick={() => onPress(id)}>
+      <RoughButton seed={`menu-${id}`} className={`menu-scene__locked-btn ${locked ? '' : 'is-open'}`} onClick={() => onPress(id)}>
         {label}
       </RoughButton>
       {locked && (

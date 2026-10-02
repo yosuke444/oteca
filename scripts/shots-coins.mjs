@@ -18,6 +18,7 @@ async function freshSave(lang, reduceFx = false) {
       const storage = { jar: cs.browserCookieJar(), local: window.localStorage, secure: false };
       cs.wipe(storage);
       const data = sd.createDefaultSave();
+      data.tutorial = { done: true, gachaInviteShown: true }; // チュートリアルを終えた人（タイトルからメニューへ）
       data.settings.lang = lang;
       data.settings.reduceFx = reduceFx;
       data.saveCounter = 3;

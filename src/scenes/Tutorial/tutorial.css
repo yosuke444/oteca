@@ -1,0 +1,293 @@
+.tutorial-scene {
+  position: absolute;
+  inset: 0;
+}
+/* いつでも押せる「スキップ」（案内の幕より上） */
+.tutorial-scene__skip {
+  position: absolute;
+  right: 196px;
+  top: 6px;
+  z-index: 95;
+  width: 150px;
+  height: 46px;
+  font-size: 20px;
+}
+/* 選んだカードの操作ボタンは、おてあげせんせいと重ならないように右下（ターンおわりの上）へ */
+.tutorial-scene .battle-actionbar {
+  left: auto;
+  right: 24px;
+  top: 500px;
+  width: 330px;
+  justify-content: flex-end;
+}
+.tutorial-scene .battle-actionbar__note {
+  text-align: right;
+}
+
+/* ---------------- 案内（GuideOverlay） ---------------- */
+.guide {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+/* 少し暗くする幕（穴の所は明るいまま） */
+.guide__dim {
+  position: absolute;
+  inset: 0;
+  width: 1280px;
+  height: 720px;
+  fill: color-mix(in srgb, var(--ink) 38%, transparent);
+  animation: guide-fade calc(250ms / var(--fx-speed)) ease-out;
+}
+/* 押せない所をふさぐ（穴の所は下の画面に届く） */
+.guide__catcher {
+  position: absolute;
+  pointer-events: auto;
+}
+.guide--tap .guide__catcher {
+  cursor: pointer;
+}
+.guide__marks {
+  position: absolute;
+  inset: 0;
+  width: 1280px;
+  height: 720px;
+  overflow: visible;
+  fill: none;
+}
+/* 蛍光ペンで丸く囲む */
+.guide__circle {
+  stroke: var(--marker-yellow);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-dasharray: 2200;
+  stroke-dashoffset: 2200;
+  animation: guide-draw calc(450ms / var(--fx-speed)) ease-out forwards, guide-pulse calc(1400ms / var(--fx-speed)) ease-in-out calc(450ms / var(--fx-speed)) infinite;
+}
+/* 手描きの矢印（赤ペン） */
+.guide__arrow path {
+  stroke: var(--pen-red);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: guide-draw calc(500ms / var(--fx-speed)) ease-out calc(150ms / var(--fx-speed)) forwards;
+}
+.guide__dice {
+  position: absolute;
+  z-index: 2;
+  pointer-events: auto;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 18px;
+}
+.guide__dice:focus-visible {
+  outline: 3px dashed var(--pen-blue);
+}
+
+/* おてあげせんせい（左はしに立つ） */
+.guide__sensei {
+  position: absolute;
+  left: 8px;
+  top: 396px;
+}
+.guide__balloon {
+  position: absolute;
+  left: 16px;
+  bottom: 336px;
+  width: 360px;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: guide-pop calc(220ms / var(--fx-speed)) ease-out;
+}
+.guide__box > .rough-box__content {
+  padding: 12px 18px 14px;
+}
+.guide__name {
+  display: block;
+  font-size: 18px;
+}
+.guide__text {
+  margin: 4px 0 0;
+  font-size: 22px;
+  line-height: 1.5;
+}
+/* まだ出ていない文字は、場所だけとっておく（吹き出しの大きさが変わらないように） */
+.guide__rest {
+  visibility: hidden;
+}
+.guide__next {
+  display: block;
+  margin: 6px 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 20px;
+  cursor: pointer;
+  animation: guide-blink calc(1000ms / var(--fx-speed)) ease-in-out infinite;
+}
+.guide__tail {
+  position: absolute;
+  left: 60px;
+  bottom: -44px;
+  width: 60px;
+  height: 50px;
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+/* 見るだけの時は、吹き出しだけ（押しても何も起きない） */
+.guide--watch .guide__balloon {
+  cursor: default;
+}
+
+/* 花丸と「そう！」 */
+.guide-hanamaru {
+  position: absolute;
+  z-index: 86;
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+  pointer-events: none;
+}
+.guide-hanamaru svg {
+  overflow: visible;
+  fill: none;
+  stroke: var(--pen-red);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.guide-hanamaru__swirl,
+.guide-hanamaru__petals {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: guide-draw calc(420ms / var(--fx-speed)) ease-out forwards;
+}
+.guide-hanamaru__petals {
+  animation-delay: calc(250ms / var(--fx-speed));
+}
+.guide-hanamaru__text {
+  position: absolute;
+  left: 50%;
+  top: -36px;
+  transform: translateX(-50%) rotate(-8deg);
+  font-size: 40px;
+  white-space: nowrap;
+  animation: guide-pop calc(300ms / var(--fx-speed)) ease-out calc(300ms / var(--fx-speed)) both;
+}
+
+@keyframes guide-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes guide-pulse {
+  0%,
+  100% {
+    stroke-width: 12;
+  }
+  50% {
+    stroke-width: 18;
+  }
+}
+@keyframes guide-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes guide-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+@keyframes guide-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* 花丸の「そう！」は位置合わせの translate を残す */
+@keyframes guide-pop-text {
+  from {
+    opacity: 0;
+  }
+}
+.guide-hanamaru__text {
+  animation-name: guide-pop-text;
+}
+
+/* ---------------- 終わった後 ---------------- */
+.tutorial-end {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+.tutorial-end__sensei {
+  position: absolute;
+  left: 90px;
+  top: 300px;
+}
+.tutorial-end__balloon {
+  position: absolute;
+  left: 420px;
+  top: 110px;
+  width: 720px;
+  animation: guide-pop calc(260ms / var(--fx-speed)) ease-out;
+}
+.tutorial-end__box > .rough-box__content {
+  padding: 22px 30px 24px;
+}
+.tutorial-end__text {
+  margin: 6px 0 0;
+  font-size: 34px;
+  line-height: 1.5;
+}
+.tutorial-end__buttons {
+  position: absolute;
+  left: 470px;
+  top: 520px;
+  display: flex;
+  gap: 40px;
+  cursor: default;
+}
+.tutorial-end__btn {
+  width: 260px;
+  height: 90px;
+  font-size: 30px;
+}
+.tutorial-end__btn--gacha {
+  width: 300px;
+  font-size: 34px;
+}
+
+/* 演出をへらす：囲みの脈打ち・点滅・描いていく動きなし */
+html[data-reduce-fx] .guide__circle,
+html[data-reduce-fx] .guide__arrow path,
+html[data-reduce-fx] .guide-hanamaru__swirl,
+html[data-reduce-fx] .guide-hanamaru__petals {
+  animation: none;
+  stroke-dashoffset: 0;
+}
+html[data-reduce-fx] .guide__next,
+html[data-reduce-fx] .guide__dim,
+html[data-reduce-fx] .guide__balloon,
+html[data-reduce-fx] .guide-hanamaru__text,
+html[data-reduce-fx] .tutorial-end__balloon {
+  animation: none;
+}
+
+/* 読み上げ用（画面には出さない） */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

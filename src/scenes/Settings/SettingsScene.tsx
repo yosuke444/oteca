@@ -37,6 +37,9 @@ export function SettingsScene() {
         {tr.common.back}
       </RoughButton>
       <SavedToast />
+      <RoughButton seed="settings-tutorial" className="tutorial-again settings-tutorial" onClick={() => go('tutorial')} data-testid="tutorial-again">
+        {tr.tutorial.again}
+      </RoughButton>
 
       <RoughBox seed="settings-left" className="settings-panel settings-panel--left" paper radius={8}>
         <Row id="name" label={tr.settings.name} note={tr.settings.nameNote(NAME_MAX)}>
@@ -55,7 +58,7 @@ export function SettingsScene() {
               else e.target.value = save.playerName;
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) e.currentTarget.blur();
             }}
           />
         </Row>

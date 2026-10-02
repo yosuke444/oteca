@@ -46,6 +46,7 @@ export const kanji: Dict = {
     lockedTop: '準備',
     lockedBottom: '中',
     lockedMsg: 'もう少し待ってね',
+    gachaInvite: 'コインでパックが引けるよ',
   },
 
   placeholder: {
@@ -405,6 +406,36 @@ export const kanji: Dict = {
     bagAria: (n) => `袋 ${n}`,
   },
 
+  tutorial: {
+    sensei: 'おてあげ先生',
+    oppName: '練習相手',
+    skip: 'スキップ',
+    skipTitle: 'チュートリアルを飛ばす？',
+    skipText: '後で「ルール説明」から見られるよ',
+    skipYes: '飛ばす',
+    skipNo: '続ける',
+    tapNext: 'タップで次へ',
+    rollDice: 'サイコロを振る',
+    good: 'そう！',
+    won: 'やったね！ 君の勝ち！ もうオテカの遊び方はばっちりだね。',
+    lost: '負けても大丈夫！ 何度でも練習できるよ。',
+    invite: (coins, pack, bags) => `コインを${coins}枚持ってるね！ ${pack}を${bags}枚引いて、仲間を増やそう！`,
+    tryGacha: '引いてみる！',
+    later: '後で',
+    reviewEnd: 'おつかれさま！ またいつでも見に来てね。',
+    toMenu: 'メニューへ',
+    again: 'チュートリアルをもう一度',
+    againNote: 'おてあげ先生といっしょにおさらい',
+  },
+
+  name: {
+    title: '名前を決めよう',
+    text: (n) => `対戦相手に見える名前だよ（${n}文字まで）。後で「設定」で変えられるよ`,
+    ok: '決定',
+    aria: '名前',
+    empty: '名前を入れてね',
+  },
+
   coin: {
     plus: (n) => `+${n}`,
     present: 'プレゼント',
@@ -695,6 +726,7 @@ export const kanji: Dict = {
         se_super_shine: 'スーパーレアの袋',
         jingle_super: 'スーパーレア！',
         jingle_double: 'ダブル！！',
+        se_sou: 'そう！（チュートリアル）',
         jingle_win: '勝ち（ジングル）',
         jingle_lose: '負け（ジングル）',
       },

@@ -110,6 +110,7 @@ export const SE_KEYS = [
   'se_super_shine',
   'jingle_super',
   'jingle_double',
+  'se_sou',
   'jingle_win',
   'jingle_lose',
 ] as const;

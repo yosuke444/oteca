@@ -351,10 +351,10 @@ export function BattleBoard(p: Props) {
       <EndTurnButton label={endLabel} active={endLegal} myTurn={myTurn && p.canAct} idleSince={p.idleSince} onClick={p.onEndTurn} />
 
       {/* くりだし・準備の案内 */}
-      {view.phase === 'promote' && view.pendingPromote.includes(me) && p.canAct && (
+      {view.phase === 'promote' && view.pendingPromote.includes(me) && p.legal.some((a) => a.type === 'PROMOTE') && (
         <div className="battle-prompt">{tr.battle.promptPromote}</div>
       )}
-      {view.phase === 'setup' && p.canAct && myPs.setupChoice === null && (
+      {view.phase === 'setup' && myPs.setupChoice === null && p.legal.some((a) => a.type === 'SETUP_ACTIVE') && (
         <div className="battle-prompt">{tr.battle.promptSetup}</div>
       )}
       {view.phase === 'setup' && myPs.setupChoice !== null && oppPs.setupChoice === null && (

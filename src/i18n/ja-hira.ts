@@ -45,6 +45,7 @@ export const hira = {
     lockedTop: 'じゅんび',
     lockedBottom: 'ちゅう',
     lockedMsg: 'もうすこし まってね',
+    gachaInvite: 'コインで パックが ひけるよ',
   },
 
   placeholder: {
@@ -404,6 +405,36 @@ export const hira = {
     bagAria: (n: number) => `ふくろ ${n}`,
   },
 
+  tutorial: {
+    sensei: 'おてあげせんせい',
+    oppName: 'れんしゅう あいて',
+    skip: 'スキップ',
+    skipTitle: 'チュートリアルを とばす？',
+    skipText: 'あとで「ルールせつめい」から みられるよ',
+    skipYes: 'とばす',
+    skipNo: 'つづける',
+    tapNext: 'タップで つぎへ',
+    rollDice: 'サイコロを ふる',
+    good: 'そう！',
+    won: 'やったね！ きみの かち！ もう オテカの あそびかたは ばっちりだね。',
+    lost: 'まけても だいじょうぶ！ なんども れんしゅう できるよ。',
+    invite: (coins: number, pack: string, bags: number) => `コインを ${coins}まい もってるね！ ${pack}を ${bags}まい ひいて、なかまを ふやそう！`,
+    tryGacha: 'ひいてみる！',
+    later: 'あとで',
+    reviewEnd: 'おつかれさま！ また いつでも みにきてね。',
+    toMenu: 'メニューへ',
+    again: 'チュートリアルを もういちど',
+    againNote: 'おてあげせんせいと いっしょに おさらい',
+  },
+
+  name: {
+    title: 'なまえを きめよう',
+    text: (n: number) => `たいせんの あいてに みえる なまえだよ（${n}もじ まで）。あとで「せってい」で かえられるよ`,
+    ok: 'けってい',
+    aria: 'なまえ',
+    empty: 'なまえを いれてね',
+  },
+
   coin: {
     plus: (n: number) => `+${n}`,
     present: 'プレゼント',
@@ -694,6 +725,7 @@ export const hira = {
         se_super_shine: 'スーパーレアの ふくろ',
         jingle_super: 'スーパーレア！',
         jingle_double: 'ダブル！！',
+        se_sou: 'そう！（チュートリアル）',
         jingle_win: 'かち（ジングル）',
         jingle_lose: 'まけ（ジングル）',
       },

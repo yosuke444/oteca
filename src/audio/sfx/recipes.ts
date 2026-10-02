@@ -375,6 +375,15 @@ export const RECIPES: Record<string, Recipe> = {
       sparkle(0.8, 1.6, 40, 0.09),
     ],
   },
+  // そう！（v2.0-T。チュートリアルで正しく操作した）：赤ペンで花丸を描く「シュッ」＋上がる2音「ピンポン」＋きらきら
+  se_sou: {
+    gain: 0.7,
+    layers: [
+      { src: 'pink', gain: 0.22, filter: { type: 'bandpass', freq: [1800, 4200], q: 1.4, time: 0.18 }, env: { a: 0.01, d: 0.16, s: 0, r: 0.04 }, pan: [-0.4, 0.4] },
+      { src: 'triangle', gain: 0.38, partials: [1, 2], env: { a: 0.003, d: 0.06, s: 0.5, r: 0.22 }, notes: [{ t: 0.12, f: N.G5, d: 0.1 }, { t: 0.24, f: N.C6, d: 0.3, g: 1.15 }], reverb: 0.3 },
+      sparkle(0.24, 0.4, 10, 0.07),
+    ],
+  },
   // ダブル（v2.0-E。約1.8秒）：2回はねる「ドンドン」→ 花火の「ヒュー・パン」→ 明るい和音
   jingle_double: {
     gain: 0.85,

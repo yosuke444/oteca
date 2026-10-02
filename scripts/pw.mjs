@@ -53,7 +53,16 @@ export async function waitIdle(page, timeout = 20000) {
 /** タイトルをタップしてメニューへ */
 export async function toMenu(page, size) {
   await page.mouse.click(size.width / 2, size.height / 2);
-  await page.getByRole('button', { name: 'デッキへんしゅう' }).waitFor();
+  // 新しいセーブでは なまえ → チュートリアル になる（v2.0-T）。名前はそのまま決めて、チュートリアルはスキップする
+  const name = page.getByTestId('name-ok');
+  const deck = page.getByRole('button', { name: /デッキへんしゅう|デッキ編集/ });
+  await name.or(deck).first().waitFor();
+  if (await name.isVisible()) {
+    await name.click();
+    await page.getByTestId('tutorial-skip').click();
+    await page.getByRole('button', { name: /^(とばす|飛ばす)$/ }).click();
+  }
+  await deck.waitFor();
 }
 
 /** 設定で演出スピードを変えてメニューへ戻る（label：ふつう／はやい／さいそく） */
