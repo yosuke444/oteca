@@ -5,7 +5,8 @@ import { useFx } from '../../fx/fxSettings';
 import { play, setFxSpeed, wait } from '../../fx/timing';
 import { useT } from '../../i18n/useT';
 import { imageUrl } from '../imageFiles';
-import { centerIn, flyCoins } from './Coin';
+import { flyCoins } from './Coin';
+import { centerIn, confetti, flash } from '../../fx/paperFx';
 import './coin.css';
 
 /**
@@ -137,37 +138,3 @@ export function PresentBox({
   );
 }
 
-/** 画面が一瞬 白く光る */
-function flash(layer: HTMLElement): void {
-  const f = document.createElement('div');
-  f.className = 'coin-flash';
-  layer.appendChild(f);
-  gsap.fromTo(f, { opacity: 0.9 }, { opacity: 0, duration: 0.45, ease: 'power2.out', onComplete: () => f.remove() });
-}
-
-/** 星と紙吹雪の落書きが、箱から飛び散る */
-function confetti(layer: HTMLElement, at: { x: number; y: number }): void {
-  const colors = ['var(--pen-red)', 'var(--pen-blue)', 'var(--pen-green)', 'var(--super-gold)', 'var(--pen-purple)'];
-  for (let i = 0; i < 34; i++) {
-    const star = i % 3 === 0;
-    const el = document.createElement('div');
-    el.className = star ? 'coin-confetti coin-confetti--star' : 'coin-confetti';
-    const color = colors[i % colors.length];
-    el.innerHTML = star
-      ? `<svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 2 L14.6 9 L22 9.4 L16.2 14 L18.3 21.4 L12 17 L5.7 21.4 L7.8 14 L2 9.4 L9.4 9 Z" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/></svg>`
-      : `<span style="background:${color}"></span>`;
-    layer.appendChild(el);
-    const a = Math.random() * Math.PI * 2;
-    const d = 120 + Math.random() * 260;
-    gsap.set(el, { left: at.x, top: at.y, xPercent: -50, yPercent: -50 });
-    gsap.to(el, {
-      x: Math.cos(a) * d,
-      y: Math.sin(a) * d * 0.8 + 60,
-      rotate: (Math.random() - 0.5) * 720,
-      opacity: 0,
-      duration: 1 + Math.random() * 0.6,
-      ease: 'power2.out',
-      onComplete: () => el.remove(),
-    });
-  }
-}

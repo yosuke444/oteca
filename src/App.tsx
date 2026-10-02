@@ -19,6 +19,7 @@ import { CpuScene } from './scenes/Cpu/CpuScene';
 import { FxTestScene } from './scenes/Debug/FxTestScene';
 import { SoundTestScene } from './scenes/Debug/SoundTestScene';
 import { CardLabScene } from './scenes/Debug/CardLabScene';
+import { GachaScene } from './scenes/Gacha/GachaScene';
 import { RulesScene } from './scenes/Rules/RulesScene';
 import { ComingSoonScene } from './scenes/Placeholder/PlaceholderScene';
 
@@ -41,7 +42,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   cardlab: CardLabScene,
   // 🔒 後で実装
   story: ComingSoonScene,
-  gacha: ComingSoonScene,
+  gacha: GachaScene,
   tutorial: ComingSoonScene,
 };
 
@@ -53,7 +54,7 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   title: 'bgm_title',
   menu: 'bgm_title',
   story: 'bgm_title',
-  gacha: 'bgm_title',
+  gacha: 'bgm_gacha',
   tutorial: 'bgm_title',
   debug: 'bgm_title',
   deck: 'bgm_deck',

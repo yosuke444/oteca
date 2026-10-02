@@ -1,0 +1,602 @@
+/* S09 パックガチャ（SPEC §7 S09。v2.0-E） */
+.gacha-scene {
+  position: absolute;
+  inset: 0;
+}
+.gacha-scene__title {
+  position: absolute;
+  left: 44px;
+  top: 14px;
+  margin: 0;
+  font-size: 40px;
+  font-weight: normal;
+}
+.gacha-scene__coins {
+  position: absolute;
+  right: 220px;
+  top: 22px;
+  height: 52px;
+}
+.gacha-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 16px;
+  width: 150px;
+  height: 60px;
+  font-size: 24px;
+}
+.gacha-scene__arrow {
+  position: absolute;
+  top: 260px;
+  width: 84px;
+  height: 84px;
+  font-size: 34px;
+}
+.gacha-scene__arrow--prev {
+  left: 330px;
+}
+.gacha-scene__arrow--next {
+  right: 330px;
+}
+.gacha-scene__pack {
+  position: absolute;
+  left: 520px;
+  top: 92px;
+  width: 240px;
+  height: 360px;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.gacha-scene__packname {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 456px;
+  margin: 0;
+  font-size: 30px;
+  text-align: center;
+}
+.gacha-scene__tap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 500px;
+  margin: 0;
+  font-size: 16px;
+  text-align: center;
+}
+.gacha-scene__offers {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 540px;
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+.gacha-offer {
+  position: relative;
+}
+.gacha-offer__btn {
+  width: 330px;
+  height: 120px;
+}
+.gacha-offer__btn .tilt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.gacha-offer__bags {
+  font-size: 34px;
+}
+.gacha-offer__price {
+  font-size: 30px;
+  color: var(--pen-red);
+}
+.gacha-offer__bonus {
+  font-size: 15px;
+  color: var(--pen-blue);
+}
+/* コインが足りない：えんぴつ色 */
+.gacha-offer__btn.is-disabled {
+  color: var(--pencil);
+}
+.gacha-offer__btn.is-disabled .gacha-offer__price {
+  color: var(--pencil);
+}
+.gacha-guide {
+  position: absolute;
+  left: -20px;
+  top: -10px;
+  width: 370px;
+  height: 140px;
+  pointer-events: none;
+  animation: gacha-guide calc(1.2s / var(--fx-speed)) ease-in-out infinite alternate;
+}
+@keyframes gacha-guide {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.04);
+  }
+}
+.gacha-scene__msg {
+  position: absolute;
+  left: 50%;
+  top: 470px;
+  z-index: 30;
+  padding: 6px 18px;
+  font-size: 24px;
+  background: var(--note-red);
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+/* ---------- パックの絵（仮表示：手描きの袋） ---------- */
+.pack-art {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.pack-art__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.pack-art__bag {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.pack-art__body {
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.pack-art--blue .pack-art__body {
+  fill: var(--note-blue);
+}
+.pack-art--red .pack-art__body {
+  fill: var(--note-red);
+}
+.pack-art--green .pack-art__body {
+  fill: var(--note-green);
+}
+.pack-art__seam {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  opacity: 0.6;
+}
+.pack-art__shine {
+  fill: none;
+  stroke: var(--paper);
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+.pack-art__star {
+  fill: none;
+  stroke: var(--super-gold);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.pack-art__logo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22%;
+  font-size: 22px;
+  text-align: center;
+  color: var(--pen-red);
+  transform: rotate(-6deg);
+}
+.pack-art__name {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 38%;
+  font-size: 30px;
+  line-height: 1.15;
+  text-align: center;
+  word-break: keep-all;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+}
+.pack-art--small .pack-art__logo {
+  font-size: 13px;
+}
+.pack-art--small .pack-art__name {
+  font-size: 15px;
+}
+/* 開ける袋：破る点線 */
+.pack-art__tear {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 16%;
+  border-top: 2.5px dashed var(--pen-red);
+}
+
+/* ---------- 袋を開ける ---------- */
+.gacha-open {
+  position: absolute;
+  inset: 0;
+}
+.gacha-open__bags {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 150px;
+  display: flex;
+  justify-content: center;
+  gap: 60px;
+}
+.gacha-open__bags--many {
+  top: 92px;
+  left: 50%;
+  right: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 112px);
+  gap: 14px 22px;
+  transform: translateX(-50%);
+}
+.gacha-bag {
+  position: relative;
+  width: 180px;
+  height: 270px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+}
+.gacha-open__bags--many .gacha-bag {
+  width: 112px;
+  height: 152px;
+}
+.gacha-bag.is-torn .pack-art {
+  clip-path: inset(16% 0 0 0);
+}
+/* スーパーレアの袋：開ける前から金色に震え、すき間から光が漏れる */
+.gacha-bag.is-super {
+  animation: gacha-super-shake calc(0.5s / var(--fx-speed)) linear infinite;
+  filter: drop-shadow(0 0 10px var(--super-gold)) drop-shadow(0 0 4px var(--super-gold));
+}
+.gacha-bag.is-super .pack-art__body {
+  stroke: var(--super-gold);
+  stroke-width: 5;
+}
+.gacha-bag__leak {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 9%;
+  height: 16%;
+  background: radial-gradient(ellipse at 50% 60%, var(--fx-onom-fill) 0%, transparent 70%);
+  opacity: 0.9;
+  pointer-events: none;
+  animation: gacha-leak calc(0.9s / var(--fx-speed)) ease-in-out infinite alternate;
+}
+@keyframes gacha-super-shake {
+  0%,
+  100% {
+    transform: rotate(0deg) translateX(0);
+  }
+  25% {
+    transform: rotate(-2deg) translateX(-2px);
+  }
+  75% {
+    transform: rotate(2deg) translateX(2px);
+  }
+}
+@keyframes gacha-leak {
+  from {
+    opacity: 0.5;
+    transform: scaleY(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1.4);
+  }
+}
+/* ダブルの袋：少しふくらんでいる */
+.gacha-bag.is-double .pack-art {
+  transform: scale(1.07, 1.03);
+}
+.gacha-bag.is-opened {
+  cursor: default;
+}
+.gacha-bag__got {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+}
+.gacha-open__bags--many .gacha-bag__got .card-mini--slot {
+  transform: scale(0.9);
+}
+.gacha-open__hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 580px;
+  margin: 0;
+  font-size: 16px;
+  text-align: center;
+}
+.gacha-open__buttons {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 612px;
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+}
+.gacha-open__btn {
+  width: 260px;
+  height: 70px;
+  font-size: 26px;
+}
+.gacha-open__layer {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* 破れた切れ端 */
+.gacha-strip {
+  position: absolute;
+  z-index: 61;
+  border: 2.5px solid var(--ink);
+  border-radius: 4px 4px 0 0;
+}
+.gacha-strip--blue {
+  background: var(--note-blue);
+}
+.gacha-strip--red {
+  background: var(--note-red);
+}
+.gacha-strip--green {
+  background: var(--note-green);
+}
+
+/* ---------- めくる ---------- */
+.gacha-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  cursor: pointer;
+}
+.gacha-reveal.is-super {
+  background: color-mix(in srgb, var(--note-yellow) 70%, transparent);
+}
+.gacha-reveal__cards {
+  position: absolute;
+  left: 640px;
+  top: 170px;
+  z-index: 75;
+}
+.gacha-reveal__card {
+  position: absolute;
+  left: -115px;
+  top: 0;
+  width: 230px;
+  height: 320px;
+}
+.gacha-reveal__back,
+.gacha-reveal__front {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+}
+.gacha-reveal__back {
+  align-items: center;
+}
+.gacha-reveal__front .card-mini--tile {
+  transform: scale(1.75);
+  transform-origin: top center;
+  margin-top: 40px;
+}
+.gacha-reveal__card.is-super .gacha-reveal__front {
+  filter: drop-shadow(0 0 16px var(--super-gold)) drop-shadow(0 0 6px var(--super-gold));
+}
+.gacha-new {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  z-index: 3;
+  padding: 0 8px;
+  font-size: 22px;
+  color: var(--paper);
+  background: var(--pen-red);
+  border-radius: 6px;
+  transform: rotate(-12deg);
+}
+.gacha-reveal__next {
+  position: absolute;
+  border: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  left: 0;
+  right: 0;
+  top: 640px;
+  z-index: 76;
+  margin: 0;
+  font-size: 20px;
+  text-align: center;
+}
+.gacha-reveal__skip {
+  position: absolute;
+  right: 36px;
+  top: 16px;
+  z-index: 80;
+  width: 150px;
+  height: 60px;
+  font-size: 22px;
+}
+/* 大きな文字（演出の層 .gacha-open__layer の中） */
+.gacha-flip {
+  font-size: 64px;
+  color: var(--pen-blue);
+}
+.gacha-double {
+  font-size: 120px;
+  color: var(--ink);
+  padding: 0 18px;
+  background: linear-gradient(transparent 30%, var(--marker-pink) 30%, var(--marker-pink) 62%, var(--marker-yellow) 62%, var(--marker-yellow) 92%, transparent 92%);
+}
+.gacha-stamp {
+  font-size: 64px;
+  color: var(--pen-red);
+  padding: 4px 22px;
+  border: 6px double var(--pen-red);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+}
+
+/* ---------- まとめ ---------- */
+.gacha-summary {
+  position: absolute;
+  inset: 0;
+}
+.gacha-summary__title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 76px;
+  margin: 0;
+  font-size: 30px;
+  font-weight: normal;
+  text-align: center;
+}
+.gacha-summary__grid {
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  top: 130px;
+  bottom: 110px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: flex-start;
+  gap: 26px 26px;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+.gacha-summary__grid--many {
+  gap: 30px 16px;
+}
+.gacha-summary__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.gacha-summary__card.is-super .card-mini {
+  filter: drop-shadow(0 0 8px var(--super-gold)) drop-shadow(0 0 3px var(--super-gold));
+}
+.gacha-summary__new {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  z-index: 5;
+  padding: 0 6px;
+  font-size: 17px;
+  color: var(--pen-red);
+}
+.gacha-summary__owned {
+  font-size: 15px;
+}
+.gacha-summary__convert {
+  height: 38px;
+  font-size: 15px;
+}
+.gacha-summary__convert .rough-btn__label {
+  padding: 0 8px;
+}
+.gacha-summary__done {
+  font-size: 15px;
+}
+.gacha-summary__buttons {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 624px;
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+}
+.gacha-summary__btn {
+  width: 260px;
+  height: 70px;
+  font-size: 26px;
+}
+
+/* ---------- なかみ ---------- */
+.gacha-contents__note {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+.gacha-contents__head {
+  margin: 8px 0 4px;
+  font-size: 20px;
+  font-weight: normal;
+}
+.gacha-contents__group--super .gacha-contents__head {
+  color: var(--super-gold);
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+  display: inline-block;
+}
+.gacha-contents__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 112px);
+  gap: 10px 8px;
+}
+.gacha-contents__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.gacha-contents__rate {
+  font-size: 18px;
+  color: var(--pen-blue);
+}
+.gacha-contents__owned {
+  font-size: 15px;
+}
+.gacha-contents__group--super .gacha-contents__item .card-mini {
+  filter: drop-shadow(0 0 6px var(--super-gold));
+}
+
+/* 演出をへらす：震え・光・ふくらみなし */
+html[data-reduce-fx] .gacha-bag.is-super,
+html[data-reduce-fx] .gacha-bag__leak,
+html[data-reduce-fx] .gacha-guide {
+  animation: none;
+}
+html[data-reduce-fx] .gacha-bag.is-super {
+  filter: none;
+}
+html[data-reduce-fx] .gacha-bag.is-double .pack-art {
+  transform: none;
+}
+/* 換金のコインが飛ぶ層 */
+.gacha-scene__layer {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+}

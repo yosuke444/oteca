@@ -434,3 +434,44 @@
   background: var(--paper);
   border: 2px solid var(--ink);
 }
+
+/* 紙とペンの演出の部品（src/fx/paperFx.ts。v2.0） */
+.paper-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  background: var(--fx-flash);
+  pointer-events: none;
+}
+.paper-confetti,
+.paper-scrap,
+.paper-firework,
+.paper-bigtext {
+  position: absolute;
+  z-index: 85;
+  pointer-events: none;
+}
+.paper-confetti span {
+  display: block;
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+}
+.paper-scrap {
+  width: 16px;
+  height: 12px;
+  background: var(--paper);
+  border: 1.5px solid var(--pencil);
+  clip-path: polygon(0 20%, 40% 0, 100% 30%, 80% 100%, 10% 85%);
+}
+.paper-radial {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+.paper-bigtext {
+  white-space: nowrap;
+  font-family: var(--font-hand);
+}

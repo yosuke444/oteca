@@ -110,7 +110,12 @@ describe('パックの中身（packs.json。デッキ編集の絞り込み）', 
   });
 
   it('形のおかしい packs.json はエラー', () => {
-    const ok = { version: 1, packs: [{ id: 'a', name: 'A', short: 'A', normal: ['oteage'], super: ['kami'] }], limited: [] };
+    const ok = {
+      version: 1,
+      packs: [{ id: 'a', name: 'A', short: 'A', color: 'blue', normal: ['oteage'], super: ['kami'] }],
+      limited: [],
+      draw: { superRate: 0.06, doubleRate: 0.1, offers: [{ id: 'x', bags: 3, price: 50 }], superToCoins: 50 },
+    };
     expect(() => parsePackData(ok)).not.toThrow();
     expect(() => parsePackData({ ...ok, packs: [{ ...ok.packs[0], normal: ['nai'] }] })).toThrow('nai');
     expect(() => parsePackData({ ...ok, packs: [{ ...ok.packs[0], super: ['oteage'] }] })).toThrow('スーパーではありません');

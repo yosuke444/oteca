@@ -4,7 +4,7 @@ import { cardById } from './cards';
 /**
  * パックの中身（UPDATE_v2 §6-2）。デッキ編集の「パック」の絞り込みに使う（v2.0-B）。
  * 中身はカードの id で書く。まだ cards.json に無いカード（UPDATE_v2 C で足す）は、カードを足す時に一緒に書き足す。
- * 確率・値段はパックガチャ（UPDATE_v2 E）で足す。
+ * 確率・値段（draw）はパックガチャ（SPEC §7 S09・v2.0-E）で使う。
  * limited は限定カード（ストーリーのボスを倒すと手に入る。パックからは出ない）。
  */
 
@@ -14,11 +14,21 @@ export type PackDef = {
   name: string;
   /** 絞り込みのボタンに出す短い名前（固有名詞） */
   short: string;
+  /** 仮の絵の色（パックの絵が届くまで。SPEC §7 S09） */
+  color: 'blue' | 'red' | 'green';
   normal: string[];
   super: string[];
 };
 
-export type PackData = { version: number; packs: PackDef[]; limited: string[] };
+/** 引き方（SPEC §7 S09）：1枚ごとのスーパーレアの確率・1袋ごとのダブルの確率・買い方・換金の枚数 */
+export type DrawRules = {
+  superRate: number;
+  doubleRate: number;
+  offers: { id: string; bags: number; price: number }[];
+  superToCoins: number;
+};
+
+export type PackData = { version: number; packs: PackDef[]; limited: string[]; draw: DrawRules };
 
 /** 形が正しくなければエラー（無い id・スーパーでないカードを super に書いた など） */
 export function parsePackData(data: unknown): PackData {
@@ -40,6 +50,15 @@ export function parsePackData(data: unknown): PackData {
     }
   }
   for (const id of d.limited) check(!!cardById(id), `limited の ${id} は cards.json にありません`);
+  for (const p of d.packs) {
+    check(['blue', 'red', 'green'].includes(p.color), `パック ${p.id}: color が不正です`);
+    check(p.normal.length > 0 && p.super.length > 0, `パック ${p.id}: ノーマルとスーパーレアが1枚以上必要です`);
+  }
+  const dr = d.draw;
+  const rate = (v: unknown) => typeof v === 'number' && v >= 0 && v <= 1;
+  check(!!dr && rate(dr.superRate) && rate(dr.doubleRate), 'draw の確率が不正です');
+  check(Array.isArray(dr.offers) && dr.offers.length > 0 && dr.offers.every((o) => typeof o.id === 'string' && Number.isInteger(o.bags) && o.bags > 0 && Number.isInteger(o.price) && o.price > 0), 'draw.offers が不正です');
+  check(Number.isInteger(dr.superToCoins) && dr.superToCoins >= 0, 'draw.superToCoins が不正です');
   return d;
 }
 

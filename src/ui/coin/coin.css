@@ -94,25 +94,6 @@ html[data-reduce-fx] .present-box {
   filter: none;
 }
 
-/* 箱が開く時の光・紙吹雪 */
-.coin-flash {
-  position: absolute;
-  inset: 0;
-  z-index: 55;
-  background: var(--fx-flash);
-  pointer-events: none;
-}
-.coin-confetti {
-  position: absolute;
-  z-index: 56;
-  pointer-events: none;
-}
-.coin-confetti span {
-  display: block;
-  width: 10px;
-  height: 16px;
-  border-radius: 2px;
-}
 .present-box.is-opening {
   z-index: 40;
 }

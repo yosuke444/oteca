@@ -306,6 +306,100 @@ export const RECIPES: Record<string, Recipe> = {
       sparkle(0.72, 0.6, 16, 0.08),
     ],
   },
+  // 袋を破る（v2.0-E）：紙を裂く「ビリッ」（ノイズの粒を速く並べ、高さを下げていく）
+  se_bag_tear: {
+    gain: 0.8,
+    layers: [
+      { src: 'white', gain: 0.5, filter: { type: 'bandpass', freq: [4200, 1600], q: 1.4, time: 0.22 }, env: { a: 0.002, d: 0.018, s: 0, r: 0.01 }, grains: { count: 14, spread: 0.22, jitter: 0.6, gainJitter: 0.5 }, pan: [-0.5, 0.5] },
+      { src: 'pink', gain: 0.3, filter: { type: 'bandpass', freq: [1800, 700], q: 0.9, time: 0.25 }, env: { a: 0.005, d: 0.2, s: 0, r: 0.05 } },
+      { src: 'white', gain: 0.25, filter: { type: 'highpass', freq: [6000, 6000] }, env: { a: 0.001, d: 0.01, s: 0, r: 0.01 }, delay: 0.24 },
+    ],
+  },
+  // カードがめくれる（v2.0-E）：軽い「ぺらっ」
+  se_card_flip: {
+    gain: 0.7,
+    layers: [
+      { src: 'pink', gain: 0.42, filter: { type: 'bandpass', freq: [1200, 3600], q: 1.2, time: 0.08 }, env: { a: 0.006, d: 0.07, s: 0, r: 0.03 } },
+      { src: 'sine', gain: 0.18, freq: [700, 1300], freqTime: 0.06, env: { a: 0.002, d: 0.06, s: 0, r: 0.03 }, delay: 0.03 },
+    ],
+  },
+  // スーパーレアの袋が光る・震える（v2.0-E）：高い「キラキラ」のうなり
+  se_super_shine: {
+    gain: 0.6,
+    layers: [
+      { src: 'sine', gain: 0.14, freq: [1568, 2093], partials: [1, 1.5, 2.01], env: { a: 0.25, d: 0.4, s: 0.4, r: 0.4 }, reverb: 0.4, reverbLong: true },
+      sparkle(0, 1.1, 26, 0.07),
+      { src: 'triangle', gain: 0.08, freq: [90, 110], env: { a: 0.1, d: 0.6, s: 0.3, r: 0.3 }, drive: 0.3 },
+    ],
+  },
+  // スーパーレア（v2.0-E。約2.5秒）：上がるアルペジオ → 和音のファンファーレ＋ドラム＋きらきら
+  jingle_super: {
+    gain: 0.85,
+    layers: [
+      { src: 'triangle', gain: 0.3, env: { a: 0.003, d: 0.06, s: 0.5, r: 0.1 }, notes: [N.C5, N.E5, N.G5, N.C6, N.E6, N.G6].map((f, i) => ({ t: i * 0.07, f, d: 0.09 })), reverb: 0.25 },
+      {
+        src: 'square',
+        gain: 0.14,
+        filter: { type: 'lowpass', freq: [3600, 3600] },
+        env: { a: 0.005, d: 0.08, s: 0.65, r: 0.2 },
+        notes: [
+          { t: 0.5, f: N.G5, d: 0.16 },
+          { t: 0.68, f: N.G5, d: 0.1 },
+          { t: 0.8, f: N.C6, d: 0.6 },
+          { t: 1.45, f: N.D6, d: 0.14 },
+          { t: 1.6, f: N.E6, d: 0.85, g: 1.15 },
+        ],
+        reverb: 0.3,
+      },
+      {
+        src: 'sawtooth',
+        gain: 0.08,
+        filter: { type: 'lowpass', freq: [2200, 2200] },
+        env: { a: 0.02, d: 0.2, s: 0.65, r: 0.35 },
+        notes: [
+          ...[N.C4, N.E4, N.G4, N.C5].map((f) => ({ t: 0.8, f, d: 0.6 })),
+          ...[N.D4, N.G4, N.B4, N.D5].map((f) => ({ t: 1.45, f, d: 0.14 })),
+          ...[N.C4, N.E4, N.G4, N.C5, N.E5].map((f) => ({ t: 1.6, f, d: 0.85 })),
+        ],
+        reverb: 0.35,
+        reverbLong: true,
+      },
+      { src: 'sine', gain: 0.4, env: { a: 0.01, d: 0.2, s: 0.5, r: 0.3 }, notes: [{ t: 0.8, f: N.C3, d: 0.6 }, { t: 1.45, f: N.G3, d: 0.14 }, { t: 1.6, f: N.C3, d: 0.85 }] },
+      kick(0.5),
+      kick(0.8, 1),
+      kick(1.45),
+      kick(1.6, 1),
+      snare(0.68),
+      snare(1.6, 0.5),
+      { src: 'white', gain: 0.3, filter: { type: 'highpass', freq: [7000, 3000], time: 1 }, env: { a: 0.002, d: 1, s: 0, r: 0.1 }, delay: 1.6, reverb: 0.4, reverbLong: true },
+      sparkle(0.8, 1.6, 40, 0.09),
+    ],
+  },
+  // ダブル（v2.0-E。約1.8秒）：2回はねる「ドンドン」→ 花火の「ヒュー・パン」→ 明るい和音
+  jingle_double: {
+    gain: 0.85,
+    layers: [
+      kick(0, 0.9),
+      kick(0.22, 0.9),
+      { src: 'sine', gain: 0.22, freq: [600, 2400], freqTime: 0.45, env: { a: 0.02, d: 0.45, s: 0, r: 0.02 }, delay: 0.42 },
+      { src: 'white', gain: 0.45, filter: { type: 'lowpass', freq: [5000, 600], time: 0.5 }, env: { a: 0.001, d: 0.5, s: 0, r: 0.1 }, delay: 0.9, reverb: 0.4, reverbLong: true },
+      kick(0.9, 1),
+      {
+        src: 'triangle',
+        gain: 0.32,
+        env: { a: 0.004, d: 0.08, s: 0.55, r: 0.2 },
+        notes: [
+          { t: 0.9, f: N.E5, d: 0.12 },
+          { t: 1.02, f: N.G5, d: 0.12 },
+          { t: 1.14, f: N.C6, d: 0.12 },
+          { t: 1.26, f: N.E6, d: 0.5, g: 1.1 },
+        ],
+        reverb: 0.3,
+      },
+      { src: 'sawtooth', gain: 0.07, filter: { type: 'lowpass', freq: [2400, 2400] }, env: { a: 0.02, d: 0.2, s: 0.6, r: 0.3 }, notes: [N.C4, N.E4, N.G4, N.C5].map((f) => ({ t: 1.26, f, d: 0.5 })), reverb: 0.3 },
+      sparkle(0.95, 0.9, 30, 0.09),
+    ],
+  },
   // 勝利（約3秒）：メロディ＋和音＋合成ドラム＋最後にきらきら
   jingle_win: {
     gain: 0.8,

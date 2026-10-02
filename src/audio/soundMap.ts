@@ -8,8 +8,8 @@ import battleList from 'virtual:battle-bgm';
  * public/audio/se/<キー>.mp3 を置くと、合成音より優先して鳴る（今は使わない）。
  */
 
-/** ループで流す曲（タイトル・デッキ編集・ロビー） */
-export type LoopBgmKey = 'bgm_title' | 'bgm_deck' | 'bgm_lobby';
+/** ループで流す曲（タイトル・デッキ編集・ロビー・パックガチャ） */
+export type LoopBgmKey = 'bgm_title' | 'bgm_deck' | 'bgm_lobby' | 'bgm_gacha';
 /** 'battle' ＝ 戦闘曲（battle フォルダの曲をシャッフルで1曲ずつ流す） */
 export type BgmKey = LoopBgmKey | 'battle';
 
@@ -36,6 +36,7 @@ export const BGM: Record<LoopBgmKey, BgmInfo> = {
   bgm_title: { volume: 1 }, // タイトル・メニュー。-10.7 LUFS
   bgm_deck: { volume: 0.76 }, // デッキ編集・設定・ルール。-8.3
   bgm_lobby: { volume: 0.87 }, // ロビー待機。-9.5
+  bgm_gacha: { volume: 1 }, // パックガチャ（v2.0-E。届いたら測り直す。無ければ無音）
 };
 
 /** BGM を置く場所 */
@@ -104,6 +105,11 @@ export const SE_KEYS = [
   'se_coin',
   'se_coin_burst',
   'se_present',
+  'se_bag_tear',
+  'se_card_flip',
+  'se_super_shine',
+  'jingle_super',
+  'jingle_double',
   'jingle_win',
   'jingle_lose',
 ] as const;

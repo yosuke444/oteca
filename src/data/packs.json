@@ -1,15 +1,47 @@
 {
   "version": 1,
   "packs": [
-    { "id": "ganso", "name": "元祖パック", "short": "元祖",
+    {
+      "id": "ganso",
+      "name": "元祖パック",
+      "short": "元祖",
+      "color": "blue",
       "normal": ["oteage", "mitsume", "otesage", "yotsuashi", "sanbon", "mutsuashi", "hasami", "yonhon", "himitsu_yaiba", "kusuri", "kimyou_drink", "supodori"],
-      "super": ["kami", "revolution", "tsunobasami"] },
-    { "id": "shin", "name": "真・パック", "short": "真",
+      "super": ["kami", "revolution", "tsunobasami"]
+    },
+    {
+      "id": "shin",
+      "name": "真・パック",
+      "short": "真",
+      "color": "red",
       "normal": ["oteage", "yatsuashi", "mutsuashi", "shikaku", "bakuhatsu", "yukidaruma", "yonhon", "shovelcar", "bakeage", "kusuri", "hikikae", "himitsu_yaiba", "kimyou_drink", "supodori"],
-      "super": ["mitsushikaku", "mitsudaruma", "bakudan"] },
-    { "id": "yoseatsume", "name": "よせあつめパック", "short": "よせあつめ",
+      "super": ["mitsushikaku", "mitsudaruma", "bakudan"]
+    },
+    {
+      "id": "yoseatsume",
+      "name": "よせあつめパック",
+      "short": "よせあつめ",
+      "color": "green",
       "normal": ["oteage", "karaage", "toriashi", "hataage", "kawaiage", "ootoro", "bunbunbun", "takarabako", "pakarapakara", "hon777", "piero", "sarashiage", "moyasu", "dokusage", "tomodachi", "hosoage", "surimu", "kusuri", "himitsu_yaiba", "kimyou_drink", "supodori", "yabaitsubo"],
-      "super": ["power", "medusa"] }
+      "super": ["power", "medusa"]
+    }
   ],
-  "limited": ["oteage_ningen", "oteage_zamurai", "oteage_dragon", "oteage_usagi"]
+  "limited": ["oteage_ningen", "oteage_zamurai", "oteage_dragon", "oteage_usagi"],
+  "draw": {
+    "superRate": 0.06,
+    "doubleRate": 0.1,
+    "offers": [
+      {
+        "id": "three",
+        "bags": 3,
+        "price": 50
+      },
+      {
+        "id": "fifteen",
+        "bags": 15,
+        "price": 200
+      }
+    ],
+    "superToCoins": 50
+  }
 }

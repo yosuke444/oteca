@@ -21,6 +21,8 @@ export type RoughButtonProps = {
   className?: string;
   style?: CSSProperties;
   ariaLabel?: string;
+  /** 確認用の自動操作で探す目印 */
+  'data-testid'?: string;
 };
 
 type Ink = { id: number; x: number; y: number };
@@ -46,6 +48,7 @@ export function RoughButton({
   className,
   style,
   ariaLabel,
+  'data-testid': testId,
 }: RoughButtonProps) {
   const [hover, setHover] = useState(false);
   const [pressed, setPressed] = useState(false);
@@ -69,6 +72,7 @@ export function RoughButton({
       type="button"
       className={`rough-btn ${pressed ? 'is-pressed' : ''} ${disabled ? 'is-disabled' : ''} ${className ?? ''}`}
       style={style}
+      data-testid={testId}
       aria-disabled={disabled}
       aria-label={ariaLabel}
       onPointerEnter={(e) => {

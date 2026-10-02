@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { useFx } from '../../fx/fxSettings';
 import { useT } from '../../i18n/useT';
+import { centerIn } from '../../fx/paperFx';
 import { imageUrl } from '../imageFiles';
 import './coin.css';
 
@@ -76,13 +77,8 @@ export function CoinCounter({ value, className }: { value: number; className?: s
 
 type Pt = { x: number; y: number };
 
-/** 要素の真ん中（layer の中の座標。舞台の拡大縮小を戻す） */
-export function centerIn(layer: HTMLElement, el: Element): Pt {
-  const lr = layer.getBoundingClientRect();
-  const r = el.getBoundingClientRect();
-  const s = lr.width / (layer.offsetWidth || 1);
-  return { x: (r.left + r.width / 2 - lr.left) / s, y: (r.top + r.height / 2 - lr.top) / s };
-}
+/** 要素の真ん中（paperFx と同じ。前からの呼び出し用） */
+export { centerIn };
 
 /**
  * コインを飛ばす（SPEC §7 S11）：from から噴き出して、コイン表示（data-coin-target）へ吸い込まれる。

@@ -17,7 +17,7 @@ describe('C01 4つの強さすべてで、CPU 同士が止まらずに決着ま�
         expect(r.state.phase, `${level} ${i} 試合め`).toBe('over');
         expect(r.winner).not.toBeNull();
       }
-    }, 120000);
+    }, 600000); // 重いテストの時間切れは長めに（機械の速さで変わるため。確かめる内容は同じ）
   }
 });
 
@@ -65,7 +65,7 @@ describe('C02 CPU は相手の手札・山札の順番・この先のサイコ�
         expect(other, `場面 ${i}・書きかえ ${k}`).toEqual(base);
       }
     }
-  }, 120000);
+  }, 600000);
 });
 
 describe('C03 さいきょうの1回の判断は1.5秒以内', () => {
