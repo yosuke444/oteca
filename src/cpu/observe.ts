@@ -56,6 +56,8 @@ export function determinize(state: GameState, side: Side, rand: Rand, db: CardDb
   }
 
   shuffle(rand, s.players[side].deck.sort(byUid));
+  // 山札から選ぶ待ち（ひきかえカード）の選べるカードは山札の順に並んでいるので、uid の順に並べ直す（順番を知らないように）
+  if (s.pendingChoice?.kind === 'search') s.pendingChoice.options.sort(byUid);
   shuffle(rand, op.deck);
   s.rng = [u32(rand), u32(rand), u32(rand), u32(rand) | 1];
   s.forcedDice = [];

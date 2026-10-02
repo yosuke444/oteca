@@ -1,7 +1,8 @@
 import { decideCpuAction } from './normal';
 import { applyAction, getLegalActions } from '../engine';
 import type { Action, GameState, ItemCardDef, Side } from '../engine/types';
-import { koChance, expectedDamage, otegeValue, threat } from './estimate';
+import { cardValue, chooseAction } from './choose';
+import { koChance, expectedDamage, otegeValue, selfKoChance, threat } from './estimate';
 import { determinize } from './observe';
 import { type Rand, pick } from './random';
 
@@ -63,6 +64,10 @@ export function strongAction(s: GameState, side: Side, noSwap = false): Action |
   const ps = s.players[side];
   const oppActive = s.players[opp].active;
 
+  // カードを選ぶ（捨てる・山札から選ぶ・交代先。v2.0）
+  const choose = chooseAction(s, side);
+  if (choose) return choose;
+
   // 準備：価値（HP と攻撃力）が一番高いおてあげ
   const setup = only(legal, 'SETUP_ACTIVE');
   if (setup.length > 0) return best(setup, (a) => otegeValue(s, a.uid));
@@ -83,7 +88,9 @@ export function strongAction(s: GameState, side: Side, noSwap = false): Action |
 
   const me = ps.active;
   if (!me) return legal.find((a) => a.type === 'END_TURN') ?? legal[0];
-  const items = only(legal, 'USE_ITEM');
+  const allItems = only(legal, 'USE_ITEM');
+  // おてあげに使うアイテム（targetUid あり）
+  const items = allItems.filter((a): a is Of<'USE_ITEM'> & { targetUid: string } => a.targetUid !== undefined);
   const winOnKo = s.players[side].koCount + 1 >= s.rules[side].koToWin || (oppActive !== null && s.players[opp].bench.length === 0);
   const oppHp = oppActive ? s.cards[oppActive].hp : Infinity;
   const danger = threat(s, side, me, 10);
@@ -105,10 +112,28 @@ export function strongAction(s: GameState, side: Side, noSwap = false): Action |
     });
   }
 
+  // 2b. おてあげに使わないアイテム（v2.0）：山札から選ぶもの（ひきかえカード）は使う。
+  //     引いて捨てるもの（やばいつぼ）は、手札が多すぎる時だけ（手札が減るので）
+  const selfItems = allItems.filter((a) => a.targetUid === undefined);
+  for (const a of selfItems) {
+    const d = itemDef(s, a.uid);
+    if (!d) continue;
+    const net = d.effects.reduce((t, e) => t + (e.type === 'draw' || e.type === 'search' ? e.count : e.type === 'discard' ? -e.count : 0), 0);
+    if (d.effects.some((e) => e.type === 'search') || (net >= 0 ? true : ps.hand.length >= 7)) return a;
+  }
+
   // 3. 倒されそうな時は交代して守る（このターンに倒せる見込みが薄い時だけ。交代するとこのターンは攻撃できない）
-  if (!ps.swappedThisTurn && !noSwap && danger >= 0.5 && attackNow < 0.34) {
-    const swaps = only(legal, 'SWAP').filter((a) => threat(s, side, a.benchUid, 10) <= danger - 0.34);
-    if (swaps.length > 0) return best(swaps, (a) => (1 - threat(s, side, a.benchUid, 10)) * 100 + otegeValue(s, a.benchUid) * 0.1);
+  //    自分の技で自分がきぜつしそうな時（HPが低いのに自分へのダメージがある。v2.0）も同じ
+  const selfRisk = selfKoChance(s, me);
+  if (!ps.swappedThisTurn && !noSwap && selfRisk >= 0.34 && attackNow < 0.5 && !winOnKo) {
+    const swaps = only(legal, 'SWAP').filter((a) => selfKoChance(s, a.benchUid) < selfRisk && threat(s, side, a.benchUid, 10) < 0.67);
+    if (swaps.length > 0) return best(swaps, (a) => otegeValue(s, a.benchUid));
+  }
+  // どく・ばくだんはベンチに下げても付いたままなので、交代で守るかどうかは「相手の攻撃」だけで決める
+  const dangerHit = threat(s, side, me, 10, false);
+  if (!ps.swappedThisTurn && !noSwap && dangerHit >= 0.5 && attackNow < 0.34) {
+    const swaps = only(legal, 'SWAP').filter((a) => threat(s, side, a.benchUid, 10, false) <= dangerHit - 0.34);
+    if (swaps.length > 0) return best(swaps, (a) => (1 - threat(s, side, a.benchUid, 10, false)) * 100 + otegeValue(s, a.benchUid) * 0.1);
   }
 
   if (!ps.swappedThisTurn && oppActive) {
@@ -162,10 +187,31 @@ function dedupe(s: GameState, legal: Action[]): Action[] {
   for (const a of legal) {
     const no = (uid: string) => s.cards[uid].no;
     const key =
-      a.type === 'USE_ITEM' ? `I${no(a.uid)}>${a.targetUid}` : a.type === 'PLACE_BENCH' || a.type === 'SETUP_ACTIVE' ? `${a.type[0]}${no(a.uid)}` : JSON.stringify(a);
+      a.type === 'USE_ITEM'
+        ? `I${no(a.uid)}>${a.targetUid ?? ''}`
+        : a.type === 'PLACE_BENCH' || a.type === 'SETUP_ACTIVE'
+          ? `${a.type[0]}${no(a.uid)}`
+          : a.type === 'CHOOSE' && s.pendingChoice?.kind !== 'switch'
+            ? // 同じ種類のカードの組み合わせは同じ結果（場のおてあげを選ぶ交代は別々）
+              `C${a.uids.map(no).sort((x, y) => x - y).join(',')}`
+            : JSON.stringify(a);
     if (!seen.has(key)) seen.set(key, a);
   }
   return [...seen.values()];
+}
+
+/**
+ * カードを選ぶ手（CHOOSE）が多すぎる時（手札から3枚捨てる など）は、カードの価値で見込みのある8通りだけ試す。
+ * 試す手の数が多いと、1回の判断が1.5秒に収まらないため
+ */
+const CHOICE_CAP = 8;
+function capChoices(s: GameState, side: Side, legal: Action[]): Action[] {
+  const pc = s.pendingChoice;
+  if (!pc || legal.length <= CHOICE_CAP || !legal.every((a) => a.type === 'CHOOSE')) return legal;
+  const value = (a: Action) => (a.type === 'CHOOSE' ? a.uids.reduce((t, u) => t + cardValue(s, side, u), 0) : 0);
+  // 捨てる時は価値の低い組から、それ以外は高い組から
+  const sign = pc.kind === 'discard' ? 1 : -1;
+  return [...legal].sort((a, b) => sign * (value(a) - value(b))).slice(0, CHOICE_CAP);
 }
 
 /** 両者が「つよい」の考え方で、決着まで打ち合う。side が勝てば 1、負ければ 0 */
@@ -177,7 +223,9 @@ export function rollout(state: GameState, side: Side, maxSteps = 400): number {
         ? (['p1', 'p2'] as Side[]).filter((p) => s.players[p].setupChoice === null)
         : s.phase === 'promote'
           ? [...s.pendingPromote]
-          : [s.currentPlayer];
+          : s.phase === 'choose' && s.pendingChoice
+            ? [s.pendingChoice.player]
+            : [s.currentPlayer];
     const who = actors[0];
     if (!who) break;
     const a = strongAction(s, who);
@@ -198,7 +246,7 @@ export function rollout(state: GameState, side: Side, maxSteps = 400): number {
  * 勝ちの割合が一番高い手を選ぶ。どの手を多く試すかは UCB1 で決める（よさそうな手を重点的に）。
  */
 export function strongestAction(s: GameState, side: Side, rand: Rand, opts: SearchOptions = {}): Action | null {
-  const legal = dedupe(s, noRepeatSwap(s, side, getLegalActions(s, side), opts.noSwap));
+  const legal = capChoices(s, side, dedupe(s, noRepeatSwap(s, side, getLegalActions(s, side), opts.noSwap)));
   if (legal.length <= 1) return legal[0] ?? null;
   const now = opts.now ?? (() => Date.now());
   const until = now() + (opts.timeMs ?? 1200);

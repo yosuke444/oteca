@@ -401,7 +401,8 @@ async function itemBefore(env: FxEnv, e: Extract<GameEvent, { type: 'ItemUsed' }
   const def = v.cardDefs[v.cards[e.itemUid]?.no];
   const kind = itemFxKind(def);
   ctx.flags.item = kind;
-  const to = cardCenter(env, e.targetUid);
+  // おてあげに使わないアイテム（ひきかえカード・やばいつぼ）は、場のまんなかに貼る
+  const to = e.targetUid !== null ? cardCenter(env, e.targetUid) : { x: 640, y: 360 };
   const handEl = env.cardEl(e.itemUid);
   let from: Point;
   if (handEl && isMe(env, e.player)) {
@@ -577,6 +578,81 @@ async function promoteAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Promoted'
   await wait(250);
 }
 
+// ---------------------------------------------------------------- 持続効果・カードを選ぶ（v2.0。SPEC §8-5）
+
+/** 持続効果の印の要素（カードの上、またはプレイヤーの山札の横） */
+function lastingMarkEl(env: FxEnv, l: Extract<GameEvent, { type: 'LastingFired' }>['lasting']): HTMLElement | null {
+  const box = l.targetUid !== null ? env.root.querySelector(`[data-lasting="${l.targetUid}"]`) : env.root.querySelector(`[data-lasting="${l.owner}-draw"]`);
+  return (box?.querySelector(`[data-kind="${l.kind}"]`) as HTMLElement | null) ?? null;
+}
+
+/** 印がぽんと付く */
+async function lastingAddedAfter(env: FxEnv, e: Extract<GameEvent, { type: 'LastingAdded' }>): Promise<void> {
+  const el = lastingMarkEl(env, e.lasting);
+  if (!el) return;
+  env.sound('se_pen');
+  await play(gsap.fromTo(el, { scale: 1.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: 'back.out(3)', clearProps: 'scale,opacity' }));
+}
+
+/** 発動する時は、その印が光ってから効果の演出（このあとの Damaged・Healed・Drew・Fainted） */
+async function lastingFiredBefore(env: FxEnv, e: Extract<GameEvent, { type: 'LastingFired' }>): Promise<void> {
+  const el = lastingMarkEl(env, e.lasting);
+  env.sound(e.lasting.kind === 'faint' ? 'se_hit_big' : 'se_pen');
+  if (!el) {
+    await wait(200);
+    return;
+  }
+  el.classList.add('is-fire');
+  const b = boxOf(env, el);
+  const glow = b && !env.reduce() ? await marker(env, { x: b.x - 4, y: b.y - 2, w: b.w + 8, h: b.h + 4 }, undefined, 0.2) : null;
+  await wait(e.lasting.kind === 'faint' ? 650 : 420);
+  el.classList.remove('is-fire');
+  glow?.remove();
+}
+
+/** 捨てる：カードが すてふだへ飛ぶ（相手の手札は裏面で出て、表に返る） */
+async function discardedBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Discarded' }>): Promise<void> {
+  const to = zoneCenter(env, `${e.player}-discard`);
+  const v = env.view();
+  env.sound('se_card_place');
+  await Promise.all(
+    e.uids.map(async (uid, i) => {
+      const el = !e.fromDeck && isMe(env, e.player) ? env.cardEl(uid) : null;
+      const from = el ? (centerOf(env, el) ?? STAGE_CENTER) : zoneCenter(env, e.fromDeck ? `${e.player}-deck` : `${e.player}-hand`, { x: 640, y: 40 });
+      hide(el, true);
+      const name = v.cardDefs[v.cards[uid]?.no]?.name ?? '';
+      const card = spawn(env, 'fx-note fx-note--discard', from, `<b>${name}</b>`);
+      await wait(i * 90);
+      await play(gsap.to(card, { left: to.x, top: to.y, rotate: rand(-20, 20), scale: 0.7, duration: 0.4, ease: 'power2.in' }));
+      await play(gsap.to(card, { opacity: 0, duration: 0.15 }));
+      card.remove();
+    }),
+  );
+}
+
+/** 山札から選んだ：自分なら選んだカードが手札へ。相手なら裏面のまま手札へ（何を取ったかは見せない） */
+async function searchedAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Searched' }>): Promise<void> {
+  const from = zoneCenter(env, `${e.player}-deck`);
+  env.sound('se_card_draw');
+  for (const uid of e.uids) {
+    const card = isMe(env, e.player) ? env.cardEl(uid) : null;
+    const to = card ? (centerOf(env, card) ?? STAGE_CENTER) : zoneCenter(env, `${e.player}-hand`, { x: 640, y: 20 });
+    hide(card, true);
+    const back = spawnBack(env, from, 84, 118);
+    await play(gsap.to(back, { left: to.x, top: to.y, rotate: rand(-10, 10), duration: 0.36, ease: 'power2.inOut' }));
+    back.remove();
+    hide(card, false);
+    if (card) await play(gsap.fromTo(card, { scaleX: 0 }, { scaleX: 1, duration: 0.12, clearProps: 'transform,scale' }));
+  }
+}
+
+/** 山札を切る：山札がぶるっと揺れる */
+async function shuffledBefore(env: FxEnv, e: Extract<GameEvent, { type: 'DeckShuffled' }>): Promise<void> {
+  const deck = env.zoneEl(`${e.player}-deck`);
+  env.sound('se_card_draw');
+  if (deck) await play(gsap.fromTo(deck, { rotate: -6 }, { rotate: 6, duration: 0.07, yoyo: true, repeat: 5, ease: 'none', clearProps: 'transform' }));
+}
+
 // ---------------------------------------------------------------- 表
 
 export const PRESETS: PresetMap = {
@@ -689,6 +765,11 @@ export const PRESETS: PresetMap = {
     },
   },
   ItemUsed: { before: itemBefore, after: itemAfter },
+  LastingAdded: { after: lastingAddedAfter },
+  LastingFired: { before: lastingFiredBefore },
+  Discarded: { before: discardedBefore },
+  Searched: { after: searchedAfter },
+  DeckShuffled: { before: shuffledBefore },
   BuffChanged: { before: buffBefore, after: buffAfter },
   HpSet: { before: hpSetBefore, after: hpSetAfter },
   Healed: { before: healBefore, after: healAfter },

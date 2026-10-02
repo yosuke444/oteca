@@ -126,9 +126,12 @@ describe('準備と決定論', () => {
     expect(mulligans).toBeGreaterThan(0);
   });
 
-  it('E07 技の目の割り当てが全カードで1〜6を過不足なく覆っている', () => {
+  it('E07 技の目の割り当てが全カード（48種のうち、おてあげ42種）で1〜6を過不足なく覆っている', () => {
+    expect(CARD_LIST.length).toBe(48);
+    expect(CARD_LIST.map((c) => c.no)).toEqual(Array.from({ length: 48 }, (_, i) => i + 1));
     const oteges = CARD_LIST.filter((c) => c.kind === 'otege');
-    expect(oteges.length).toBe(8);
+    expect(oteges.length).toBe(42);
+    expect(CARD_LIST.filter((c) => c.kind === 'item').length).toBe(6);
     for (const c of oteges) {
       if (c.kind !== 'otege') continue;
       const faces = c.moves.flatMap((m) => m.faces).sort((a, b) => a - b);

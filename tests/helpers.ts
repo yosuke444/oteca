@@ -26,6 +26,11 @@ export type StartOptions = {
   decks?: Partial<Record<Side, number[]>>;
   cardDb?: CardDb;
   rules?: Partial<Record<Side, Partial<RuleSet>>>;
+  /**
+   * 先攻1ターン目の攻撃禁止（v2.0）を使うか。省略時は使わない：ほとんどのテストは「p1 の最初の END_TURN で攻撃する」形で
+   * 技・アイテムの決まりを確かめているため。攻撃禁止そのものは E22 で true にして確かめる
+   */
+  firstTurnRule?: boolean;
 };
 
 /**
@@ -38,7 +43,10 @@ export function startMain(opts: StartOptions = {}): GameState {
     seed: opts.seed ?? 'test-seed',
     decks: { p1: opts.decks?.p1 ?? classicDeckNos(), p2: opts.decks?.p2 ?? classicDeckNos() },
     cardDb,
-    rules: opts.rules,
+    rules: {
+      p1: { ...(opts.firstTurnRule ? {} : { firstPlayerFirstTurnNoAttack: false }), ...opts.rules?.p1 },
+      p2: { ...(opts.firstTurnRule ? {} : { firstPlayerFirstTurnNoAttack: false }), ...opts.rules?.p2 },
+    },
     forcedDice: [6, 1], // 先攻は p1
   });
   for (const side of ['p1', 'p2'] as const) {

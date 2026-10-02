@@ -20,7 +20,8 @@ export type RouteId =
   | 'tutorial'
   | 'debug'
   | 'fxtest'
-  | 'soundtest';
+  | 'soundtest'
+  | 'cardlab';
 
 export type Nav = {
   route: RouteId;

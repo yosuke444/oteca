@@ -38,6 +38,10 @@ export function cloneState(s: GameState): GameState {
     pendingPromote: [...s.pendingPromote],
     resumeAfterPromote: s.resumeAfterPromote ? { ...s.resumeAfterPromote } : null,
     scheduled: s.scheduled.map((e) => ({ ...e })),
+    lasting: s.lasting.map((e) => ({ ...e })),
+    pendingChoice: s.pendingChoice
+      ? { ...s.pendingChoice, options: [...s.pendingChoice.options], rest: s.pendingChoice.rest.map((q) => ({ ...q, src: { ...q.src } })), after: { ...s.pendingChoice.after } }
+      : null,
   };
 }
 
@@ -100,6 +104,16 @@ export function endGame(ctx: Ctx, winner: Side, reason: EndReason): void {
   ctx.events.push({ type: 'GameOver', winner, reason });
 }
 
+/** 手札（または山札の一番上）から捨てる */
+export function discardCards(ctx: Ctx, player: Side, uids: string[], fromDeck: boolean): void {
+  const ps = ctx.s.players[player];
+  if (uids.length === 0) return;
+  if (fromDeck) ps.deck = ps.deck.filter((u) => !uids.includes(u));
+  else ps.hand = ps.hand.filter((u) => !uids.includes(u));
+  ps.discard.push(...uids);
+  ctx.events.push({ type: 'Discarded', player, uids: [...uids], fromDeck });
+}
+
 /** ダメージを与える。HPが0以下になったら、きぜつの判定まで行う */
 export function dealDamage(ctx: Ctx, uid: string, amount: number, by: Side): void {
   const c = ctx.s.cards[uid];
@@ -145,6 +159,8 @@ export function faint(ctx: Ctx, uid: string, by: Side): void {
   c.itemsThisTurn = [];
   c.benchedOnTurn = null;
   ps.discard.push(uid);
+  // 付いていた持続効果・時限は消える（SPEC §4-5 ②。プレイヤーに付いたドローは残る）
+  s.lasting = s.lasting.filter((l) => l.targetUid !== uid);
 
   const killer = s.players[by];
   killer.koCount += 1;

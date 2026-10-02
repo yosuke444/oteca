@@ -3,7 +3,7 @@ import { DiceDoodle, StarDoodle } from '../common/Doodles';
 import { Sticky } from '../common/Sticky';
 import { RoughBox } from '../rough/RoughBox';
 import { CardArt } from './CardArt';
-import { effectLabel } from './cardText';
+import { effectLabel, sortedEffects } from './cardText';
 import { local } from '../../i18n';
 import { useLang, useT } from '../../i18n/useT';
 import './card.css';
@@ -63,14 +63,16 @@ function OtegeDetail({ def, seed }: { def: OtegeCardDef; seed: string }) {
                   <DiceDoodle key={f} seed={`${seed}-m${i}-${f}`} size={24} face={f} />
                 ))}
               </span>
-              {m.effects.map((e, j) => {
-                const l = effectLabel(e);
-                return (
-                  <span key={j} className={`card-moves__effect is-${l.tone}`}>
-                    {l.text}
-                  </span>
-                );
-              })}
+              <span className="card-moves__effects card-moves__effects--wrap">
+                {sortedEffects(m.effects).map((e, j) => {
+                  const l = effectLabel(e);
+                  return (
+                    <span key={j} className={`card-moves__effect is-${l.tone}`}>
+                      {l.text}
+                    </span>
+                  );
+                })}
+              </span>
             </li>
           ))}
         </ul>

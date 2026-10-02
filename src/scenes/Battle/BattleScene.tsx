@@ -22,6 +22,7 @@ import { BattleBoard, type BoardSel } from './BattleBoard';
 import { logLine, rejectText, useItemReason } from './battleText';
 import { createControllers } from './controllersFor';
 import { useOnlineBattle } from './useOnlineBattle';
+import { ChoosePanel } from './ChoosePanel';
 import { STAMP_COOLDOWN_MS, StampBalloon, StampPicker, isStampId } from './Stamps';
 import { currentOnline, endOnline } from '../../net/online';
 import type { ResultPayload } from '../Result/ResultScene';
@@ -39,6 +40,7 @@ function perspectiveOf(view: GameState, setup: BattleSetup): Side {
   if (setup.mode !== 'local') return setup.me;
   if (view.phase === 'setup') return view.players.p1.setupChoice === null ? 'p1' : 'p2';
   if (view.phase === 'promote') return view.pendingPromote[0] ?? view.currentPlayer;
+  if (view.phase === 'choose') return view.pendingChoice?.player ?? view.currentPlayer;
   return view.currentPlayer;
 }
 
@@ -66,7 +68,8 @@ function targetKeyOf(a: Action, me: Side): string | null {
     case 'SWAP':
       return `active:${me}`;
     case 'USE_ITEM':
-      return `card:${a.targetUid}`;
+      // おてあげに使わないアイテムは、自分の場のどこに落としても使える（onDrop で扱う）
+      return a.targetUid !== undefined ? `card:${a.targetUid}` : `self:${me}`;
     default:
       return null;
   }
@@ -138,6 +141,10 @@ export function BattleScene() {
         cardDb: CARD_DB,
         fixedDie: setup.fixedDie ?? null,
         stackTop: setup.stackTop,
+        sandbox: setup.sandbox,
+        forcedDice: setup.forcedDice,
+        // カードを ためす：準備を飛ばして p1 から始めるので、先攻1ターン目の攻撃禁止は使わない
+        rules: setup.sandbox ? { p1: { firstPlayerFirstTurnNoAttack: false }, p2: { firstPlayerFirstTurnNoAttack: false } } : undefined,
       },
       controllers,
     );
@@ -184,7 +191,7 @@ export function BattleScene() {
             ? { text: t().battle.myTurn, mine: true }
             : { text: t().battle.oppTurn, mine: false },
       log: (e, before) => {
-        const line = logLine(e, before, setup.names);
+        const line = logLine(e, before, setup.names, setup.mode === 'local' ? null : setup.me);
         if (line) setLogLines((l) => [line, ...l].slice(0, 60));
       },
     };
@@ -314,7 +321,9 @@ export function BattleScene() {
         ? view.players[me].setupChoice === null
         : view.phase === 'promote'
           ? view.pendingPromote.includes(me)
-          : false);
+          : view.phase === 'choose'
+            ? view.pendingChoice?.player === me
+            : false);
   const legal = useMemo(() => (canAct && view ? getLegalActions(view, me) : []), [canAct, view, me]);
 
   /** 選んでいるカードの行き先 → 操作 */
@@ -357,7 +366,7 @@ export function BattleScene() {
       if (a.type === 'USE_ITEM') {
         const item = v.cardDefs[v.cards[a.uid].no];
         const buff = item.kind === 'item' && item.effects.some((e) => e.type === 'addAttack' || e.type === 'overrideAttack');
-        if (buff && (ps.bench.includes(a.targetUid) || ps.swappedThisTurn)) {
+        if (buff && a.targetUid !== undefined && (ps.bench.includes(a.targetUid) || ps.swappedThisTurn)) {
           setConfirm({
             title: t().battle.useTitle,
             text: t().battle.useText,
@@ -393,6 +402,11 @@ export function BattleScene() {
     if (v.phase === 'promote') return R.promoteBench;
     if (ps.hand.includes(uid)) {
       if (def.kind === 'item') {
+        // おてあげに使わないアイテム（ひきかえカード・やばいつぼ）：山札・手札が足りない理由
+        if (!def.target) {
+          const r = validateAction(v, { type: 'USE_ITEM', player: me, uid });
+          return r ? rejectText(r) : R.cannotNow;
+        }
         // 重ねがけ禁止などで使えない時は、その理由（自分の場の おてあげ を順に見る）
         for (const t of [ps.active, ...ps.bench]) {
           if (!t) continue;
@@ -483,6 +497,14 @@ export function BattleScene() {
       if (sourceOf(a) !== uid) continue;
       const k = targetKeyOf(a, me);
       if (k) map.set(k, a);
+    }
+    // おてあげに使わないアイテムは、自分の場（バトル場・ベンチ・自分のおてあげ）のどこに落としても使う
+    const selfUse = map.get(`self:${me}`);
+    const ps0 = view?.players[me];
+    const onMyField = key === `active:${me}` || key === `bench-empty:${me}` || (key.startsWith('card:') && !!ps0 && (ps0.active === key.slice(5) || ps0.bench.includes(key.slice(5))));
+    if (selfUse && onMyField) {
+      perform(selfUse);
+      return;
     }
     // バトル場のカードの上は「バトル場」と「そのカード」の両方の行き先になる（交代・アイテム）
     const activeUid = view?.players[me].active;
@@ -616,6 +638,14 @@ export function BattleScene() {
             ? tr.battle.leftText
             : tr.battle.desyncText}
         </Dialog>
+      )}
+
+      {/* カードを選ぶ（捨てる・山札から選ぶ・交代先。SPEC §8-2） */}
+      {canAct && view.phase === 'choose' && view.pendingChoice?.player === me && (
+        <ChoosePanel key={`choose-${matchRef.current?.log.length ?? 0}`} view={view} me={me} onSubmit={submit} onDetail={(uid) => setDetailUid(uid)} />
+      )}
+      {!busy && view.phase === 'choose' && view.pendingChoice && view.pendingChoice.player !== me && (
+        <div className="battle-prompt battle-prompt--wait">{tr.battle.choose.waitOpp}</div>
       )}
 
       {toast && (

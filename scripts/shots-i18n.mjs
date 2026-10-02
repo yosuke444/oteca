@@ -49,6 +49,9 @@ async function overflow(label) {
 
 async function snap(lang, name) {
   await page.waitForTimeout(500);
+  // 字の形（フォントの分割ファイル）が読み込み終わってから測る（読み込み中は代わりの字で行が高くなる）
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(150);
   await shot(page, `i18n_${size.name}_${lang}_${name}`);
   await overflow(`${lang} ${name}`);
 }

@@ -10,7 +10,9 @@ import { itemFxKind } from '../../fx/itemFx';
 import { CardArt } from './CardArt';
 import { local } from '../../i18n';
 import { useLang, useT } from '../../i18n/useT';
-import { effectLabel, faceLabel } from './cardText';
+import { effectLabel, faceLabel, sortedEffects } from './cardText';
+import { LastingMarks } from './LastingMarks';
+import { FitLine } from './FitLine';
 import './card.css';
 
 /** 大きさ（SPEC §6-6）：バトル場 150×210／ベンチ 120×168／手札 110×154 */
@@ -134,26 +136,31 @@ function OtegeFace({
         <div className="battle-card__head">
           <span className={`battle-card__name ${[...def.name].length >= 7 ? 'is-long' : ''} ${[...def.name].length >= 8 ? 'is-xlong' : ''}`}>{def.name}</span>
         </div>
-        <div className="battle-card__art">
+        <div className={`battle-card__art ${def.moves.length >= 4 ? 'is-many' : ''}`}>
           <CardArt def={def} seed={`${card.uid}-${size}`} />
           <span className="card-hp battle-card__hp">
             <small>HP</small>
             <span className="num">{onField ? card.hp : def.hp}</span>
           </span>
         </div>
-        <ul className="card-moves battle-card__moves">
+        <ul className={`card-moves battle-card__moves ${def.moves.length >= 4 ? 'is-many' : ''}`}>
           {def.moves.map((m, i) => (
             <li key={i} className={`card-moves__row ${markedMove === i ? 'is-marked' : ''}`} data-move={i}>
               {size !== 'hand' && <DiceDoodle seed={`${card.uid}-d${i}`} size={size === 'active' ? 18 : 14} face={m.faces[0]} />}
               <span className="card-moves__faces num">{faceLabel(m.faces)}</span>
-              {m.effects.map((e, j) => {
-                const l = effectLabel(e);
+              <FitLine className="card-moves__effects">
+              {sortedEffects(m.effects).map((e, j) => {
+                const l = effectLabel(e, true);
                 if (e.type === 'damage' && preview) {
+                  // やいば等は今すぐの分にだけ効く（SPEC §4-5 ④）。持続の分（+ の後ろ）はそのまま
                   const now = moveDamage(view, card, e.amount);
                   if (now !== e.amount) {
+                    const later = e.then && e.then.length > 0 ? tr.card.plus + e.then.join(tr.card.plus) : '';
                     return (
                       <span key={j} className="card-moves__effect is-damage">
-                        <s className="card-moves__old">{e.amount}</s> <b className="card-moves__new num">{now}</b>{tr.card.damageUnit}
+                        <s className="card-moves__old">{e.amount}</s> <b className="card-moves__new num">{now}</b>
+                        {later}
+                        {tr.card.damageUnit}
                       </span>
                     );
                   }
@@ -164,6 +171,7 @@ function OtegeFace({
                   </span>
                 );
               })}
+              </FitLine>
             </li>
           ))}
         </ul>
@@ -186,6 +194,8 @@ function OtegeFace({
           )}
         </div>
       )}
+      {/* 持続効果の印（どく・あとから回復・ばくだん。SPEC §8-5） */}
+      {onField && <LastingMarks view={view} uid={card.uid} />}
       {/* 出したばかり（このターンは交代でバトル場に出せない。SPEC §8-3・v1.4） */}
       {onField && justPlaced(view, card) && (
         <Sticky seed={`just-${card.uid}`} color="yellow" angle={-8} className="just-placed">

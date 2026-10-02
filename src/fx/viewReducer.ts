@@ -44,7 +44,8 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       const i = ps.bench.indexOf(e.toActive);
       if (i >= 0) ps.bench[i] = e.toBench;
       ps.active = e.toActive;
-      ps.swappedThisTurn = true;
+      // 技の効果での交代は「交代したターン」にならない（SPEC §4-5 ⑤）
+      if (!e.byEffect) ps.swappedThisTurn = true;
       if (v.cards[e.toActive]) v.cards[e.toActive].benchedOnTurn = null;
       break;
     }
@@ -53,7 +54,7 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       ps.hand = ps.hand.filter((u) => u !== e.itemUid);
       ps.discard.push(e.itemUid);
       const item = v.cards[e.itemUid];
-      const target = v.cards[e.targetUid];
+      const target = e.targetUid !== null ? v.cards[e.targetUid] : undefined;
       if (item && target) target.itemsThisTurn = [...target.itemsThisTurn, item.no];
       break;
     }
@@ -80,6 +81,7 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       }
       v.players[ownerOf(e.uid)].discard.push(e.uid);
       v.players[e.by].koCount = e.koCount;
+      v.lasting = v.lasting.filter((l) => l.targetUid !== e.uid);
       break;
     }
     case 'NeedPromote': {
@@ -118,6 +120,36 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       // 「このターン」に使ったアイテムの記録を消す（エンジンの clearTurnBuffs と同じ）
       for (const c of Object.values(v.cards)) if (c.itemsThisTurn.length > 0) c.itemsThisTurn = [];
       break;
+    // ↓ v2.0（持続効果・カードを選ぶ）
+    case 'LastingAdded':
+      v.lasting = [...v.lasting, { ...e.lasting }];
+      break;
+    case 'LastingFired': {
+      // 発動したものを消す（見送り回数の変化はイベントが無いので、操作の終わりに正式な状態へそろう）
+      const same = (l: (typeof v.lasting)[number]) =>
+        l.owner === e.lasting.owner && l.kind === e.lasting.kind && l.targetUid === e.lasting.targetUid && l.sourceUid === e.lasting.sourceUid && l.createdTurn === e.lasting.createdTurn;
+      const i = v.lasting.findIndex((l) => same(l) && l.skip === 0);
+      const j = i >= 0 ? i : v.lasting.findIndex(same);
+      if (j >= 0) v.lasting = v.lasting.filter((_, k) => k !== j);
+      break;
+    }
+    case 'Discarded': {
+      const ps = v.players[e.player];
+      if (e.fromDeck) ps.deck = ps.deck.filter((u) => !e.uids.includes(u));
+      else ps.hand = ps.hand.filter((u) => !e.uids.includes(u));
+      ps.discard.push(...e.uids);
+      break;
+    }
+    case 'Searched': {
+      const ps = v.players[e.player];
+      ps.deck = ps.deck.filter((u) => !e.uids.includes(u));
+      ps.hand.push(...e.uids);
+      break;
+    }
+    case 'ChoiceNeeded':
+      v.phase = 'choose';
+      break;
+    case 'DeckShuffled':
     case 'DiceRolled':
     case 'Mulligan':
     case 'MoveSelected':

@@ -11,8 +11,21 @@ import {
   promote,
   rollDie,
 } from './core';
-import { runEffect } from './effects';
-import type { Action, ApplyResult, GameState, RejectReason, Resume, ScheduledEffect, Side } from './types';
+import { applyChoice, fireLasting, runEffect, runQueue } from './effects';
+import type {
+  Action,
+  ApplyResult,
+  ChoiceAfter,
+  Effect,
+  EffectSourceData,
+  GameState,
+  Lasting,
+  QueuedEffect,
+  RejectReason,
+  Resume,
+  ScheduledEffect,
+  Side,
+} from './types';
 
 /**
  * ルールエンジンの入口（SPEC §4, §11-3）
@@ -43,6 +56,9 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
       break;
     case 'PROMOTE':
       doPromote(ctx, action.player, action.benchUid);
+      break;
+    case 'CHOOSE':
+      doChoose(ctx, action.uids);
       break;
     case 'SURRENDER':
       endGame(ctx, other(action.player), 'surrender');
@@ -77,6 +93,18 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
       if (!s.pendingPromote.includes(p)) return 'notPending';
       if (!ps.bench.includes(action.benchUid)) return 'notOnBench';
       return null;
+
+    case 'CHOOSE': {
+      const pc = s.pendingChoice;
+      if (s.phase !== 'choose' || !pc) return 'wrongPhase';
+      if (pc.player !== p) return 'notYourTurn';
+      const uids = action.uids;
+      if (!Array.isArray(uids)) return 'badChoice';
+      const need = Math.min(pc.count, pc.options.length);
+      if (uids.length !== need || new Set(uids).size !== uids.length) return 'badChoice';
+      if (!uids.every((u) => typeof u === 'string' && pc.options.includes(u))) return 'badChoice';
+      return null;
+    }
   }
 
   // ここから下は手番の人のメイン操作
@@ -95,10 +123,15 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
       if (!ps.hand.includes(action.uid)) return 'notInHand';
       const item = defOf(s, action.uid);
       if (!item || item.kind !== 'item') return 'notItem';
+      if (item.minHand !== undefined && ps.hand.length < item.minHand) return 'handTooSmall';
+      if (item.useCondition === 'deckNotEmpty' && ps.deck.length === 0) return 'deckEmpty';
+      // おてあげに使わないアイテム（ひきかえカード・やばいつぼ）
+      if (!item.target) return action.targetUid === undefined ? null : 'badTarget';
+      if (typeof action.targetUid !== 'string') return 'badTarget';
       const target = s.cards[action.targetUid];
       const targetDef = otegeDefOf(s, action.targetUid);
       if (!target || !targetDef) return 'badTarget';
-      // 今回のアイテムは全部「自分のおてあげ」が対象
+      // 今あるアイテムは全部「自分のおてあげ」が対象
       if (item.target.side === 'self' && target.owner !== p) return 'badTarget';
       const zone = ps.active === target.uid ? 'active' : ps.bench.includes(target.uid) ? 'bench' : null;
       if (!zone || !item.target.zones.includes(zone)) return 'badTarget';
@@ -142,16 +175,38 @@ export function getLegalActions(s: GameState, player: Side): Action[] {
     for (const uid of ps.hand) candidates.push({ type: 'SETUP_ACTIVE', player, uid });
   } else if (s.phase === 'promote') {
     for (const uid of ps.bench) candidates.push({ type: 'PROMOTE', player, benchUid: uid });
+  } else if (s.phase === 'choose' && s.pendingChoice?.player === player) {
+    const pc = s.pendingChoice;
+    for (const uids of combinations(pc.options, Math.min(pc.count, pc.options.length))) candidates.push({ type: 'CHOOSE', player, uids });
   } else if (s.phase === 'main' && s.currentPlayer === player) {
     const field = [ps.active, ...ps.bench].filter((u): u is string => u !== null);
     for (const uid of ps.hand) {
       candidates.push({ type: 'PLACE_BENCH', player, uid });
+      candidates.push({ type: 'USE_ITEM', player, uid });
       for (const targetUid of field) candidates.push({ type: 'USE_ITEM', player, uid, targetUid });
     }
     for (const uid of ps.bench) candidates.push({ type: 'SWAP', player, benchUid: uid });
     candidates.push({ type: 'END_TURN', player });
   }
   return candidates.filter((a) => validateAction(s, a) === null);
+}
+
+/** options から k 個選ぶ組み合わせ（options の順を保つ） */
+export function combinations<T>(options: T[], k: number): T[][] {
+  const out: T[][] = [];
+  const pick = (start: number, acc: T[]) => {
+    if (acc.length === k) {
+      out.push([...acc]);
+      return;
+    }
+    for (let i = start; i <= options.length - (k - acc.length); i++) {
+      acc.push(options[i]);
+      pick(i + 1, acc);
+      acc.pop();
+    }
+  };
+  pick(0, []);
+  return out;
 }
 
 // ---------------------------------------------------------------- 各操作
@@ -183,17 +238,18 @@ function doPlaceBench(ctx: Ctx, player: Side, uid: string): void {
   ctx.events.push({ type: 'BenchPlaced', player, uid });
 }
 
-function doUseItem(ctx: Ctx, player: Side, itemUid: string, targetUid: string): void {
+function doUseItem(ctx: Ctx, player: Side, itemUid: string, targetUid: string | undefined): void {
   const ps = ctx.s.players[player];
   const item = defOf(ctx.s, itemUid);
   if (!item || item.kind !== 'item') return;
   ps.hand = ps.hand.filter((u) => u !== itemUid);
   ps.discard.push(itemUid);
-  ctx.s.cards[targetUid].itemsThisTurn.push(item.no);
-  ctx.events.push({ type: 'ItemUsed', player, itemUid, targetUid });
-  for (const effect of item.effects) {
-    runEffect(ctx, effect, { kind: 'item', player, sourceUid: itemUid, targetUid });
-  }
+  if (targetUid !== undefined) ctx.s.cards[targetUid].itemsThisTurn.push(item.no);
+  ctx.events.push({ type: 'ItemUsed', player, itemUid, targetUid: targetUid ?? null });
+  // アイテムの効果はデータに書いた順（やばいつぼ：引く → 捨てる）。カードを選ぶ必要があれば止まる
+  const src: EffectSourceData = targetUid !== undefined ? { kind: 'item', player, sourceUid: itemUid, targetUid } : { kind: 'item', player, sourceUid: itemUid };
+  const queue: QueuedEffect[] = item.effects.map((effect) => ({ effect, src, stage: 'act' }));
+  runQueue(ctx, queue, { kind: 'main' });
 }
 
 function doSwap(ctx: Ctx, player: Side, benchUid: string): void {
@@ -213,6 +269,25 @@ function doPromote(ctx: Ctx, player: Side, benchUid: string): void {
   s.pendingPromote = s.pendingPromote.filter((p) => p !== player);
   if (s.pendingPromote.length > 0) return;
   resume(ctx);
+}
+
+/** カードを選んだ：選ぶ待ちを片付け、預けていた残りの効果と、そのあとの流れを続ける（SPEC §4-5 ⑤） */
+function doChoose(ctx: Ctx, uids: string[]): void {
+  const { s } = ctx;
+  const pc = s.pendingChoice;
+  if (!pc) return;
+  applyChoice(ctx, uids);
+  s.phase = 'main';
+  if (isOver(s)) return;
+  if (runQueue(ctx, pc.rest, pc.after)) return;
+  continueAfter(ctx, pc.after);
+}
+
+/** 効果の列を終えたあとの流れ（メインに戻る／ターン終了の続き） */
+function continueAfter(ctx: Ctx, after: ChoiceAfter): void {
+  if (isOver(ctx.s)) return;
+  if (after.kind === 'endTurn') finishEndTurn(ctx, after.player, after.attacked);
+  else ctx.s.phase = 'main';
 }
 
 /** くりだし待ちが終わったら、止めていた流れを再開する */
@@ -254,38 +329,97 @@ function startTurn(ctx: Ctx, player: Side): void {
   pauseForPromote(ctx, { kind: 'main' });
 }
 
-/** [3] ターン終了：攻撃 → タイミング付き効果 → 「このターン」の効果を消す → 相手のターンへ */
+/**
+ * [3] ターン終了：攻撃 → 持続効果・タイミング付き効果 → 「このターン」の効果を消す → 相手のターンへ。
+ * 技の効果でカードを選ぶ必要があれば、選び終わるまで止まる（続きは finishEndTurn）
+ */
 function doEndTurn(ctx: Ctx, player: Side): void {
   const { s } = ctx;
   const ps = s.players[player];
-  const attacked = !ps.swappedThisTurn;
-  if (attacked) attack(ctx, player);
+  // 先攻の1ターン目は攻撃しない（SPEC §4-4・v2.0）
+  const firstTurn = s.rules[player].firstPlayerFirstTurnNoAttack && player === s.firstPlayer && ps.turnCount === 1;
+  const attacked = !ps.swappedThisTurn && !firstTurn;
+  if (attacked && attack(ctx, player)) return;
   if (isOver(s)) return;
+  finishEndTurn(ctx, player, attacked, firstTurn);
+}
 
+/** ターン終了の続き（攻撃のあと） */
+function finishEndTurn(ctx: Ctx, player: Side, attacked: boolean, firstTurn = false): void {
+  const { s } = ctx;
+  processLasting(ctx, player);
+  if (isOver(s)) return;
   processScheduled(ctx, 'end', player);
   if (isOver(s)) return;
 
   clearTurnBuffs(ctx);
-  ctx.events.push({ type: 'TurnEnded', player, attacked });
+  ctx.events.push(firstTurn ? { type: 'TurnEnded', player, attacked, firstTurn } : { type: 'TurnEnded', player, attacked });
 
   const next = other(player);
   if (pauseForPromote(ctx, { kind: 'startTurn', player: next })) return;
   startTurn(ctx, next);
 }
 
-/** サイコロを振り、バトル場のおてあげの技を使う */
-function attack(ctx: Ctx, player: Side): void {
+/** 1つの技の中の処理順（SPEC §4-5 ③）：小さい順に行う。同じ順のものはデータに書いた順 */
+const MOVE_STEP: Record<Effect['type'], number> = {
+  damage: 1,
+  heal: 3,
+  selfDamage: 4,
+  draw: 5,
+  search: 6,
+  discard: 7,
+  switchWithBench: 8,
+  addAttack: 9,
+  setHp: 9,
+  overrideAttack: 9,
+  scheduled: 9,
+  faintLater: 9,
+};
+
+/**
+ * サイコロを振り、バトル場のおてあげの技を使う。
+ * 処理順（SPEC §4-5 ③）：相手へのダメージ → 勝敗 → 回復 → 自分へのダメージ → ドロー・捨てる・交代 → 持続効果・時限の登録
+ * @returns カードを選ぶ待ちで止まったら true
+ */
+function attack(ctx: Ctx, player: Side): boolean {
   const { s } = ctx;
   const uid = s.players[player].active;
-  if (!uid) return;
+  if (!uid) return false;
   const def = otegeDefOf(s, uid);
-  if (!def) return;
+  if (!def) return false;
   const value = rollDie(ctx, 'attack', player);
   const moveIndex = def.moves.findIndex((m) => m.faces.includes(value));
-  if (moveIndex < 0) return;
+  if (moveIndex < 0) return false;
   ctx.events.push({ type: 'MoveSelected', uid, moveIndex });
-  for (const effect of def.moves[moveIndex].effects) {
-    runEffect(ctx, effect, { kind: 'move', player, sourceUid: uid });
+  // 持続ダメージ・ばくだんは「その時に攻撃を受けたおてあげ」に付く（SPEC §4-5 ②）
+  const src: EffectSourceData = { kind: 'move', player, sourceUid: uid, hitUid: s.players[other(player)].active };
+  const effects = def.moves[moveIndex].effects;
+  const acts: QueuedEffect[] = effects
+    .map((effect, i) => ({ effect, i }))
+    .sort((a, b) => MOVE_STEP[a.effect.type] - MOVE_STEP[b.effect.type] || a.i - b.i)
+    .map(({ effect }) => ({ effect, src, stage: 'act' }));
+  const registers: QueuedEffect[] = effects.map((effect) => ({ effect, src, stage: 'register' }));
+  return runQueue(ctx, [...acts, ...registers], { kind: 'endTurn', player, attacked: true });
+}
+
+/**
+ * 持続効果・時限（SPEC §4-5 ①②）：player のターンの終わりに、当てはまるものを登録順に処理する。
+ * 見送る回数（skip）が残っていれば1減らすだけ。発動したものは消える。
+ */
+function processLasting(ctx: Ctx, player: Side): void {
+  const { s } = ctx;
+  const due: Lasting[] = [];
+  for (const l of s.lasting) {
+    if (l.createdTurn >= s.turnNumber) continue;
+    const timing = l.owner === player ? 'ownerTurnEnd' : 'opponentTurnEnd';
+    if (l.timing !== timing) continue;
+    if (l.skip > 0) l.skip -= 1;
+    else due.push(l);
+  }
+  if (due.length === 0) return;
+  s.lasting = s.lasting.filter((l) => !due.includes(l));
+  for (const l of due) {
+    fireLasting(ctx, l);
     if (isOver(s)) return;
   }
 }
@@ -311,7 +445,7 @@ function clearTurnBuffs(ctx: Ctx): void {
 }
 
 /**
- * タイミング付き効果キュー（SPEC §13-3）
+ * タイミング付き効果キュー（SPEC §13-3。予約）
  * 登録されたターンより後の、最初に当てはまるタイミングで1回だけ発動する。
  */
 function processScheduled(ctx: Ctx, point: 'start' | 'end', player: Side): void {

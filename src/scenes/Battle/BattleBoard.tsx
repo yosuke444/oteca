@@ -3,6 +3,7 @@ import type { BattleMode } from '../../battle/setup';
 import type { Action, GameState, Side } from '../../engine/types';
 import { BattleCard, CARD_SIZE } from '../../ui/card/BattleCard';
 import { CardBack } from '../../ui/card/CardBack';
+import { DrawMarks } from '../../ui/card/LastingMarks';
 import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
@@ -166,6 +167,7 @@ export function BattleBoard(p: Props) {
         ) : (
           <span className="battle-pile__empty" />
         )}
+        {kind === 'deck' && <DrawMarks view={view} side={side} />}
         <span className="battle-pile__label">
           {kind === 'deck' ? tr.battle.deck : tr.battle.discard} <b className="num">{n}</b>
         </span>
@@ -189,7 +191,15 @@ export function BattleBoard(p: Props) {
   const oppPs = view.players[opp];
   const myTurn = view.phase === 'main' && view.currentPlayer === me;
   const draw = drawCounterText(view, me);
-  const endLabel = myPs.swappedThisTurn ? (
+  // 先攻の1ターン目は攻撃できない（SPEC §4-4・v2.0）
+  const firstTurn = view.rules[me].firstPlayerFirstTurnNoAttack && view.firstPlayer === me && myPs.turnCount === 1 && view.phase === 'main';
+  const endLabel = firstTurn ? (
+    <>
+      {tr.battle.endTurn}
+      <br />
+      <small className="battle-end__first">{tr.battle.firstTurnNote}</small>
+    </>
+  ) : myPs.swappedThisTurn ? (
     <>
       {tr.battle.endTurn}
       <br />
@@ -326,7 +336,12 @@ export function BattleBoard(p: Props) {
               {tr.battle.swap}
             </RoughButton>
           )}
-          {selectedActions.some((a) => a.type === 'USE_ITEM') && <span className="battle-actionbar__note">{tr.battle.chooseTarget}</span>}
+          {selectedActions.some((a) => a.type === 'USE_ITEM' && a.targetUid === undefined) && (
+            <RoughButton seed="act-use" highlight onClick={() => p.onPerform(selectedActions.find((a) => a.type === 'USE_ITEM' && a.targetUid === undefined)!)}>
+              {tr.battle.useSelf}
+            </RoughButton>
+          )}
+          {selectedActions.some((a) => a.type === 'USE_ITEM' && a.targetUid !== undefined) && <span className="battle-actionbar__note">{tr.battle.chooseTarget}</span>}
           <RoughButton seed="act-cancel" onClick={() => p.onSelect(null)}>
             {tr.common.cancel}
           </RoughButton>

@@ -18,6 +18,7 @@ import { LobbyScene } from './scenes/Lobby/LobbyScene';
 import { CpuScene } from './scenes/Cpu/CpuScene';
 import { FxTestScene } from './scenes/Debug/FxTestScene';
 import { SoundTestScene } from './scenes/Debug/SoundTestScene';
+import { CardLabScene } from './scenes/Debug/CardLabScene';
 import { RulesScene } from './scenes/Rules/RulesScene';
 import { ComingSoonScene } from './scenes/Placeholder/PlaceholderScene';
 
@@ -37,6 +38,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   debug: DebugScene,
   fxtest: FxTestScene,
   soundtest: SoundTestScene,
+  cardlab: CardLabScene,
   // 🔒 後で実装
   story: ComingSoonScene,
   gacha: ComingSoonScene,
@@ -63,6 +65,7 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   fxtest: undefined,
   result: null,
   soundtest: null,
+  cardlab: 'bgm_deck',
 };
 
 export function App() {

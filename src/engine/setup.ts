@@ -19,7 +19,15 @@ export type GameConfig = {
   stackTop?: Partial<Record<Side, number[]>>;
   /** デバッグ用：サイコロの目を固定（1〜6）。先攻決めには使わない */
   fixedDie?: number | null;
+  /**
+   * デバッグ用「カードを ためす」（SPEC §7 S99・v2.0）：カードを置いた所から、p1 のメインで始める（準備を飛ばす）。
+   * decks は使わず、ここに書いたカードでデッキを作る（バトル場 → ベンチ → 手札 → 山札 の順。山札は書いた順のまま）
+   */
+  sandbox?: Record<Side, SandboxSide>;
 };
+
+/** カードを ためす：1人ぶんの置き方（カードNo） */
+export type SandboxSide = { active: number; bench: number[]; hand: number[]; deck: number[] };
 
 /**
  * 試合の準備（SPEC §4-3）
@@ -34,7 +42,8 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
 
   for (const side of SIDES) {
     rules[side] = { ...DEFAULT_RULES, ...config.rules?.[side] };
-    const deck = config.decks[side];
+    const sb = config.sandbox?.[side];
+    const deck = sb ? [sb.active, ...sb.bench, ...sb.hand, ...sb.deck] : config.decks[side];
     if (!deck.some((no) => config.cardDb[no]?.kind === 'otege')) {
       throw new Error(`${side} のデッキに おてあげが 1まいも ありません`);
     }
@@ -76,10 +85,14 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
     pendingPromote: [],
     resumeAfterPromote: null,
     scheduled: [],
+    lasting: [],
+    pendingChoice: null,
     winner: null,
     endReason: null,
   };
   const ctx: Ctx = { s: state, events: [] };
+
+  if (config.sandbox) return { state: placeSandbox(ctx, config.sandbox), events: ctx.events };
 
   // 1. 先攻決め：大きい方が先攻。同じ目なら振り直し
   for (;;) {
@@ -126,4 +139,29 @@ function stackDeck(s: GameState, side: Side, nos: number[]): void {
     if (uid) top.push(uid);
   }
   ps.deck = [...top, ...ps.deck.filter((u) => !top.includes(u))];
+}
+
+/** カードを ためす：置き方どおりに並べ、p1 の1ターン目のメインから始める（先攻決め・配る・バトル場決めは飛ばす） */
+function placeSandbox(ctx: Ctx, sandbox: Record<Side, SandboxSide>): GameState {
+  const { s } = ctx;
+  for (const side of SIDES) {
+    const sb = sandbox[side];
+    const uids = s.players[side].deck;
+    const ps = s.players[side];
+    if (s.cardDefs[sb.active]?.kind !== 'otege') throw new Error(`${side} のバトル場は おてあげ にしてください`);
+    for (const no of sb.bench) if (s.cardDefs[no]?.kind !== 'otege') throw new Error(`${side} のベンチは おてあげ にしてください`);
+    let i = 0;
+    ps.active = uids[i++];
+    ps.bench = sb.bench.map(() => uids[i++]);
+    ps.hand = sb.hand.map(() => uids[i++]);
+    ps.deck = uids.slice(i);
+  }
+  s.firstPlayer = 'p1';
+  s.currentPlayer = 'p1';
+  s.phase = 'main';
+  s.turnNumber = 1;
+  s.players.p1.turnCount = 1;
+  ctx.events.push({ type: 'ActivesRevealed', p1: s.players.p1.active!, p2: s.players.p2.active! });
+  ctx.events.push({ type: 'TurnStarted', player: 'p1', turn: 1 });
+  return s;
 }

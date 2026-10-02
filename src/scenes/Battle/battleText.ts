@@ -30,8 +30,9 @@ export function cardName(view: GameState, uid: string): string {
 /**
  * ログの1行（ノートの余白メモ風。SPEC §8-1）
  * @param view イベントが起きる前の表示状態
+ * @param viewer ログを見る人（相手が山札から選んだカードは見せない）。null なら全部見せる（ひとりで両方あやつる時）
  */
-export function logLine(e: GameEvent, view: GameState, names: Record<Side, string>): string | null {
+export function logLine(e: GameEvent, view: GameState, names: Record<Side, string>, viewer: Side | null = null): string | null {
   const L = t().battle.log;
   const nm = (uid: string) => cardName(view, uid);
   switch (e.type) {
@@ -48,7 +49,7 @@ export function logLine(e: GameEvent, view: GameState, names: Record<Side, strin
     case 'Swapped':
       return L.swap(nm(e.toActive), nm(e.toBench));
     case 'ItemUsed':
-      return L.item(nm(e.targetUid), nm(e.itemUid));
+      return e.targetUid !== null ? L.item(nm(e.targetUid), nm(e.itemUid)) : L.item(names[e.player], nm(e.itemUid));
     case 'Damaged':
       return L.damage(nm(e.uid), e.amount);
     case 'Healed':
@@ -64,7 +65,19 @@ export function logLine(e: GameEvent, view: GameState, names: Record<Side, strin
     case 'GameOver':
       return L.win(names[e.winner]);
     case 'TurnEnded':
-      return e.attacked ? null : L.noAttack(names[e.player]);
+      return e.attacked ? null : e.firstTurn ? L.firstTurn(names[e.player]) : L.noAttack(names[e.player]);
+    // ↓ v2.0
+    case 'Discarded':
+      return e.fromDeck ? L.discardDeck(names[e.player], nm(e.uids[0])) : L.discard(names[e.player], e.uids.map(nm).join(L.join));
+    case 'Searched':
+      // 相手には何を取ったか見せない（SPEC §4-7）
+      return viewer !== null && viewer !== e.player ? L.searchHidden(names[e.player], nm(e.sourceUid)) : L.search(names[e.player], e.uids.map(nm).join(L.join));
+    case 'DeckShuffled':
+      return L.shuffle(names[e.player]);
+    case 'ChoiceNeeded':
+      return L.chooseWait(names[e.player]);
+    case 'LastingFired':
+      return e.lasting.targetUid !== null ? L.lasting(nm(e.lasting.targetUid)) : L.lasting(names[e.lasting.owner]);
     default:
       return null;
   }

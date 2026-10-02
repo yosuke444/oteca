@@ -69,6 +69,9 @@ export function DebugScene() {
       <RoughButton seed="debug-soundtest" className="debug-scene__tool debug-scene__tool--2" onClick={() => go('soundtest')}>
         {D.soundtest}
       </RoughButton>
+      <RoughButton seed="debug-cardlab" className="debug-scene__tool debug-scene__tool--3" onClick={() => go('cardlab')}>
+        {D.cardlab}
+      </RoughButton>
       <RoughBox seed="debug-panel" className="debug-panel" paper radius={8}>
         <DeckPick label={D.p1Deck} seed="debug-p1" value={deck1} onChange={(i) => { setDeck1(i); setStack((st) => ({ ...st, p1: [] })); }} />
         <DeckPick label={D.p2Deck} seed="debug-p2" value={deck2} onChange={(i) => { setDeck2(i); setStack((st) => ({ ...st, p2: [] })); }} />

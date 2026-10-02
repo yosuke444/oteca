@@ -106,12 +106,18 @@
 .card-moves__effect.is-other {
   color: var(--pen-blue);
 }
+/* 自分へのダメージ（v2.0） */
+.card-moves__effect.is-self {
+  color: var(--pen-red);
+}
 .card-moves--big {
   gap: 8px;
 }
 .card-moves--big .card-moves__row {
-  font-size: 20px;
-  gap: 10px;
+  font-size: 18px;
+  gap: 4px 10px;
+  flex-wrap: wrap;
+  white-space: normal;
 }
 .card-moves__dice {
   display: inline-flex;
@@ -661,4 +667,89 @@
   color: var(--ink);
   background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
   white-space: nowrap;
+}
+
+/* ---------- 技表の効果（v2.0：長い効果は横に縮めて1行に。詳細では折り返す） ---------- */
+.fit-line {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.fit-line__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transform-origin: left center;
+}
+.card-moves__effects--wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  flex: 1;
+  min-width: 0;
+}
+/* 技が4つ以上のカード（すりむ・しかく など）：絵を小さくして技表を入れる */
+.battle-card__art.is-many {
+  height: 40px;
+}
+.battle-card--bench .battle-card__art.is-many,
+.battle-card--hand .battle-card__art.is-many {
+  height: 22px;
+}
+.battle-card__moves.is-many {
+  gap: 0;
+}
+.battle-card__moves.is-many .card-moves__row {
+  font-size: 12px;
+  line-height: 1.15;
+}
+.battle-card--active .battle-card__moves.is-many .card-moves__row {
+  font-size: 13px;
+}
+.battle-card__moves.is-many .card-moves__faces {
+  font-size: 14px;
+  min-width: 18px;
+}
+.battle-card__moves.is-many svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* 効果の文字は途中で折り返さない（詳細では効果ごとに次の行へ） */
+.card-moves__effect {
+  white-space: nowrap;
+}
+.card-moves--big .card-moves__dice {
+  min-width: 132px;
+  flex: none;
+}
+/* カード一覧の小さいカード：技が4つ以上なら行を詰める */
+.card-mini--tile .card-moves.is-many {
+  gap: 0;
+}
+.card-mini--tile .card-moves.is-many .card-moves__row {
+  font-size: 10px;
+  line-height: 1;
+  height: 10.5px;
+}
+.card-mini--tile .card-mini__frame:has(.card-moves.is-many) > .rough-box__content {
+  gap: 1px;
+  padding-top: 5px;
+}
+.card-mini--tile .card-moves.is-many .card-moves__faces {
+  font-size: 13px;
+  min-width: 18px;
+}
+.card-mini--tile .card-moves.is-many svg {
+  width: 11px;
+  height: 11px;
+}
+/* カード一覧の小さいカード：技が3つの時も収まるように、行の高さを詰める（v2.0） */
+.card-mini--tile .card-moves__row {
+  line-height: 1.1;
+}
+.card-mini--tile .card-moves__faces {
+  font-size: 16px;
+  line-height: 1;
 }

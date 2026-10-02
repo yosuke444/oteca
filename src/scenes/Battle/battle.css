@@ -447,6 +447,13 @@
 .battle-end__btn small {
   font-size: 18px;
 }
+/* 先攻1ターン目の「（さいしょは こうげき できないよ）」は長いので小さめに、折り返して入れる（v2.0） */
+.battle-end__btn small.battle-end__first {
+  display: block;
+  font-size: 15px;
+  line-height: 1.2;
+  white-space: normal;
+}
 
 /* 小さい画面（スマホ横向き）：舞台が小さく縮むので、選んだ手札を大きく持ち上げて読めるようにする */
 @media (max-height: 500px) {
@@ -736,4 +743,36 @@
     font-size: 30px;
     color: var(--ink);
   }
+}
+
+/* カードを選ぶパネル（SPEC §8-2。v2.0） */
+.choose-panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 6px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 12px 6px 6px;
+}
+.choose-panel__card {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: transform calc(120ms / var(--fx-speed)) ease-out;
+}
+.choose-panel__card.is-picked {
+  transform: translateY(-10px);
+}
+.choose-panel__count {
+  margin-right: auto;
+  font-size: 30px;
+  color: var(--pen-blue);
+}
+.choose-panel__note {
+  margin: 8px 0 0;
+  font-size: 15px;
+  text-align: center;
 }

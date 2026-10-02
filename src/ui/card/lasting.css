@@ -1,0 +1,87 @@
+/* 持続効果の印（SPEC §8-5）。844×390 でも読めるよう、文字は 19px 以上（舞台の縮み 0.54 倍でも 10px 以上） */
+.lasting-marks {
+  position: absolute;
+  left: -10px;
+  top: 34%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  pointer-events: none;
+}
+.battle-card--bench .lasting-marks,
+.battle-card--hand .lasting-marks {
+  top: 28%;
+}
+.lasting-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px 1px 4px;
+  border: 2px solid currentColor;
+  border-radius: 10px 12px 9px 13px;
+  background: var(--paper);
+  font-size: 19px;
+  line-height: 1.1;
+  white-space: nowrap;
+  box-shadow: 1px 2px 0 var(--note-shadow);
+  transform: rotate(-4deg);
+}
+.lasting-mark .num {
+  font-size: 21px;
+}
+.lasting-mark--poison {
+  color: var(--pen-purple);
+}
+.lasting-mark--heal {
+  color: var(--pen-green);
+}
+.lasting-mark--self {
+  color: var(--pen-red);
+}
+.lasting-mark--bomb {
+  color: var(--ink);
+  padding: 0 7px 0 2px;
+  transform: rotate(5deg);
+}
+.lasting-mark__count {
+  font-size: 25px;
+  color: var(--pen-red);
+}
+.lasting-mark--draw {
+  color: var(--pen-blue);
+}
+.lasting-mark__spark {
+  animation: lasting-spark calc(600ms / var(--fx-speed)) ease-in-out infinite alternate;
+}
+@keyframes lasting-spark {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* 発動する時に光る（演出で付ける） */
+.lasting-mark.is-fire {
+  background: var(--marker-yellow);
+  transform: rotate(-4deg) scale(1.35);
+  transition: transform calc(150ms / var(--fx-speed)) ease-out;
+}
+/* あとからドロー：山札の左横 */
+.lasting-draws {
+  position: absolute;
+  right: calc(100% + 4px);
+  top: 30px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  pointer-events: none;
+}
+/* 演出をへらす：火花を光らせない */
+html[data-reduce-fx] .lasting-mark__spark {
+  animation: none;
+}

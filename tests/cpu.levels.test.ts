@@ -6,7 +6,9 @@ import { CpuController } from '../src/controllers/cpu';
 import { Match } from '../src/controllers/match';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
 import { classicDeckNos } from '../src/data/starterDeck';
-import { type GameState, type Side, applyAction, createGame } from '../src/engine';
+import { DEFAULT_RULES, type GameState, type Side, applyAction, createGame, validateDeck } from '../src/engine';
+import { autoFill } from '../src/scenes/DeckEdit/deckOps';
+import { arrange, deckOf, startMain } from './helpers';
 
 /** CPU対戦（SPEC §13-5・§16-1b）。強さの順番（C04）は時間がかかるので npm run ladder で別に動かす */
 
@@ -24,6 +26,39 @@ describe('C01 4つの強さすべてで、CPU 同士が止まらずに決着ま�
       }
     }, 120000);
   }
+});
+
+describe('C05 全カード（48種）を使ったランダムなデッキで、4つの強さすべてが止まらずに決着する（各100試合。カードを選ぶ操作を含む）', () => {
+  /** 全カードからデッキのルールを守って15枚（所持数は気にしない） */
+  const randomDeck = (seed: number) => autoFill([], CARD_DB, DEFAULT_RULES, () => Infinity, seededRand(seed));
+  const used = new Set<number>();
+  const chooses: Record<string, number> = { discard: 0, search: 0, switch: 0 };
+  for (const level of CPU_LEVELS) {
+    it(level, () => {
+      for (let i = 0; i < 100; i++) {
+        const d = { p1: randomDeck(i * 2 + 1), p2: randomDeck(i * 2 + 2) };
+        expect(validateDeck(d.p1, CARD_DB)).toEqual([]);
+        for (const no of [...d.p1, ...d.p2]) used.add(no);
+        const r = selfPlay({ levels: { p1: level, p2: level }, decks: d, cardDb: CARD_DB, seed: `c05-${level}-${i}`, first: i % 2 ? 'p1' : 'p2', rand: seededRand(i + 7), search: FAST });
+        expect(r.state.phase, `${level} ${i} 試合め`).toBe('over');
+        expect(r.winner).not.toBeNull();
+        // 選んだ操作の種類を数える（同じ試合をもう一度、選ぶ待ちの種類を見ながら進める）
+        let s = createGame({ seed: `c05-${level}-${i}`, decks: d, cardDb: CARD_DB, forcedDice: i % 2 ? [6, 1] : [1, 6] }).state;
+        for (const a of r.actions) {
+          if (a.type === 'CHOOSE' && s.pendingChoice) chooses[s.pendingChoice.kind] += 1;
+          const step = applyAction(s, a);
+          expect(step.rejected, `${level} ${i} 試合めの再生`).toBeUndefined();
+          s = step.state;
+        }
+      }
+    }, 300000);
+  }
+  it('どのカードも使われ、捨てる・山札から選ぶ・交代先を選ぶ が起きた', () => {
+    expect(used.size).toBe(48);
+    expect(chooses.discard).toBeGreaterThan(0);
+    expect(chooses.search).toBeGreaterThan(0);
+    expect(chooses.switch).toBeGreaterThan(0);
+  });
 });
 
 /** 試合の途中の状態をいくつか集める（つよい同士で進めて、手番の人が操作する場面） */
@@ -68,6 +103,28 @@ function tamper(s: GameState, side: Side, k: number): GameState {
   t.forcedDice = [((k * 5) % 6) + 1];
   return t;
 }
+
+describe('C02b 山札から選ぶ時（ひきかえカード）も、山札の順番を見ない', () => {
+  it('選べるカード（自分の山札）の並びを変えても、どの強さも同じカードを選ぶ', () => {
+    let s = startMain({ decks: { p1: deckOf([['oteage', 5], ['mitsume', 3], ['kami', 1], ['kusuri', 3], ['hikikae', 3]]), p2: deckOf([['mutsuashi', 15]]) } });
+    s = arrange(s, 'p1', { active: 'oteage', hand: ['hikikae'] });
+    s = applyAction(s, { type: 'USE_ITEM', player: 'p1', uid: s.players.p1.hand[0] }).state;
+    expect(s.phase).toBe('choose');
+    const nos = (st: GameState, uids: string[]) => uids.map((u) => st.cards[u].no).sort((a, b) => a - b);
+    for (const level of CPU_LEVELS) {
+      const opts = level === 'strongest' ? { maxRollouts: 30, timeMs: 1e9 } : {};
+      const a = decide(level, s, 'p1', seededRand(3), opts);
+      expect(a?.type).toBe('CHOOSE');
+      const t = structuredClone(s);
+      t.players.p1.deck.reverse();
+      t.pendingChoice!.options.reverse();
+      t.rng = [9, 8, 7, 6];
+      const b = decide(level, t, 'p1', seededRand(3), opts);
+      // 同じ種類のカードは見分けられないので、カードNo で比べる
+      expect(b && b.type === 'CHOOSE' ? nos(t, b.uids) : null, level).toEqual(a && a.type === 'CHOOSE' ? nos(s, a.uids) : null);
+    }
+  });
+});
 
 describe('C02 CPU は相手の手札・山札の順番・この先のサイコロを見ない', () => {
   const states = midGameStates();

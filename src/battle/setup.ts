@@ -1,4 +1,5 @@
 import { CARD_DB } from '../data/cards';
+import type { SandboxSide } from '../engine/setup';
 import { validateDeck } from '../engine';
 import type { Side } from '../engine/types';
 import type { CpuLevel } from '../cpu/brains';
@@ -33,6 +34,10 @@ export type BattleSetup = {
   debug?: boolean;
   /** デバッグ：状態ハッシュを表示する */
   showHash?: boolean;
+  /** デバッグ「カードを ためす」：カードを置いた所から始める（SPEC §7 S99・v2.0） */
+  sandbox?: Record<Side, SandboxSide>;
+  /** デバッグ「カードを ためす」：この順にサイコロの目を出す（そのあとは乱数） */
+  forcedDice?: number[];
 };
 
 /** 乱数の種を作る（ローカル対戦用。オンラインはコミット・リビールで作る） */

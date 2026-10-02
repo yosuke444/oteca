@@ -97,11 +97,11 @@
 }
 .debug-scene__tool {
   position: absolute;
-  right: 206px;
+  right: 200px;
   top: 18px;
-  width: 230px;
+  width: 200px;
   height: 60px;
-  font-size: 22px;
+  font-size: 19px;
   color: var(--pen-red);
 }
 
@@ -264,5 +264,8 @@
   }
 }
 .debug-scene__tool--2 {
-  right: 452px;
+  right: 412px;
+}
+.debug-scene__tool--3 {
+  right: 624px;
 }

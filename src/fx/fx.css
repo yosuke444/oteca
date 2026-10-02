@@ -428,3 +428,9 @@
   rotate: 12deg;
   z-index: 1;
 }
+
+/* 捨てたカード（v2.0） */
+.fx-note--discard {
+  background: var(--paper);
+  border: 2px solid var(--ink);
+}

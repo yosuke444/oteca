@@ -1,16 +1,20 @@
 import { getLegalActions } from '../engine';
 import type { Action, GameState, Side } from '../engine/types';
+import { chooseAction } from './choose';
 
 /**
  * かんたんCPU（SPEC §7 S99）
  * 1. ベンチが空いていれば出す
  * 2. HPが半分以下で、回復アイテムがあれば使う
  * 3. それ以外はそのまま攻撃（ターン終わり）
- * 交代・やいば・ドリンクは使わない。後でストーリーモードの敵AIの土台にする。
+ * 交代・やいば・ドリンク・おてあげに使わないアイテムは使わない。後でストーリーモードの敵AIの土台にする。
+ * 技の効果で「カードを選ぶ」時は、カードの価値で選ぶ（choose.ts。v2.0）。
  */
 export function decideCpuAction(state: GameState, side: Side): Action | null {
   const legal = getLegalActions(state, side);
   if (legal.length === 0) return null;
+  const choose = chooseAction(state, side);
+  if (choose) return choose;
   const hpOf = (uid: string) => state.cards[uid].hp;
   const maxHpOf = (uid: string) => {
     const d = state.cardDefs[state.cards[uid].no];
@@ -33,7 +37,7 @@ export function decideCpuAction(state: GameState, side: Side): Action | null {
   // 2. HPが半分以下で、回復アイテムがあれば使う（バトル場を先に）
   const ps = state.players[side];
   const heals = legal.filter((a): a is Extract<Action, { type: 'USE_ITEM' }> => {
-    if (a.type !== 'USE_ITEM') return false;
+    if (a.type !== 'USE_ITEM' || a.targetUid === undefined) return false;
     const item = state.cardDefs[state.cards[a.uid].no];
     const c = state.cards[a.targetUid];
     return item.kind === 'item' && item.effects.some((e) => e.type === 'heal') && c.hp * 2 <= c.maxHp;
@@ -43,7 +47,7 @@ export function decideCpuAction(state: GameState, side: Side): Action | null {
     const pool = onActive.length > 0 ? onActive : heals;
     // 一番HPが減っているおてあげに、一番よく回復するアイテム
     return best(pool, (a) => {
-      const c = state.cards[a.targetUid];
+      const c = state.cards[a.targetUid as string];
       const item = state.cardDefs[state.cards[a.uid].no];
       const amount = item.kind === 'item' ? item.effects.reduce((s, e) => s + (e.type === 'heal' ? e.amount : 0), 0) : 0;
       return (c.maxHp - c.hp) * 1000 + Math.min(amount, c.maxHp - c.hp);

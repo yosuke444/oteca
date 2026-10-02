@@ -77,6 +77,196 @@
       "target": { "side": "self", "zones": ["bench"], "rarity": ["normal"] },
       "useCondition": "notFullHp",
       "effects": [{ "type": "heal", "amount": 70 }],
-      "text": { "hira": "ベンチの つうじょう おてあげ 1たいの HPを 70 かいふく", "kanji": "ベンチの通常おてあげ1体のHPを70回復" }, "image": "cards/supodori.png" }
+      "text": { "hira": "ベンチの つうじょう おてあげ 1たいの HPを 70 かいふく", "kanji": "ベンチの通常おてあげ1体のHPを70回復" }, "image": "cards/supodori.png" },
+
+    {"no":13,"id":"hasami","name":"はさみ","kind":"otege","rarity":"normal","hp":120, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"damage","amount":20,"then":[10]}]},
+        {"faces":[4,5,6],"effects":[{"type":"heal","amount":20}]}
+      ], "image": "cards/hasami.png", "flavor": "" },
+
+    {"no":14,"id":"yonhon","name":"よんほん","kind":"otege","rarity":"normal","hp":150, "moves": [
+        {"faces":[1,2],"effects":[{"type":"heal","amount":30}]},
+        {"faces":[3,4,5,6],"effects":[{"type":"damage","amount":10}]}
+      ], "image": "cards/yonhon.png", "flavor": "" },
+
+    {"no":15,"id":"yatsuashi","name":"やつあし","kind":"otege","rarity":"normal","hp":50, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"damage","amount":50}]},
+        {"faces":[4,5,6],"effects":[{"type":"damage","amount":80}]}
+      ], "image": "cards/yatsuashi.png", "flavor": "" },
+
+    {"no":16,"id":"shikaku","name":"しかく","kind":"otege","rarity":"normal","hp":110, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"heal","amount":20}]},
+        {"faces":[4],"effects":[{"type":"damage","amount":20}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":40}]}
+      ], "image": "cards/shikaku.png", "flavor": "" },
+
+    {"no":17,"id":"bakuhatsu","name":"ばくはつ","kind":"otege","rarity":"normal","hp":30, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"damage","amount":60}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":90}]}
+      ], "image": "cards/bakuhatsu.png", "flavor": "" },
+
+    {"no":18,"id":"yukidaruma","name":"ゆきだるま","kind":"otege","rarity":"normal","hp":130, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"damage","amount":20}]},
+        {"faces":[4,5,6],"effects":[{"type":"heal","amount":10,"then":[10]}]}
+      ], "image": "cards/yukidaruma.png", "flavor": "" },
+
+    {"no":19,"id":"tsunobasami","name":"つのばさみ","kind":"otege","rarity":"super","hp":240, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"damage","amount":10,"then":[20]}]},
+        {"faces":[4,5,6],"effects":[{"type":"damage","amount":40}]}
+      ], "image": "cards/tsunobasami.png", "flavor": "" },
+
+    {"no":20,"id":"mitsushikaku","name":"みつしかく","kind":"otege","rarity":"super","hp":180, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"heal","amount":20}]},
+        {"faces":[4],"effects":[{"type":"damage","amount":40}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":80}]}
+      ], "image": "cards/mitsushikaku.png", "flavor": "" },
+
+    {"no":21,"id":"mitsudaruma","name":"みつだるま","kind":"otege","rarity":"super","hp":150, "moves": [
+        {"faces":[1,2],"effects":[{"type":"heal","amount":10,"then":[20]}]},
+        {"faces":[3,4],"effects":[{"type":"damage","amount":20}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":40}]}
+      ], "image": "cards/mitsudaruma.png", "flavor": "" },
+
+    {"no":22,"id":"karaage","name":"からあげ","kind":"otege","rarity":"normal","hp":10, "moves": [
+        {"faces":[1,2],"effects":[{"type":"damage","amount":30},{"type":"selfDamage","amount":10}]},
+        {"faces":[3,4,5,6],"effects":[{"type":"damage","amount":100}]}
+      ], "image": "cards/karaage.png", "flavor": "" },
+
+    {"no":23,"id":"toriashi","name":"とりあし","kind":"otege","rarity":"normal","hp":60, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"selfDamage","amount":20}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":100}]}
+      ], "image": "cards/toriashi.png", "flavor": "" },
+
+    {"no":24,"id":"hataage","name":"はたあげ","kind":"otege","rarity":"normal","hp":70, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"damage","amount":15},{"type":"heal","amount":20}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":30},{"type":"heal","amount":20}]}
+      ], "image": "cards/hataage.png", "flavor": "" },
+
+    {"no":25,"id":"kawaiage","name":"かわいあげ","kind":"otege","rarity":"normal","hp":100, "moves": [
+        {"faces":[1,2],"effects":[{"type":"draw","count":1}]},
+        {"faces":[3,4],"effects":[{"type":"heal","amount":20}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":20}]}
+      ], "image": "cards/kawaiage.png", "flavor": "" },
+
+    {"no":26,"id":"power","name":"ぱわー","kind":"otege","rarity":"super","hp":150, "moves": [
+        {"faces":[1,2],"effects":[{"type":"damage","amount":30}]},
+        {"faces":[3,4],"effects":[{"type":"damage","amount":50}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":120},{"type":"selfDamage","amount":50}]}
+      ], "image": "cards/power.png", "flavor": "" },
+
+    {"no":27,"id":"bakeage","name":"ばけあげ","kind":"otege","rarity":"normal","hp":50, "moves": [
+        {"faces":[1,2],"effects":[{"type":"damage","amount":300},{"type":"selfDamage","amount":50}]},
+        {"faces":[3,4,5,6],"effects":[{"type":"damage","amount":60}]}
+      ], "image": "cards/bakeage.png", "flavor": "" },
+
+    {"no":28,"id":"shovelcar","name":"しょべるかー","kind":"otege","rarity":"normal","hp":120, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"damage","amount":20}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":80},{"type":"selfDamage","amount":30}]}
+      ], "image": "cards/shovelcar.png", "flavor": "" },
+
+    {"no":29,"id":"bakudan","name":"ばくだん","kind":"otege","rarity":"super","hp":160, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"damage","amount":0}]},
+        {"faces":[5],"effects":[{"type":"damage","amount":60}]},
+        {"faces":[6],"effects":[{"type":"damage","amount":20},{"type":"faintLater","after":3}]}
+      ], "image": "cards/bakudan.png", "flavor": "" },
+
+    {"no":30,"id":"ootoro","name":"おおとろ","kind":"otege","rarity":"normal","hp":70, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"damage","amount":0,"then":[0,60]}]},
+        {"faces":[4,5,6],"effects":[{"type":"draw","count":1}]}
+      ], "image": "cards/ootoro.png", "flavor": "" },
+
+    {"no":31,"id":"bunbunbun","name":"ぶんぶんぶん","kind":"otege","rarity":"normal","hp":30, "moves": [
+        {"faces":[1,2],"effects":[{"type":"damage","amount":20}]},
+        {"faces":[3,4,5,6],"effects":[{"type":"damage","amount":40},{"type":"switchWithBench"}]}
+      ], "image": "cards/bunbunbun.png", "flavor": "" },
+
+    {"no":32,"id":"takarabako","name":"たからばこ","kind":"otege","rarity":"normal","hp":100, "moves": [
+        {"faces":[1,2,3,4,5],"effects":[{"type":"selfDamage","amount":999},{"type":"draw","count":0,"then":[0,0,0,0,0,0,0,0,4]}]},
+        {"faces":[6],"effects":[{"type":"selfDamage","amount":999},{"type":"draw","count":4}]}
+      ], "image": "cards/takarabako.png", "flavor": "" },
+
+    {"no":33,"id":"medusa","name":"めでゅーさ","kind":"otege","rarity":"super","hp":100, "moves": [
+        {"faces":[1],"effects":[{"type":"selfDamage","amount":20}]},
+        {"faces":[2,3,4],"effects":[{"type":"damage","amount":45}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":999}]}
+      ], "image": "cards/medusa.png", "flavor": "" },
+
+    {"no":34,"id":"pakarapakara","name":"ぱからぱから","kind":"otege","rarity":"normal","hp":90, "moves": [
+        {"faces":[1],"effects":[{"type":"selfDamage","amount":40}]},
+        {"faces":[2,3,4,5],"effects":[{"type":"heal","amount":10}]},
+        {"faces":[6],"effects":[{"type":"damage","amount":90}]}
+      ], "image": "cards/pakarapakara.png", "flavor": "" },
+
+    {"no":35,"id":"hon777","name":"777ほん","kind":"otege","rarity":"normal","hp":300, "moves": [
+        {"faces":[1],"effects":[{"type":"damage","amount":20},{"type":"selfDamage","amount":100}]},
+        {"faces":[2,3,4,5],"effects":[{"type":"damage","amount":30},{"type":"selfDamage","amount":50}]},
+        {"faces":[6],"effects":[{"type":"selfDamage","amount":10}]}
+      ], "image": "cards/hon777.png", "flavor": "" },
+
+    {"no":36,"id":"piero","name":"ぴえろ","kind":"otege","rarity":"normal","hp":40, "moves": [
+        {"faces":[1],"effects":[{"type":"draw","count":1}]},
+        {"faces":[2,3,4],"effects":[{"type":"damage","amount":50},{"type":"heal","amount":20}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":70},{"type":"heal","amount":20}]}
+      ], "image": "cards/piero.png", "flavor": "" },
+
+    {"no":37,"id":"sarashiage","name":"さらしあげ","kind":"otege","rarity":"normal","hp":130, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"heal","amount":40}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":40},{"type":"selfDamage","amount":50}]}
+      ], "image": "cards/sarashiage.png", "flavor": "" },
+
+    {"no":38,"id":"moyasu","name":"もやす","kind":"otege","rarity":"normal","hp":70, "moves": [
+        {"faces":[1,2,3],"effects":[{"type":"damage","amount":80},{"type":"discard","count":1,"deckIfNoHand":true}]},
+        {"faces":[4,5,6],"effects":[{"type":"damage","amount":120},{"type":"discard","count":1,"deckIfNoHand":true}]}
+      ], "image": "cards/moyasu.png", "flavor": "" },
+
+    {"no":39,"id":"dokusage","name":"どくさげ","kind":"otege","rarity":"normal","hp":80, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"damage","amount":10,"then":[10,10,10]}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":20,"then":[20,20,20]}]}
+      ], "image": "cards/dokusage.png", "flavor": "" },
+
+    {"no":40,"id":"tomodachi","name":"ともだち","kind":"otege","rarity":"normal","hp":70, "moves": [
+        {"faces":[1,2],"effects":[{"type":"damage","amount":30,"then":[30]}]},
+        {"faces":[3,4],"effects":[{"type":"heal","amount":20,"then":[20]}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":30},{"type":"heal","amount":20}]}
+      ], "image": "cards/tomodachi.png", "flavor": "" },
+
+    {"no":41,"id":"hosoage","name":"ほそあげ","kind":"otege","rarity":"normal","hp":50, "moves": [
+        {"faces":[1,2,3,4,5],"effects":[{"type":"damage","amount":10},{"type":"heal","amount":999}]},
+        {"faces":[6],"effects":[{"type":"selfDamage","amount":999}]}
+      ], "image": "cards/hosoage.png", "flavor": "" },
+
+    {"no":42,"id":"surimu","name":"すりむ","kind":"otege","rarity":"normal","hp":130, "moves": [
+        {"faces":[1],"effects":[{"type":"damage","amount":30}]},
+        {"faces":[2],"effects":[{"type":"heal","amount":20}]},
+        {"faces":[3],"effects":[{"type":"damage","amount":0,"then":[40]}]},
+        {"faces":[4],"effects":[{"type":"heal","amount":0,"then":[30]}]},
+        {"faces":[5],"effects":[{"type":"draw","count":1}]},
+        {"faces":[6],"effects":[{"type":"damage","amount":50},{"type":"heal","amount":40}]}
+      ], "image": "cards/surimu.png", "flavor": "" },
+
+    {"no":43,"id":"oteage_ningen","name":"おてあげニンゲン","kind":"otege","rarity":"super","hp":180, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"damage","amount":30}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":60}]}
+      ], "image": "cards/oteage_ningen.png", "flavor": "" },
+
+    {"no":44,"id":"oteage_zamurai","name":"おてあげザムライ","kind":"otege","rarity":"super","hp":120, "moves": [
+        {"faces":[1,2],"effects":[{"type":"damage","amount":40}]},
+        {"faces":[3,4],"effects":[{"type":"damage","amount":60}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":80}]}
+      ], "image": "cards/oteage_zamurai.png", "flavor": "" },
+
+    {"no":45,"id":"oteage_dragon","name":"おてあげドラゴン","kind":"otege","rarity":"super","hp":200, "moves": [
+        {"faces":[1,2],"effects":[{"type":"damage","amount":40}]},
+        {"faces":[3,4,5,6],"effects":[{"type":"heal","amount":30}]}
+      ], "image": "cards/oteage_dragon.png", "flavor": "" },
+
+    {"no":46,"id":"oteage_usagi","name":"おてあげウサギ","kind":"otege","rarity":"normal","hp":70, "moves": [
+        {"faces":[1,2,3,4],"effects":[{"type":"heal","amount":30}]},
+        {"faces":[5,6],"effects":[{"type":"draw","count":1}]}
+      ], "image": "cards/oteage_usagi.png", "flavor": "" },
+
+    {"no":47,"id":"hikikae","name":"ひきかえカード","kind":"item","color":"yellow","useCondition":"deckNotEmpty","effects":[{"type":"search","count":1}],"text":{"hira":"やまふだから すきな 1まいを てふだに くわえて、やまふだを きる","kanji":"山札から好きな1枚を手札に加えて、山札を切る"},"image":"cards/hikikae.png"},
+
+    {"no":48,"id":"yabaitsubo","name":"やばいつぼ","kind":"item","color":"purple","minHand":2,"effects":[{"type":"draw","count":2},{"type":"discard","count":3}],"text":{"hira":"やまふだから 2まい ひいて、てふだから 3まい えらんで すてる","kanji":"山札から2枚引いて、手札から3枚選んで捨てる"},"image":"cards/yabaitsubo.png"}
   ]
 }

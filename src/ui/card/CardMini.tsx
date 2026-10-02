@@ -4,7 +4,8 @@ import { Sticky } from '../common/Sticky';
 import { useLongPress } from '../common/useLongPress';
 import { RoughBox } from '../rough/RoughBox';
 import { tiltFrom } from '../rough/seed';
-import { effectLabel, faceLabel } from './cardText';
+import { effectLabel, faceLabel, sortedEffects } from './cardText';
+import { FitLine } from './FitLine';
 import { local } from '../../i18n';
 import { useLang, useT } from '../../i18n/useT';
 import './card.css';
@@ -89,19 +90,21 @@ function OtegeMini({ def, seed, variant, dim }: { def: OtegeCardDef; seed: strin
         </span>
       </div>
       {variant === 'tile' && (
-        <ul className="card-moves">
+        <ul className={`card-moves ${def.moves.length >= 4 ? 'is-many' : ''}`}>
           {def.moves.map((m, i) => (
             <li key={i} className="card-moves__row">
               <DiceDoodle seed={`${seed}-d${i}`} size={18} face={m.faces[0]} />
               <span className="card-moves__faces num">{faceLabel(m.faces)}</span>
-              {m.effects.map((e, j) => {
-                const l = effectLabel(e);
+              <FitLine className="card-moves__effects">
+              {sortedEffects(m.effects).map((e, j) => {
+                const l = effectLabel(e, true);
                 return (
                   <span key={j} className={`card-moves__effect is-${l.tone}`}>
                     {l.text}
                   </span>
                 );
               })}
+              </FitLine>
             </li>
           ))}
         </ul>

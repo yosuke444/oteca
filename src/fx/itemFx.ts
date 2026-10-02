@@ -7,11 +7,13 @@ import type { CardDef } from '../engine/types';
  * - bigHeal：大きい回復・ベンチ用の回復（スポドリ）
  * - power：ダメージを足す（ひみつのやいば）
  * - weird：HPを変える（きみょうなドリンク。ダメージ +50 も付くが、演出は「ふしぎ」）
+ * - cards：おてあげに使わず、山札・手札を動かす（ひきかえカード・やばいつぼ。v2.0）
  */
-export type ItemFxKind = 'heal' | 'bigHeal' | 'power' | 'weird';
+export type ItemFxKind = 'heal' | 'bigHeal' | 'power' | 'weird' | 'cards';
 
 export function itemFxKind(def: CardDef | undefined): ItemFxKind {
   if (!def || def.kind !== 'item') return 'heal';
+  if (!def.target) return 'cards';
   const types = def.effects.map((e) => e.type);
   if (types.includes('setHp') || types.includes('overrideAttack')) return 'weird';
   if (types.includes('addAttack')) return 'power';
@@ -26,6 +28,7 @@ export const ITEM_SOUND: Record<ItemFxKind, string> = {
   bigHeal: 'se_item_spodori',
   power: 'se_item_yaiba',
   weird: 'se_item_drink',
+  cards: 'se_card_draw',
 };
 
 /** アイテムのふせんの色（CSS のクラス名に使う） */

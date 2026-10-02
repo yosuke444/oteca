@@ -1,0 +1,163 @@
+/* デバッグ「カードを ためす」（SPEC §7 S99・v2.0） */
+.lab-scene {
+  position: absolute;
+  inset: 0;
+}
+.lab-scene__title {
+  position: absolute;
+  left: 40px;
+  top: 14px;
+  margin: 0;
+  font-size: 36px;
+  font-weight: normal;
+  color: var(--pen-red);
+}
+.lab-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 14px;
+  width: 150px;
+  height: 56px;
+  font-size: 22px;
+}
+.lab-field {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 80px;
+  height: 190px;
+}
+.lab-field > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px;
+}
+.lab-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+.lab-row__side {
+  width: 44px;
+  align-self: center;
+  font-size: 30px;
+}
+.lab-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 150px;
+  padding: 4px 10px;
+  border: 2px dashed var(--grid-major);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.lab-chip.is-current {
+  border: 3px solid var(--pen-blue);
+  background: var(--marker-yellow);
+}
+.lab-chip small {
+  font-size: 13px;
+}
+.lab-chip__name {
+  font-size: 18px;
+  white-space: nowrap;
+}
+.lab-chip--hand {
+  flex: 1;
+  min-width: 0;
+}
+.lab-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.lab-hand__card {
+  font-size: 15px;
+  padding: 0 4px;
+  border-bottom: 2px solid var(--pen-red);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lab-field__note {
+  margin: 0;
+  font-size: 15px;
+}
+.lab-grid {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 284px;
+  height: 300px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 100px);
+  grid-auto-rows: 74px;
+  gap: 12px 10px;
+  justify-content: center;
+  padding: 10px 4px;
+  overflow-y: auto;
+}
+.lab-dice {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 598px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lab-dice__label {
+  font-size: 15px;
+  width: 210px;
+  line-height: 1.2;
+}
+.lab-dice__btn {
+  width: 52px;
+  height: 52px;
+  font-size: 24px;
+}
+.lab-dice__btn--clear {
+  width: 80px;
+  font-size: 18px;
+}
+.lab-dice__list {
+  flex: 1;
+  font-size: 22px;
+  color: var(--pen-blue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lab-scene__start {
+  width: 180px;
+  height: 64px;
+  font-size: 28px;
+}
+.lab-scene__decknote {
+  position: absolute;
+  left: 34px;
+  top: 662px;
+  margin: 0;
+  font-size: 14px;
+}
+.lab-scene__msg {
+  position: absolute;
+  left: 50%;
+  top: 250px;
+  z-index: 20;
+  padding: 6px 16px;
+  font-size: 22px;
+  background: var(--note-red);
+  transform: translateX(-50%) rotate(-2deg);
+}
+.lab-scene__detail {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}

@@ -8,7 +8,20 @@ import type { CardDb, CardDef, Effect, Move, NoteColor, Rarity, Timing, Zone } f
 
 export type CardData = { version: number; cards: CardDef[] };
 
-const EFFECT_TYPES = ['damage', 'heal', 'addAttack', 'overrideAttack', 'setHp', 'scheduled', 'selfDamage'];
+const EFFECT_TYPES = [
+  'damage',
+  'heal',
+  'selfDamage',
+  'draw',
+  'discard',
+  'switchWithBench',
+  'faintLater',
+  'search',
+  'addAttack',
+  'overrideAttack',
+  'setHp',
+  'scheduled',
+];
 const TIMINGS: Timing[] = ['selfTurnStart', 'selfTurnEnd', 'opponentTurnStart', 'opponentTurnEnd'];
 const RARITIES: Rarity[] = ['normal', 'super'];
 const ZONES: Zone[] = ['active', 'bench'];
@@ -38,12 +51,17 @@ export function parseCardData(data: unknown): CardData {
         checkEffects(m.effects, where);
       }
     } else if (c.kind === 'item') {
-      const t = c.target as { side?: unknown; zones?: unknown; rarity?: unknown };
-      check(t?.side === 'self', `${where}: target.side が不正です`);
-      check(Array.isArray(t.zones) && t.zones.every((z) => ZONES.includes(z)), `${where}: target.zones が不正です`);
-      check(Array.isArray(t.rarity) && t.rarity.every((r) => RARITIES.includes(r)), `${where}: target.rarity が不正です`);
+      // target を書かないアイテムは、おてあげに使わない（v2.0）
+      if (c.target !== undefined) {
+        const t = c.target as { side?: unknown; zones?: unknown; rarity?: unknown };
+        check(t?.side === 'self', `${where}: target.side が不正です`);
+        check(Array.isArray(t.zones) && t.zones.every((z) => ZONES.includes(z)), `${where}: target.zones が不正です`);
+        check(Array.isArray(t.rarity) && t.rarity.every((r) => RARITIES.includes(r)), `${where}: target.rarity が不正です`);
+      }
       check(c.color === undefined || NOTE_COLORS.includes(c.color as NoteColor), `${where}: color が不正です`);
-      check(c.useCondition === undefined || c.useCondition === 'notFullHp', `${where}: useCondition が不正です`);
+      check(c.useCondition === undefined || c.useCondition === 'notFullHp' || c.useCondition === 'deckNotEmpty', `${where}: useCondition が不正です`);
+      check(c.useCondition !== 'notFullHp' || c.target !== undefined, `${where}: notFullHp は target のあるアイテムだけ`);
+      check(c.minHand === undefined || (Number.isInteger(c.minHand) && (c.minHand as number) >= 1), `${where}: minHand が不正です`);
       const blocked = c.blockedIfUsedThisTurn;
       check(blocked === undefined || (Array.isArray(blocked) && blocked.every((b) => typeof b === 'string')), `${where}: blockedIfUsedThisTurn が不正です`);
       check(c.afterUseNote === undefined || isLocalText(c.afterUseNote), `${where}: afterUseNote が不正です（hira と kanji の2つが必要）`);
@@ -70,11 +88,33 @@ function isLocalText(v: unknown): boolean {
 
 function checkEffects(effects: unknown, where: string): void {
   check(Array.isArray(effects), `${where}: effects が配列ではありません`);
+  const count = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
+  /** 持続効果（+ の後ろ）：0以上の整数の配列 */
+  const then = (v: unknown) => v === undefined || (Array.isArray(v) && v.length > 0 && v.every(count));
   for (const e of effects as Effect[]) {
     check(EFFECT_TYPES.includes(e?.type), `${where}: 効果タイプ ${String(e?.type)} は未対応です`);
-    if (e.type === 'scheduled') {
-      check(TIMINGS.includes(e.timing), `${where}: timing が不正です`);
-      checkEffects([e.effect], where);
+    switch (e.type) {
+      case 'damage':
+      case 'heal':
+      case 'selfDamage':
+        check(count(e.amount) && then(e.then), `${where}: ${e.type} の amount・then が不正です`);
+        break;
+      case 'draw':
+        check(count(e.count) && then(e.then), `${where}: draw の count・then が不正です`);
+        break;
+      case 'discard':
+      case 'search':
+        check(count(e.count) && e.count >= 1, `${where}: ${e.type} の count が不正です`);
+        break;
+      case 'faintLater':
+        check(Number.isInteger(e.after) && e.after >= 1, `${where}: faintLater の after が不正です`);
+        break;
+      case 'scheduled':
+        check(TIMINGS.includes(e.timing), `${where}: timing が不正です`);
+        checkEffects([e.effect], where);
+        break;
+      default:
+        break;
     }
   }
 }

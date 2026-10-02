@@ -12,6 +12,7 @@ export const DEFAULT_RULES: RuleSet = {
   attackBonus: 0,
   mulliganIfNoOtege: true,
   swapCooldownTurns: 1,
+  firstPlayerFirstTurnNoAttack: true,
 };
 
 /** 大ダメージ演出に切り替えるダメージ量（SPEC §14-3 の big） */
