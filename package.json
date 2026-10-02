@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:slow": "node scripts/test-slow.mjs",
-    "ladder": "node scripts/ladder.mjs"
+    "ladder": "node scripts/ladder.mjs",
+    "story:rates": "node scripts/test-slow.mjs tests/story.slow.test.ts"
   },
   "dependencies": {
     "fflate": "^0.8.3",

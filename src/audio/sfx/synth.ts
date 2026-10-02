@@ -202,7 +202,7 @@ function voice(mx: Mixer, layer: Layer, v: Voice, out: AudioNode): void {
 }
 
 /** レシピを鳴らす。when は AudioContext の時刻（省略で今すぐ） */
-export function playRecipe(mx: Mixer, recipe: Recipe, when?: number): void {
+export function playRecipe(mx: Mixer, recipe: Recipe, when?: number): () => void {
   const ctx = mx.ctx;
   const now = when ?? ctx.currentTime + 0.005;
   const pitch = 1 + rand(-VARIATION.pitch, VARIATION.pitch);
@@ -245,6 +245,15 @@ export function playRecipe(mx: Mixer, recipe: Recipe, when?: number): void {
   }
   // 全部鳴り終わったら出口も外す
   window.setTimeout(() => out.disconnect(), (end - ctx.currentTime + 3) * 1000);
+  // 途中で止める（演出を飛ばした時など）：すぐ小さくして外す
+  return () => {
+    try {
+      out.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
+      window.setTimeout(() => out.disconnect(), 200);
+    } catch {
+      // もう外れている
+    }
+  };
 }
 
 /** レシピの長さ（秒）の目安 */

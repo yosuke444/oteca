@@ -29,7 +29,7 @@ export const MIX = {
 
 // 音の高さ（Hz）
 const N = {
-  C3: 130.81, G3: 196.0, A3: 220.0,
+  B2: 123.47, C3: 130.81, Eb3: 155.56, G3: 196.0, Ab3: 207.65, A3: 220.0, Bb3: 233.08, Eb4: 311.13,
   C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.0, A4: 440.0, B4: 493.88,
   C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.0, B5: 987.77,
   C6: 1046.5, D6: 1174.66, E6: 1318.51, G6: 1567.98, C7: 2093.0,
@@ -407,6 +407,60 @@ export const RECIPES: Record<string, Recipe> = {
       },
       { src: 'sawtooth', gain: 0.07, filter: { type: 'lowpass', freq: [2400, 2400] }, env: { a: 0.02, d: 0.2, s: 0.6, r: 0.3 }, notes: [N.C4, N.E4, N.G4, N.C5].map((f) => ({ t: 1.26, f, d: 0.5 })), reverb: 0.3 },
       sparkle(0.95, 0.9, 30, 0.09),
+    ],
+  },
+  // ボス戦の前のカットイン（v2.0-F。約2秒）：低い太鼓の連打 → 不気味な金管の和音 → シンバル
+  jingle_boss: {
+    gain: 0.9,
+    layers: [
+      kick(0, 1),
+      kick(0.16, 0.8),
+      kick(0.32, 0.9),
+      kick(0.42, 0.7),
+      kick(0.52, 1),
+      { src: 'white', gain: 0.25, filter: { type: 'lowpass', freq: [900, 300], time: 0.5 }, env: { a: 0.3, d: 0.3, s: 0, r: 0.05 }, reverb: 0.3 },
+      { src: 'sawtooth', gain: 0.12, filter: { type: 'lowpass', freq: [600, 2200], time: 0.6 }, env: { a: 0.06, d: 0.3, s: 0.7, r: 0.6 }, notes: [N.C3, N.Eb3, N.G3, N.B2].map((f) => ({ t: 0.62, f, d: 1.1 })), reverb: 0.45, reverbLong: true, drive: 0.3 },
+      { src: 'square', gain: 0.07, filter: { type: 'lowpass', freq: [1400, 1400] }, env: { a: 0.04, d: 0.2, s: 0.6, r: 0.5 }, notes: [{ t: 0.62, f: N.C4, d: 0.5 }, { t: 1.1, f: N.Eb4, d: 0.7 }], reverb: 0.4 },
+      { src: 'white', gain: 0.38, filter: { type: 'highpass', freq: [5200, 3000], time: 1.2 }, env: { a: 0.002, d: 1.2, s: 0, r: 0.2 }, delay: 0.62, reverb: 0.5, reverbLong: true },
+      kick(0.62, 1.1),
+    ],
+  },
+  // 限定カードを手に入れた（v2.0-F。約3秒）：きらきらの上昇 → ファンファーレ → 鐘
+  jingle_limited: {
+    gain: 0.85,
+    layers: [
+      { src: 'sine', gain: 0.18, freq: [500, 3200], freqTime: 0.9, env: { a: 0.3, d: 0.6, s: 0, r: 0.05 }, reverb: 0.4 },
+      sparkle(0, 1.0, 40, 0.07),
+      {
+        src: 'square',
+        gain: 0.14,
+        filter: { type: 'lowpass', freq: [3400, 3400] },
+        env: { a: 0.005, d: 0.08, s: 0.6, r: 0.15 },
+        notes: [
+          { t: 0.95, f: N.G4, d: 0.12 },
+          { t: 1.08, f: N.C5, d: 0.12 },
+          { t: 1.21, f: N.E5, d: 0.12 },
+          { t: 1.34, f: N.G5, d: 0.3 },
+          { t: 1.7, f: N.E5, d: 0.12 },
+          { t: 1.83, f: N.G5, d: 0.12 },
+          { t: 1.96, f: N.C6, d: 0.8, g: 1.15 },
+        ],
+        reverb: 0.3,
+      },
+      { src: 'sawtooth', gain: 0.07, filter: { type: 'lowpass', freq: [2600, 2600] }, env: { a: 0.02, d: 0.2, s: 0.6, r: 0.5 }, notes: [N.C4, N.E4, N.G4, N.C5].map((f) => ({ t: 1.96, f, d: 0.8 })), reverb: 0.35 },
+      { src: 'sine', gain: 0.28, freq: [N.C6, N.C6], partials: [1, 2.76, 5.4], env: { a: 0.001, d: 0.3, s: 0.2, r: 1.2 }, delay: 1.96, reverb: 0.5, reverbLong: true },
+      kick(1.96, 0.8),
+      sparkle(1.96, 1.0, 36, 0.08),
+    ],
+  },
+  // ストーリーの次のステージが開く（v2.0-F）：ペンで線を引く「シュー」→ ぽんっ → 明るい2音
+  se_stage_open: {
+    gain: 0.75,
+    layers: [
+      { src: 'pink', gain: 0.25, filter: { type: 'bandpass', freq: [1200, 4800], q: 1.2, time: 0.5 }, env: { a: 0.05, d: 0.5, s: 0, r: 0.05 }, pan: [-0.3, 0.3] },
+      { src: 'sine', gain: 0.5, freq: [320, 880], freqTime: 0.05, env: { a: 0.002, d: 0.1, s: 0, r: 0.05 }, delay: 0.55 },
+      { src: 'triangle', gain: 0.3, env: { a: 0.004, d: 0.08, s: 0.5, r: 0.25 }, notes: [{ t: 0.62, f: N.E5, d: 0.1 }, { t: 0.74, f: N.A5, d: 0.35, g: 1.1 }], reverb: 0.3 },
+      sparkle(0.6, 0.4, 10, 0.07),
     ],
   },
   // 勝利（約3秒）：メロディ＋和音＋合成ドラム＋最後にきらきら

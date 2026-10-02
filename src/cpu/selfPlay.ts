@@ -1,4 +1,4 @@
-import { applyAction, createGame } from '../engine';
+import { type GameConfig, applyAction, createGame } from '../engine';
 import type { Action, CardDb, GameState, Side } from '../engine/types';
 import { type CpuLevel, type SearchOptions, decide } from './brains';
 import { type Rand } from './random';
@@ -18,12 +18,15 @@ export function selfPlay(opts: {
   rand: Rand;
   search?: SearchOptions;
   maxSteps?: number;
+  /** プレイヤー別のルール（ストーリーのボスルールなど） */
+  rules?: GameConfig['rules'];
 }): SelfPlayResult {
   let { state } = createGame({
     seed: opts.seed,
     decks: opts.decks,
     cardDb: opts.cardDb,
     forcedDice: opts.first === 'p1' ? [6, 1] : [1, 6],
+    rules: opts.rules,
   });
   const max = opts.maxSteps ?? 2000;
   let steps = 0;

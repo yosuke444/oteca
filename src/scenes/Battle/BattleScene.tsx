@@ -27,7 +27,8 @@ import { STAMP_COOLDOWN_MS, StampBalloon, StampPicker, isStampId } from './Stamp
 import { currentOnline, endOnline } from '../../net/online';
 import type { ResultPayload } from '../Result/ResultScene';
 import './battle.css';
-import { t } from '../../i18n';
+import { local, t } from '../../i18n';
+import { stageByNo } from '../../story/story';
 import { useT } from '../../i18n/useT';
 import { type TutorialDriver, tutorialThink } from '../../tutorial/driver';
 import { think as defaultThink } from '../../cpu/thinker';
@@ -168,7 +169,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
         forcedDice: setup.forcedDice,
         noShuffle: setup.noShuffle,
         // カードを ためす：準備を飛ばして p1 から始めるので、先攻1ターン目の攻撃禁止は使わない
-        rules: setup.sandbox ? { p1: { firstPlayerFirstTurnNoAttack: false }, p2: { firstPlayerFirstTurnNoAttack: false } } : undefined,
+        rules: setup.sandbox ? { p1: { firstPlayerFirstTurnNoAttack: false }, p2: { firstPlayerFirstTurnNoAttack: false } } : setup.rules,
       },
       controllers,
     );
@@ -578,6 +579,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     setDetailUid(null);
     guide?.driver.detailClosed();
   };
+  const bossRule = setup.story ? stageByNo(setup.story.stage)?.bossRule?.text : undefined;
   const detailDef = detailUid ? view.cardDefs[view.cards[detailUid].no] : null;
   // デバッグ：エンジンの正式な状態のハッシュ（S99「状態ハッシュ表示」）
   const officialHash = setup.showHash && matchRef.current ? hashState(matchRef.current.state) : null;
@@ -626,6 +628,12 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
       <div key="fx-overlay" className="fx-overlay" ref={overlayRef} />
       <canvas key="fx-particles" className="fx-particles" ref={canvasRef} />
 
+      {/* ストーリーのボスルール（画面の上に いつも小さく。SPEC §7 S08） */}
+      {bossRule && (
+        <div className="battle-bossrule red-pen" data-testid="boss-rule">
+          {tr.story.cutinRule(local(bossRule))}
+        </div>
+      )}
       {guide && (
         <GuideOverlay
           driver={guide.driver}

@@ -1,7 +1,7 @@
 import { CARD_DB } from '../data/cards';
 import type { SandboxSide } from '../engine/setup';
 import { validateDeck } from '../engine';
-import type { Side } from '../engine/types';
+import type { RuleSet, Side } from '../engine/types';
 import type { CpuLevel } from '../cpu/brains';
 
 /**
@@ -42,6 +42,10 @@ export type BattleSetup = {
   noShuffle?: boolean;
   /** チュートリアルの対戦（記録しない。リザルトへは進まない） */
   tutorial?: boolean;
+  /** プレイヤー別のルール（ストーリーのボスルール。SPEC §7 S08） */
+  rules?: Partial<Record<Side, Partial<RuleSet>>>;
+  /** ストーリーの対戦（ステージ番号。報酬はリザルトで） */
+  story?: { stage: number };
 };
 
 /** 乱数の種を作る（ローカル対戦用。オンラインはコミット・リビールで作る） */

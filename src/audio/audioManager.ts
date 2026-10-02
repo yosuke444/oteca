@@ -104,11 +104,15 @@ class AudioManager {
   // ---------------------------------------------------------------- 効果音
 
   /** 効果音を鳴らす（キーは soundMap.ts の SE_KEYS） */
-  play(key: string): void {
-    if (this.seVolume <= 0) return;
+  /** 効果音・ジングルを鳴らす。返す関数で途中で止められる（ジングルの演出を飛ばした時など） */
+  play(key: string): () => void {
+    let stop: () => void = () => {};
+    let stopped = false;
+    if (this.seVolume <= 0) return () => {};
     const mx = this.ensureMixer();
-    if (!mx) return;
+    if (!mx) return () => {};
     const go = () => {
+      if (stopped) return;
       const file = this.seFiles.get(key);
       if (file) {
         const src = mx.ctx.createBufferSource();
@@ -116,10 +120,17 @@ class AudioManager {
         src.connect(mx.se);
         src.onended = () => src.disconnect();
         src.start();
+        stop = () => {
+          try {
+            src.stop();
+          } catch {
+            // もう止まっている
+          }
+        };
         return;
       }
       const recipe = RECIPES[key];
-      if (recipe) playRecipe(mx, recipe);
+      if (recipe) stop = playRecipe(mx, recipe);
     };
     if (mx.ctx.state === 'running') go();
     else {
@@ -129,6 +140,10 @@ class AudioManager {
         if (performance.now() - asked < RESUME_WAIT_MS) go();
       }, () => {});
     }
+    return () => {
+      stopped = true;
+      stop();
+    };
   }
 
   /** BGM を一瞬（0.4秒）40% 下げる（大ダメージ・きぜつ。§10-3） */
@@ -328,6 +343,11 @@ class AudioManager {
       this.mixer = null;
     }
     return this.mixer;
+  }
+
+  /** その曲のファイルが置いてあるか（ボス戦の曲を選ぶ時に使う） */
+  hasBgm(key: LoopBgmKey): boolean {
+    return hasFile(`${BGM_DIR}${key}.mp3`) || hasFile(`${BGM_DIR}${key}.ogg`);
   }
 
   /** BGM のファイル（.mp3 と、あれば同名の .ogg）。無ければ null */

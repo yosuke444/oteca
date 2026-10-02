@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { audio } from './audio/audioManager';
-import type { BgmKey } from './audio/soundMap';
+import type { BgmKey, LoopBgmKey } from './audio/soundMap';
+import type { BattleSetup } from './battle/setup';
+import { stageByNo } from './story/story';
 import { useSave } from './state/SaveContext';
 import { setLang } from './i18n';
 import { NavContext, type Nav, type RouteId, isDebugMode } from './router';
@@ -23,7 +25,7 @@ import { GachaScene } from './scenes/Gacha/GachaScene';
 import { RulesScene } from './scenes/Rules/RulesScene';
 import { TutorialScene } from './scenes/Tutorial/TutorialScene';
 import { NameScene } from './scenes/Name/NameScene';
-import { ComingSoonScene } from './scenes/Placeholder/PlaceholderScene';
+import { StoryScene } from './scenes/Story/StoryScene';
 
 /**
  * ルーター：行き先 → 画面 の対応表（SPEC §3、§13-5）
@@ -43,7 +45,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   soundtest: SoundTestScene,
   cardlab: CardLabScene,
   // 🔒 後で実装
-  story: ComingSoonScene,
+  story: StoryScene,
   gacha: GachaScene,
   tutorial: TutorialScene,
   name: NameScene,
@@ -56,7 +58,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
 const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   title: 'bgm_title',
   menu: 'bgm_title',
-  story: 'bgm_title',
+  story: 'bgm_story',
   gacha: 'bgm_gacha',
   tutorial: 'battle',
   name: 'bgm_title',
@@ -72,6 +74,15 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   soundtest: null,
   cardlab: 'bgm_deck',
 };
+
+/** 対戦の曲：ストーリーのボス戦は ボス別の曲 → ボスの曲 → 戦闘曲（置いてある曲を使う。SPEC §7 S08） */
+function battleBgm(setup: BattleSetup | null): BgmKey {
+  const boss = setup?.story ? stageByNo(setup.story.stage)?.boss : undefined;
+  if (!boss) return 'battle';
+  const own = `bgm_boss_${boss}` as LoopBgmKey;
+  if (audio.hasBgm(own)) return own;
+  return audio.hasBgm('bgm_boss') ? 'bgm_boss' : 'battle';
+}
 
 export function App() {
   const [nav, setNav] = useState<{ route: RouteId; payload: unknown; n: number }>({ route: 'title', payload: null, n: 0 });
@@ -116,9 +127,9 @@ export function App() {
   useEffect(() => audio.setVolumes(save.settings.bgm, save.settings.se), [save.settings.bgm, save.settings.se]);
   // 画面が変わったら BGM を切り替える（0.8秒のクロスフェード）
   useEffect(() => {
-    const bgm = ROUTE_BGM[nav.route];
+    const bgm = nav.route === 'battle' ? battleBgm(nav.payload as BattleSetup | null) : ROUTE_BGM[nav.route];
     if (bgm !== undefined) audio.playBgm(bgm);
-  }, [nav.route]);
+  }, [nav.route, nav.payload]);
 
   return (
     <NavContext.Provider value={value}>

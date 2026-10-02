@@ -198,3 +198,20 @@
   font-size: 17px;
   text-align: right;
 }
+
+/* ストーリーの初クリア（v2.0-F） */
+.result__story-first {
+  position: absolute;
+  right: 60px;
+  top: 40px;
+  margin: 0;
+  font-size: 40px;
+  rotate: 8deg;
+  padding: 0 14px;
+  border: 5px double var(--pen-red);
+  border-radius: 12px;
+  animation: story-stamp-in calc(500ms / var(--fx-speed)) cubic-bezier(0.3, 1.6, 0.5, 1) calc(900ms / var(--fx-speed)) both;
+}
+html[data-reduce-fx] .result__story-first {
+  animation: none;
+}

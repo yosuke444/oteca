@@ -23,6 +23,10 @@ import './result.css';
 import { useT } from '../../i18n/useT';
 import { ECONOMY, type MatchInfo, type RewardResult, applyMatchReward, matchReward, rewardKindFor, todayKey } from '../../economy/rewards';
 import { CoinCounter, CoinIcon, centerIn, flyCoins } from '../../ui/coin/Coin';
+import { type StoryReward, applyStoryResult, opensAfter, stageByNo } from '../../story/story';
+import { LimitedCardFx } from '../Story/LimitedCardFx';
+import type { StoryPayload } from '../Story/StoryScene';
+import '../Story/story.css';
 
 export type ResultPayload = {
   setup: BattleSetup;
@@ -127,6 +131,39 @@ export function ResultScene() {
     });
     setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
   }, [r.setup.record, r.setup.mode, r.setup.cpuLevel, r.stats.turnCounts, update, win, agree, save]);
+
+  // ストーリー（SPEC §7 S08）：勝った時だけ、クリアの印・コイン・限定カードを1回の保存で。ステージ選びへ戻る時に、新しく開いたステージを渡す
+  const story = r.setup.story;
+  const [storyBack, setStoryBack] = useState<StoryPayload>(story ? { justCleared: undefined, opened: [] } : null);
+  const [storyGot, setStoryGot] = useState<StoryReward | null>(null);
+  const [showLimited, setShowLimited] = useState(false);
+  useEffect(() => {
+    if (!story || recorded.current) return;
+    recorded.current = true;
+    if (!win) return;
+    const opened = opensAfter(save, story.stage);
+    const before = save.coins;
+    // 表示用は、今のセーブの写しに同じ計算をして作る（保存は下の update で、同じ関数で1回）
+    const res = applyStoryResult(structuredClone(save), story.stage, true);
+    update((d) => void applyStoryResult(d, story.stage, true));
+    if (!res) return;
+    // はんこ・線を描く演出は、初めてクリアした時だけ
+    if (res.first) setStoryBack({ justCleared: story.stage, opened });
+    setStoryGot(res);
+    setReward({ status: 'ok', coins: res.coins, before });
+  }, []);
+  // 限定カードは、コインが飛んできたあとに特別演出（コインが上限で0枚の時は少し待ってから）
+  useEffect(() => {
+    if (!storyGot?.cardNo || showLimited) return;
+    if (coinsLanded) {
+      setShowLimited(true);
+      return;
+    }
+    if (storyGot.coins > 0) return;
+    const id = window.setTimeout(() => setShowLimited(true), fxRef.current.dur(1600));
+    return () => window.clearTimeout(id);
+  }, [storyGot, coinsLanded]);
+  const [limitedDone, setLimitedDone] = useState(false);
 
   // もらったコインが飛んでくる（勝ち・負けの演出が落ち着いてから）
   const rewardRef = useRef<HTMLDivElement>(null);
@@ -239,10 +276,30 @@ export function ResultScene() {
       <canvas key="fx-particles" className="fx-particles" ref={canvasRef} />
 
       <div className="result__buttons">
-        <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone} disabled={waitingRematch || oppGone} onClick={again}>
-          {tr.result.again}
-        </RoughButton>
-        {r.setup.mode === 'cpu' && !r.setup.debug && (
+        {story ? (
+          <>
+            {!win && (
+              <RoughButton
+                seed="result-retry"
+                className="result__btn"
+                highlight
+                // ボスの再挑戦も、カットインから
+                onClick={() => (stageByNo(story.stage)?.kind === 'boss' ? go('story', { retry: story.stage } satisfies StoryPayload) : again())}
+                data-testid="story-retry"
+              >
+                {tr.story.retry}
+              </RoughButton>
+            )}
+            <RoughButton seed="result-stages" className="result__btn" highlight={win} onClick={() => go('story', storyBack)} data-testid="story-stages">
+              {tr.story.toStages}
+            </RoughButton>
+          </>
+        ) : (
+          <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone} disabled={waitingRematch || oppGone} onClick={again}>
+            {tr.result.again}
+          </RoughButton>
+        )}
+        {r.setup.mode === 'cpu' && !r.setup.debug && !story && (
           <RoughButton seed="result-level" className="result__btn" onClick={() => go('cpu')}>
             {tr.result.changeLevel}
           </RoughButton>
@@ -270,6 +327,12 @@ export function ResultScene() {
           {reward.status === 'short' && <p className="result__reward-note pencil">{tr.result.rewardShort}</p>}
         </div>
       )}
+      {storyGot?.first && (
+        <p className="result__story-first red-pen" data-testid="story-first">
+          {tr.story.firstClear}
+        </p>
+      )}
+      {showLimited && !limitedDone && storyGot?.cardNo && <LimitedCardFx cardNo={storyGot.cardNo} onDone={() => setLimitedDone(true)} />}
       {rematchNote && (
         <p className={`result__wait ${oppWants && !oppGone ? 'blue-pen' : 'pencil'}`} data-testid="rematch-note">
           {rematchNote}
