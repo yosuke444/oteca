@@ -14,7 +14,9 @@
 
 - `npm install` … 依存のインストール
 - `npm run dev` … 開発サーバー（Cookie は file:// では動かないので必ずこれで確認）
-- `npm test` … Vitest
+- `npm test` … Vitest の軽いテスト（1分以内。作業中はこれ）
+- `npm run test:slow` … 重いテスト（`tests/**/*.slow.test.ts`。各回の最後のコミット前に必ず動かす）
+- `npm run ladder` … CPU の強さの順番の確認（とても時間がかかる。CPU の強さを変えた時だけ）
 - `npm run build` … 公開用ビルド
 
 ## 守ること
@@ -30,7 +32,8 @@
 9. 演出は `fxSpeed` と `reduceFx` 設定に必ず従う。
 10. 見た目は「白い方眼ノート × ペンの手描き」。色は `ui/theme.css` の CSS変数だけを使う。UI文言は `src/i18n/ja-hira.ts`（ひらがな中心）と `ja-kanji.ts` の辞書にだけ書く（画面のコードに日本語を直書きしない。テスト I01 で確認）。
 11. 画像・BGMが無い場合も動くようにする（仮イラスト・無音）。
-12. ルールエンジンを変更したら `npm test` を通してから報告する。
+12. ルールエンジンを変更したら `npm test` を通してから報告する。作業中は `npm test`、各回の最後のコミット前に `npm run test:slow` も実行する。
+14. 時間のかかるテスト（数字を1か所ずつ全部変える、ガチャの大量抽選、CPU同士の大量対戦、複数ブラウザの通信など）は `tests/<名前>.slow.test.ts` に書く（`npm test` を1分以内に保つ）。確かめる内容は減らさず、置き場所を分けるだけにする。
 13. **効果音とジングルは Claude Code が Web Audio API で合成する**（SPEC §10-3）。音源ファイルを要求しない。音の調整は `src/audio/sfx/recipes.ts` の数値で行う。
 
 ## 企画者から後で届くもの

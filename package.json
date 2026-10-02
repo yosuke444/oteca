@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:slow": "node scripts/test-slow.mjs",
     "ladder": "node scripts/ladder.mjs"
   },
   "dependencies": {

@@ -1,96 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { connectLockstep } from '../src/battle/lockstep';
-import { CpuController } from '../src/controllers/cpu';
-import { Match } from '../src/controllers/match';
-import { RemoteController } from '../src/controllers/remote';
-import { CARD_DB } from '../src/data/cards';
-import { classicDeckNos } from '../src/data/starterDeck';
-import { type Side, hashState } from '../src/engine';
 import { makeMsg } from '../src/net/protocol';
-import { type Clock, type GameStart, LOST_AFTER_MS, OnlineSession, PICK_AFTER_MS, type SessionStatus, WAITING_AFTER_MS } from '../src/net/session';
-import { MemoryHub, type MemoryTransport } from '../src/net/transport';
-import { makeRandom } from './save.helpers';
-
-/** 手で進める時計 */
-class FakeClock implements Clock {
-  t = 1_000_000;
-  private readonly timers: { every: number; next: number; fn: () => void; alive: boolean }[] = [];
-  now = () => this.t;
-  every = (ms: number, fn: () => void) => {
-    const timer = { every: ms, next: this.t + ms, fn, alive: true };
-    this.timers.push(timer);
-    return () => void (timer.alive = false);
-  };
-  advance(ms: number): void {
-    const end = this.t + ms;
-    for (;;) {
-      const due = this.timers.filter((x) => x.alive && x.next <= end).sort((a, b) => a.next - b.next)[0];
-      if (!due) break;
-      this.t = due.next;
-      due.next += due.every;
-      due.fn();
-    }
-    this.t = end;
-  }
-}
-
-type Peer = {
-  s: OnlineSession;
-  t: MemoryTransport;
-  statuses: SessionStatus['kind'][];
-  starts: GameStart[];
-  conn: string[];
-  desync: number[];
-};
-
-function makePeer(hub: MemoryHub, clock: FakeClock, id: string, opts: { name?: string; deck?: number[]; protocol?: number; seed?: number; playerId?: string } = {}): Peer {
-  const t = hub.create(id);
-  const r = makeRandom(opts.seed ?? id.charCodeAt(id.length - 1));
-  const s = new OnlineSession(t, {
-    name: opts.name ?? id,
-    deck: opts.deck ?? classicDeckNos(),
-    protocol: opts.protocol ?? 1,
-    appVersion: '0.0.0',
-    playerId: opts.playerId ?? `player-${id}`,
-    clock,
-    randomBytes: (n) => new Uint8Array(n).map(() => r.int(0, 255)),
-  });
-  const p: Peer = { s, t, statuses: [], starts: [], conn: [], desync: [] };
-  s.onStatus = (st) => p.statuses.push(st.kind);
-  s.onStart = (g) => p.starts.push(g);
-  s.onConnection = (c) => p.conn.push(c);
-  s.onDesync = (turn) => p.desync.push(turn);
-  return p;
-}
-
-/** メッセージを届け切る（SHA-256 の非同期処理も待つ） */
-/** 入室のあと：hello を集めて対戦者を決め、種を決めるところまで進める */
-async function matchUp(hub: MemoryHub, clock: FakeClock): Promise<void> {
-  await settle(hub);
-  clock.advance(PICK_AFTER_MS + 300);
-  await settle(hub);
-}
-
-async function settle(hub: MemoryHub): Promise<void> {
-  let quiet = 0;
-  for (let i = 0; i < 50 && quiet < 3; i++) {
-    const n = hub.flush();
-    await new Promise((r) => setTimeout(r, 0));
-    quiet = n === 0 ? quiet + 1 : 0;
-  }
-}
-
-async function pair(seedA = 1, seedB = 2) {
-  const hub = new MemoryHub();
-  const clock = new FakeClock();
-  const a = makePeer(hub, clock, 'peer-a', { seed: seedA, name: 'あ' });
-  const b = makePeer(hub, clock, 'peer-b', { seed: seedB, name: 'い' });
-  a.s.join('123456');
-  clock.advance(10);
-  b.s.join('123456');
-  await matchUp(hub, clock);
-  return { hub, clock, a, b };
-}
+import { LOST_AFTER_MS, PICK_AFTER_MS, WAITING_AFTER_MS } from '../src/net/session';
+import { MemoryHub } from '../src/net/transport';
+import { FakeClock, type Peer, makePeer, matchUp, pair, settle } from './net.helpers';
 
 describe('オンライン：入室と満室（SPEC §11-2）', () => {
   it('2人が同じ部屋に入ると対戦が始まる。種・デッキ・名前がそろい、役割はピアIDの小さい方が p1', async () => {
@@ -222,69 +134,7 @@ describe('オンライン：コミット・リビール（SPEC §11-4）', () =>
   });
 });
 
-/**
- * 通信なしで、2つのセッション＋2つのエンジンを動かす。
- * 各端末では、自分の側を CPU、相手の側を remote にする（相手の操作は通信で届いたものだけ）。
- */
-async function playLockstep(seedA: number, seedB: number, hooks: { tamper?: boolean } = {}) {
-  const { hub, clock, a, b } = await pair(seedA, seedB);
-  const pending: (() => void)[] = [];
-  const sched = (fn: () => void) => {
-    pending.push(fn);
-    return null;
-  };
-  const sides: { peer: Peer; match: Match; me: Side }[] = [];
-  for (const peer of [a, b]) {
-    const g = peer.starts[0];
-    const opp: Side = g.me === 'p1' ? 'p2' : 'p1';
-    const remote = new RemoteController(opp);
-    const cpu = new CpuController(g.me, sched);
-    const match = new Match({ seed: g.seed, decks: g.decks, cardDb: CARD_DB }, g.me === 'p1' ? { p1: cpu, p2: remote } : { p1: remote, p2: cpu });
-    peer.s.onRemoteAction = (act) => remote.feed(act);
-    // 画面と同じつなぎ（battle/lockstep.ts）を使う。tamper の時は b のハッシュをわざと変える
-    connectLockstep(match, g.me, {
-      sendAction: (act) => peer.s.sendAction(act),
-      sendHash: (turn, h) => peer.s.sendHash(turn, hooks.tamper && peer === b ? 'deadbeef' : h),
-      sendResult: (w) => peer.s.sendResult(w),
-    });
-    sides.push({ peer, match, me: g.me });
-  }
-  for (let i = 0; i < 20000; i++) {
-    for (const s of sides) s.match.notifyIdle();
-    await settle(hub);
-    const fn = pending.shift();
-    if (!fn) {
-      if (sides.every((s) => s.match.state.phase === 'over')) break;
-      continue;
-    }
-    fn();
-  }
-  return { hub, clock, a, b, sides };
-}
-
 describe('オンライン：ロックステップ（SPEC §11-3、§11-6）', () => {
-  it('通信なしで2つのエンジンを動かすと、最後まで状態ハッシュが一致する（3試合）', async () => {
-    for (let i = 0; i < 3; i++) {
-      const { sides, a, b } = await playLockstep(10 + i, 20 + i);
-      const [x, y] = sides;
-      expect(x.match.state.phase).toBe('over');
-      expect(y.match.state.phase).toBe('over');
-      expect(hashState(x.match.state)).toBe(hashState(y.match.state));
-      expect(x.match.log).toEqual(y.match.log);
-      expect(x.match.rejected).toEqual([]);
-      expect(y.match.rejected).toEqual([]);
-      expect(a.desync).toEqual([]);
-      expect(b.desync).toEqual([]);
-    }
-  }, 60000);
-
-  it('状態ハッシュが違えば「ずれ」を知らせる', async () => {
-    const { a, b } = await playLockstep(3, 4, { tamper: true });
-    expect(a.desync).toHaveLength(1);
-    // 片方だけが気づいても、相手にも知らせて両方で止まる
-    expect(b.desync).toHaveLength(1);
-  }, 60000);
-
   it('送る操作に「誰の操作か」は入れない（受け取った側が相手の役割を入れる）。操作だけで状態は送らない', async () => {
     const { hub, a, b } = await pair();
     const seen: unknown[] = [];
