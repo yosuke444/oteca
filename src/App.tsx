@@ -29,6 +29,7 @@ import { NameScene } from './scenes/Name/NameScene';
 import { OnlineScene } from './scenes/Online/OnlineScene';
 import { RateScene } from './scenes/Online/RateScene';
 import { StoryScene } from './scenes/Story/StoryScene';
+import { TradeScene } from './scenes/Trade/TradeScene';
 import { ComingSoonScene } from './scenes/Placeholder/PlaceholderScene';
 
 /**
@@ -54,8 +55,8 @@ const ROUTES: Record<RouteId, ComponentType> = {
   tutorial: TutorialScene,
   name: NameScene,
   online: OnlineScene,
-  // 🔒 カードトレードは v2.0-H で作る。ランキングは今回作らない（メニューでは「じゅんびちゅう」）
-  trade: ComingSoonScene,
+  // 🔒 ランキングは今回作らない（メニューでは「じゅんびちゅう」）
+  trade: TradeScene,
   ranking: ComingSoonScene,
   rate: RateScene,
 };

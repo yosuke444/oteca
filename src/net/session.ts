@@ -389,6 +389,12 @@ export class OnlineSession {
       case 'queue':
       case 'pairPropose':
       case 'pairAccept':
+      case 'tradeHello':
+      case 'tradeOffer':
+      case 'tradeLock':
+      case 'tradeCommit':
+      case 'tradeAck':
+      case 'tradeResume':
         // レートの待合所のメッセージ（ここでは使わない）
         return;
     }

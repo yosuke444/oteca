@@ -23,6 +23,11 @@ export function rateRoomName(roomId: string): string {
   return `oteca-rate-${roomId}`;
 }
 
+/** カードトレードの部屋（v2.0-H。対戦の部屋とは別の名前なので、同じ番号でもぶつからない） */
+export function tradeRoomName(roomNumber: string): string {
+  return `oteca-trade-${roomNumber}`;
+}
+
 /** 部屋の人の状態（v2.0-G）：まちあい／たいせんちゅう */
 export type MemberState = 'waiting' | 'playing';
 
@@ -57,6 +62,18 @@ export type MsgBody = {
   /** レートの待合所：組み合わせの申し込みと返事 */
   pairPropose: { to: string; roomId: string };
   pairAccept: { to: string; roomId: string; accept: boolean };
+  /** カードトレード（v2.0-H）：入室（pending＝とちゅうの交換ID、done＝処理済みの交換ID） */
+  tradeHello: { protocol: number; appVersion: string; name: string; ticket: Ticket; playerId: string; pending: string; done: string[] };
+  /** あげるカード（カードNo → 枚数） */
+  tradeOffer: { offer: Record<number, number> };
+  /** これで OK（hash が空なら取り消し） */
+  tradeLock: { hash: string };
+  /** 最終確認の「こうかんする」 */
+  tradeCommit: { hash: string; tradeId: string };
+  /** 交換を保存した */
+  tradeAck: { tradeId: string };
+  /** （予約） */
+  tradeResume: { tradeId: string };
   /** game は何試合目か（再戦で +1）。古い試合のメッセージを取り違えないため */
   deck: { cards: number[]; commit: string; game: number };
   reveal: { seed: string; game: number };

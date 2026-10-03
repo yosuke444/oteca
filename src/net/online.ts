@@ -5,6 +5,7 @@ import { LocalTransport, devRelayBus } from './localTransport';
 import { type Connection, type GameStart, type InviteState, OnlineSession, type RoomMember, type SessionStatus } from './session';
 import { rateRoomName, roomName } from './protocol';
 import { RateLobby } from './rateLobby';
+import { TradeSession, type TradeOptions } from './tradeSession';
 import type { NetTransport } from './transport';
 import { TrysteroTransport } from './trysteroTransport';
 
@@ -192,6 +193,11 @@ export function endOnline(): void {
   if (!current) return;
   current.session.leave();
   current = null;
+}
+
+/** カードトレードの通信（v2.0-H）。画面が閉じる時に leave する */
+export function createTradeSession(opts: Omit<TradeOptions, 'protocol' | 'appVersion'>): TradeSession {
+  return new TradeSession(createTransport(), { ...opts, protocol: protocolVersion, appVersion });
 }
 
 /** レート対戦の待合所（v2.0-G）。画面が閉じる時に leave する */

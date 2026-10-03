@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearPendingNotice, peekPendingNotice } from '../../online/rate';
+import { loadPendingTrade } from '../../trade/pendingStore';
 import { features } from '../../config/features';
 import { isDebugMode, useNav } from '../../router';
 import { RoughBox } from '../../ui/rough/RoughBox';
@@ -42,6 +43,7 @@ export function MenuScene() {
     if (gachaInvite) update((d) => void (d.tutorial.gachaInviteShown = true));
   }, []);
 
+  const [pendingTrade] = useState(() => loadPendingTrade());
   // 前のレート対戦が とちゅうで終わって負けになった（v2.0-G。1回だけ）
   const [rateNotice, setRateNotice] = useState(() => peekPendingNotice());
   useEffect(() => clearPendingNotice(), []);
@@ -91,6 +93,14 @@ export function MenuScene() {
       <LockedButton id="gacha" label={tr.menu.gacha} shake={shake.gacha} onPress={pressLocked} />
       <LockedButton id="trade" label={tr.menu.trade} shake={shake.trade} onPress={pressLocked} />
       <LockedButton id="ranking" label={tr.menu.ranking} shake={shake.ranking} onPress={pressLocked} />
+      {/* とちゅうの こうかん（最終確認のあと保存の前に閉じた。v2.0-H） */}
+      {pendingTrade && (
+        <div className="menu-scene__trade-pending" data-testid="trade-pending">
+          <Sticky seed="menu-trade-pending" color="red" angle={5}>
+            {tr.trade.pendingNote(pendingTrade.room)}
+          </Sticky>
+        </div>
+      )}
       {gachaInvite && (
         <div className="menu-scene__gacha-invite" data-testid="gacha-invite">
           <Sticky seed="menu-gacha-invite" color="yellow" angle={-6}>

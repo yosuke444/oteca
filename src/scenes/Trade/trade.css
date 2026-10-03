@@ -1,0 +1,298 @@
+.trade-scene {
+  position: absolute;
+  inset: 0;
+}
+.trade-scene__title {
+  position: absolute;
+  left: 40px;
+  top: 12px;
+  margin: 0;
+  font-size: 36px;
+  font-weight: normal;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+}
+.trade-scene__room {
+  position: absolute;
+  left: 330px;
+  top: 22px;
+  margin: 0;
+  font-size: 28px;
+}
+.trade-scene__opp {
+  position: absolute;
+  left: 560px;
+  top: 22px;
+  margin: 0;
+  font-size: 28px;
+}
+.trade-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 12px;
+  width: 150px;
+  height: 58px;
+  font-size: 24px;
+}
+
+/* ---------- 部屋番号を入れる ---------- */
+.trade-input {
+  position: absolute;
+  left: 80px;
+  top: 100px;
+  width: 520px;
+}
+.trade-input__label {
+  margin: 0 0 10px;
+  font-size: 26px;
+}
+.trade-input__num {
+  height: 100px;
+}
+.trade-input__num > .rough-box__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.trade-input__digits {
+  font-size: 64px;
+  letter-spacing: 8px;
+}
+.trade-input__pad {
+  margin-top: 16px;
+}
+.trade-input__side {
+  position: absolute;
+  left: 680px;
+  top: 200px;
+  width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-size: 22px;
+}
+.trade-input__join {
+  width: 320px;
+  height: 90px;
+  font-size: 34px;
+}
+.trade-input__note,
+.trade-input__pending {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---------- 待っている ---------- */
+.trade-wait {
+  position: absolute;
+  inset: 120px 0 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.trade-wait__text {
+  font-size: 36px;
+}
+
+/* ---------- あげる・もらう ---------- */
+.trade-panel {
+  position: absolute;
+  top: 82px;
+  width: 590px;
+  height: 280px;
+}
+.trade-panel--give {
+  left: 30px;
+}
+.trade-panel--get {
+  left: 660px;
+}
+.trade-panel > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px 18px;
+}
+.trade-panel__title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: normal;
+}
+.trade-panel__cards {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px 12px;
+  overflow-y: auto;
+}
+.trade-panel__empty {
+  margin: 30px auto 0;
+  font-size: 22px;
+}
+.trade-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.trade-item__btns {
+  display: flex;
+  gap: 8px;
+}
+.trade-item__btn {
+  width: 40px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--paper);
+  font-family: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.trade-item__btn:focus-visible {
+  outline: 3px dashed var(--pen-blue);
+}
+.trade-panel__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 56px;
+  font-size: 22px;
+}
+.trade-panel__size small {
+  margin-left: 6px;
+  font-size: 16px;
+}
+.trade-panel__ok {
+  width: 200px;
+  height: 52px;
+  font-size: 22px;
+}
+.trade-panel__mark {
+  font-size: 30px;
+  rotate: -6deg;
+}
+.trade-scene__go {
+  position: absolute;
+  left: 490px;
+  top: 362px;
+  z-index: 5;
+  width: 300px;
+  height: 64px;
+  font-size: 30px;
+  animation: trade-go-in calc(400ms / var(--fx-speed)) cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes trade-go-in {
+  from {
+    scale: 0.4;
+    opacity: 0;
+  }
+}
+.trade-scene__waitopp {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 372px;
+  margin: 0;
+  text-align: center;
+  font-size: 24px;
+}
+
+/* ---------- じぶんの カード ---------- */
+.trade-mine {
+  position: absolute;
+  left: 30px;
+  top: 434px;
+  width: 1220px;
+  height: 270px;
+}
+.trade-mine > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px 18px;
+}
+.trade-mine__grid {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 10px 12px;
+  overflow-y: auto;
+}
+
+/* ---------- 確認 ---------- */
+.trade-confirm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  font-size: 22px;
+}
+.trade-confirm h3 {
+  margin: 0 0 6px;
+  font-weight: normal;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+  display: inline-block;
+}
+.trade-confirm ul {
+  margin: 0;
+  padding-left: 1.2em;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.trade-confirm__warn {
+  margin: 10px 0 0;
+  font-size: 22px;
+}
+
+/* ---------- 交換の演出 ---------- */
+.trade-scene__layer {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+.trade-fly {
+  position: absolute;
+  padding: 6px 12px;
+  font-size: 20px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 3px 4px 0 var(--note-shadow);
+  white-space: nowrap;
+}
+.trade-stamp {
+  font-size: 72px;
+  color: var(--pen-red);
+  padding: 0 26px;
+  border: 7px double var(--pen-red);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  white-space: nowrap;
+}
+html[data-reduce-fx] .trade-scene__go {
+  animation: none;
+}
+@media (max-height: 500px) {
+  .trade-panel__title,
+  .trade-panel__foot,
+  .trade-confirm,
+  .trade-input__side {
+    font-size: 28px;
+  }
+}
+@media (max-height: 500px) {
+  .trade-item__btn {
+    width: 56px;
+    height: 40px;
+    font-size: 30px;
+  }
+  .trade-wait__text,
+  .trade-scene__waitopp {
+    font-size: 34px;
+  }
+}

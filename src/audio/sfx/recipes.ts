@@ -463,6 +463,18 @@ export const RECIPES: Record<string, Recipe> = {
       sparkle(0.6, 0.4, 10, 0.07),
     ],
   },
+  // トレードの交換が成立した（v2.0-H。約2秒）：2枚が入れ替わる「シュッシュッ」→ 明るい和音 → きらきら
+  jingle_trade: {
+    gain: 0.8,
+    layers: [
+      { src: 'pink', gain: 0.3, filter: { type: 'bandpass', freq: [800, 4000], q: 1.2, time: 0.25 }, env: { a: 0.02, d: 0.25, s: 0, r: 0.04 }, pan: [-0.7, 0.7] },
+      { src: 'pink', gain: 0.3, filter: { type: 'bandpass', freq: [4000, 800], q: 1.2, time: 0.25 }, env: { a: 0.02, d: 0.25, s: 0, r: 0.04 }, delay: 0.28, pan: [0.7, -0.7] },
+      { src: 'triangle', gain: 0.32, env: { a: 0.004, d: 0.08, s: 0.55, r: 0.25 }, notes: [{ t: 0.6, f: N.C5, d: 0.12 }, { t: 0.72, f: N.E5, d: 0.12 }, { t: 0.84, f: N.G5, d: 0.12 }, { t: 0.96, f: N.C6, d: 0.6, g: 1.1 }], reverb: 0.3 },
+      { src: 'sawtooth', gain: 0.06, filter: { type: 'lowpass', freq: [2400, 2400] }, env: { a: 0.02, d: 0.2, s: 0.6, r: 0.4 }, notes: [N.C4, N.E4, N.G4].map((f) => ({ t: 0.96, f, d: 0.6 })), reverb: 0.3 },
+      kick(0.96, 0.7),
+      sparkle(0.96, 0.8, 24, 0.08),
+    ],
+  },
   // 勝利（約3秒）：メロディ＋和音＋合成ドラム＋最後にきらきら
   jingle_win: {
     gain: 0.8,

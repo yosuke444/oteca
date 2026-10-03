@@ -132,6 +132,7 @@ export const SE_KEYS = [
   'jingle_boss',
   'jingle_limited',
   'se_stage_open',
+  'jingle_trade',
   'jingle_win',
   'jingle_lose',
 ] as const;
