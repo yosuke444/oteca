@@ -22,7 +22,7 @@ async function freshSave(lang) {
     cs.wipe(storage);
     const data = sd.createDefaultSave();
     data.settings.lang = lang;
-    data.loginBonus.lastDate = 99999999; // ログボの箱を出さない
+    data.loginBonus.claimedAt = Date.now(); // ログボの箱を出さない
     cs.persist(storage, data);
   }, lang);
   await page.goto(page.url().split('?')[0] + '?debug=1');

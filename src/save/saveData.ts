@@ -1,5 +1,5 @@
 /**
- * セーブデータの型と初期値（SPEC §12-2。形式版数4・v2.0-B）
+ * セーブデータの型と初期値（SPEC §12-2。形式版数5・v2.1-L）
  */
 
 import economy from '../data/economy.json';
@@ -28,6 +28,19 @@ export type SavedDeck = { name: string; cards: number[] };
 
 export type WinLoss = { wins: number; losses: number };
 
+/** デイリーミッションの種類（SPEC §7 S17・v2.1-M）。この並びの番号でバイト列に書く（並びを変えない。足す時は後ろへ） */
+export const DAILY_MISSION_IDS = ['draw20', 'item10', 'ko5', 'friend1', 'onlineWin1', 'story1', 'gacha1'] as const;
+export type DailyMissionId = (typeof DAILY_MISSION_IDS)[number];
+export type DailyMission = { id: DailyMissionId; progress: number; claimed: boolean };
+/** デイリーミッションの記録（v2.1-M） */
+export type DailyState = {
+  /** 12時区切りの日付（YYYYMMDD。12時より前は前日）。0＝まだ */
+  cycleKey: number;
+  missions: DailyMission[];
+  /** 確定のミッション（ぜんぶ クリア）を受け取ったか */
+  allClearClaimed: boolean;
+};
+
 /** ストーリーのステージごとの記録 */
 export type StoryStage = { no: number; cleared: boolean; firstClear: boolean };
 
@@ -55,8 +68,8 @@ export type SaveData = {
   /** CPU対戦の勝敗（強さごと。[よわい, ふつう, つよい, さいきょう]。SPEC §12-2・v1.4） */
   cpuStats: WinLoss[];
   // ↓ 後の項目（UPDATE_v2 D〜I）で使う枠。使い始めるまでは初期値のまま
-  /** 最後にログボを受け取った日（YYYYMMDD。0＝まだ） */
-  loginBonus: { lastDate: number };
+  /** 最後にログボを受け取った時刻（ミリ秒。0＝まだ）。v2.1-L（形式版数4までは日付 lastDate） */
+  loginBonus: { claimedAt: number };
   /** その日（YYYYMMDD）にフレンド・レートで報酬を受けた試合数 */
   dailyReward: { date: number; count: number };
   story: { stages: StoryStage[] };
@@ -73,7 +86,10 @@ export type SaveData = {
   ranking: { token: string; optIn: boolean; unsent: string[] };
   /** アップデートの おしらせ を見たか（古いセーブから移行した人だけ false） */
   updateNoticeSeen: boolean;
-  tutorial: { done: boolean; gachaInviteShown: boolean };
+  /** step：途中まで進んだ時の再開位置（0＝はじめから。v2.1-P） */
+  tutorial: { done: boolean; gachaInviteShown: boolean; step: number };
+  /** デイリーミッション（v2.1-M） */
+  daily: DailyState;
 };
 
 export const SAVE_VERSION = 1;
@@ -100,6 +116,10 @@ export const TRADE_IDS_MAX = 20;
 export const RANKING_UNSENT_MAX = 20;
 /** ランキングの合言葉・報告1件の文字数の上限 */
 export const RANKING_TEXT_MAX = 256;
+/** その日のデイリーミッションの数の上限（バイト列で読む時の上限。SPEC §12-3） */
+export const DAILY_MISSIONS_MAX = DAILY_MISSION_IDS.length;
+/** チュートリアルの再開位置の上限 */
+export const TUTORIAL_STEP_MAX = 255;
 /** playerId・交換ID の形（8バイト = 16桁の16進数） */
 export const ID_PATTERN = /^[0-9a-f]{16}$/;
 
@@ -171,7 +191,7 @@ export function normalizeSave(data: SaveData): SaveData {
     coins: clampInt(data.coins, COINS_MAX),
     stats: winLoss(data.stats),
     cpuStats: Array.from({ length: CPU_LEVEL_COUNT }, (_, i) => winLoss(data.cpuStats?.[i])),
-    loginBonus: { lastDate: clampInt(data.loginBonus?.lastDate) },
+    loginBonus: { claimedAt: clampInt(data.loginBonus?.claimedAt) },
     dailyReward: { date: clampInt(data.dailyReward?.date), count: clampInt(data.dailyReward?.count) },
     story: { stages: [...stages.values()].sort((a, b) => a.no - b.no) },
     rate: clampInt(data.rate),
@@ -185,17 +205,36 @@ export function normalizeSave(data: SaveData): SaveData {
       optIn: !!data.ranking?.optIn,
       unsent: (data.ranking?.unsent ?? []).map((u) => clampText(u, RANKING_TEXT_MAX)).slice(-RANKING_UNSENT_MAX),
     },
+    tutorial: { done: !!data.tutorial?.done, gachaInviteShown: !!data.tutorial?.gachaInviteShown, step: clampInt(data.tutorial?.step, TUTORIAL_STEP_MAX) },
+    daily: normalizeDaily(data.daily),
   };
+}
+
+/** デイリーミッションの記録を整える（知らない種類・同じ種類の2つ目は消す。7つまで。その日に出すのは3つ） */
+export function normalizeDaily(d: Partial<DailyState> | undefined): DailyState {
+  const seen = new Set<string>();
+  const missions: DailyMission[] = [];
+  for (const m of d?.missions ?? []) {
+    if (!DAILY_MISSION_IDS.includes(m?.id) || seen.has(m.id) || missions.length >= DAILY_MISSIONS_MAX) continue;
+    seen.add(m.id);
+    missions.push({ id: m.id, progress: clampInt(m.progress), claimed: !!m.claimed });
+  }
+  return { cycleKey: clampInt(d?.cycleKey), missions, allClearClaimed: !!d?.allClearClaimed };
+}
+
+/** デイリーミッションの空の記録（次にメニューを開いた時に、その日のミッションを選ぶ） */
+export function emptyDaily(): DailyState {
+  return { cycleKey: 0, missions: [], allClearClaimed: false };
 }
 
 /** 後の項目（D〜I）の枠の初期値。新しいセーブと、古いセーブからの移行で共通 */
 export function laterFieldsDefault(): Pick<
   SaveData,
-  'playerId' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial'
+  'playerId' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
 > {
   return {
     playerId: '',
-    loginBonus: { lastDate: 0 },
+    loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     rate: RATE_START,
     rateStats: { wins: 0, losses: 0, best: RATE_START },
@@ -203,7 +242,8 @@ export function laterFieldsDefault(): Pick<
     pendingRateMatch: null,
     trade: { doneIds: [] },
     ranking: { token: '', optIn: false, unsent: [] },
-    tutorial: { done: false, gachaInviteShown: false },
+    tutorial: { done: false, gachaInviteShown: false, step: 0 },
+    daily: emptyDaily(),
   };
 }
 

@@ -571,6 +571,8 @@ export const hira = {
     plus: (n: number) => `+${n}`,
     present: 'プレゼント',
     presentAria: 'プレゼントを あける（ログインボーナス）',
+    wait: 'つぎの プレゼントまで',
+    waitAria: (t: string) => `つぎの プレゼントまで ${t}`,
     aria: (n: number) => `おてあげコイン ${n}まい`,
   },
 

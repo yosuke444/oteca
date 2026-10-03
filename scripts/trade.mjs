@@ -26,10 +26,10 @@ async function player(name, extra) {
       window.localStorage.removeItem('oteca.tradePending');
       const d = sd.createDefaultSave();
       d.playerName = name;
-      d.tutorial = { done: true, gachaInviteShown: true };
+      d.tutorial = { done: true, gachaInviteShown: true, step: 0 };
       d.settings.lang = lang;
       d.settings.fxSpeed = 2;
-      d.loginBonus.lastDate = 99999999;
+      d.loginBonus.claimedAt = Date.now();
       for (const [no, n] of Object.entries(extra)) d.collection[no] = n;
       cs.persist(storage, d);
     },

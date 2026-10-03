@@ -50,7 +50,7 @@ export function randomSave(seed: number): SaveData {
     coins: r.int(0, 99999),
     stats: { wins: bigOrSmall(), losses: bigOrSmall() },
     cpuStats: Array.from({ length: 4 }, () => ({ wins: bigOrSmall(), losses: bigOrSmall() })),
-    loginBonus: { lastDate: r.pick([0, 20261002, r.int(0, 99999999)]) },
+    loginBonus: { claimedAt: r.pick([0, 1791000000000, r.int(0, 2 ** 45)]) },
     dailyReward: { date: r.pick([0, 20261002]), count: r.int(0, 30) },
     story: { stages: Array.from({ length: r.int(0, 5) }, (_, i) => ({ no: i * 3 + r.int(0, 2), cleared: r.next() < 0.7, firstClear: r.next() < 0.5 })) },
     rate: bigOrSmall(),
@@ -60,7 +60,12 @@ export function randomSave(seed: number): SaveData {
     trade: { doneIds: Array.from({ length: r.int(0, 20) }, () => id() || '00000000000000ff') },
     ranking: { token: text(0, 40), optIn: r.next() < 0.5, unsent: Array.from({ length: r.int(0, 3) }, () => text(1, 30)) },
     updateNoticeSeen: r.next() < 0.5,
-    tutorial: { done: r.next() < 0.5, gachaInviteShown: r.next() < 0.5 },
+    tutorial: { done: r.next() < 0.5, gachaInviteShown: r.next() < 0.5, step: r.pick([0, 16, r.int(0, 255)]) },
+    daily: {
+      cycleKey: r.pick([0, 20261002, r.int(0, 99999999)]),
+      missions: r.pick([[], [{ id: 'draw20', progress: r.int(0, 40), claimed: r.next() < 0.5 }, { id: 'gacha1', progress: 1, claimed: true }, { id: 'ko5', progress: r.int(0, 9), claimed: false }]]),
+      allClearClaimed: r.next() < 0.5,
+    },
   };
 }
 

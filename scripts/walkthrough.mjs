@@ -158,8 +158,8 @@ await B.page.evaluate(async () => {
   const st = { jar: cs.browserCookieJar(), local: window.localStorage, secure: false };
   const d = sd.createDefaultSave();
   d.playerName = 'ぶどう';
-  d.tutorial = { done: true, gachaInviteShown: true };
-  d.loginBonus.lastDate = 99999999;
+  d.tutorial = { done: true, gachaInviteShown: true, step: 0 };
+  d.loginBonus.claimedAt = Date.now();
   cs.persist(st, d);
 });
 await B.page.reload();

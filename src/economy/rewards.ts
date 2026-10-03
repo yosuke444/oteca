@@ -5,13 +5,15 @@ import type { SaveData } from '../save/saveData';
 
 /**
  * おてあげコイン・ログインボーナス・対戦の報酬（SPEC §7 S11・UPDATE_v2 §5）。
- * 数値は src/data/economy.json にだけ書く。ここは日付（YYYYMMDD の数）を受け取る純粋な処理だけ
- * （今日の日付は画面の側で todayKey() を呼んで渡す）。
+ * 数値は src/data/economy.json にだけ書く。ここは日付（YYYYMMDD の数）・時刻（ミリ秒）を受け取る純粋な処理だけ
+ * （今日の日付・今の時刻は画面の側で todayKey()・Date.now() を呼んで渡す）。
  */
 
 export type Economy = {
   coinsMax: number;
   loginBonus: number;
+  /** ログボを受け取ってから、次に受け取れるまでの時間（v2.1-L） */
+  loginBonusHours: number;
   onlineReward: { friend: number; rate: number };
   cpuWinReward: Record<CpuLevel, number>;
   dailyRewardLimit: number;
@@ -41,21 +43,44 @@ export function addCoins(save: Pick<SaveData, 'coins'>, amount: number): number 
   return save.coins - before;
 }
 
-// ---------------------------------------------------------------- ログインボーナス
+// ---------------------------------------------------------------- ログインボーナス（v2.1-L：受け取ってから24時間後）
 
-/** 今日のログボを まだ受け取っていないか */
-export function canClaimLoginBonus(save: Pick<SaveData, 'loginBonus'>, today: number): boolean {
-  return save.loginBonus.lastDate !== today;
+/** 受け取ってから次に受け取れるまで（ミリ秒） */
+export const LOGIN_BONUS_MS = ECONOMY.loginBonusHours * 60 * 60 * 1000;
+
+/**
+ * 次にログボを受け取れるまでの残り（ミリ秒）。0 なら今受け取れる。
+ * まだ一度も受け取っていない・受け取った時刻が未来（端末の時計を戻した）時も 0（受け取れる。SPEC §7 S11）
+ */
+export function loginBonusRemainingMs(save: Pick<SaveData, 'loginBonus'>, now: number): number {
+  const at = save.loginBonus.claimedAt;
+  if (at <= 0 || at > now) return 0;
+  return Math.max(0, at + LOGIN_BONUS_MS - now);
+}
+
+/** 今ログボを受け取れるか */
+export function canClaimLoginBonus(save: Pick<SaveData, 'loginBonus'>, now: number): boolean {
+  return loginBonusRemainingMs(save, now) === 0;
 }
 
 /**
- * ログボを受け取る（下書きを書き換える）。コインと「今日受け取った」を同じ保存で書く。
- * @returns 増えたコイン（受け取れない日は 0）
+ * ログボを受け取る（下書きを書き換える）。コインと「受け取った時刻」を同じ保存で書く。
+ * 何日たっても1回分（ためない）。
+ * @returns 増えたコイン（受け取れない時は 0）
  */
-export function claimLoginBonus(draft: Pick<SaveData, 'loginBonus' | 'coins'>, today: number): number {
-  if (!canClaimLoginBonus(draft, today)) return 0;
-  draft.loginBonus.lastDate = today;
+export function claimLoginBonus(draft: Pick<SaveData, 'loginBonus' | 'coins'>, now: number): number {
+  if (!canClaimLoginBonus(draft, now)) return 0;
+  draft.loginBonus.claimedAt = now;
   return addCoins(draft, ECONOMY.loginBonus);
+}
+
+/** 残り時間（ミリ秒）→ 「時:分:秒」（例 23:59:58。秒は切り上げ：0:00:00 になった時に受け取れる） */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 // ---------------------------------------------------------------- 対戦の報酬
@@ -129,8 +154,8 @@ export function rewardKindFor(setup: { mode: 'online' | 'cpu' | 'local'; record:
   return 'none';
 }
 
-/** デバッグ「ログボの日付を 1日 すすめる」：最後に受け取った日・報酬の日を1日前にずらす（次の日になったのと同じ） */
+/** デバッグ「ログボの日付を 1日 すすめる」：受け取った時刻を24時間前に・報酬の日を1日前にずらす（次の日になったのと同じ） */
 export function debugNextDay(draft: Pick<SaveData, 'loginBonus' | 'dailyReward'>): void {
-  draft.loginBonus.lastDate = prevDayKey(draft.loginBonus.lastDate);
+  draft.loginBonus.claimedAt = Math.max(0, draft.loginBonus.claimedAt - LOGIN_BONUS_MS);
   draft.dailyReward.date = prevDayKey(draft.dailyReward.date);
 }

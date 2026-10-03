@@ -572,6 +572,8 @@ export const kanji: Dict = {
     plus: (n) => `+${n}`,
     present: 'プレゼント',
     presentAria: 'プレゼントを開ける（ログインボーナス）',
+    wait: '次のプレゼントまで',
+    waitAria: (t) => `次のプレゼントまで ${t}`,
     aria: (n) => `おてあげコイン ${n}枚`,
   },
 

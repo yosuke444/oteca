@@ -31,10 +31,10 @@ async function player(name) {
       cs.wipe(storage);
       const d = sd.createDefaultSave();
       d.playerName = name;
-      d.tutorial = { done: true, gachaInviteShown: true };
+      d.tutorial = { done: true, gachaInviteShown: true, step: 0 };
       d.settings.lang = lang;
       d.settings.fxSpeed = 2;
-      d.loginBonus.lastDate = 99999999;
+      d.loginBonus.claimedAt = Date.now();
       cs.persist(storage, d);
     },
     { name, lang },

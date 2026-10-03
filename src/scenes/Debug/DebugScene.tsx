@@ -152,7 +152,7 @@ export function DebugScene() {
             </RoughButton>
             <RoughButton seed="tool-tutorial" className="debug-row__choice debug-tool" onClick={() => {
               update((d) => {
-                d.tutorial = { done: false, gachaInviteShown: false };
+                d.tutorial = { done: false, gachaInviteShown: false, step: 0 };
               });
               go('tutorial');
             }}>

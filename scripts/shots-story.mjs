@@ -17,9 +17,9 @@ async function setSave(lang, cleared) {
       const storage = { jar: cs.browserCookieJar(), local: window.localStorage, secure: false };
       cs.wipe(storage);
       const data = sd.createDefaultSave();
-      data.tutorial = { done: true, gachaInviteShown: true };
+      data.tutorial = { done: true, gachaInviteShown: true, step: 0 };
       data.settings.lang = lang;
-      data.loginBonus.lastDate = 99999999;
+      data.loginBonus.claimedAt = Date.now();
       data.story.stages = cleared.map((no) => ({ no, cleared: true, firstClear: true }));
       cs.persist(storage, data);
     },

@@ -133,7 +133,9 @@ describe('V08 新しいセーブ', () => {
     for (let i = 1; i < DECK_SLOTS; i++) expect(d.decks[i]).toEqual({ name: defaultDeckName(i), cards: [] });
     expect(d.unlockAll).toBe(false);
     expect(d.updateNoticeSeen).toBe(true);
-    expect(d.tutorial).toEqual({ done: false, gachaInviteShown: false });
+    expect(d.tutorial).toEqual({ done: false, gachaInviteShown: false, step: 0 });
+    expect(d.loginBonus).toEqual({ claimedAt: 0 });
+    expect(d.daily).toEqual({ cycleKey: 0, missions: [], allClearClaimed: false });
     expect(normalizeSave(d)).toEqual(d);
   });
 });

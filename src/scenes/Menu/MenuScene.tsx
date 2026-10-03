@@ -15,7 +15,8 @@ import { useSave } from '../../state/SaveContext';
 import { useT } from '../../i18n/useT';
 import { CoinCounter } from '../../ui/coin/Coin';
 import { PresentBox } from '../../ui/coin/PresentBox';
-import { ECONOMY, canClaimLoginBonus, claimLoginBonus, todayKey } from '../../economy/rewards';
+import { ECONOMY, canClaimLoginBonus, claimLoginBonus, loginBonusRemainingMs } from '../../economy/rewards';
+import { PresentWait } from '../../ui/coin/PresentWait';
 import './menu.css';
 
 type LockedId = 'story' | 'gacha' | 'trade' | 'ranking';
@@ -29,13 +30,22 @@ export function MenuScene() {
   // 🔒 じゅんびちゅう のふせんを揺らす合図（押した回数）
   const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0, trade: 0, ranking: 0 });
 
-  // ログインボーナス（SPEC §7 S11）：その日初めてメニューを開いたら、プレゼントボックスを置く
-  const today = todayKey(new Date());
+  // ログインボーナス（SPEC §7 S11・v2.1-L）：受け取れる時はリボン付きのプレゼントボックス、
+  // 受け取った後は空いた箱と、次にもらえるまでの残り時間（1秒ごとの数え直しは PresentWait の中。0 になったら now を進める）
+  const [now, setNow] = useState(() => Date.now());
   const fxLayer = useRef<HTMLDivElement>(null);
   const [opening, setOpening] = useState(false);
   /** コインが飛んでくるまで、コイン表示は前の枚数のままにする */
   const [heldCoins, setHeldCoins] = useState<number | null>(null);
-  const showPresent = features.coins && (opening || canClaimLoginBonus(save, today));
+  const claimable = canClaimLoginBonus(save, now);
+  const showPresent = features.coins && (opening || claimable);
+  // メニューを開いている間に0になった：空いた箱からリボン付きに戻る演出（何回目か＝箱を作り直す印）
+  const wasClaimable = useRef(claimable);
+  const [reappear, setReappear] = useState(0);
+  useEffect(() => {
+    if (claimable && !wasClaimable.current && !opening) setReappear((n) => n + 1);
+    wasClaimable.current = claimable;
+  }, [claimable]);
 
   // チュートリアルを終えた・とばした人に1回だけ、ガチャのボタンに「コインで パックが ひけるよ」のふせん（UPDATE_v2 §6T-6）
   const [gachaInvite] = useState(() => features.gacha && save.tutorial.done && !save.tutorial.gachaInviteShown);
@@ -177,17 +187,27 @@ export function MenuScene() {
       {showPresent && (
         <div className="menu-scene__present">
           <PresentBox
+            key={reappear}
+            appear={reappear > 0}
             amount={Math.min(ECONOMY.loginBonus, ECONOMY.coinsMax - save.coins)}
             layer={() => fxLayer.current}
             onOpen={() => {
               setHeldCoins(save.coins);
               setOpening(true);
-              // 押した瞬間に「コイン +50」と「今日受け取った」を同じ保存で書く（日付は押した時に読む。0時をまたいでも正しく）
-              update((d) => void claimLoginBonus(d, todayKey(new Date())));
+              // 押した瞬間に「コイン +50」と「受け取った時刻」を同じ保存で書く（時刻は押した時に読む）
+              update((d) => void claimLoginBonus(d, Date.now()));
             }}
             onCoins={() => setHeldCoins(null)}
-            onDone={() => setOpening(false)}
+            onDone={() => {
+              setOpening(false);
+              setNow(Date.now());
+            }}
           />
+        </div>
+      )}
+      {features.coins && !showPresent && (
+        <div className="menu-scene__present menu-scene__present--wait">
+          <PresentWait remaining={(t) => loginBonusRemainingMs(save, t)} onZero={() => setNow(Date.now())} />
         </div>
       )}
       <div className="menu-scene__fx" ref={fxLayer} aria-hidden />

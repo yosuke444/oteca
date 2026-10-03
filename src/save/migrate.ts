@@ -5,12 +5,14 @@ import {
   type SaveDataV1,
   type SaveDataV2,
   type SaveDataV3,
+  type SaveDataV4,
   readSaveV1,
   readSaveV2,
   readSaveV3,
   readSaveV4,
+  readSaveV5,
 } from './binary';
-import { COINS_MAX, DECK_SLOTS, OWN_MAX, type SaveData, defaultDeckName, emptyCpuStats, laterFieldsDefault } from './saveData';
+import { COINS_MAX, DECK_SLOTS, OWN_MAX, type SaveData, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from './saveData';
 
 /**
  * 形式版数を見て、古い形式なら最新の SaveData へ変換する（SPEC §12-3）
@@ -28,6 +30,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   2: readSaveV2,
   3: readSaveV3,
   4: readSaveV4,
+  5: readSaveV5,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -41,7 +44,35 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   },
   /** 3 → 4（v2.0-B）：カードの所持・デッキ20個など（SPEC §12-3b） */
   3: (old) => upgradeToV4(old as SaveDataV3),
+  /** 4 → 5（v2.1-L）：ログボの日付を、その日の0時の時刻に（SPEC §12-3c）。tutorial.step と daily を足す */
+  4: (old) => upgradeToV5(old as SaveDataV4),
 };
+
+/** YYYYMMDD → その日の0時（端末の時刻）のミリ秒。0 や壊れた日付は 0 */
+export function dayStartMs(key: number): number {
+  if (!Number.isInteger(key) || key <= 0) return 0;
+  const y = Math.floor(key / 10000);
+  const m = Math.floor(key / 100) % 100;
+  const d = key % 100;
+  if (m < 1 || m > 12 || d < 1 || d > 31) return 0;
+  const date = new Date(y, m - 1, d);
+  // 2月31日などは次の月に繰り越されるので、元の年・月・日と同じか確かめる
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return 0;
+  const t = date.getTime();
+  return Number.isSafeInteger(t) && t > 0 ? t : 0;
+}
+
+/** 形式版数4 → 5（UPDATE_v2_1 §2-2・§7） */
+export function upgradeToV5(d: SaveDataV4): SaveData {
+  const { loginBonus, tutorial, ...rest } = d;
+  return {
+    ...rest,
+    // 受け取っていた日の0時に受け取った扱い（今日受け取っていた人は、次の0時にまた受け取れる。v2.0 と同じ）
+    loginBonus: { claimedAt: dayStartMs(loginBonus.lastDate) },
+    tutorial: { ...tutorial, step: 0 },
+    daily: emptyDaily(),
+  };
+}
 
 /**
  * 今までのプレイヤーの移行（SPEC §12-3b・UPDATE_v2 §3-1）。
@@ -49,7 +80,7 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
  * 「初期カードの枚数」「保存デッキのうち一番多く入れているデッキの枚数」「今までの collection の枚数」の最大にする。
  * 在庫はデッキごとなので、これで保存していたデッキはすべて使えるままになる。
  */
-export function upgradeToV4(d: SaveDataV3): SaveData {
+export function upgradeToV4(d: SaveDataV3): SaveDataV4 {
   const collection: Record<number, number> = { ...starterCollection() };
   const raise = (no: number, qty: number) => {
     if (!Number.isInteger(no) || no <= 0) return;
@@ -79,8 +110,14 @@ export function upgradeToV4(d: SaveDataV3): SaveData {
     cpuStats: d.cpuStats,
     story: { stages: [...new Set(d.story.cleared)].sort((a, b) => a - b).map((no) => ({ no, cleared: true, firstClear: true })) },
     updateNoticeSeen: false,
-    ...laterFieldsDefault(),
+    ...laterFieldsV4(),
   };
+}
+
+/** 形式版数4の時の「後の項目」の初期値（3 → 4 の変換用） */
+function laterFieldsV4(): Pick<SaveDataV4, 'playerId' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial'> {
+  const { daily: _daily, loginBonus: _lb, tutorial: _t, ...rest } = laterFieldsDefault();
+  return { ...rest, loginBonus: { lastDate: 0 }, tutorial: { done: false, gachaInviteShown: false } };
 }
 
 /** バイト列 → 最新の SaveData。読めなければエラー */

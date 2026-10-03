@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { useFx } from '../../fx/fxSettings';
 import { play, setFxSpeed, wait } from '../../fx/timing';
@@ -7,6 +7,7 @@ import { useT } from '../../i18n/useT';
 import { imageUrl } from '../imageFiles';
 import { flyCoins } from './Coin';
 import { centerIn, confetti, flash } from '../../fx/paperFx';
+import { sparkleBurst } from '../../fx/sparkleFx';
 import './coin.css';
 
 /**
@@ -16,6 +17,7 @@ import './coin.css';
  * @param onOpen 押した瞬間に呼ぶ（ここで保存する。演出の途中で閉じても、もらい損ねない）
  * @param onCoins コインが コイン表示に着いた時（数字のカウントアップを始める合図）
  * @param onDone 演出が終わった時
+ * @param appear 残り時間が0になって、空いた箱からリボン付きに戻った時（ポンッと戻ってキラキラ。v2.1-L）
  */
 export function PresentBox({
   amount,
@@ -23,12 +25,14 @@ export function PresentBox({
   onOpen,
   onCoins,
   onDone,
+  appear = false,
 }: {
   amount: number;
   layer: () => HTMLElement | null;
   onOpen: () => void;
   onCoins: () => void;
   onDone: () => void;
+  appear?: boolean;
 }) {
   const tr = useT();
   const fx = useFx();
@@ -43,9 +47,35 @@ export function PresentBox({
   const rays = useRef<SVGGElement>(null);
   const img = imageUrl('images/present.png');
 
+  // 24時間たって、空いた箱がリボン付きに戻る：ポンッと跳ねて戻り、まわりにキラキラ。
+  // 揺れの CSS アニメ（transform）が GSAP の動きを打ち消すので、戻る間は is-appearing で揺れを止める
+  const [appearing, setAppearing] = useState(appear);
+  const sparkleTimer = useRef(0);
+  useLayoutEffect(() => {
+    if (!appear) return;
+    const el = root.current!;
+    const reduce = fx.reduceFx;
+    setFxSpeed(fx.speed);
+    // 音とキラキラは少し待ってから（開発時の StrictMode で効果が2回走っても、1回目は後始末で消える）
+    sparkleTimer.current = window.setTimeout(() => {
+      if (!el.isConnected || pressed.current) return;
+      audio.play('se_sparkle');
+      const L = layer();
+      if (L && !reduce) sparkleBurst(L, centerIn(L, el), 24, 120, 120);
+    }, fx.dur(200));
+    const tween = reduce
+      ? gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.2, onComplete: () => setAppearing(false) })
+      : gsap.fromTo(el, { scale: 0.2, rotate: -40, opacity: 0 }, { scale: 1, rotate: 0, opacity: 1, duration: 0.6, ease: 'back.out(3)', clearProps: 'transform,opacity', onComplete: () => setAppearing(false) });
+    return () => {
+      window.clearTimeout(sparkleTimer.current);
+      tween.kill();
+    };
+  }, []);
+
   const open = async () => {
     if (pressed.current) return;
     pressed.current = true;
+    window.clearTimeout(sparkleTimer.current);
     setOpening(true);
     onOpen();
     setFxSpeed(fx.speed);
@@ -107,7 +137,7 @@ export function PresentBox({
   };
 
   return (
-    <button ref={root} type="button" className={`present-box ${opening ? 'is-opening' : ''}`} onClick={open} aria-label={tr.coin.presentAria} data-testid="present-box">
+    <button ref={root} type="button" className={`present-box ${opening ? 'is-opening' : ''} ${appearing ? 'is-appearing' : ''}`} onClick={open} aria-label={tr.coin.presentAria} data-testid="present-box">
       {img ? (
         <img src={img} alt="" className="present-box__img" draggable={false} />
       ) : (

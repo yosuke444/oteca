@@ -1,6 +1,8 @@
 import {
   CARD_NO_MAX,
   CPU_LEVEL_COUNT,
+  DAILY_MISSIONS_MAX,
+  DAILY_MISSION_IDS,
   DECK_CARDS_MAX,
   DECK_NAME_MAX,
   DECK_SLOTS,
@@ -10,6 +12,7 @@ import {
   RANKING_UNSENT_MAX,
   SAVE_VERSION,
   TRADE_IDS_MAX,
+  TUTORIAL_STEP_MAX,
   VOLUME_MAX,
   type SaveData,
   type SavedDeck,
@@ -26,9 +29,16 @@ import {
 
 /**
  * 形式版数（バイト列の先頭1バイト）。
- * 1＝v1.3 まで／2＝v1.4（末尾に cpuStats）／3＝v2.0-A（末尾に lang）／4＝v2.0-B（デッキ20個・所持カードなど。並びを作り直した）
+ * 1＝v1.3 まで／2＝v1.4（末尾に cpuStats）／3＝v2.0-A（末尾に lang）／4＝v2.0-B（デッキ20個・所持カードなど。並びを作り直した）／
+ * 5＝v2.1-L（ログボは受け取った時刻 claimedAt、末尾に tutorial.step と daily）
  */
-export const FORMAT_VERSION = 4;
+export const FORMAT_VERSION = 5;
+
+/** 形式版数4の形（v2.0-B。ログボは日付、tutorial.step・daily が無い） */
+export type SaveDataV4 = Omit<SaveData, 'loginBonus' | 'tutorial' | 'daily'> & {
+  loginBonus: { lastDate: number };
+  tutorial: { done: boolean; gachaInviteShown: boolean };
+};
 
 /** 形式版数3の形（v2.0-A。デッキ5個、所持カードは使っていない枠） */
 export type SaveDataV3 = {
@@ -157,10 +167,18 @@ export class ByteReader {
 /** 印のビット（形式版数4） */
 const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16 } as const;
 
-/** 最新の形式（形式版数4）でバイト列にする */
+/** 最新の形式（形式版数5）でバイト列にする */
 export function encodeSave(data: SaveData): Uint8Array {
+  return encodeBody(data, 5);
+}
+
+/**
+ * 形式版数4・5の並び（SPEC §12-3）。version 4 はテストで「形式版数4の固定のバイト列」を作るためだけに使う。
+ * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く
+ */
+export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5): Uint8Array {
   const w = new ByteWriter();
-  w.byte(FORMAT_VERSION);
+  w.byte(version);
   w.uint(data.saveVersion);
   w.uint(data.saveCounter);
   w.text(data.playerName);
@@ -196,7 +214,7 @@ export function encodeSave(data: SaveData): Uint8Array {
     w.uint(data.cpuStats[i]?.wins ?? 0);
     w.uint(data.cpuStats[i]?.losses ?? 0);
   }
-  w.uint(data.loginBonus.lastDate);
+  w.uint(version >= 5 ? (data as SaveData).loginBonus.claimedAt : (data as SaveDataV4).loginBonus.lastDate);
   w.uint(data.dailyReward.date);
   w.uint(data.dailyReward.count);
   w.uint(data.story.stages.length);
@@ -221,11 +239,56 @@ export function encodeSave(data: SaveData): Uint8Array {
   w.text(data.ranking.token);
   w.uint(data.ranking.unsent.length);
   for (const u of data.ranking.unsent) w.text(u);
+  if (version >= 5) {
+    const d = data as SaveData;
+    // 読む時と同じ範囲（超えていたら、読めないセーブを書かないようにエラー）
+    if (d.tutorial.step > TUTORIAL_STEP_MAX) throw new Error(`tutorial.step が範囲外です: ${d.tutorial.step}`);
+    if (d.daily.missions.length > DAILY_MISSIONS_MAX) throw new Error('デイリーミッションが多すぎます');
+    if (new Set(d.daily.missions.map((m) => m.id)).size !== d.daily.missions.length) throw new Error('同じデイリーミッションが2つあります');
+    w.uint(d.tutorial.step);
+    w.uint(d.daily.cycleKey);
+    w.uint(d.daily.missions.length);
+    for (const m of d.daily.missions) {
+      const k = DAILY_MISSION_IDS.indexOf(m.id);
+      if (k < 0) throw new Error(`デイリーミッションの種類が不正です: ${m.id}`);
+      w.byte(k);
+      w.uint(m.progress);
+      w.byte(m.claimed ? 1 : 0);
+    }
+    w.byte(d.daily.allClearClaimed ? 1 : 0);
+  }
   return w.toBytes();
 }
 
-/** 形式版数4の本体を読む（先頭の形式版数1バイトは読み終わっている前提） */
-export function readSaveV4(r: ByteReader): SaveData {
+/** 形式版数5の本体を読む（先頭の形式版数1バイトは読み終わっている前提） */
+export function readSaveV5(r: ByteReader): SaveData {
+  const v4 = readSaveV4(r);
+  const step = r.uintMax(TUTORIAL_STEP_MAX);
+  const cycleKey = r.uint();
+  const seen = new Set<number>();
+  const missions = Array.from({ length: r.uintMax(DAILY_MISSIONS_MAX) }, () => {
+    const k = r.byte();
+    if (k >= DAILY_MISSION_IDS.length || seen.has(k)) throw new Error('デイリーミッションの種類が不正です');
+    seen.add(k);
+    const progress = r.uint();
+    const claimed = r.byte();
+    if (claimed > 1) throw new Error('デイリーミッションの印が不正です');
+    return { id: DAILY_MISSION_IDS[k], progress, claimed: claimed === 1 };
+  });
+  const allClear = r.byte();
+  if (allClear > 1) throw new Error('デイリーミッションの印が不正です');
+  const { loginBonus, tutorial, ...rest } = v4;
+  return {
+    ...rest,
+    // 形式版数5では、この場所に受け取った時刻が入っている
+    loginBonus: { claimedAt: loginBonus.lastDate },
+    tutorial: { ...tutorial, step },
+    daily: { cycleKey, missions, allClearClaimed: allClear === 1 },
+  };
+}
+
+/** 形式版数4の本体を読む（先頭の形式版数1バイトは読み終わっている前提。形式版数5もここまでは同じ並び） */
+export function readSaveV4(r: ByteReader): SaveDataV4 {
   const saveVersion = r.uint();
   if (saveVersion !== SAVE_VERSION) throw new Error(`saveVersion ${saveVersion} は読めません`);
   const saveCounter = r.uint();

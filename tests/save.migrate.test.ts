@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
 import { STARTER_COINS, classicDeckNos, starterCollection } from '../src/data/starterDeck';
 import { validateDeck } from '../src/engine';
-import { type SaveDataV1, type SaveDataV2, type SaveDataV3, encodeSave } from '../src/save/binary';
+import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, encodeBody, encodeSave } from '../src/save/binary';
 import { checkSavedDeck } from '../src/save/collection';
 import { openSave, sealBytes } from '../src/save/cookieStore';
-import { decodeSave, migrate } from '../src/save/migrate';
-import { DECK_SLOTS, type SaveData, defaultDeckName, emptyCpuStats, laterFieldsDefault } from '../src/save/saveData';
-import { decodeTransferCode } from '../src/save/transferCode';
+import { dayStartMs, decodeSave, migrate } from '../src/save/migrate';
+import { DECK_SLOTS, type SaveData, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from '../src/save/saveData';
+import { decodeTransferCode, encodeTransferBytes } from '../src/save/transferCode';
 import { makeRandom } from './save.helpers';
 import { encodeOldSave, hexToBytes, oldCookie, oldTransferCode, toHex } from './save.oldFormat';
 
@@ -93,7 +93,7 @@ describe('形式の移行（固定の見本）', () => {
     },
     updateNoticeSeen: false,
     playerId: '',
-    loginBonus: { lastDate: 0 },
+    loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     rate: 100,
     rateStats: { wins: 0, losses: 0, best: 100 },
@@ -101,7 +101,8 @@ describe('形式の移行（固定の見本）', () => {
     pendingRateMatch: null,
     trade: { doneIds: [] },
     ranking: { token: '', optIn: false, unsent: [] },
-    tutorial: { done: false, gachaInviteShown: false },
+    tutorial: { done: false, gachaInviteShown: false, step: 0 },
+    daily: emptyDaily(),
   });
   const V1_AS_LATEST = migrated(emptyCpuStats(), 'hira');
   const V2_AS_LATEST = migrated(V2_EXPECTED.cpuStats, 'hira');
@@ -111,7 +112,7 @@ describe('形式の移行（固定の見本）', () => {
    * 形式版数4（v2.0-B）：すべての項目に初期値でない値を入れた見本。
    * 形式を黙って変えていないことを、固定のバイト列で確かめる
    */
-  const V4_EXPECTED: SaveData = {
+  const V4_EXPECTED: SaveDataV4 = {
     saveVersion: 1,
     saveCounter: 1234,
     playerName: 'オテカ',
@@ -147,6 +148,33 @@ describe('形式の移行（固定の見本）', () => {
     updateNoticeSeen: true,
     tutorial: { done: true, gachaInviteShown: true },
   };
+  /** 形式版数4 を今の形（形式版数5）にした時：ログボは受け取った日の0時、tutorial.step 0、daily は空 */
+  const V4_AS_LATEST: SaveData = {
+    ...V4_EXPECTED,
+    loginBonus: { claimedAt: new Date(2026, 9, 2).getTime() },
+    tutorial: { done: true, gachaInviteShown: true, step: 0 },
+    daily: emptyDaily(),
+  };
+  /** 形式版数5（v2.1-L）：すべての項目に初期値でない値を入れた見本 */
+  const V5_EXPECTED: SaveData = {
+    ...V4_AS_LATEST,
+    loginBonus: { claimedAt: 1791012345678 },
+    tutorial: { done: false, gachaInviteShown: true, step: 16 },
+    daily: {
+      cycleKey: 20261003,
+      missions: [
+        { id: 'gacha1', progress: 1, claimed: true },
+        { id: 'draw20', progress: 300, claimed: false },
+        { id: 'onlineWin1', progress: 0, claimed: false },
+      ],
+      allClearClaimed: true,
+    },
+  };
+  const V5_FIXTURE_HEX =
+    '0501d20909e382aae38386e382aba009011b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a00000142010c' +
+    '000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ceae9e8590' +
+    '3489d1d4091403010304010900870109029601ffeeddccbbaa99880111112222333344446202aaaaaaaaaaaaaaaa000000000000000107746f6b2d78797a0202723106e5a0b1e5918a' +
+    '108bd1d4090306010100ac020004000001';
   const V4_FIXTURE_HEX = 
     '0401d20909e382aae38386e382aba009011f0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a00000142010c' +
     '000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c801008ad1d409' +
@@ -187,14 +215,28 @@ describe('形式の移行（固定の見本）', () => {
     expect(migrate(3, V3_EXPECTED)).toEqual(V3_AS_LATEST);
   });
 
-  it('V05 今の形式（形式版数4）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    expect(toHex(encodeSave(V4_EXPECTED))).toBe(V4_FIXTURE_HEX);
-    expect(decodeSave(hexToBytes(V4_FIXTURE_HEX))).toEqual(V4_EXPECTED);
-    expect(migrate(4, V4_EXPECTED)).toEqual(V4_EXPECTED);
+  it('V05 形式版数4（v2.0-B）→ 最新：ログボの日付はその日の0時の時刻、tutorial.step 0、daily は空', () => {
+    // 形式版数4の書き方（テスト用に残した並び）は、当時の固定のバイト列と同じ
+    expect(toHex(encodeBody(V4_EXPECTED, 4))).toBe(V4_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V4_FIXTURE_HEX))).toEqual(V4_AS_LATEST);
+    expect(migrate(4, V4_EXPECTED)).toEqual(V4_AS_LATEST);
+    // 受け取っていない人（0）は 0 のまま。日付が壊れていれば 0（すぐ受け取れる）
+    expect(dayStartMs(0)).toBe(0);
+    expect(dayStartMs(20261340)).toBe(0);
+    expect(dayStartMs(20260231)).toBe(0); // 2月31日（繰り越さない）
+    expect(dayStartMs(20240229)).toBe(new Date(2024, 1, 29).getTime());
+    expect(dayStartMs(20261002)).toBe(new Date(2026, 9, 2, 0, 0, 0).getTime());
+    expect((migrate(4, { ...V4_EXPECTED, loginBonus: { lastDate: 0 } }) as SaveData).loginBonus.claimedAt).toBe(0);
+  });
+
+  it('V05 今の形式（形式版数5）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
+    expect(toHex(encodeSave(V5_EXPECTED))).toBe(V5_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V5_FIXTURE_HEX))).toEqual(V5_EXPECTED);
+    expect(migrate(5, V5_EXPECTED)).toEqual(V5_EXPECTED);
   });
 
   it('V05 読めない形式版数・余分なバイト・壊れた値はエラーになる', () => {
-    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX]) {
+    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX]) {
       const bytes = hexToBytes(hex);
       const future = bytes.slice();
       future[0] = 99;
@@ -202,6 +244,35 @@ describe('形式の移行（固定の見本）', () => {
       expect(() => decodeSave(new Uint8Array([...bytes, 0]))).toThrow('余分');
       expect(() => decodeSave(bytes.slice(0, -1))).toThrow();
     }
+  });
+
+  it('V05 形式版数5の壊れた値（ミッションの番号・同じ番号・印・件数・tutorial.step）はエラー', () => {
+    const base = hexToBytes(V5_FIXTURE_HEX);
+    // 末尾の並び：step(10) cycleKey(8bd1d409) 件数(03) [06 01 01] [00 ac02 00] [04 00 00] allClear(01)
+    const n = base.length;
+    const tail = (patch: (b: Uint8Array) => void) => {
+      const b = base.slice();
+      patch(b);
+      return b;
+    };
+    expect(() => decodeSave(tail((b) => (b[n - 11] = 7)))).toThrow('種類'); // 1つ目のミッションの番号 7（無い）
+    expect(() => decodeSave(tail((b) => (b[n - 4] = 6)))).toThrow('種類'); // 3つ目が1つ目と同じ番号
+    expect(() => decodeSave(tail((b) => (b[n - 9] = 2)))).toThrow('印'); // claimed が 2
+    expect(() => decodeSave(tail((b) => (b[n - 1] = 2)))).toThrow('印'); // allClearClaimed が 2
+    expect(() => decodeSave(tail((b) => (b[n - 12] = 8)))).toThrow('範囲外'); // 件数 8
+    // tutorial.step 256（2バイト）
+    const step = [...base.slice(0, n - 17), 0x80, 0x02, ...base.slice(n - 16)];
+    expect(() => decodeSave(new Uint8Array(step))).toThrow('範囲外');
+    // 書く時も同じ範囲で止める
+    expect(() => encodeSave({ ...V5_EXPECTED, tutorial: { ...V5_EXPECTED.tutorial, step: 256 } })).toThrow('tutorial.step');
+    const m = V5_EXPECTED.daily.missions[0];
+    expect(() => encodeSave({ ...V5_EXPECTED, daily: { ...V5_EXPECTED.daily, missions: [m, m] } })).toThrow('2つ');
+  });
+
+  it('V06 形式版数4（v2.0）の Cookie の中身と引き継ぎコードが、v2.1 でも読める', async () => {
+    expect(openSave(sealBytes(hexToBytes(V4_FIXTURE_HEX)))).toEqual(V4_AS_LATEST);
+    expect(await decodeTransferCode(encodeTransferBytes(hexToBytes(V4_FIXTURE_HEX), 37))).toEqual({ ok: true, data: V4_AS_LATEST });
+    expect(await decodeTransferCode(encodeTransferBytes(hexToBytes(V5_FIXTURE_HEX), 5))).toEqual({ ok: true, data: V5_EXPECTED });
   });
 
   it('V06 形式版数1・2・3で作った古い引き継ぎコード（圧縮なし）が、v2.0 でも読める', async () => {
@@ -313,7 +384,7 @@ function expectMigrated(old: SaveDataV3, got: SaveData, where: string) {
   expect(got.cpuStats, where).toEqual(old.cpuStats);
   expect(got.unlockAll, where).toBe(false);
   expect(got.updateNoticeSeen, where).toBe(false);
-  expect(got.tutorial, where).toEqual({ done: false, gachaInviteShown: false });
+  expect(got.tutorial, where).toEqual({ done: false, gachaInviteShown: false, step: 0 });
   const { playerId, ...later } = laterFieldsDefault();
   expect(got.playerId).toBe(playerId);
   for (const [k, v] of Object.entries(later)) if (k !== 'tutorial') expect(got[k as keyof SaveData], `${where} ${k}`).toEqual(v);
@@ -389,7 +460,7 @@ describe('V07 今までのプレイヤーの移行（保存していたデッキ
     expect(got.collection[2]).toBe(999);
   });
 
-  it('移行して保存し直したデータ（形式版数4）を読んでも同じ', () => {
+  it('移行して保存し直したデータ（形式版数5）を読んでも同じ', () => {
     for (const { save } of NAMED_PLAYERS) {
       const got = decodeSave(encodeOldSave(save, 3));
       expect(decodeSave(encodeSave(got))).toEqual(got);

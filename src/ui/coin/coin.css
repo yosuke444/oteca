@@ -57,7 +57,8 @@
   animation: present-wobble calc(1.6s / var(--fx-speed)) ease-in-out infinite;
   filter: drop-shadow(0 0 10px var(--marker-yellow)) drop-shadow(0 0 4px var(--marker-yellow));
 }
-.present-box.is-opening {
+.present-box.is-opening,
+.present-box.is-appearing {
   animation: none;
 }
 .present-box__img {
@@ -86,6 +87,46 @@
   }
   84% {
     transform: rotate(-3deg);
+  }
+}
+/* 受け取った後：空いた箱と、次にもらえるまでの残り時間（v2.1-L） */
+.present-wait {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: present-wait-in calc(0.5s / var(--fx-speed)) ease-out;
+}
+.present-wait__svg {
+  opacity: 0.9;
+}
+.present-wait__img {
+  width: 100px;
+  height: 75px;
+  object-fit: contain;
+}
+.present-wait__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.present-wait__label {
+  font-size: 20px;
+  color: var(--pencil);
+  white-space: nowrap;
+}
+.present-wait__time {
+  padding: 0 10px;
+  font-size: 32px;
+  line-height: 1.1;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+}
+@keyframes present-wait-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
 }
 /* 演出をへらす：揺らさない・光らせない */

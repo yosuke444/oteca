@@ -47,6 +47,11 @@
   transform: scale(0.85);
   transform-origin: top center;
 }
+.menu-scene__present--wait {
+  left: 400px;
+  top: 16px;
+  transform: none;
+}
 .menu-scene__fx {
   position: absolute;
   inset: 0;
