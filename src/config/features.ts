@@ -2,6 +2,8 @@
 export const features = {
   story: true, // ストーリーモード（v2.0-F で true）
   gacha: true, // パックガチャ（v2.0-E で true）
+  trade: false, // カードトレード（v2.0-H で true）
+  ranking: false, // レートランキング（UPDATE_v2 I。今回は作らない）
   coins: true, // おてあげコイン表示（v2.0-D で true）
   collection: true, // 所持枚数の制限（v2.0-B で true。false にすると全カード無制限）
 };

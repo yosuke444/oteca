@@ -253,3 +253,166 @@
     font-size: 34px;
   }
 }
+
+/* ---------- へやの なかま（v2.0-G） ---------- */
+.lobby-room__num {
+  position: absolute;
+  left: 60px;
+  top: 96px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 26px;
+}
+.lobby-room__num .num {
+  font-size: 64px;
+  letter-spacing: 6px;
+}
+.lobby-room__tell {
+  position: absolute;
+  left: 60px;
+  top: 176px;
+  margin: 0;
+  font-size: 22px;
+}
+.lobby-room__list {
+  position: absolute;
+  left: 60px;
+  top: 220px;
+  width: 620px;
+  height: 470px;
+}
+.lobby-room__list > .rough-box__content {
+  padding: 12px 24px;
+}
+.lobby-room__count {
+  margin: 0 0 6px;
+  font-size: 20px;
+  text-align: right;
+}
+.lobby-room__members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lobby-room__member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 50px;
+  border-bottom: 1px dashed var(--grid-major);
+  font-size: 26px;
+}
+.lobby-room__name {
+  font-family: inherit;
+  font-size: 28px;
+  color: var(--ink);
+}
+.lobby-room__name small {
+  margin-left: 6px;
+  font-size: 18px;
+}
+.lobby-room__name--btn {
+  padding: 0 10px;
+  border: none;
+  border-bottom: 3px solid var(--pen-blue);
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+  cursor: pointer;
+}
+.lobby-room__name--btn:focus-visible {
+  outline: 3px dashed var(--pen-blue);
+}
+.lobby-room__member.is-playing .lobby-room__name {
+  color: var(--pencil);
+}
+.lobby-room__state {
+  font-size: 22px;
+}
+.lobby-room__side {
+  position: absolute;
+  left: 720px;
+  top: 220px;
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  font-size: 24px;
+}
+.lobby-room__deck {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 24px;
+}
+.lobby-room__deck-btn {
+  width: 240px;
+  height: 56px;
+  font-size: 22px;
+}
+.lobby-room__hint {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--pen-blue);
+}
+.lobby-room__sent p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.lobby-room__sent .rough-btn {
+  width: 200px;
+  height: 56px;
+  font-size: 22px;
+}
+.lobby-room__leave {
+  position: absolute;
+  right: 60px;
+  bottom: 36px;
+  width: 220px;
+  height: 66px;
+  font-size: 26px;
+}
+.lobby-room__note {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+  z-index: 70;
+  translate: -50% 0;
+  padding: 6px 20px;
+  font-size: 26px;
+  background: var(--note-yellow);
+  box-shadow: 2px 3px 0 var(--note-shadow);
+  rotate: -1deg;
+  white-space: nowrap;
+  animation: lobby-note-in calc(220ms / var(--fx-speed)) ease-out;
+}
+@keyframes lobby-note-in {
+  from {
+    opacity: 0;
+    translate: -50% 20px;
+  }
+}
+.lobby-wait__deck {
+  position: absolute;
+  left: 60px;
+  bottom: 36px;
+}
+.lobby-wait__deck .lobby-room__deck {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+html[data-reduce-fx] .lobby-room__note {
+  animation: none;
+}
+@media (max-height: 500px) {
+  .lobby-room__member,
+  .lobby-room__name {
+    font-size: 32px;
+  }
+  .lobby-room__state,
+  .lobby-room__side,
+  .lobby-room__deck,
+  .lobby-room__tell {
+    font-size: 28px;
+  }
+}

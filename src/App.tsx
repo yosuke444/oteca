@@ -3,6 +3,7 @@ import { audio } from './audio/audioManager';
 import type { BgmKey, LoopBgmKey } from './audio/soundMap';
 import type { BattleSetup } from './battle/setup';
 import { stageByNo } from './story/story';
+import { resolvePendingRate, setPendingNotice } from './online/rate';
 import { useSave } from './state/SaveContext';
 import { setLang } from './i18n';
 import { NavContext, type Nav, type RouteId, isDebugMode } from './router';
@@ -25,7 +26,10 @@ import { GachaScene } from './scenes/Gacha/GachaScene';
 import { RulesScene } from './scenes/Rules/RulesScene';
 import { TutorialScene } from './scenes/Tutorial/TutorialScene';
 import { NameScene } from './scenes/Name/NameScene';
+import { OnlineScene } from './scenes/Online/OnlineScene';
+import { RateScene } from './scenes/Online/RateScene';
 import { StoryScene } from './scenes/Story/StoryScene';
+import { ComingSoonScene } from './scenes/Placeholder/PlaceholderScene';
 
 /**
  * ルーター：行き先 → 画面 の対応表（SPEC §3、§13-5）
@@ -49,6 +53,11 @@ const ROUTES: Record<RouteId, ComponentType> = {
   gacha: GachaScene,
   tutorial: TutorialScene,
   name: NameScene,
+  online: OnlineScene,
+  // 🔒 カードトレードは v2.0-H で作る。ランキングは今回作らない（メニューでは「じゅんびちゅう」）
+  trade: ComingSoonScene,
+  ranking: ComingSoonScene,
+  rate: RateScene,
 };
 
 /**
@@ -62,6 +71,10 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   gacha: 'bgm_gacha',
   tutorial: 'battle',
   name: 'bgm_title',
+  online: 'bgm_lobby',
+  trade: 'bgm_trade',
+  ranking: 'bgm_title',
+  rate: 'bgm_lobby',
   debug: 'bgm_title',
   deck: 'bgm_deck',
   settings: 'bgm_deck',
@@ -105,6 +118,14 @@ export function App() {
   const { save } = useSave();
   // ことば：React の外（演出・対戦ログ）でも今の言語の辞書を使えるように、描く前に知らせる（SPEC §6-4b）
   setLang(save.settings.lang);
+
+  // 前のレート対戦が とちゅうで終わっていた（ページを閉じた・読み込み直した）：起動した時に負けとして計算する（SPEC §7 S15）
+  const { update } = useSave();
+  useEffect(() => {
+    if (!save.pendingRateMatch) return;
+    setPendingNotice(resolvePendingRate(structuredClone(save)));
+    update((d) => void resolvePendingRate(d));
+  }, []);
 
   // 画面に触ったら、いつでも音を有効にし直す（スマホで裏に回して戻った時など）
   useEffect(() => {

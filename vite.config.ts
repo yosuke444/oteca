@@ -73,11 +73,26 @@ function battleBgm(): Plugin {
   };
 }
 
+/**
+ * 開発用の中継（v2.0-G）：?net=dev のページどうしを、開発サーバーの WebSocket（HMR の通り道）でつなぐ。
+ * 別々のブラウザ（Playwright の別の窓）でも、ネットにつながずに3〜4人の部屋やレートの待合所を確かめられる。
+ * 公開用ビルドには入らない（開発サーバーだけ）。届いたものを、ほかの全員にそのまま配るだけ。
+ */
+function devRelay(): Plugin {
+  return {
+    name: 'oteca-dev-relay',
+    apply: 'serve',
+    configureServer(server) {
+      server.ws.on('oteca:relay', (data) => server.ws.send('oteca:relay', data));
+    },
+  };
+}
+
 export default defineConfig(({ command, isPreview }) => ({
   // 公開パス：GitHub Pages（https://<ユーザー名>.github.io/oteca/）用に、公開用ビルドと npm run preview は /oteca/。開発中は /
   // （preview は command が 'serve' になるので isPreview も見る。見ないと /oteca/ の中身が 404 になる）
   base: command === 'build' || isPreview ? '/oteca/' : '/',
-  plugins: [react(), battleBgm()],
+  plugins: [react(), battleBgm(), devRelay()],
   test: {
     // テストは3つに分ける（CLAUDE.md・UPDATE_v2 §14）
     // - npm test：軽いテスト（tests/**/*.test.ts。1分以内）。作業中はこれ

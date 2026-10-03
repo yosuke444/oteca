@@ -3,6 +3,8 @@ import type { SandboxSide } from '../engine/setup';
 import { validateDeck } from '../engine';
 import type { RuleSet, Side } from '../engine/types';
 import type { CpuLevel } from '../cpu/brains';
+import { safeName } from '../online/rate';
+import { t } from '../i18n';
 
 /**
  * 対戦画面に渡す設定。
@@ -46,6 +48,8 @@ export type BattleSetup = {
   rules?: Partial<Record<Side, Partial<RuleSet>>>;
   /** ストーリーの対戦（ステージ番号。報酬はリザルトで） */
   story?: { stage: number };
+  /** レート対戦（v2.0-G）：相手のレートとプレイヤーID（結果はリザルトでレートに書く） */
+  rated?: { oppRate: number; oppId: string };
 };
 
 /** 乱数の種を作る（ローカル対戦用。オンラインはコミット・リビールで作る） */
@@ -56,8 +60,15 @@ export function randomSeed(): string {
 }
 
 /** フレンド対戦の試合開始（コミット・リビールで種が決まった）→ 対戦画面の設定 */
-export function onlineSetup(g: { game: number; seed: string; me: Side; decks: Record<Side, number[]>; names: Record<Side, string> }, debug = false): BattleSetup {
-  return { mode: 'online', decks: g.decks, names: g.names, seed: g.seed, me: g.me, record: true, game: g.game, debug, showHash: debug };
+export function onlineSetup(
+  g: { game: number; seed: string; me: Side; decks: Record<Side, number[]>; names: Record<Side, string> },
+  debug = false,
+  rated?: BattleSetup['rated'],
+): BattleSetup {
+  const opp: Side = g.me === 'p1' ? 'p2' : 'p1';
+  // 相手の名前に禁止語があれば「ななし」（v2.0-G。対戦画面・ログ・リザルトで）
+  const names = { ...g.names, [opp]: safeName(g.names[opp], t().lobby.nameless) } as Record<Side, string>;
+  return { mode: 'online', decks: g.decks, names, seed: g.seed, me: g.me, record: true, game: g.game, debug, showHash: debug, ...(rated ? { rated } : {}) };
 }
 
 /**

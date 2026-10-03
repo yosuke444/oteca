@@ -29,6 +29,8 @@ import type { ResultPayload } from '../Result/ResultScene';
 import './battle.css';
 import { local, t } from '../../i18n';
 import { stageByNo } from '../../story/story';
+import { useSave } from '../../state/SaveContext';
+import { applyRateResult } from '../../online/rate';
 import { useT } from '../../i18n/useT';
 import { type TutorialDriver, tutorialThink } from '../../tutorial/driver';
 import { think as defaultThink } from '../../cpu/thinker';
@@ -94,6 +96,7 @@ function targetKeyOf(a: Action, me: Side): string | null {
 export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; guide?: BattleGuide } = {}) {
   const { payload, go } = useNav();
   const setup = setupProp ?? (payload as BattleSetup);
+  const { update: updateSave } = useSave();
   const fx = useFx();
   const tr = useT();
 
@@ -302,7 +305,8 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
   // ---------------------------------------------------------------- 決着 → リザルトへ
   useEffect(() => {
     // 通信のずれ・相手の退室で止めた試合は、決着してもリザルトへ進まない（記録しない）
-    if (!view || view.phase !== 'over' || busy || online.problem) return;
+    // ずれ・ごまかしの時だけ止める（決着の後に相手がリザルトで部屋を出ても、自分もリザルトへ進む）
+    if (!view || view.phase !== 'over' || busy || online.problem === 'desync' || online.problem === 'cheat') return;
     if (guide) {
       const id = window.setTimeout(() => guide.onOver(view.winner!), fxRef.current.dur(400));
       return () => window.clearTimeout(id);
@@ -319,6 +323,40 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     const id = window.setTimeout(() => go('result', result), fxRef.current.dur(400));
     return () => window.clearTimeout(id);
   }, [view, busy, go, setup, online.problem]);
+
+  // ---------------------------------------------------------------- レート対戦の途中で終わった試合（v2.0-G。SPEC §7 S15）
+  const rateDone = useRef(false);
+  useEffect(() => {
+    if (!setup.rated || rateDone.current || !view || view.phase === 'over') return;
+    // 相手の通信が30秒もどらない・相手が部屋を出た：残った側の勝ち（リザルトでレートに書く）
+    if (online.connection === 'lost' || online.problem === 'left') {
+      rateDone.current = true;
+      const match = matchRef.current!;
+      const result: ResultPayload = {
+        setup,
+        winner: setup.me,
+        reason: 'disconnect',
+        stats: statsRef.current.result(match.state),
+        log: [...match.log],
+        finalHash: hashState(match.state),
+      };
+      endOnline();
+      go('result', result);
+      return;
+    }
+    // データのずれ・種のごまかし：無効試合（レートもコインも変わらない。「レート対戦中」の印は消す）
+    if (online.problem === 'desync' || online.problem === 'cheat') {
+      rateDone.current = true;
+      updateSave((d) => void applyRateResult(d, setup.rated!.oppRate, 'void'));
+    }
+  }, [online.connection, online.problem, view?.phase]);
+
+  // 再戦で相手がデッキを変えていたら、対戦の始めに知らせる（v2.0-G）
+  useEffect(() => {
+    if (setup.mode !== 'online') return;
+    const g = currentOnline()?.lastStart;
+    if (g && g.game === (setup.game ?? 0) && g.oppDeckChanged) setToast({ text: t().battle.oppDeckChanged, n: 1 });
+  }, []);
 
   // ---------------------------------------------------------------- ブラウザの戻るボタン（SPEC §3）
   useEffect(() => {
@@ -590,7 +628,8 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     const extra = setup.mode === 'online' ? { desyncTurn: online.desyncTurn, rejected: match.rejected, session: currentOnline()?.session.debugLog() ?? null } : undefined;
     downloadActionLog(buildActionLog(setup, match.log, hashState(match.state), extra));
   };
-  const lostOpen = setup.mode === 'online' && online.connection === 'lost' && !online.problem && view.phase !== 'over';
+  // レート対戦では「きれた」を選ばせず、残った側の勝ちにする（下の effect）
+  const lostOpen = setup.mode === 'online' && !setup.rated && online.connection === 'lost' && !online.problem && view.phase !== 'over';
 
   return (
     <div className="battle" ref={rootRef}>

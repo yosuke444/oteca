@@ -7,7 +7,10 @@ import { DeckChooser } from '../../ui/deck/DeckPicker';
 import { audio } from '../../audio/audioManager';
 import { isValidRoomNumber } from '../../net/protocol';
 import { type OnlineLink, currentOnline, endOnline, startOnline } from '../../net/online';
-import type { SessionStatus } from '../../net/session';
+import { type InviteState, ROOM_MAX, type RoomMember, type SessionStatus } from '../../net/session';
+import { safeName } from '../../online/rate';
+import { Dialog } from '../../ui/common/Dialog';
+import { DeckPickerDialog } from '../../ui/deck/DeckPicker';
 import { isDebugMode, useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { NumberPad } from '../../ui/common/NumberPad';
@@ -52,21 +55,30 @@ function errorText(s: SessionStatus): string | null {
   }
 }
 
-/** S03 フレンド対戦ロビー（SPEC §7） */
+/** リザルトの「ほかの ひとと あそぶ」から戻る時（いまの部屋の通信のまま、へやの なかま を出す。v2.0-G） */
+export type LobbyPayload = { backToRoom?: boolean } | null;
+
+/** S03 フレンド対戦ロビー（SPEC §7。v2.0-G：へやの なかま） */
 export function LobbyScene() {
-  const { go } = useNav();
+  const { go, payload } = useNav();
+  const back = (payload as LobbyPayload)?.backToRoom ? currentOnline() : null;
   const { save, update } = useSave();
   const tr = useT();
   const usable = usableDecks(save)
     .map((ok, i) => ({ ok, i }))
     .filter((u) => u.ok);
-  const [room, setRoom] = useState('');
+  const [room, setRoom] = useState(back?.roomNumber ?? '');
   const [deck, setDeck] = useState(usable.some((u) => u.i === save.selectedDeck) ? save.selectedDeck : (usable[0]?.i ?? -1));
-  const [phase, setPhase] = useState<Phase>({ kind: 'input' });
+  const [phase, setPhase] = useState<Phase>(back ? { kind: 'waiting' } : { kind: 'input' });
   const [waitedMs, setWaitedMs] = useState(0);
   const [dots, setDots] = useState(0);
-  const linkRef = useRef<OnlineLink | null>(null);
-  const [link, setLink] = useState<OnlineLink | null>(null);
+  const linkRef = useRef<OnlineLink | null>(back);
+  const [link, setLink] = useState<OnlineLink | null>(back);
+  const [members, setMembers] = useState<RoomMember[]>(back?.members ?? []);
+  const [invite, setInvite] = useState<InviteState>(back?.session.invite ?? { kind: 'none' });
+  const [note, setNote] = useState<{ text: string; n: number } | null>(null);
+  const [picking, setPicking] = useState(false);
+  const say = (text: string) => setNote((x) => ({ text, n: (x?.n ?? 0) + 1 }));
   /** 対戦画面へ進んだ（画面を出ても通信は切らない） */
   const toBattle = useRef(false);
   const vsDone = useRef(false);
@@ -96,7 +108,7 @@ export function LobbyScene() {
     if (!canJoin) return;
     vsDone.current = false;
     setWaitedMs(0);
-    const l = startOnline(room, save.playerName, save.decks[deck].cards);
+    const l = startOnline({ kind: 'friend', roomNumber: room }, { name: save.playerName, deck: save.decks[deck].cards, deckName: save.decks[deck].name });
     linkRef.current = l;
     setLink(l);
     setPhase({ kind: 'waiting' });
@@ -122,6 +134,20 @@ export function LobbyScene() {
         setPhase({ kind: 'found', opp });
       }),
       link.on('waitingTick', (ms) => setWaitedMs(ms)),
+      link.on('members', (m) => setMembers(m)),
+      link.on('invite', (s) => {
+        setInvite(s);
+        if (s.kind === 'received') audio.play('se_match_found');
+        if (s.kind === 'declined') {
+          say(t().lobby.declined(safeName(s.name, t().lobby.nameless)));
+          link.session.clearInviteNote();
+        }
+        if (s.kind === 'expired') {
+          say(t().lobby.expired);
+          link.session.clearInviteNote();
+        }
+      }),
+      link.on('joinLeave', (e) => say(e.kind === 'join' ? t().lobby.joined(safeName(e.name, t().lobby.nameless)) : t().lobby.left(safeName(e.name, t().lobby.nameless)))),
       link.on('start', () => tryGo()),
       // 相手が見つかった後に、相手が消えてしまった
       link.on('connection', (c) => {
@@ -160,6 +186,13 @@ export function LobbyScene() {
     }
   }, [phase]);
 
+  // 知らせ（人の出入り・ことわられた）は少しで消す
+  useEffect(() => {
+    if (!note) return;
+    const id = window.setTimeout(() => setNote(null), 2600);
+    return () => window.clearTimeout(id);
+  }, [note]);
+
   // 待っている間の「…」が増えていくアニメ
   useEffect(() => {
     if (phase.kind !== 'waiting') return;
@@ -179,13 +212,122 @@ export function LobbyScene() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  // 画面を出る時（対戦へ進む時以外）は部屋を出る
-  useEffect(
-    () => () => {
-      if (!toBattle.current && linkRef.current && currentOnline() === linkRef.current) endOnline();
-    },
-    [],
+  // 画面を出る時（対戦へ進む時以外）は部屋を出る。
+  // 開発時の StrictMode は「片付け → すぐ作り直し」をするので、少し待って本当に出た時だけ（部屋に戻ってきた時の通信を切らないように）
+  const mounted = useRef(0);
+  useEffect(() => {
+    mounted.current += 1;
+    return () => {
+      mounted.current -= 1;
+      window.setTimeout(() => {
+        if (mounted.current === 0 && !toBattle.current && linkRef.current && currentOnline() === linkRef.current) endOnline();
+      }, 0);
+    };
+  }, []);
+
+  const others = members.filter((m) => !m.me);
+  const nameless = tr.lobby.nameless;
+  const curDeck = save.decks[save.selectedDeck];
+  /** 次の試合から使うデッキを変える（「デッキを かえる」） */
+  const changeDeck = (i: number) => {
+    update((d) => void (d.selectedDeck = i));
+    setDeck(i);
+    linkRef.current?.session.setDeck(save.decks[i].cards, save.decks[i].name);
+    setPicking(false);
+  };
+  const deckRow = (
+    <div className="lobby-room__deck">
+      <span>{tr.lobby.myDeck(curDeck.name)}</span>
+      <RoughButton seed="lobby-room-deck" className="lobby-room__deck-btn" onClick={() => setPicking(true)} data-testid="room-change-deck">
+        {tr.lobby.changeDeck}
+      </RoughButton>
+    </div>
   );
+  const overlays = (
+    <>
+      {picking && <DeckPickerDialog save={save} current={save.selectedDeck} mode="battle" title={tr.lobby.changeDeck} note={tr.lobby.nextGameNote} onPick={changeDeck} onClose={() => setPicking(false)} />}
+      {invite.kind === 'received' && (
+        <Dialog
+          seed="lobby-invite"
+          title={tr.lobby.inviteReceived(safeName(invite.name, nameless))}
+          actions={
+            <>
+              <RoughButton seed="invite-no" onClick={() => link?.session.answerInvite(false)} data-testid="invite-decline">
+                {tr.lobby.decline}
+              </RoughButton>
+              <RoughButton seed="invite-yes" highlight onClick={() => link?.session.answerInvite(true)} data-testid="invite-accept">
+                {tr.lobby.accept}
+              </RoughButton>
+            </>
+          }
+        >
+          {null}
+        </Dialog>
+      )}
+      {note && (
+        <div key={note.n} className="lobby-room__note" role="status">
+          {note.text}
+        </div>
+      )}
+    </>
+  );
+
+  // 部屋にほかの人がいる時：へやの なかま（v2.0-G。8人まで。名前を押すと「あそぼう！」）
+  if (phase.kind === 'waiting' && others.length > 0) {
+    return (
+      <div className="lobby lobby--room" data-testid="room">
+        <h1 className="lobby__title">{tr.lobby.roomTitle}</h1>
+        <div className="lobby-room__num">
+          <span className="pencil">{tr.lobby.roomLabel}</span>
+          <span className="num" data-testid="room-number">
+            {room}
+          </span>
+        </div>
+        <p className="lobby-room__tell pencil">{tr.lobby.tell}</p>
+        <RoughBox seed="lobby-room-list" className="lobby-room__list" paper radius={10}>
+          <p className="lobby-room__count pencil">{tr.lobby.count(members.length, ROOM_MAX)}</p>
+          <ul className="lobby-room__members">
+            {members.map((m) => {
+              const canInvite = !m.me && m.state === 'waiting' && invite.kind === 'none';
+              const label = m.me ? m.name : safeName(m.name, nameless);
+              return (
+                <li key={m.peerId} className={`lobby-room__member is-${m.state} ${m.me ? 'is-me' : ''}`}>
+                  {canInvite ? (
+                    <button type="button" className="lobby-room__name lobby-room__name--btn" aria-label={tr.lobby.inviteAria(label)} onClick={() => link?.session.inviteTo(m.peerId)} data-testid={`invite-${label}`}>
+                      {label}
+                    </button>
+                  ) : (
+                    <span className="lobby-room__name">
+                      {label}
+                      {m.me && <small className="pencil">{tr.lobby.meTag}</small>}
+                    </span>
+                  )}
+                  <span className={`lobby-room__state ${m.state === 'waiting' ? 'blue-pen' : 'pencil'}`}>{m.state === 'waiting' ? tr.lobby.stateWaiting : tr.lobby.statePlaying}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </RoughBox>
+        <div className="lobby-room__side">
+          {deckRow}
+          {invite.kind === 'sent' ? (
+            <div className="lobby-room__sent">
+              <p>{tr.lobby.inviteSent(safeName(invite.name, nameless))}</p>
+              <RoughButton seed="invite-cancel" onClick={() => link?.session.cancelInvite()} data-testid="invite-cancel">
+                {tr.lobby.inviteCancel}
+              </RoughButton>
+            </div>
+          ) : (
+            <p className="lobby-room__hint">{tr.lobby.inviteHint}</p>
+          )}
+        </div>
+        <RoughButton seed="lobby-cancel" className="lobby-room__leave" onClick={cancel}>
+          {tr.lobby.leaveRoom}
+        </RoughButton>
+        {overlays}
+      </div>
+    );
+  }
 
   if (phase.kind === 'waiting') {
     return (
@@ -202,9 +344,11 @@ export function LobbyScene() {
           <span className="lobby-wait__dots">{tr.lobby.dot.repeat(dots)}</span>
         </p>
         {waitedMs >= HINT_AFTER_MS && <p className="lobby-wait__hint red-pen">{tr.lobby.checkNumber}</p>}
+        <div className="lobby-wait__deck">{deckRow}</div>
         <RoughButton seed="lobby-cancel" className="lobby-wait__cancel" onClick={cancel}>
           {tr.common.cancel}
         </RoughButton>
+        {overlays}
       </div>
     );
   }
@@ -229,7 +373,7 @@ export function LobbyScene() {
         <div className="lobby-vs__vs">VS</div>
         <div className="lobby-vs__side lobby-vs__side--opp">
           <span className="lobby-vs__who pencil">{tr.common.opp}</span>
-          <span className="lobby-vs__name red-pen">{phase.opp}</span>
+          <span className="lobby-vs__name red-pen">{safeName(phase.opp, nameless)}</span>
         </div>
       </div>
     );
@@ -238,7 +382,7 @@ export function LobbyScene() {
   return (
     <div className="lobby">
       <h1 className="lobby__title">{tr.lobby.title}</h1>
-      <RoughButton seed="lobby-back" className="lobby__back" onClick={() => go('menu')}>
+      <RoughButton seed="lobby-back" className="lobby__back" onClick={() => go('online')}>
         {tr.common.back}
       </RoughButton>
 

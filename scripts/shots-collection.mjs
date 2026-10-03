@@ -185,11 +185,13 @@ for (const lang of ['hira', 'kanji']) {
   await btn(L.back).click();
 
   // ---- フレンド対戦・デバッグ対戦
-  await btn(L.friend).click();
+  await page.getByTestId('menu-online').click();
+  await page.getByTestId('online-friend').click();
   await snap(lang, '11_lobby');
   await btn(L.choose).click();
   await snap(lang, '12_lobby_picker');
   await btn(L.close).click();
+  await btn(L.back).click();
   await btn(L.back).click();
   await btn(L.debug).click();
   await snap(lang, '13_debug');

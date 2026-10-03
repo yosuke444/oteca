@@ -62,6 +62,7 @@ export function NameScene() {
           }}
         />
         {warn && <p className="name-scene__warn red-pen">{tr.name.empty}</p>}
+        <p className="name-scene__safe red-pen">{tr.settings.nameWarn}</p>
       </RoughBox>
       <RoughButton seed="name-ok" className="name-scene__ok" highlight strokeWidth={3} onClick={decide} data-testid="name-ok">
         {tr.name.ok}

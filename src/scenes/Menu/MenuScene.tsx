@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { clearPendingNotice, peekPendingNotice } from '../../online/rate';
 import { features } from '../../config/features';
 import { isDebugMode, useNav } from '../../router';
 import { RoughBox } from '../../ui/rough/RoughBox';
@@ -16,7 +17,7 @@ import { PresentBox } from '../../ui/coin/PresentBox';
 import { ECONOMY, canClaimLoginBonus, claimLoginBonus, todayKey } from '../../economy/rewards';
 import './menu.css';
 
-type LockedId = 'story' | 'gacha';
+type LockedId = 'story' | 'gacha' | 'trade' | 'ranking';
 
 /** S01 メニュー（SPEC §7） */
 export function MenuScene() {
@@ -25,7 +26,7 @@ export function MenuScene() {
   const { save, update, remindBackup } = useSave();
   const tr = useT();
   // 🔒 じゅんびちゅう のふせんを揺らす合図（押した回数）
-  const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0 });
+  const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0, trade: 0, ranking: 0 });
 
   // ログインボーナス（SPEC §7 S11）：その日初めてメニューを開いたら、プレゼントボックスを置く
   const today = todayKey(new Date());
@@ -40,6 +41,10 @@ export function MenuScene() {
   useEffect(() => {
     if (gachaInvite) update((d) => void (d.tutorial.gachaInviteShown = true));
   }, []);
+
+  // 前のレート対戦が とちゅうで終わって負けになった（v2.0-G。1回だけ）
+  const [rateNotice, setRateNotice] = useState(() => peekPendingNotice());
+  useEffect(() => clearPendingNotice(), []);
 
   const pressLocked = (id: LockedId) => {
     // 機能フラグが ON になったら、その画面へ進む
@@ -66,8 +71,8 @@ export function MenuScene() {
         </RoughButton>
       </div>
 
-      {/* 左：フレンドたいせん（いちばん大きい）とロック中の2つ */}
-      <RoughButton seed="menu-friend" className="menu-scene__friend" strokeWidth={3} onClick={() => go('lobby')}>
+      {/* 左：オンラインたいせん（いちばん大きい。v2.0-G）・デッキへんしゅう。まんなか：ストーリー・CPU。右：ガチャ・トレード（UPDATE_v2 §0-2） */}
+      <RoughButton seed="menu-friend" className="menu-scene__friend" strokeWidth={3} onClick={() => go('online')} data-testid="menu-online">
         <span className="menu-scene__friend-label">
           {tr.menu.friend}
           <small>{tr.menu.friendSub}</small>
@@ -84,6 +89,8 @@ export function MenuScene() {
 
       <LockedButton id="story" label={tr.menu.story} shake={shake.story} onPress={pressLocked} />
       <LockedButton id="gacha" label={tr.menu.gacha} shake={shake.gacha} onPress={pressLocked} />
+      <LockedButton id="trade" label={tr.menu.trade} shake={shake.trade} onPress={pressLocked} />
+      <LockedButton id="ranking" label={tr.menu.ranking} shake={shake.ranking} onPress={pressLocked} />
       {gachaInvite && (
         <div className="menu-scene__gacha-invite" data-testid="gacha-invite">
           <Sticky seed="menu-gacha-invite" color="yellow" angle={-6}>
@@ -138,6 +145,22 @@ export function MenuScene() {
             if (tryTutorial) go('tutorial');
           }}
         />
+      )}
+
+      {rateNotice && (
+        <Dialog
+          seed="rate-notice"
+          title={tr.online.pendingTitle}
+          onClose={() => setRateNotice(null)}
+          actions={
+            <RoughButton seed="rate-notice-ok" highlight onClick={() => setRateNotice(null)}>
+              {tr.common.ok}
+            </RoughButton>
+          }
+        >
+          <p data-testid="rate-notice">{tr.online.pendingLost}</p>
+          <p className="num">{tr.online.rateChange(rateNotice.before, rateNotice.after)}</p>
+        </Dialog>
       )}
 
       {/* ログインボーナスのプレゼントボックス */}
@@ -217,7 +240,7 @@ function LockedButton({
         {label}
       </RoughButton>
       {locked && (
-        <Sticky seed={`menu-${id}-sticky`} angle={id === 'story' ? -8 : 7} shake={shake} className="menu-scene__locked-sticky">
+        <Sticky seed={`menu-${id}-sticky`} angle={id === 'story' || id === 'trade' ? -8 : 7} shake={shake} className="menu-scene__locked-sticky">
           {tr.menu.lockedTop}
           <br />
           {tr.menu.lockedBottom}

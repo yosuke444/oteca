@@ -123,11 +123,12 @@
 
 /* デバッグ対戦：行動ログの保存 */
 .result__savelog {
+  /* デバッグの時だけ：左上（下のボタンが4つ並ぶ時・右上のコインに重ならないように） */
   position: absolute;
-  right: 30px;
-  bottom: 24px;
-  width: 290px;
-  height: 56px;
+  left: 20px;
+  top: 14px;
+  width: 240px;
+  height: 48px;
   font-size: 20px;
   white-space: nowrap;
   color: var(--pen-red);
@@ -213,5 +214,42 @@
   animation: story-stamp-in calc(500ms / var(--fx-speed)) cubic-bezier(0.3, 1.6, 0.5, 1) calc(900ms / var(--fx-speed)) both;
 }
 html[data-reduce-fx] .result__story-first {
+  animation: none;
+}
+
+/* レート対戦（v2.0-G）：100 → 112 と「+12」を蛍光ペンで */
+.result__rate {
+  position: absolute;
+  left: 30px;
+  top: 78px;
+  z-index: 3;
+  margin: 0;
+  max-width: 420px;
+  font-size: 30px;
+  rotate: -3deg;
+}
+.result__rate-diff {
+  margin-left: 16px;
+  padding: 0 10px;
+  font-size: 44px;
+  background: linear-gradient(transparent 50%, var(--marker-yellow) 50%);
+  animation: story-stamp-in calc(500ms / var(--fx-speed)) cubic-bezier(0.3, 1.6, 0.5, 1) calc(1200ms / var(--fx-speed)) both;
+}
+.result__rate-diff.is-up {
+  color: var(--pen-red);
+}
+.result__rate-diff.is-down {
+  color: var(--pen-blue);
+  background: linear-gradient(transparent 50%, var(--marker-pink) 50%);
+}
+.result__rate-note {
+  position: absolute;
+  left: 30px;
+  top: 136px;
+  width: 380px;
+  margin: 0;
+  font-size: 20px;
+}
+html[data-reduce-fx] .result__rate-diff {
   animation: none;
 }

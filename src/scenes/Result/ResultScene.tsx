@@ -27,11 +27,16 @@ import { type StoryReward, applyStoryResult, opensAfter, stageByNo } from '../..
 import { LimitedCardFx } from '../Story/LimitedCardFx';
 import type { StoryPayload } from '../Story/StoryScene';
 import '../Story/story.css';
+import { DeckPickerDialog } from '../../ui/deck/DeckPicker';
+import { type RateChange, applyRateResult, rateOutcome } from '../../online/rate';
+import type { LobbyPayload } from '../Lobby/LobbyScene';
+import type { RatePayload } from '../Online/RateScene';
 
 export type ResultPayload = {
   setup: BattleSetup;
   winner: Side;
-  reason: EndReason;
+  /** disconnect：レート対戦で相手の通信が切れた・部屋を出た（残った側の勝ち。v2.0-G） */
+  reason: EndReason | 'disconnect';
   stats: MatchStats;
   log: Action[];
   /** 最後の状態ハッシュ（行動ログの保存用） */
@@ -81,9 +86,39 @@ export function ResultScene() {
     return () => offs.forEach((f) => f());
   }, [link, go, r.setup.game]);
 
+  // 「デッキを かえる」（v2.0-G）：次の試合から。CPU対戦の「もういっかい」も新しいデッキで
+  const [picking, setPicking] = useState(false);
+  const [myCards, setMyCards] = useState<number[] | null>(null);
+  const changeDeck = (i: number) => {
+    update((d) => void (d.selectedDeck = i));
+    setMyCards(save.decks[i].cards);
+    link?.session.setDeck(save.decks[i].cards, save.decks[i].name);
+    setPicking(false);
+  };
+  // 相手が「ほかの ひとと あそぶ」で部屋に戻った・部屋に まちあい の人がいる（v2.0-G）
+  const [oppBack, setOppBack] = useState(link?.oppBack ?? false);
+  const [othersWaiting, setOthersWaiting] = useState(link?.session.othersWaiting ?? false);
+  useEffect(() => {
+    if (!link) return;
+    const offs = [link.on('oppBack', () => setOppBack(true)), link.on('members', () => setOthersWaiting(link.session.othersWaiting))];
+    return () => offs.forEach((f) => f());
+  }, [link]);
+  const toRoom = () => {
+    link?.backToRoom();
+    go('lobby', { backToRoom: true } satisfies LobbyPayload);
+  };
+  // 相手が部屋に戻った（自分も まちあい になった）：「あいては へやに もどったよ」を少し見せてから へやの なかま へ
+  // （リザルトに居たまま申し込まれたり、2人の部屋で自動で始まったりしないように）
+  useEffect(() => {
+    if (!oppBack || !link || rated) return;
+    const id = window.setTimeout(() => go('lobby', { backToRoom: true } satisfies LobbyPayload), fxRef.current.dur(2200));
+    return () => window.clearTimeout(id);
+  }, [oppBack]);
+
   const again = () => {
     if (!link) {
-      go('battle', rematchSetup(r.setup));
+      const s = rematchSetup(r.setup);
+      go('battle', myCards ? { ...s, decks: { ...s.decks, [me]: myCards } } : s);
       return;
     }
     setWaitingRematch(true);
@@ -95,6 +130,8 @@ export function ResultScene() {
   };
   const rematchNote = agree === false
     ? tr.result.disagree
+    : oppBack
+    ? tr.result.oppBack
     : oppGone
     ? tr.result.oppLeft
     : waitingRematch
@@ -111,7 +148,7 @@ export function ResultScene() {
 
   // 勝敗数をセーブデータに記録（フレンド対戦は stats、CPU対戦は強さごとの cpuStats。中断・切断は記録しない）
   useEffect(() => {
-    if (recorded.current || !r.setup.record) return;
+    if (recorded.current || !r.setup.record || r.setup.rated) return;
     if (r.setup.mode === 'online' && agree !== true) return;
     recorded.current = true;
     // 対戦の報酬（SPEC §7 S11）：勝敗の記録と同じ保存で、コイン（と今日の試合数）を足す
@@ -131,6 +168,28 @@ export function ResultScene() {
     });
     setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
   }, [r.setup.record, r.setup.mode, r.setup.cpuLevel, r.stats.turnCounts, update, win, agree, save]);
+
+  // レート対戦（v2.0-G。SPEC §7 S15）：2人の結果がそろったら勝ち・負け、食い違ったら無効。相手が切れたら残った側の勝ち。
+  // レート・勝敗・コイン・「レート対戦中」の印の消去を1回の保存で
+  const rated = r.setup.rated;
+  const [rateChange, setRateChange] = useState<RateChange | null>(null);
+  useEffect(() => {
+    if (!rated || recorded.current) return;
+    const decided = rateOutcome({ reason: r.reason, agree, win, oppGone, online: navigator.onLine !== false });
+    if (!decided) return;
+    recorded.current = true;
+    const { outcome } = decided;
+    const today = todayKey(new Date());
+    const info: MatchInfo = { kind: decided.coins ? 'rate' : 'none', win, turnCounts: r.stats.turnCounts };
+    const got = matchReward(save, info, today);
+    const before = save.coins;
+    // 「レート対戦中」の印が、この相手のものの時だけ書く（別のタブなどで先に計算していたら書かない）
+    setRateChange(applyRateResult(structuredClone(save), rated.oppRate, outcome, rated.oppId) ?? { before: save.rate, after: save.rate, outcome: 'void' });
+    update((d) => {
+      if (applyRateResult(d, rated.oppRate, outcome, rated.oppId)) applyMatchReward(d, info, today);
+    });
+    setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
+  }, [agree, oppGone]);
 
   // ストーリー（SPEC §7 S08）：勝った時だけ、クリアの印・コイン・限定カードを1回の保存で。ステージ選びへ戻る時に、新しく開いたステージを渡す
   const story = r.setup.story;
@@ -231,7 +290,7 @@ export function ResultScene() {
         <span>{title}</span>
       </h1>
       <p className="result__reason">
-        {tr.result.reason[r.reason]}
+        {r.reason === 'disconnect' ? tr.result.reasonDisconnect : tr.result.reason[r.reason]}
         {hotSeat ? '' : win ? tr.result.youWin : tr.result.oppWins(r.setup.names[opp])}
       </p>
 
@@ -276,7 +335,21 @@ export function ResultScene() {
       <canvas key="fx-particles" className="fx-particles" ref={canvasRef} />
 
       <div className="result__buttons">
-        {story ? (
+        {rated ? (
+          <RoughButton
+            seed="result-next"
+            className="result__btn"
+            highlight={!!rateChange}
+            disabled={!rateChange}
+            onClick={() => {
+              endOnline();
+              go('rate', { autoSearch: true } satisfies RatePayload);
+            }}
+            data-testid="rate-next"
+          >
+            {tr.rate.next}
+          </RoughButton>
+        ) : story ? (
           <>
             {!win && (
               <RoughButton
@@ -295,13 +368,23 @@ export function ResultScene() {
             </RoughButton>
           </>
         ) : (
-          <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone} disabled={waitingRematch || oppGone} onClick={again}>
+          <RoughButton seed="result-again" className="result__btn" highlight={!waitingRematch && !oppGone && !oppBack} disabled={waitingRematch || oppGone || oppBack} onClick={again}>
             {tr.result.again}
           </RoughButton>
         )}
         {r.setup.mode === 'cpu' && !r.setup.debug && !story && (
           <RoughButton seed="result-level" className="result__btn" onClick={() => go('cpu')}>
             {tr.result.changeLevel}
+          </RoughButton>
+        )}
+        {r.setup.mode === 'online' && !rated && (othersWaiting || oppBack) && link && !oppGone && (
+          <RoughButton seed="result-room" className="result__btn" onClick={toRoom} data-testid="result-room">
+            {tr.result.otherPlayers}
+          </RoughButton>
+        )}
+        {(r.setup.mode === 'online' || (r.setup.mode === 'cpu' && !story && !r.setup.debug)) && (
+          <RoughButton seed="result-deck" className="result__btn" onClick={() => setPicking(true)} data-testid="result-change-deck">
+            {tr.result.changeDeck}
           </RoughButton>
         )}
         <RoughButton seed="result-menu" className="result__btn" onClick={toMenu}>
@@ -326,6 +409,25 @@ export function ResultScene() {
           {reward.status === 'limit' && <p className="result__reward-note pencil">{tr.result.rewardLimit}</p>}
           {reward.status === 'short' && <p className="result__reward-note pencil">{tr.result.rewardShort}</p>}
         </div>
+      )}
+      {rateChange && (
+        <p className={`result__rate num ${rateChange.outcome === 'void' ? 'pencil' : ''}`} data-testid="rate-change">
+          {rateChange.outcome === 'void' ? (
+            tr.rate.voided
+          ) : (
+            <>
+              {tr.online.rateChange(rateChange.before, rateChange.after)}
+              <span className={`result__rate-diff ${rateChange.after >= rateChange.before ? 'is-up' : 'is-down'}`}>
+                {rateChange.after >= rateChange.before ? '+' : ''}
+                {rateChange.after - rateChange.before}
+              </span>
+            </>
+          )}
+        </p>
+      )}
+      {r.reason === 'disconnect' && <p className="result__rate-note blue-pen">{tr.rate.won}</p>}
+      {picking && (
+        <DeckPickerDialog save={save} current={save.selectedDeck} mode="battle" title={tr.result.changeDeck} note={tr.lobby.nextGameNote} onPick={changeDeck} onClose={() => setPicking(false)} />
       )}
       {storyGot?.first && (
         <p className="result__story-first red-pen" data-testid="story-first">

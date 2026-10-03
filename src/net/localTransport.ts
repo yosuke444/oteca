@@ -1,36 +1,58 @@
 import { isMsg, type Msg } from './protocol';
 import type { NetTransport } from './transport';
 
-type Envelope =
+export type Envelope =
   | { kind: 'join'; from: string }
   | { kind: 'here'; from: string; to: string }
   | { kind: 'leave'; from: string }
   | { kind: 'msg'; from: string; to?: string; msg: Msg };
 
+/** 開発用の通り道：部屋ごとに、全員へ配る */
+export type DevBus = { post(e: Envelope): void; close(): void };
+export type DevBusFactory = (room: string, onEnvelope: (e: Envelope) => void) => DevBus;
+
+/** 同じブラウザのタブどうし（BroadcastChannel） */
+const broadcastBus: DevBusFactory = (room, on) => {
+  const ch = new BroadcastChannel(`oteca-local-${room}`);
+  ch.onmessage = (ev: MessageEvent<Envelope>) => on(ev.data);
+  return { post: (e) => ch.postMessage(e), close: () => ch.close() };
+};
+
+/** 開発サーバーの中継（vite.config.ts の devRelay。別々のブラウザでもつながる。v2.0-G） */
+export const devRelayBus: DevBusFactory = (room, on) => {
+  const hot = import.meta.hot;
+  const handler = (data: { room: string; e: Envelope }) => {
+    if (data && data.room === room) on(data.e);
+  };
+  hot?.on('oteca:relay', handler);
+  return {
+    post: (e) => hot?.send('oteca:relay', { room, e }),
+    close: () => hot?.off('oteca:relay', handler),
+  };
+};
+
 /**
- * 開発用：同じブラウザのタブどうしだけでつながる通信（BroadcastChannel）
- * URL に ?net=local を付けた時だけ使う。公開の中継網につながらない環境で、
- * ロビー〜対戦〜再戦の流れを確かめるためのもの。本番のフレンド対戦は Trystero を使う。
+ * 開発用：同じブラウザのタブどうしだけでつながる通信（BroadcastChannel。?net=local）か、
+ * 開発サーバーの中継でつながる通信（?net=dev。3〜4つのブラウザで部屋・レートの待合所を確かめる時）。
+ * 公開の中継網につながらない環境で、ロビー〜対戦〜再戦の流れを確かめるためのもの。本番のフレンド対戦は Trystero を使う。
  */
 export class LocalTransport implements NetTransport {
   readonly selfId: string;
-  private ch: BroadcastChannel | null = null;
+  private ch: DevBus | null = null;
   private readonly peers = new Set<string>();
   onMessage: NetTransport['onMessage'] = () => {};
   onPeerJoin: NetTransport['onPeerJoin'] = () => {};
   onPeerLeave: NetTransport['onPeerLeave'] = () => {};
   onError: NetTransport['onError'] = () => {};
 
-  constructor() {
+  constructor(private readonly bus: DevBusFactory = broadcastBus) {
     const b = new Uint8Array(8);
     crypto.getRandomValues(b);
     this.selfId = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
   }
 
   join(room: string): void {
-    const ch = new BroadcastChannel(`oteca-local-${room}`);
-    this.ch = ch;
-    ch.onmessage = (ev: MessageEvent<Envelope>) => this.receive(ev.data);
+    this.ch = this.bus(room, (e) => this.receive(e));
     this.post({ kind: 'join', from: this.selfId });
     window.addEventListener('pagehide', this.onHide);
   }
@@ -51,7 +73,7 @@ export class LocalTransport implements NetTransport {
   private readonly onHide = () => this.leave();
 
   private post(e: Envelope): void {
-    this.ch?.postMessage(e);
+    this.ch?.post(e);
   }
 
   private addPeer(id: string): void {

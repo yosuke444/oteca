@@ -1,8 +1,10 @@
 import { appVersion, protocolVersion } from '../config/version';
 import type { Action } from '../engine/types';
 import { FlakyTransport } from './flakyTransport';
-import { LocalTransport } from './localTransport';
-import { type Connection, type GameStart, OnlineSession, type SessionStatus } from './session';
+import { LocalTransport, devRelayBus } from './localTransport';
+import { type Connection, type GameStart, type InviteState, OnlineSession, type RoomMember, type SessionStatus } from './session';
+import { rateRoomName, roomName } from './protocol';
+import { RateLobby } from './rateLobby';
 import type { NetTransport } from './transport';
 import { TrysteroTransport } from './trysteroTransport';
 
@@ -22,7 +24,20 @@ type Events = {
   desync: number;
   waitingTick: number;
   result: boolean;
+  /** 部屋の人（v2.0-G） */
+  members: RoomMember[];
+  /** 人が来た・出ていった */
+  joinLeave: { kind: 'join' | 'leave'; name: string };
+  invite: InviteState;
+  /** 相手が「ほかの ひとと あそぶ」で部屋に戻った */
+  oppBack: void;
 };
+
+/** どこに入るか：フレンド部屋（部屋番号）か、レート対戦の2人だけの部屋（v2.0-G） */
+export type OnlinePlace = { kind: 'friend'; roomNumber: string } | { kind: 'rate'; roomId: string };
+
+/** 入る人の情報 */
+export type OnlineMe = { name: string; deck: number[]; deckName: string; rate?: number; playerId?: string };
 
 type Listener<T> = (v: T) => void;
 
@@ -43,15 +58,27 @@ export class OnlineLink {
   private sink: { game: number; fn: (a: Action) => void } | null = null;
   private readonly listeners = new Map<keyof Events, Set<Listener<never>>>();
 
+  /** 部屋の人（いちばん新しい一覧） */
+  members: RoomMember[] = [];
+  /** 相手が部屋に戻った（リザルトで「あいては へやに もどったよ」） */
+  oppBack = false;
+
   constructor(
-    readonly roomNumber: string,
-    readonly myName: string,
-    deck: number[],
+    readonly place: OnlinePlace,
+    readonly me: OnlineMe,
     transport: NetTransport,
   ) {
     this.flaky = new URLSearchParams(window.location.search).get('debug') === '1' ? new FlakyTransport(transport) : null;
     this.transport = this.flaky ?? transport;
-    const s = new OnlineSession(this.transport, { name: myName, deck, protocol: protocolVersion, appVersion, playerId: playerId() });
+    const s = new OnlineSession(this.transport, {
+      name: me.name,
+      deck: me.deck,
+      deckName: me.deckName,
+      protocol: protocolVersion,
+      appVersion,
+      playerId: me.playerId ?? playerId(),
+      ...(me.rate !== undefined ? { rate: me.rate } : {}),
+    });
     this.session = s;
     s.onStatus = (v) => this.emit('status', v);
     s.onMatched = (v) => this.emit('matched', v);
@@ -60,6 +87,7 @@ export class OnlineLink {
       this.resultAgree = null;
       this.oppRematch = false;
       this.myRematch = false;
+      this.oppBack = false;
       this.emit('start', g);
     };
     s.onConnection = (c) => this.emit('connection', c);
@@ -74,6 +102,18 @@ export class OnlineLink {
       this.emit('result', agree);
     };
     s.onWaitingTick = (ms) => this.emit('waitingTick', ms);
+    s.onMembers = (m) => {
+      this.members = m;
+      this.emit('members', m);
+    };
+    s.onJoinLeave = (e) => this.emit('joinLeave', e);
+    s.onInvite = (v) => this.emit('invite', v);
+    s.onOpponentBack = () => {
+      this.oppBack = true;
+      this.oppRematch = false;
+      this.myRematch = false;
+      this.emit('oppBack', undefined);
+    };
     s.onRemoteAction = (a) => {
       const game = this.lastStart?.game ?? 0;
       const list = this.history.get(game) ?? [];
@@ -107,14 +147,27 @@ export class OnlineLink {
     this.myRematch = true;
     this.session.requestRematch();
   }
+
+  /** 「ほかの ひとと あそぶ」：部屋の まちあい に戻る（v2.0-G） */
+  backToRoom(): void {
+    this.myRematch = false;
+    this.oppRematch = false;
+    this.lastStart = null;
+    this.session.backToRoom();
+  }
+
+  /** フレンド部屋の部屋番号（レート対戦の部屋なら ''） */
+  get roomNumber(): string {
+    return this.place.kind === 'friend' ? this.place.roomNumber : '';
+  }
 }
 
 let current: OnlineLink | null = null;
 
-/** 部屋に入る（前の通信があれば閉じてから） */
-export function startOnline(roomNumber: string, name: string, deck: number[]): OnlineLink {
+/** 部屋に入る（前の通信があれば閉じてから）。フレンド部屋は部屋番号、レート対戦は2人だけの部屋 */
+export function startOnline(place: OnlinePlace, me: OnlineMe): OnlineLink {
   endOnline();
-  const link = new OnlineLink(roomNumber, name, deck, createTransport());
+  const link = new OnlineLink(place, me, createTransport());
   current = link;
   if (link.flaky) {
     // 開発用：Playwright などから通信をわざと切れるように
@@ -126,7 +179,7 @@ export function startOnline(roomNumber: string, name: string, deck: number[]): O
       selfId: link.transport.selfId,
     };
   }
-  link.session.join(roomNumber);
+  link.session.joinRoom(place.kind === 'friend' ? roomName(place.roomNumber) : rateRoomName(place.roomId));
   return link;
 }
 
@@ -141,12 +194,20 @@ export function endOnline(): void {
   current = null;
 }
 
+/** レート対戦の待合所（v2.0-G）。画面が閉じる時に leave する */
+export function createRateLobby(opts: { playerId: string; name: string; rate: number; lastOpponentId: string }): RateLobby {
+  return new RateLobby(createTransport(), { ...opts, protocol: protocolVersion });
+}
+
 /**
  * 通信の方式。ふだんは Trystero。
  * URL に ?net=local を付けると、同じブラウザのタブどうしだけでつながる開発用の通信を使う。
  */
 function createTransport(): NetTransport {
-  if (new URLSearchParams(window.location.search).get('net') === 'local') return new LocalTransport();
+  const net = new URLSearchParams(window.location.search).get('net');
+  if (net === 'local') return new LocalTransport();
+  // 開発サーバーの中継（別々のブラウザでもつながる。開発用）
+  if (net === 'dev' && import.meta.hot) return new LocalTransport(devRelayBus);
   return new TrysteroTransport();
 }
 

@@ -122,9 +122,9 @@ export function applyMatchReward(draft: Pick<SaveData, 'dailyReward' | 'coins'>,
  * どの報酬になる試合か（リザルトで使う）。勝敗を記録しない試合（record が false：デバッグ対戦・カードを ためす・チュートリアル）、
  * デバッグのフレンド対戦、2人の結果がそろわなかったフレンド対戦（agree が true でない）は none
  */
-export function rewardKindFor(setup: { mode: 'online' | 'cpu' | 'local'; record: boolean; debug?: boolean }, agree: boolean | null): RewardKind {
+export function rewardKindFor(setup: { mode: 'online' | 'cpu' | 'local'; record: boolean; debug?: boolean; rated?: unknown }, agree: boolean | null): RewardKind {
   if (!setup.record || setup.debug) return 'none';
-  if (setup.mode === 'online') return agree === true ? 'friend' : 'none';
+  if (setup.mode === 'online') return agree === true ? (setup.rated ? 'rate' : 'friend') : 'none';
   if (setup.mode === 'cpu') return 'cpu';
   return 'none';
 }

@@ -1,7 +1,7 @@
 // 4-1・4-2 の確認：2つのブラウザ（別々に起動）で同じ部屋番号に入り、最後まで対戦 → リザルト → 再戦
 // A は 1280×720、B は 844×390。どちらも ?debug=1（状態ハッシュ表示）・演出「さいそく」
 // 使い方：node scripts/online-play.mjs [?debug=1&net=local]（通信方式を変える時だけ）
-import { SIZES, clickText, enterRoom, launch, openPage, setSpeed, shot, toMenu } from './pw.mjs';
+import { SIZES, clickText, enterRoom, launch, openPage, setSpeed, shot, toFriendLobby, toMenu } from './pw.mjs';
 import { step } from './online-step.mjs';
 
 const q = process.argv[2] ?? '?debug=1';
@@ -21,14 +21,14 @@ for (const p of [A, B]) {
 }
 
 // ロビー：入力 → 待機
-await clickText(A.page, 'フレンドたいせん');
+await toFriendLobby(A.page);
 for (const d of room.slice(0, 3)) await A.page.getByRole('button', { name: d, exact: true }).click();
 await shot(A.page, n(A, '01_lobby_input'));
 await clickText(A.page, 'もどる');
 await enterRoom(A.page, room);
 await A.page.getByTestId('room-number').waitFor();
 await shot(A.page, n(A, '02_lobby_waiting'));
-await clickText(B.page, 'フレンドたいせん');
+await toFriendLobby(B.page);
 for (const d of room) await B.page.getByRole('button', { name: d, exact: true }).click();
 await shot(B.page, n(B, '01_lobby_input'));
 await clickText(B.page, 'へやに はいる');

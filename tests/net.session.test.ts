@@ -38,32 +38,36 @@ describe('オンライン：入室と満室（SPEC §11-2）', () => {
     expect(a.starts[0].seed).toBe(b.starts[0].seed);
   });
 
-  it('3人目は「まんいん」になり、2人の対戦は続く', async () => {
+  it('（v2.0-G）対戦中の2人の部屋に3人目が来ても まんいん にならず、まちあい で入る。2人の対戦は続く', async () => {
     const { hub, clock, a, b } = await pair();
     const c = makePeer(hub, clock, 'peer-0'); // ID は一番小さいが、チケットが遅い
     clock.advance(10);
     c.s.join('123456');
     await matchUp(hub, clock);
-    expect(c.statuses).toContain('full');
-    expect(a.statuses).not.toContain('full');
-    expect(b.statuses).not.toContain('full');
+    expect(c.statuses).not.toContain('full');
+    expect(c.s.status.kind).toBe('waiting');
+    expect(c.starts).toHaveLength(0);
     expect(a.s.status.kind).toBe('playing');
+    expect(b.s.status.kind).toBe('playing');
+    // 3人目から見ると、2人は たいせんちゅう
+    expect(c.s.members.filter((m) => !m.me).map((m) => m.state)).toEqual(['playing', 'playing']);
   });
 
-  it('3人がほぼ同時に入っても、チケットが早い2人が対戦者になる', async () => {
+  it('（v2.0-G）3人がほぼ同時に入ると、自動では始まらない（申し込みで決める）', async () => {
     const hub = new MemoryHub();
     const clock = new FakeClock();
     const peers = ['peer-x', 'peer-y', 'peer-z'].map((id, i) => makePeer(hub, clock, id, { seed: i + 5 }));
-    // 3人が部屋に入ってから、まとめてメッセージが届く
     peers[1].s.join('999999');
     clock.advance(1);
     peers[2].s.join('999999');
     clock.advance(1);
     peers[0].s.join('999999');
     await matchUp(hub, clock);
-    expect(peers[1].starts).toHaveLength(1);
-    expect(peers[2].starts).toHaveLength(1);
-    expect(peers[0].statuses).toContain('full');
+    for (const p of peers) {
+      expect(p.starts).toHaveLength(0);
+      expect(p.s.status.kind).toBe('waiting');
+      expect(p.s.members).toHaveLength(3);
+    }
   });
 
   it('対戦中に版の違う人が来ても、対戦は止まらない（その人には満室を返す）', async () => {

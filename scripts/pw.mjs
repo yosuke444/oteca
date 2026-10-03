@@ -73,9 +73,15 @@ export async function setSpeed(page, label) {
   await page.getByRole('button', { name: 'デッキへんしゅう' }).waitFor();
 }
 
+/** メニュー → オンラインたいせん → フレンドたいせん（v2.0-G。どの画面からでも） */
+export async function toFriendLobby(page) {
+  if (await page.getByTestId('menu-online').isVisible().catch(() => false)) await page.getByTestId('menu-online').click();
+  await page.getByTestId('online-friend').click();
+}
+
 /** フレンドたいせん：部屋番号を入れて入室する */
 export async function enterRoom(page, room) {
-  await clickText(page, 'フレンドたいせん');
+  if (!(await page.getByTestId('room-input').isVisible().catch(() => false))) await toFriendLobby(page);
   await page.getByTestId('room-input').waitFor();
   for (const d of room) await page.getByRole('button', { name: d, exact: true }).click();
   await clickText(page, 'へやに はいる');

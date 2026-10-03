@@ -1,0 +1,159 @@
+.online-scene,
+.rate-scene {
+  position: absolute;
+  inset: 0;
+}
+.online-scene__title {
+  position: absolute;
+  left: 48px;
+  top: 14px;
+  margin: 0;
+  font-size: 40px;
+  font-weight: normal;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+}
+.online-scene__coins {
+  position: absolute;
+  right: 220px;
+  top: 22px;
+}
+.online-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 14px;
+  width: 150px;
+  height: 60px;
+  font-size: 24px;
+}
+.online-scene__choice {
+  position: absolute;
+  left: 80px;
+  width: 560px;
+  height: 230px;
+  font-size: 48px;
+}
+.online-scene__choice--rate {
+  top: 120px;
+}
+.online-scene__choice--friend {
+  top: 390px;
+}
+.online-scene__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.online-scene__label small {
+  font-size: 24px;
+  color: var(--pen-blue);
+}
+.online-scene__info {
+  position: absolute;
+  left: 700px;
+  top: 140px;
+  width: 500px;
+  height: 260px;
+}
+.online-scene__info > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px 28px;
+}
+.online-scene__info p {
+  margin: 0;
+}
+.online-scene__rate {
+  font-size: 40px;
+}
+.online-scene__rec,
+.online-scene__coins-left {
+  font-size: 22px;
+}
+.online-scene__art {
+  position: absolute;
+  right: 120px;
+  bottom: 40px;
+}
+
+/* ---------- レートたいせん ---------- */
+.rate-scene__panel {
+  position: absolute;
+  left: 240px;
+  top: 110px;
+  width: 800px;
+  height: 560px;
+}
+.rate-scene__panel > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 26px 40px;
+}
+.rate-scene__rate {
+  margin: 0;
+  font-size: 44px;
+}
+.rate-scene__deck {
+  margin: 0;
+  font-size: 26px;
+}
+.rate-scene__deck-btn {
+  width: 260px;
+  height: 58px;
+  font-size: 22px;
+}
+.rate-scene__go {
+  width: 320px;
+  height: 90px;
+  font-size: 36px;
+}
+.rate-scene__searching {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.rate-scene__search-text,
+.rate-scene__count {
+  margin: 0;
+  font-size: 30px;
+}
+.rate-scene__note {
+  margin: auto 0 0;
+  font-size: 19px;
+  text-align: center;
+  line-height: 1.5;
+}
+.rate-scene__error {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  margin: 0;
+  text-align: center;
+  font-size: 24px;
+}
+.rate-vs__rate {
+  margin-top: 8px;
+  font-size: 34px;
+}
+@media (max-height: 500px) {
+  .online-scene__rec,
+  .online-scene__coins-left,
+  .rate-scene__note {
+    font-size: 26px;
+  }
+}
+.rate-vs__warn {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 60px;
+  margin: 0;
+  text-align: center;
+  font-size: 24px;
+}

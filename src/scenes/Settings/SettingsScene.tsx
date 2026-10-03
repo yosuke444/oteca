@@ -42,7 +42,7 @@ export function SettingsScene() {
       </RoughButton>
 
       <RoughBox seed="settings-left" className="settings-panel settings-panel--left" paper radius={8}>
-        <Row id="name" label={tr.settings.name} note={tr.settings.nameNote(NAME_MAX)}>
+        <Row id="name" label={tr.settings.name} note={tr.settings.nameNoteWarn(NAME_MAX)}>
           <input
             key={save.playerName}
             className="pen-input settings-scene__name"

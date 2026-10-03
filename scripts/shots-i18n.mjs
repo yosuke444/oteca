@@ -119,8 +119,11 @@ for (const lang of ['hira', 'kanji']) {
   await snap(lang, '07_cpu');
   await clickText(page, L.back);
   // フレンド対戦の入力
-  await clickText(page, L.friend);
+  await page.getByTestId('menu-online').click();
+  await snap(lang, '08a_online');
+  await page.getByTestId('online-friend').click();
   await snap(lang, '08_lobby');
+  await clickText(page, L.back);
   await clickText(page, L.back);
   // 対戦（ひとりで両方）→ 降参 → リザルト
   await clickText(page, L.debug);

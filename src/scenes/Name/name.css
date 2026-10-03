@@ -59,3 +59,9 @@
   height: 90px;
   font-size: 34px;
 }
+
+/* ほんとうの なまえは いれないでね（v2.0-G。いつも出す） */
+.name-scene__safe {
+  margin: 0;
+  font-size: 20px;
+}

@@ -13,6 +13,19 @@ export function roomName(roomNumber: string): string {
   return `oteca-room-${roomNumber}`;
 }
 
+/** レート対戦の待合所（v2.0-G。版数を入れて、古いページの人と混ざらないように） */
+export function rateLobbyName(protocol: number): string {
+  return `oteca-rate-p${protocol}`;
+}
+
+/** レート対戦で組んだ2人だけの部屋 */
+export function rateRoomName(roomId: string): string {
+  return `oteca-rate-${roomId}`;
+}
+
+/** 部屋の人の状態（v2.0-G）：まちあい／たいせんちゅう */
+export type MemberState = 'waiting' | 'playing';
+
 /** 部屋番号は 4〜8桁の数字（SPEC §17-20） */
 export function isValidRoomNumber(s: string): boolean {
   return /^[0-9]{4,8}$/.test(s);
@@ -25,8 +38,25 @@ export type Ticket = { time: number; rand: number };
 export type WireAction = Action extends infer A ? (A extends { player: unknown } ? Omit<A, 'player'> : never) : never;
 
 export type MsgBody = {
-  hello: { protocol: number; appVersion: string; name: string; ticket: Ticket; playerId: string };
+  /** state 以降は v2.0-G で追加（部屋の まちあい。rate はレート対戦の時だけ） */
+  hello: { protocol: number; appVersion: string; name: string; ticket: Ticket; playerId: string; state?: MemberState; deckName?: string; nextGame?: number; rate?: number };
   full: Record<string, never>;
+  /** 自分の状態が変わった（部屋全体へ。v2.0-G） */
+  presence: { state: MemberState; deckName: string; nextGame: number };
+  /** 「あそぼう！」の申し込み（v2.0-G） */
+  invite: { to: string; id: string };
+  inviteReply: { to: string; id: string; accept: boolean };
+  /** 申し込みの取り消し・時間切れ */
+  inviteCancel: { to: string; id: string };
+  /** 組み合わせが決まった（部屋全体へ。a が申し込んだ人） */
+  pairStart: { a: string; b: string; pairId: string; game: number };
+  /** 「ほかの ひとと あそぶ」（相手へ） */
+  back: Record<string, never>;
+  /** レートの待合所：待っている（2秒ごと） */
+  queue: { playerId: string; ticket: Ticket; lastOpponentId: string; name: string; rate: number };
+  /** レートの待合所：組み合わせの申し込みと返事 */
+  pairPropose: { to: string; roomId: string };
+  pairAccept: { to: string; roomId: string; accept: boolean };
   /** game は何試合目か（再戦で +1）。古い試合のメッセージを取り違えないため */
   deck: { cards: number[]; commit: string; game: number };
   reveal: { seed: string; game: number };
