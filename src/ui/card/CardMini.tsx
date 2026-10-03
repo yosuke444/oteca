@@ -26,13 +26,15 @@ export type CardMiniProps = {
   unowned?: boolean;
   /** えんぴつ色にする（入れられない等） */
   dim?: boolean;
+  /** 初めて手に入れたカードの「NEW」の印（チュートリアルのデッキ編集。v2.1-P） */
+  isNew?: boolean;
   onTap?: () => void;
   /** 長押し／右クリック → カード詳細 */
   onDetail?: () => void;
 };
 
 /** デッキ編集などで使う小さいカード（SPEC §6-6 を小さくしたもの） */
-export function CardMini({ def, seed, variant, count, owned, left, unowned = false, dim = false, onTap, onDetail }: CardMiniProps) {
+export function CardMini({ def, seed, variant, count, owned, left, unowned = false, dim = false, isNew = false, onTap, onDetail }: CardMiniProps) {
   const lang = useLang();
   const tr = useT();
   const press = useLongPress(
@@ -53,6 +55,7 @@ export function CardMini({ def, seed, variant, count, owned, left, unowned = fal
         </Sticky>
       )}
       {unowned && <span className="card-mini__unknown" aria-hidden>{tr.deck.unknownMark}</span>}
+      {isNew && <span className="card-mini__new">{tr.gacha.newTag}</span>}
       {owned !== undefined && !unowned && <span className="card-mini__count num">{tr.deck.owned(owned)}</span>}
       {left !== undefined && !unowned && <span className={`card-mini__left ${left === 0 ? 'is-zero' : ''}`}>{tr.deck.left(left)}</span>}
       {owned === undefined && count !== undefined && count > 0 && <span className="card-mini__count num">×{count}</span>}

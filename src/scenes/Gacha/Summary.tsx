@@ -24,7 +24,7 @@ export function Summary({
 }: {
   results: PullResult[];
   /** デイリーパック（v2.1-M）：「もういちど」「パックを えらぶ」の代わりにボタン1つ。onShown はまとめ画面が出た時（コインを飛ばす） */
-  simple?: { label: string; onClose: () => void; onShown: (from: HTMLElement | null) => void };
+  simple?: { label: string; onClose: () => void; onShown: (from: HTMLElement | null) => void; testId?: string };
   /** 今の所持数（換金すると減る） */
   owned: (no: number) => number;
   /** i 番目のカードを換金する（保存は呼ぶ側） */
@@ -83,7 +83,7 @@ export function Summary({
       </div>
       {simple ? (
         <div className="gacha-summary__buttons">
-          <RoughButton seed="gacha-daily-close" className="gacha-summary__btn" highlight onClick={simple.onClose} data-testid="gacha-daily-close">
+          <RoughButton seed="gacha-daily-close" className="gacha-summary__btn" highlight onClick={simple.onClose} data-testid={simple.testId ?? 'gacha-daily-close'}>
             {simple.label}
           </RoughButton>
         </div>

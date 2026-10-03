@@ -1,0 +1,57 @@
+/* ことばを えらぶ（v2.1-P） */
+.lang-scene {
+  position: absolute;
+  inset: 0;
+}
+.lang-scene__title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 60px;
+  margin: 0;
+  font-size: 44px;
+  font-weight: normal;
+  text-align: center;
+}
+.lang-scene__title .tilt {
+  display: inline-block;
+  padding: 0 14px;
+  background: linear-gradient(transparent 58%, var(--marker-yellow) 58%, var(--marker-yellow) 90%, transparent 90%);
+}
+.lang-scene__art {
+  position: absolute;
+  left: 60px;
+  top: 300px;
+}
+.lang-scene__choices {
+  position: absolute;
+  left: 250px;
+  right: 120px;
+  top: 190px;
+  display: flex;
+  gap: 50px;
+}
+.lang-scene__btn {
+  flex: 1;
+  height: 300px;
+}
+.lang-scene__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  font-size: 64px;
+}
+.lang-scene__label small {
+  font-size: 30px;
+  color: var(--pen-blue);
+}
+.lang-scene__note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 540px;
+  margin: 0;
+  font-size: 22px;
+  text-align: center;
+}

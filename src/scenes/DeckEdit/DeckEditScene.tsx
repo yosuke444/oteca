@@ -19,6 +19,7 @@ import { tiltStyle } from '../../ui/rough/seed';
 import { addCard, autoFill, blockText, checkAdd, problemText, removeAt, summarize } from './deckOps';
 import { useT } from '../../i18n/useT';
 import { ModeGuide } from '../../ui/guide/ModeGuide';
+import { postState } from '../../tutorial/post';
 import './deckEdit.css';
 
 type Filter = 'all' | 'owned' | 'otege' | 'item' | 'super';
@@ -53,6 +54,8 @@ export function DeckEditScene() {
     return () => window.clearTimeout(id);
   }, [reject]);
 
+  // チュートリアルの延長（#21・#23）：ガチャで初めて手に入れたカードに NEW の印
+  const [newCards] = useState(() => new Set(postState().active ? postState().newCards : []));
   const deck = save.decks[slot];
   const owned = (no: number) => getOwnedCount(save, no);
   const summary = summarize(deck.cards, CARD_DB);
@@ -143,7 +146,7 @@ export function DeckEditScene() {
         {!check.usable && deck.cards.length > 0 && <span className="deck-scene__bad num">{tr.deckPicker.bad}</span>}
         <span className="pencil deck-scene__name-hint">{tr.deck.nameHint(DECK_NAME_MAX)}</span>
       </div>
-      <RoughButton seed="deck-choose" className="deck-scene__choose" onClick={() => setDialog('pick')}>
+      <RoughButton seed="deck-choose" className="deck-scene__choose" onClick={() => setDialog('pick')} data-testid="deck-pick">
         {tr.deck.choose}
       </RoughButton>
       <RoughButton seed="deck-back" className="deck-scene__back" onClick={() => go('menu')}>
@@ -214,9 +217,10 @@ export function DeckEditScene() {
               <RoughButton
                 key={f}
                 seed={`filter-${f}`}
-                className="list-panel__filter"
+                className={`list-panel__filter ${filter === f ? 'is-on' : ''}`}
                 highlight={filter === f}
                 onClick={() => setFilter(f)}
+                data-testid={`deck-filter-${f}`}
               >
                 {tr.deck.filter[f]}
               </RoughButton>
@@ -244,6 +248,7 @@ export function DeckEditScene() {
                 owned={finite ? own : undefined}
                 left={finite ? Math.max(0, own - inDeck(def.no)) : undefined}
                 unowned={own === 0}
+                isNew={newCards.has(def.no)}
                 dim={blocked && own > 0}
                 onTap={() => tryAdd(def.no)}
                 onDetail={() => setDetail(def)}

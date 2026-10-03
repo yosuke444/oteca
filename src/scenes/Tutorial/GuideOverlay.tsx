@@ -24,7 +24,7 @@ function elementOf(root: HTMLElement, key: string): Element | null {
 }
 
 /** 要素の四角を、舞台の座標（拡大・縮小の前）にする */
-function stageRect(root: HTMLElement, el: Element): Rect {
+export function stageRect(root: HTMLElement, el: Element): Rect {
   const rr = root.getBoundingClientRect();
   const s = rr.width / (root.offsetWidth || 1280);
   const r = el.getBoundingClientRect();
@@ -35,7 +35,7 @@ function stageRect(root: HTMLElement, el: Element): Rect {
  * 押せない所（穴の外）を、重ならない四角に分ける。穴どうしが重なっても、重なった所は穴のまま
  * （穴のふちの x・y で舞台を区切り、どの穴にも入らない区画をふさぐ。横に続く区画はつなげる）
  */
-function blockedRects(holes: Rect[]): Rect[] {
+export function blockedRects(holes: Rect[]): Rect[] {
   const xs = [...new Set([-50, 1330, ...holes.flatMap((h) => [h.x, h.x + h.w])])].sort((a, b) => a - b);
   const ys = [...new Set([-50, 770, ...holes.flatMap((h) => [h.y, h.y + h.h])])].sort((a, b) => a - b);
   const inHole = (x: number, y: number) => holes.some((h) => x > h.x && x < h.x + h.w && y > h.y && y < h.y + h.h);
@@ -57,7 +57,7 @@ function blockedRects(holes: Rect[]): Rect[] {
 }
 
 /** 吹き出しの右はしから、いちばん目の穴へ向かう手描きの矢印 */
-function arrowPath(to: Rect): { line: string; head: string } {
+export function arrowPath(to: Rect): { line: string; head: string } {
   const sx = 384;
   const sy = 250;
   // 穴のふちのうち、矢印の出発点に近い所
@@ -79,7 +79,7 @@ function arrowPath(to: Rect): { line: string; head: string } {
 }
 
 /** 花丸（赤ペン）：ぐるぐる＋花びら */
-function Hanamaru({ at }: { at: { x: number; y: number } }) {
+export function Hanamaru({ at }: { at: { x: number; y: number } }) {
   const tr = useT();
   const petals = Array.from({ length: 7 }, (_, i) => {
     const a = (i / 7) * Math.PI * 2;

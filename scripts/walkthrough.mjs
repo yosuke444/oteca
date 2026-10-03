@@ -84,8 +84,9 @@ async function tutorialStep(p, id) {
 
 const A = { name: 'A', ...(await openPage(browser, size, Q)) };
 await A.page.waitForTimeout(2000);
-log('新しいセーブ：タイトル → なまえ');
+log('新しいセーブ：タイトル → ことば → なまえ');
 await A.page.mouse.click(size.width / 2, size.height / 2);
+await A.page.getByTestId('lang-hira').click();
 await A.page.getByTestId('name-scene').waitFor();
 await A.page.getByTestId('name-input').fill('あおい');
 await A.page.getByTestId('name-ok').click();
@@ -105,22 +106,52 @@ await A.page.getByTestId('tutorial-guide').waitFor({ state: 'detached' });
 await A.page.locator('.battle-top__btn--gear').click();
 await A.page.getByRole('button', { name: 'おてあげする（こうさん）' }).click();
 await A.page.getByRole('button', { name: 'おてあげする', exact: true }).click();
-for (let i = 0; i < 3; i++) await A.page.getByTestId('tutorial-end').click();
-await snap(A, '01_invite');
-log('ガチャ（15まい）');
-await A.page.getByTestId('tutorial-gacha').click();
-await A.page.getByTestId('gacha-buy-fifteen').click();
-await A.page.waitForTimeout(1200);
-await A.page.getByTestId('gacha-skip').click();
-await A.page.getByTestId('gacha-summary').waitFor();
-await snap(A, '02_gacha');
+await A.page.getByTestId('tutorial-end-next').click();
+log('チュートリアルの延長：ガチャ（15まい）→ デッキ編集 → メニュー');
+let pprev = null;
+for (let i = 0; i < 40; i++) {
+  const h = await A.page.waitForFunction((prev) => {
+    const g = document.querySelector('[data-testid="post-guide"]');
+    if (!g) return 'gone';
+    const id = g.getAttribute('data-step');
+    return id !== prev ? id : null;
+  }, pprev, { timeout: 60000 });
+  const id = await h.jsonValue();
+  if (id === 'gone') break;
+  const pg = A.page;
+  if (id === 'coins') await pg.getByTestId('menu-gacha').click();
+  else if (id === 'buy') await pg.getByTestId('gacha-buy-fifteen').click();
+  else if (id === 'open') {
+    await pg.waitForTimeout(900);
+    await pg.getByTestId('gacha-bag-7').click({ force: true });
+    for (let k = 0; k < 30 && !(await pg.getByTestId('gacha-summary').count()); k++) {
+      await pg.getByTestId('gacha-next').click({ timeout: 20000 });
+      await pg.waitForTimeout(80);
+    }
+    await snap(A, '02_gacha');
+  } else if (id === 'toDeck') await pg.getByTestId('gacha-tutorial-deck').click();
+  else if (id === 'picker') await pg.getByTestId('deck-pick').click();
+  else if (id === 'first') await pg.getByTestId('deck-slot-0').click();
+  else if (id === 'list') await pg.getByTestId('deck-filter-owned').click();
+  else if (id === 'remove' || id === 'back15') await pg.locator('.deck-panel__slots .card-mini').first().click();
+  else if (id === 'add') {
+    const cards = pg.locator('.list-panel__grid .card-mini');
+    for (let k = (await cards.count()) - 1; k >= 0; k--) {
+      await cards.nth(k).click();
+      const moved = await pg
+        .waitForFunction(() => document.querySelector('[data-testid="post-guide"]')?.getAttribute('data-step') !== 'add', null, { timeout: 1500 })
+        .then(() => true)
+        .catch(() => false);
+        if (moved) break;
+    }
+  } else await pg.getByTestId('tutorial-next').click();
+  pprev = id;
+}
+await A.page.locator('.menu-scene').waitFor();
 let s = await readSave(A);
 if (s.coins !== 0) problems.push(`ガチャのあとのコイン：${s.coins}`);
 const cardsAfterGacha = Object.values(s.collection).reduce((a, b) => a + b, 0);
 if (cardsAfterGacha < 15 + 15) problems.push(`ガチャのあとのカード：${cardsAfterGacha}`);
-await A.page.getByRole('button', { name: 'もどる' }).click();
-await A.page.getByRole('button', { name: 'もどる' }).click();
-await A.page.locator('.menu-scene').waitFor();
 
 log('デッキ編集');
 await A.page.getByRole('button', { name: 'デッキへんしゅう' }).click();

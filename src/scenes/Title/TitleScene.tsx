@@ -5,6 +5,9 @@ import { Logo, LOGO_DRAW_MS } from '../../ui/common/Logo';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useT } from '../../i18n/useT';
 import { useSave } from '../../state/SaveContext';
+import { startPost, titleNext } from '../../tutorial/post';
+import { offerById } from '../../gacha/gacha';
+import { TUTORIAL_OFFER } from '../Tutorial/PostGuide';
 import './title.css';
 
 /**
@@ -22,8 +25,11 @@ export function TitleScene() {
     if (started.current) return;
     started.current = true;
     audio.unlock();
-    // 新しく始めた人は、名前を決めてからチュートリアルへ（UPDATE_v2 §6T-1）。古いセーブから来た人はメニューの おしらせ で聞く
-    go(!save.tutorial.done && save.updateNoticeSeen ? 'name' : 'menu');
+    // 新しく始めた人は、ことば → 名前 → チュートリアルへ（UPDATE_v2_1 §6-1）。古いセーブから来た人はメニューの おしらせ で聞く
+    // 延長（ガチャ・デッキ編集）の途中で閉じた人は、そこから再開（UPDATE_v2_1 §7）
+    const next = titleNext(save.tutorial, save.updateNoticeSeen, save.coins, offerById(TUTORIAL_OFFER)?.price ?? 0);
+    if (next.post !== undefined) startPost(false, true, next.post);
+    go(next.go);
   };
 
   useEffect(() => {

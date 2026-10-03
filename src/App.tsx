@@ -26,6 +26,11 @@ import { GachaScene } from './scenes/Gacha/GachaScene';
 import { RulesScene } from './scenes/Rules/RulesScene';
 import { TutorialScene } from './scenes/Tutorial/TutorialScene';
 import { NameScene } from './scenes/Name/NameScene';
+import { LangScene } from './scenes/Lang/LangScene';
+import { PostGuide, usePostState } from './scenes/Tutorial/PostGuide';
+import { SandboxSaveProvider } from './state/SaveContext';
+import { offerById } from './gacha/gacha';
+import { TUTORIAL_OFFER } from './scenes/Tutorial/PostGuide';
 import { OnlineScene } from './scenes/Online/OnlineScene';
 import { RateScene } from './scenes/Online/RateScene';
 import { StoryScene } from './scenes/Story/StoryScene';
@@ -54,6 +59,7 @@ const ROUTES: Record<RouteId, ComponentType> = {
   gacha: GachaScene,
   tutorial: TutorialScene,
   name: NameScene,
+  lang: LangScene,
   online: OnlineScene,
   // 🔒 ランキングは今回作らない（メニューでは「じゅんびちゅう」）
   trade: TradeScene,
@@ -72,6 +78,7 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   gacha: 'bgm_gacha',
   tutorial: 'battle',
   name: 'bgm_title',
+  lang: 'bgm_title',
   online: 'bgm_lobby',
   trade: 'bgm_trade',
   ranking: 'bgm_title',
@@ -153,10 +160,22 @@ export function App() {
     if (bgm !== undefined) audio.playBgm(bgm);
   }, [nav.route, nav.payload]);
 
+  // チュートリアルの延長（UPDATE_v2_1 §6-2）。見返しの時は、練習用の写しのセーブで動かす（コインは減らない・保存しない。§6-3）
+  const post = usePostState();
+  const screen = (
+    <>
+      <Scene key={`${nav.route}-${nav.n}`} />
+      <PostGuide />
+    </>
+  );
   return (
     <NavContext.Provider value={value}>
       <Stage>
-        <Scene key={`${nav.route}-${nav.n}`} />
+        {post.active && post.review ? (
+          <SandboxSaveProvider keepCoins={Math.max(save.coins, offerById(TUTORIAL_OFFER)?.price ?? 0)}>{screen}</SandboxSaveProvider>
+        ) : (
+          screen
+        )}
       </Stage>
       <PageTurn />
       <RotateHint />

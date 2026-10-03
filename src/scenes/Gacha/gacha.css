@@ -107,23 +107,6 @@
 .gacha-offer__btn.is-disabled .gacha-offer__price {
   color: var(--pencil);
 }
-.gacha-guide {
-  position: absolute;
-  left: -20px;
-  top: -10px;
-  width: 370px;
-  height: 140px;
-  pointer-events: none;
-  animation: gacha-guide calc(1.2s / var(--fx-speed)) ease-in-out infinite alternate;
-}
-@keyframes gacha-guide {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.04);
-  }
-}
 .gacha-scene__msg {
   position: absolute;
   left: 50%;
@@ -704,8 +687,7 @@
 
 /* 演出をへらす：震え・光・ふくらみなし */
 html[data-reduce-fx] .gacha-bag.is-super,
-html[data-reduce-fx] .gacha-bag__leak,
-html[data-reduce-fx] .gacha-guide {
+html[data-reduce-fx] .gacha-bag__leak {
   animation: none;
 }
 html[data-reduce-fx] .gacha-bag.is-super {

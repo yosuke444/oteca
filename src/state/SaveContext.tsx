@@ -37,6 +37,8 @@ type SaveContextValue = {
 };
 
 const SaveContext = createContext<SaveContextValue | null>(null);
+/** 練習用の写しの中で、外側の本物のセーブ（写しの外では null） */
+const RealSaveContext = createContext<SaveContextValue | null>(null);
 
 function safeLocalStorage(): KeyValueStore | null {
   try {
@@ -161,4 +163,52 @@ export function useSave(): SaveContextValue {
   const ctx = useContext(SaveContext);
   if (!ctx) throw new Error(t().common.providerMissing('SaveProvider'));
   return ctx;
+}
+
+/**
+ * 練習用の写し（チュートリアルの見返し。UPDATE_v2_1 §6-3）：いまのセーブの写しを渡し、書き換えても本物には保存しない。
+ * コインは減らない（keepCoins の枚数のまま）。中の画面は、ふつうの useSave() のまま使える
+ */
+export function SandboxSaveProvider({ children, keepCoins }: { children: ReactNode; keepCoins: number }) {
+  const real = useRealSave();
+  const [save, setSave] = useState<SaveData>(() => ({ ...structuredClone(real.save), coins: keepCoins }));
+  const [savedTick, setSavedTick] = useState(0);
+  const update = useCallback<SaveContextValue['update']>((fn) => {
+    setSave((cur) => {
+      const draft = structuredClone(cur);
+      fn(draft);
+      return { ...normalizeSave(draft), coins: keepCoins, saveCounter: cur.saveCounter + 1 };
+    });
+    setSavedTick((t) => t + 1);
+  }, [keepCoins]);
+  const value = useMemo<SaveContextValue>(
+    () => ({
+      save,
+      update,
+      savedTick,
+      // 写しでは、引き継ぎ・まっさらにする などは何もしない
+      replace: () => {},
+      reset: () => {},
+      markCodeCreated: () => {},
+      remindBackup: false,
+    }),
+    [save, update, savedTick],
+  );
+  return (
+    <RealSaveContext.Provider value={real}>
+      <SaveContext.Provider value={value}>{children}</SaveContext.Provider>
+    </RealSaveContext.Provider>
+  );
+}
+
+/** 本物のセーブ（練習用の写しの中でも本物。チュートリアルを終えた印などを書く時に使う） */
+export function useRealSave(): SaveContextValue {
+  const real = useContext(RealSaveContext);
+  const cur = useSave();
+  return real ?? cur;
+}
+
+/** 練習用の写しの中か（写しの中では、セーブの外の知らせ（localStorage）を書かない） */
+export function useIsSandbox(): boolean {
+  return useContext(RealSaveContext) !== null;
 }

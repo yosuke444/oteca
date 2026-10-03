@@ -558,13 +558,22 @@ export const hira = {
     good: 'そう！',
     won: 'やったね！ きみの かち！ もう オテカの あそびかたは ばっちりだね。',
     lost: 'まけても だいじょうぶ！ なんども れんしゅう できるよ。',
-    invite: (coins: number, pack: string, bags: number) => `コインを ${coins}まい もってるね！ ${pack}を ${bags}まい ひいて、なかまを ふやそう！`,
-    tryGacha: 'ひいてみる！',
-    later: 'あとで',
-    reviewEnd: 'おつかれさま！ また いつでも みにきてね。',
-    toMenu: 'メニューへ',
+    /** 見返しの時、吹き出しに出す札（ガチャは見本、デッキは練習用の写し。UPDATE_v2_1 §6-3） */
+    sample: 'みほん',
+    /** チュートリアルのガチャのまとめ画面のボタン（UPDATE_v2_1 §6-2 #19） */
+    toDeck: 'デッキへんしゅうへ',
     again: 'チュートリアルを もういちど',
     againNote: 'おてあげせんせいと いっしょに おさらい',
+  },
+
+  /** ことばを えらぶ（S18。v2.1-P）。2つの ことばを ならべて出すので、どちらの辞書も同じ文 */
+  langPick: {
+    title: 'ことばを えらんでね ／ 言葉を選んでね',
+    options: {
+      hira: { label: 'にほんご', sample: 'あいてを たおそう！' },
+      kanji: { label: '日本語', sample: '相手を倒そう！' },
+    } as Record<'hira' | 'kanji', { label: string; sample: string }>,
+    note: 'あとで「せってい」で かえられるよ ／ 後で「設定」で変えられるよ',
   },
 
   name: {

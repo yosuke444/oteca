@@ -24,7 +24,8 @@ import { Sticky } from '../../ui/common/Sticky';
 import { Dialog } from '../../ui/common/Dialog';
 import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { OtegeArt } from '../../ui/common/OtegeArt';
-import { useSave } from '../../state/SaveContext';
+import { useIsSandbox, useSave } from '../../state/SaveContext';
+import { STEP_FROM_NOTICE } from '../../tutorial/post';
 import { useT } from '../../i18n/useT';
 import { CoinCounter, centerIn, flyCoins } from '../../ui/coin/Coin';
 import { PresentBox } from '../../ui/coin/PresentBox';
@@ -69,7 +70,9 @@ export function MenuScene() {
   const [pendingTrade] = useState(() => loadPendingTrade());
   // 前のレート対戦が とちゅうで終わって負けになった（v2.0-G。1回だけ）
   const [rateNotice, setRateNotice] = useState(() => peekPendingNotice());
-  useEffect(() => clearPendingNotice(), []);
+  useEffect(() => {
+    if (!sandbox) clearPendingNotice();
+  }, []);
 
   // デイリーミッション（SPEC §7 S17・v2.1-M）：開いた時に「その日」が変わっていたら入れ替える。
   // 前の日に受け取らなかった報酬は自動で受け取り、「きのうの ミッションの ほうしゅうを うけとったよ」と知らせる
@@ -77,9 +80,11 @@ export function MenuScene() {
   const [dailyOpen, setDailyOpen] = useState(false);
   const [carry, setCarry] = useState<DailyCarry | null>(null);
   const topFx = useRef<HTMLDivElement>(null);
+  const sandbox = useIsSandbox();
   const rollNow = () => {
     const now = Date.now();
-    if (!features.daily || save.daily.cycleKey === cycleKeyAt(now)) return;
+    // 練習用の写し（チュートリアルの見返し）の中では入れ替えない（知らせが本物の localStorage に入らないように）
+    if (sandbox || !features.daily || save.daily.cycleKey === cycleKeyAt(now)) return;
     // 知らせは写しで先に計算する（保存は同じ計算で1回。結果は同じ。src/daily/daily.ts rollDaily）
     const c = rollDaily(structuredClone(save), now);
     if (c) addDailyNotice(c);
@@ -246,6 +251,8 @@ export function MenuScene() {
             update((d) => {
               d.updateNoticeSeen = true;
               if (!tryTutorial) d.tutorial.done = true;
+              // 「やる」：途中で閉じても、次は ことば・なまえ を出さずにチュートリアルから（今までのプレイヤーには ことば を出さない。§6-1）
+              else d.tutorial.step = STEP_FROM_NOTICE;
             });
             if (tryTutorial) go('tutorial');
           }}
@@ -392,7 +399,7 @@ function LockedButton({
   const tr = useT();
   return (
     <div className={`menu-scene__locked menu-scene__locked--${id}`}>
-      <RoughButton seed={`menu-${id}`} className={`menu-scene__locked-btn ${locked ? '' : 'is-open'}`} onClick={() => onPress(id)}>
+      <RoughButton seed={`menu-${id}`} className={`menu-scene__locked-btn ${locked ? '' : 'is-open'}`} onClick={() => onPress(id)} data-testid={`menu-${id}`}>
         {label}
       </RoughButton>
       {locked && (

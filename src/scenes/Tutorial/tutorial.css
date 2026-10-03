@@ -291,3 +291,104 @@ html[data-reduce-fx] .tutorial-end__balloon {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ---------------- 延長の案内（PostGuide。v2.1-P）：本物の画面の上に重ねる ---------------- */
+/* ダイアログ（デッキ選択パネルなど。z-index 100）より上。スキップの確認を出している間だけ下げる */
+.post-guide {
+  z-index: 150;
+}
+.post-guide.is-asking {
+  z-index: 90;
+}
+.post-guide__panel {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  width: 520px;
+  pointer-events: none;
+}
+.post-guide--left .post-guide__panel {
+  left: 14px;
+  top: 150px;
+}
+.post-guide--right .post-guide__panel {
+  right: 14px;
+  top: 150px;
+  flex-direction: row-reverse;
+}
+.post-guide--topLeft .post-guide__panel {
+  left: 14px;
+  top: 90px;
+}
+.post-guide--topRight .post-guide__panel {
+  right: 14px;
+  top: 90px;
+  flex-direction: row-reverse;
+}
+.post-guide--bottomLeft .post-guide__panel {
+  left: 14px;
+  bottom: 14px;
+}
+.post-guide--bottomRight .post-guide__panel {
+  right: 14px;
+  bottom: 14px;
+  flex-direction: row-reverse;
+}
+.post-guide__sensei {
+  flex: none;
+}
+.post-guide__balloon {
+  flex: 1;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: guide-pop calc(220ms / var(--fx-speed)) ease-out;
+}
+.post-guide__stamp {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  padding: 0 22px;
+  font-size: 30px;
+  border: 4px double var(--pen-red);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper) 85%, transparent);
+  transform: translateX(-50%) rotate(-4deg);
+  pointer-events: none;
+}
+.post-guide__sample {
+  margin-left: 10px;
+  padding: 0 6px;
+  border: 2px solid var(--pen-red);
+  border-radius: 6px;
+  font-size: 16px;
+}
+.post-guide__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+.post-guide__skip {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 17px;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.post-guide .guide__next {
+  margin: 0 0 0 auto;
+}
+@media (max-height: 500px) {
+  .post-guide__panel {
+    width: 600px;
+  }
+  .post-guide .guide__text {
+    font-size: 26px;
+  }
+  .post-guide__skip {
+    font-size: 22px;
+  }
+}

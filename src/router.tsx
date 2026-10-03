@@ -19,6 +19,7 @@ export type RouteId =
   | 'gacha'
   | 'tutorial'
   | 'name'
+  | 'lang'
   | 'online'
   | 'trade'
   | 'ranking'

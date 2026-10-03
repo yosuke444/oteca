@@ -6,6 +6,10 @@ import { CARD_DB, cardById } from '../../data/cards';
 import { type PackDef, SHOP_PACKS } from '../../data/packs';
 import { addDailyProgress, dailyPack } from '../../daily/daily';
 import { addDailyNotice } from '../../daily/noticeStore';
+import { postState, setPostState } from '../../tutorial/post';
+import { nextU32, seedRng } from '../../engine/rng';
+import { TUTORIAL_PACK } from '../Tutorial/PostGuide';
+import { useIsSandbox } from '../../state/SaveContext';
 import { useFx } from '../../fx/fxSettings';
 import { setFxSpeed } from '../../fx/timing';
 import { DRAW, type Bag, type Offer, type PullResult, applyPull, canAfford, coinsRoomFor, cardRate, convertSuper, cryptoRand, drawBags, superRate } from '../../gacha/gacha';
@@ -26,10 +30,9 @@ import './gacha.css';
 export type DailyRun = { bags: Bag[]; results: PullResult[]; coinsBefore: number; coins: number };
 
 /**
- * 画面に渡す値。packId・guideOffer：チュートリアルの最後の案内から来た時に選んでおくパックと、蛍光ペンで囲むボタン（UPDATE_v2 §6T-6）。
- * daily：デイリーミッションの報酬のデイリーパックを開ける（SPEC §7 S17）
+ * 画面に渡す値。daily：デイリーミッションの報酬のデイリーパックを開ける（SPEC §7 S17）
  */
-export type GachaPayload = { packId?: string; guideOffer?: string; daily?: DailyRun } | null;
+export type GachaPayload = { daily?: DailyRun } | null;
 
 /** offer が null はデイリーパック（買ったのではない） */
 type Run = { pack: PackDef; packIndex: number; offer: Offer | null; bags: Bag[]; results: PullResult[] };
@@ -42,7 +45,8 @@ export function GachaScene() {
   const tr = useT();
   const fx = useFx();
   const packs = SHOP_PACKS;
-  const [index, setIndex] = useState(() => Math.max(0, packs.findIndex((p) => p.id === guide?.packId)));
+  // チュートリアルの延長の中は、案内しているパック（元祖パック）から
+  const [index, setIndex] = useState(() => (postState().active ? Math.max(0, packs.findIndex((p) => p.id === TUTORIAL_PACK)) : 0));
   const daily = guide?.daily ?? null;
   const [view, setView] = useState<'shop' | 'open' | 'summary'>(daily ? 'open' : 'shop');
   const [run, setRun] = useState<Run | null>(() => (daily ? { pack: dailyPack(), packIndex: -1, offer: null, bags: daily.bags, results: daily.results } : null));
@@ -54,6 +58,10 @@ export function GachaScene() {
   const layerRef = useRef<HTMLDivElement>(null);
   /** スワイプで切り替えた直後の click は「なかみ」を開かない */
   const swiped = useRef(false);
+  // チュートリアルの延長の中（UPDATE_v2_1 §6-2 #16〜#19）。見返しの時は見本（決まった見本のカード。§6-3）
+  const [tutorial] = useState(() => postState().active);
+  const [sample] = useState(() => postState().active && postState().review);
+  const sandbox = useIsSandbox();
   /** いちばん安い買い方の1袋あたりの値段（「○まい おとく」の計算に使う） */
   const base = DRAW.offers[0];
   const pack = packs[index];
@@ -82,7 +90,8 @@ export function GachaScene() {
       noCoins();
       return;
     }
-    const bags = drawBags(packs[packIndex], offer.bags, cryptoRand);
+    const bags = drawBags(packs[packIndex], offer.bags, sample ? sampleRand() : cryptoRand);
+    // チュートリアル：スーパーおてあげを2種類以上引いたら、#24 で「1まいまで。どれを つかうか えらんでね」
     // デイリーミッション「パックガチャを 1かい ひく」も同じ保存で数える（その日が変わっていたら入れ替え、前の日の報酬の知らせを置く）
     const now = Date.now();
     const carry = addDailyProgress(structuredClone(save), now, { gacha: true });
@@ -92,10 +101,16 @@ export function GachaScene() {
       update((d) => {
         results = applyPull(d, offer, bags);
         if (results) addDailyProgress(d, now, { gacha: true });
+        // チュートリアルの延長（本物のガチャ）：引いたら、次の再開はデッキ編集から（もう一度引かないように）
+        if (results && tutorial && !sample && !d.tutorial.done) d.tutorial.step = Math.max(d.tutorial.step, 20);
       }),
     );
     if (!results) return;
-    if (carry) addDailyNotice(carry);
+    const got = results as PullResult[];
+    // チュートリアル：スーパーの種類の数（#24 の補足）と、初めて手に入れたカード（デッキ編集の一覧に NEW の印）
+    if (tutorial) setPostState({ supers: new Set(got.filter((r) => r.super).map((r) => r.no)).size, newCards: [...new Set(got.filter((r) => r.isNew).map((r) => r.no))] });
+    // 練習用の写しの中では、セーブの外の知らせを書かない
+    if (carry && !sandbox) addDailyNotice(carry);
     audio.play('se_coin');
     setRun({ pack: packs[packIndex], packIndex, offer, bags, results });
     setView('open');
@@ -176,7 +191,7 @@ export function GachaScene() {
             {DRAW.offers.map((o) => {
               const ok = canAfford(save, o);
               return (
-                <div key={o.id} className={`gacha-offer ${guide?.guideOffer === o.id ? 'is-guide' : ''}`}>
+                <div key={o.id} className="gacha-offer">
                   <RoughButton
                     seed={`offer-${o.id}`}
                     className="gacha-offer__btn"
@@ -191,7 +206,6 @@ export function GachaScene() {
                     <span className="gacha-offer__price num">{tr.gacha.price(o.price)}</span>
                     {bonusOf(o, base) > 0 && <span className="gacha-offer__bonus">{tr.gacha.bonus(bonusOf(o, base))}</span>}
                   </RoughButton>
-                  {guide?.guideOffer === o.id && <GuideCircle />}
                 </div>
               );
             })}
@@ -207,7 +221,13 @@ export function GachaScene() {
         <Summary
           results={run.results}
           owned={owned}
-          simple={daily ? { label: tr.daily.toMenu, onClose: () => go('menu'), onShown: (from) => landDailyCoins(from) } : undefined}
+          simple={
+            daily
+              ? { label: tr.daily.toMenu, onClose: () => go('menu'), onShown: (from) => landDailyCoins(from) }
+              : tutorial
+                ? { label: tr.tutorial.toDeck, onClose: () => go('deck'), onShown: () => {}, testId: 'gacha-tutorial-deck' }
+                : undefined
+          }
           canAgain={!!run.offer && canAfford(save, run.offer)}
           onNoCoins={noCoins}
           roomForCoins={coinsRoomFor(save)}
@@ -262,6 +282,12 @@ export function GachaScene() {
   );
 }
 
+/** チュートリアルの見返しの見本：いつも同じ袋が出る種付きの乱数（UPDATE_v2_1 §6-3「決まった見本のカード」。エンジンと同じ乱数） */
+function sampleRand(): () => number {
+  const st = seedRng('oteca-tutorial-sample');
+  return () => nextU32(st) / 4294967296;
+}
+
 /** 同じコインで、いちばん安い買い方より何袋多いか */
 function bonusOf(o: Offer, base: Offer): number {
   return o.bags - Math.floor((o.price / base.price) * base.bags);
@@ -272,12 +298,3 @@ function pct(p: number): string {
   return String(Math.round(p * 10000) / 100);
 }
 
-/** チュートリアルの案内：ボタンを蛍光ペンで丸く囲む */
-function GuideCircle() {
-  return (
-    <svg className="gacha-guide" viewBox="0 0 340 130" aria-hidden>
-      <path d="M30 70 Q28 14 170 12 Q318 10 322 64 Q326 120 168 120 Q20 122 26 60 Q30 30 90 18" fill="none" stroke="var(--marker-yellow)" strokeWidth="14" strokeLinecap="round" />
-      <path d="M30 70 Q28 14 170 12 Q318 10 322 64 Q326 120 168 120 Q20 122 26 60 Q30 30 90 18" fill="none" stroke="var(--pen-red)" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}

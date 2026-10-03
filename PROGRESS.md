@@ -503,20 +503,16 @@
 - [x] テスト tests/guide.test.ts（O01）、scripts/shots-guide.mjs（O02）両方の言語・2サイズで問題なし
 - [x] 別のエージェントの突き合わせ：指摘を直した（DECISIONS #305〜#309）
 
-### 中断メモ（使用量の上限に達したため）
-- N：実装・テスト・2サイズ×2言語の確認まで済み（未コミット）。別のエージェントの突き合わせの結果が未反映。次回：突き合わせをやり直し → 指摘を直す → DECISIONS（N の判断：まだ行けないステージは「？」で名前も隠す、全体図・＋－ボタン、fxQueue の直し）→ コミット。
-- O：途中（未コミット）。作ったもの：src/guide/guideData.ts、src/ui/guide/ModeGuide.tsx・guide.css、各画面への差し込み（オンライン・CPU・ガチャ・デッキ・トレード・デイリーのパネル）、scripts/shots-guide.mjs。
-  - 辞書の文（guide）は scratchpad の i18nO.cjs に下書きしたが、まだ辞書に入れていない（このままでは型の確認が通らない）。ja-hira.ts に `import type { GuideNumbers } from '../guide/guideData'` も要る。
-  - ストーリーの画面への差し込み（StoryScene に <ModeGuide mode="story" className="story-scene__guide" />）が未。SPEC の O の書き換えも未。
-- P：未着手。
-- 最後に npm run test:slow（STORY_WINRATES.md が新しい番号で作り直される）を動かしてからコミットする。
-- N の突き合わせの指摘（未反映。次回直す）：
-  1. 線を描く演出：クリアしたステージから出る線を全部描く（今は新しく開いたステージへの線だけ）。StoryMap の drawing・is-drawing の条件、StoryScene の条件を直す
-  2. ステージを押した時の onFocus でマップが飛ぶ → キーボードのフォーカス（:focus-visible）の時だけ動かす
-  3. DECISIONS に N の判断を書く（全部「？」で名前も隠す、合流点は下から来る線だけ、戻った時はクリアしたステージが中央、「新しい」は番号が大きいもの、＋－ボタンと全体図、知らない番号は消す、fxQueue の直し）
-  4. 5→6 の移行は固定の表 {1:1,2:2,3:3,4:4,5:7,6:8,7:11,8:6,9:10,10:13,11:14,12:5,13:9,14:12,15:15} にする（story.json と名前が合うことは N04 で確かめる）
-  5. ドラッグの window リスナーを画面を離れる時に外す（残った指を消す）
-  6. ホイールの deltaMode（行・ページ単位）を換算する
-  7. テストを強める：N03 は「前のステージでないものをクリアしても開かない」、形式1〜3 からの連鎖で番号が付け替わること、2本指は手で確認と書く
-  8. 古いスクリーンショット story_*_16_map_bottom.png を消す
-- N をコミットする時は src/guide・src/ui/guide・各画面への ModeGuide の差し込み（O の途中）を混ぜない
+### P 最初の起動とチュートリアルの延長（UPDATE_v2_1 §6）
+- [x] SPEC.md を先に書き換え（§7 S18（新）・S13 の延長と見返し、§16-2p）
+- [x] S18 ことばを えらぶ（新しいセーブだけ。選んだらすぐ保存 → なまえ）
+- [x] 延長 #16〜#25（src/tutorial/post.ts・PostGuide.tsx。文は tutorial.json の post）：メニュー → ガチャ15袋（本物）→ まとめ → デッキ編集（はじめてのデッキ・もっている・外す・入れる・決まり）→ メニューの紹介
+- [x] どの手順からでもスキップ。途中で閉じたら #16 か #20 から再開（tutorial.step）。最後の「ひいてみる！／あとで」は無くした
+- [x] 見返し：ガチャは見本（決まった袋）、デッキは練習用の写し（SandboxSaveProvider）。コインも所持数もデッキも変わらない
+- [x] テスト tests/tutorial.post.test.ts（P01）、scripts/shots-tutorial.mjs（P02。おしらせ から始めてコインが足りない人・再開・スキップも）両方の言語・2サイズで問題なし
+- [x] 別のエージェントの突き合わせ：指摘を直した（DECISIONS #318〜#324）
+- [x] 通し確認 scripts/walkthrough.mjs（ことば → なまえ → チュートリアル（ガチャ・デッキ）→ CPU → ストーリー → フレンド → レート → トレード → 移行）2サイズで問題なし
+- [x] npm test（320件）・npm run test:slow（17件。STORY_WINRATES.md を新しい番号で作り直した）・npm run build がすべて通った
+
+**アップデート v2.1 完了**（K・L・M・N・O・P。I は行わない）
+

@@ -557,13 +557,19 @@ export const kanji: Dict = {
     good: 'そう！',
     won: 'やったね！ 君の勝ち！ もうオテカの遊び方はばっちりだね。',
     lost: '負けても大丈夫！ 何度でも練習できるよ。',
-    invite: (coins, pack, bags) => `コインを${coins}枚持ってるね！ ${pack}を${bags}枚引いて、仲間を増やそう！`,
-    tryGacha: '引いてみる！',
-    later: '後で',
-    reviewEnd: 'おつかれさま！ またいつでも見に来てね。',
-    toMenu: 'メニューへ',
+    sample: '見本',
+    toDeck: 'デッキ編集へ',
     again: 'チュートリアルをもう一度',
     againNote: 'おてあげ先生といっしょにおさらい',
+  },
+
+  langPick: {
+    title: 'ことばを えらんでね ／ 言葉を選んでね',
+    options: {
+      hira: { label: 'にほんご', sample: 'あいてを たおそう！' },
+      kanji: { label: '日本語', sample: '相手を倒そう！' },
+    },
+    note: 'あとで「せってい」で かえられるよ ／ 後で「設定」で変えられるよ',
   },
 
   name: {

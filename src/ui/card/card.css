@@ -753,3 +753,17 @@
   font-size: 16px;
   line-height: 1;
 }
+/* 初めて手に入れたカードの「NEW」（チュートリアルのデッキ編集。v2.1-P） */
+.card-mini__new {
+  position: absolute;
+  left: -6px;
+  top: -8px;
+  z-index: 3;
+  padding: 0 6px;
+  font-size: 16px;
+  color: var(--paper);
+  background: var(--pen-red);
+  border-radius: 5px;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}

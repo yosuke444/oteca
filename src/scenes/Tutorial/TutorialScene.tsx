@@ -1,7 +1,6 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { type BattleSetup, randomSeed } from '../../battle/setup';
-import { PACK_DATA } from '../../data/packs';
 import type { Side } from '../../engine/types';
 import { useFx } from '../../fx/fxSettings';
 import { offerById } from '../../gacha/gacha';
@@ -9,18 +8,15 @@ import { useT } from '../../i18n/useT';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { ME, TutorialDriver, tutorialMatch } from '../../tutorial/driver';
-import { features } from '../../config/features';
 import { Dialog } from '../../ui/common/Dialog';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { BattleScene } from '../Battle/BattleScene';
-import type { GachaPayload } from '../Gacha/GachaScene';
+import { startPost } from '../../tutorial/post';
+import { TUTORIAL_OFFER } from './PostGuide';
 import './tutorial.css';
 
-/** チュートリアルの最後に案内するパックと買い方（UPDATE_v2 §6T-6） */
-const INVITE_PACK = 'ganso';
-const INVITE_OFFER = 'fifteen';
 
 /**
  * S13 チュートリアル（UPDATE_v2 §6T・SPEC §7 S13）。
@@ -31,12 +27,14 @@ export function TutorialScene() {
   const { go } = useNav();
   const { save, update } = useSave();
   const tr = useT();
-  // 見返し（パックガチャへの案内を出さない）：まだ案内していない人（初めて・デバッグで はじめから）には案内する。
-  // ガチャが無い・15まい を引くコインが無い時も、案内は出さない
+  // 見返し（ルールせつめい・せってい から。もう終えた人）：延長のガチャは見本、デッキ編集は練習用の写し（UPDATE_v2_1 §6-3）。
+  // 初めてでも、15まい を引くコインが無い時（アップデートの おしらせ から来て コインを使っていた人）は、ガチャを見本にする
   const [review] = useState(() => {
-    const offer = offerById(INVITE_OFFER);
-    return save.tutorial.gachaInviteShown || !features.gacha || !offer || save.coins < offer.price;
+    const offer = offerById(TUTORIAL_OFFER);
+    return save.tutorial.done || !offer || save.coins < offer.price;
   });
+  /** 初めて（まだ終えていない）：終えた・とばした時に印を書く */
+  const [first] = useState(() => !save.tutorial.done);
   const [driver] = useState(() => new TutorialDriver());
   const [setup] = useState<BattleSetup>(() => ({
     mode: 'cpu',
@@ -52,8 +50,13 @@ export function TutorialScene() {
   const [winner, setWinner] = useState<Side | null>(null);
   const [asking, setAsking] = useState(false);
 
-  /** 終えた・とばした印（次から自動では始めない） */
+  /** とばした印（次から自動では始めない） */
   const markDone = () => update((d) => void (d.tutorial.done = true));
+  /** 対戦が終わった：延長（#16 パックガチャから）へ。初めての人は、途中で閉じても #16 から再開できるように step を書く */
+  const toPost = () => {
+    startPost(review, first);
+    go('menu');
+  };
 
   return (
     <div className="tutorial-scene" data-testid="tutorial-scene">
@@ -63,7 +66,8 @@ export function TutorialScene() {
           guide={{
             driver,
             onOver: (w) => {
-              markDone();
+              // 初めての人は、対戦が終わった時点で再開位置を書く（このあと閉じても #16 から）
+              if (first) update((d) => void (d.tutorial.step = Math.max(d.tutorial.step, 16)));
               setWinner(w);
             },
             // 案内の途中の「戻る」・「おてあげする」は、スキップの確認にする
@@ -72,16 +76,7 @@ export function TutorialScene() {
           }}
         />
       ) : (
-        <TutorialEnd
-          won={winner === ME}
-          review={review}
-          onMenu={() => go('menu')}
-          onGacha={() => {
-            update((d) => void (d.tutorial.gachaInviteShown = true));
-            const payload: GachaPayload = { packId: INVITE_PACK, guideOffer: INVITE_OFFER };
-            go('gacha', payload);
-          }}
-        />
+        <TutorialEnd won={winner === ME} onNext={toPost} />
       )}
 
       {winner === null && (
@@ -137,35 +132,32 @@ function useTypewriter(text: string): [number, () => void] {
 }
 
 /**
- * 終わった後（UPDATE_v2 §6T-6）。
- * 負けても励ます → 初めて：パックガチャへの案内（ひいてみる！／あとで）。見返し：「おつかれさま！」でメニューへ
+ * 対戦が終わった後（UPDATE_v2_1 §6-2）：勝っても負けても励まし、タップで延長（#16 パックガチャ）へ
  */
-function TutorialEnd({ won, review, onMenu, onGacha }: { won: boolean; review: boolean; onMenu: () => void; onGacha: () => void }) {
+function TutorialEnd({ won, onNext }: { won: boolean; onNext: () => void }) {
   const tr = useT();
-  const { save } = useSave();
-  const [page, setPage] = useState(0);
-  const pack = PACK_DATA.packs.find((p) => p.id === INVITE_PACK)!;
-  const bags = offerById(INVITE_OFFER)?.bags ?? 0;
-  const texts = [won ? tr.tutorial.won : tr.tutorial.lost, review ? tr.tutorial.reviewEnd : tr.tutorial.invite(save.coins, pack.name, bags)];
-  const text = texts[page];
+  const text = won ? tr.tutorial.won : tr.tutorial.lost;
   const [shown, finish] = useTypewriter(text);
   const typing = shown < text.length;
+  const went = useRef(false);
   useEffect(() => {
-    audio.play(page === 0 ? (won ? 'se_sou' : 'se_page') : 'se_present');
-  }, [page]);
-
+    audio.play(won ? 'se_sou' : 'se_page');
+  }, []);
   return (
     <div
       className="tutorial-end"
       data-testid="tutorial-end"
       onClick={() => {
         if (typing) finish();
-        else if (page === 0) setPage(1);
+        else if (!went.current) {
+          went.current = true;
+          onNext();
+        }
       }}
     >
       <OtegeArt width={300} className="tutorial-end__sensei" />
       <div className="tutorial-end__balloon">
-        <RoughBox seed={`tutorial-end-${page}`} className="tutorial-end__box" paper radius={22}>
+        <RoughBox seed="tutorial-end" className="tutorial-end__box" paper radius={22}>
           <span className="guide__name pencil">{tr.tutorial.sensei}</span>
           <p className="tutorial-end__text">
             <span className="sr-only">{text}</span>
@@ -174,31 +166,13 @@ function TutorialEnd({ won, review, onMenu, onGacha }: { won: boolean; review: b
               <span className="guide__rest">{text.slice(shown)}</span>
             </span>
           </p>
-          {page === 0 && !typing && (
+          {!typing && (
             <button type="button" className="guide__next blue-pen" ref={(e) => e?.focus({ preventScroll: true })} data-testid="tutorial-end-next">
               {tr.tutorial.tapNext} ▶
             </button>
           )}
         </RoughBox>
       </div>
-      {page === 1 && !typing && (
-        <div className="tutorial-end__buttons" onClick={(e) => e.stopPropagation()}>
-          {review ? (
-            <RoughButton seed="tutorial-end-menu" highlight className="tutorial-end__btn" onClick={onMenu} data-testid="tutorial-menu">
-              {tr.tutorial.toMenu}
-            </RoughButton>
-          ) : (
-            <>
-              <RoughButton seed="tutorial-end-later" className="tutorial-end__btn" onClick={onMenu} data-testid="tutorial-later">
-                {tr.tutorial.later}
-              </RoughButton>
-              <RoughButton seed="tutorial-end-gacha" highlight strokeWidth={3} className="tutorial-end__btn tutorial-end__btn--gacha" onClick={onGacha} data-testid="tutorial-gacha">
-                {tr.tutorial.tryGacha}
-              </RoughButton>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
