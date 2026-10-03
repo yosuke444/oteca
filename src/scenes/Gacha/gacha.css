@@ -19,6 +19,8 @@
 }
 .gacha-scene__back {
   position: absolute;
+  /* まとめ画面（画面いっぱいの層）より上に（押せるように） */
+  z-index: 20;
   right: 36px;
   top: 16px;
   width: 150px;
