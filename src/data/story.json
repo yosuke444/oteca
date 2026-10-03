@@ -1,7 +1,6 @@
 {
-  "_comment": "ストーリーモード（UPDATE_v2 §7・SPEC §7 S08）。ステージを足す時はこのファイルだけ編集する。after は前のステージ（どれか1つをクリアすると行ける。空なら最初から行ける）。x・y は木の中の位置（横1280の紙の上）。deck は [カード id, 枚数]。ボスルールは RuleSet で書く（boss＝ボス側、player＝プレイヤー側）。",
-  "version": 1,
-  "map": { "height": 1440 },
+  "_comment": "ストーリーモード（UPDATE_v2 §7・UPDATE_v2_1 §4・SPEC §7 S08）。ステージを足す時はこのファイルだけ編集する（マップの大きさと線は、ここから自動で描く）。pos はマップの中の位置（ステージ1つ分の間隔を1マスとして、横は右が＋、縦は上が＋）。parents は前のステージ（どれか1つをクリアすると行ける。空なら最初から行ける）。deck は [カード id, 枚数]。ボスルールは RuleSet で書く（boss＝ボス側、player＝プレイヤー側）。",
+  "version": 2,
   "levels": { "normal": "normal", "boss": "strong" },
   "rewards": {
     "normal": { "first": 50, "again": 30 },
@@ -9,83 +8,83 @@
   },
   "stages": [
     {
-      "no": 1, "kind": "normal", "name": "らくがき こぞう", "after": [], "x": 640, "y": 110,
+      "no": 1, "kind": "normal", "name": "らくがき こぞう", "parents": [], "pos": { "x": 0, "y": 0 },
       "theme": { "hira": "はじめての あいて。ゆっくりした こうげき", "kanji": "初めての相手。ゆっくりした攻撃" },
-      "deck": [["oteage", 4], ["mutsuashi", 3], ["yonhon", 2], ["mitsume", 2], ["kusuri", 4]]
+      "deck": [["oteage",4], ["mutsuashi",3], ["yonhon",2], ["mitsume",2], ["kusuri",4]]
     },
     {
-      "no": 2, "kind": "normal", "name": "けしかす", "after": [1], "x": 640, "y": 290,
+      "no": 2, "kind": "normal", "name": "けしかす", "parents": [1], "pos": { "x": 0, "y": 1 },
       "theme": { "hira": "かいふく だいすき", "kanji": "回復大好き" },
-      "deck": [["mitsume", 3], ["yotsuashi", 3], ["shikaku", 2], ["mutsuashi", 2], ["kusuri", 3], ["supodori", 2]]
+      "deck": [["mitsume",3], ["yotsuashi",3], ["shikaku",2], ["mutsuashi",2], ["kusuri",3], ["supodori",2]]
     },
     {
-      "no": 3, "kind": "boss", "name": "おてあげニンゲン", "after": [2], "x": 640, "y": 500, "boss": "ningen", "card": "oteage_ningen",
+      "no": 3, "kind": "boss", "name": "おてあげニンゲン", "parents": [2], "pos": { "x": 0, "y": 2 }, "boss": "ningen", "card": "oteage_ningen",
       "theme": { "hira": "バランスがた：なんでも そこそこ", "kanji": "バランス型：なんでもそこそこ" },
       "bossRule": { "text": { "hira": "ボスだけ さいしょに 7まい ひく", "kanji": "ボスだけ最初に7枚引く" }, "boss": { "initialHand": 7 } },
-      "deck": [["oteage_ningen", 1], ["oteage", 3], ["mitsume", 2], ["otesage", 2], ["hasami", 2], ["shikaku", 1], ["kusuri", 2], ["himitsu_yaiba", 1], ["supodori", 1]]
+      "deck": [["oteage_ningen",1], ["oteage",3], ["mitsume",2], ["otesage",2], ["hasami",2], ["shikaku",1], ["kusuri",2], ["himitsu_yaiba",1], ["supodori",1]]
     },
     {
-      "no": 4, "kind": "normal", "name": "おしゃべり ペン", "after": [3], "x": 330, "y": 730,
+      "no": 4, "kind": "normal", "name": "おしゃべり ペン", "parents": [3], "pos": { "x": -2, "y": 3 },
       "theme": { "hira": "ひいて ひいて ひきまくる", "kanji": "引いて引いて引きまくる" },
-      "deck": [["kawaiage", 3], ["piero", 2], ["oteage", 3], ["mitsume", 2], ["kusuri", 3], ["hikikae", 2]]
+      "deck": [["kawaiage",3], ["piero",2], ["oteage",3], ["mitsume",2], ["kusuri",3], ["hikikae",2]]
     },
     {
-      "no": 5, "kind": "normal", "name": "まいごの ふせん", "after": [4], "x": 330, "y": 900,
+      "no": 5, "kind": "normal", "name": "ぶあつい じしょ", "parents": [3], "pos": { "x": 0, "y": 3 },
+      "theme": { "hira": "かたくて たおれない", "kanji": "硬くて倒れない" },
+      "deck": [["mutsuashi",3], ["yonhon",3], ["shikaku",2], ["yukidaruma",2], ["kusuri",3], ["supodori",2]]
+    },
+    {
+      "no": 6, "kind": "normal", "name": "えんぴつ けずり", "parents": [3], "pos": { "x": 2, "y": 3 },
+      "theme": { "hira": "とがった こうげき", "kanji": "とがった攻撃" },
+      "deck": [["otesage",3], ["sanbon",3], ["yatsuashi",2], ["toriashi",2], ["himitsu_yaiba",3], ["kusuri",2]]
+    },
+    {
+      "no": 7, "kind": "normal", "name": "まいごの ふせん", "parents": [4], "pos": { "x": -3, "y": 4 },
       "theme": { "hira": "なかよしで かいふく", "kanji": "仲良しで回復" },
-      "deck": [["tomodachi", 3], ["hataage", 3], ["surimu", 2], ["yotsuashi", 2], ["kusuri", 2], ["yabaitsubo", 1], ["supodori", 2]]
+      "deck": [["tomodachi",3], ["hataage",3], ["surimu",2], ["yotsuashi",2], ["kusuri",2], ["yabaitsubo",1], ["supodori",2]]
     },
     {
-      "no": 6, "kind": "normal", "name": "よふかし ノート", "after": [5], "x": 330, "y": 1070,
+      "no": 8, "kind": "normal", "name": "よふかし ノート", "parents": [4,5], "pos": { "x": -1, "y": 4 },
       "theme": { "hira": "あとから じわじわ", "kanji": "後からじわじわ" },
-      "deck": [["ootoro", 2], ["piero", 2], ["kawaiage", 2], ["dokusage", 2], ["tomodachi", 2], ["hikikae", 2], ["yabaitsubo", 1], ["kusuri", 2]]
+      "deck": [["ootoro",2], ["piero",2], ["kawaiage",2], ["dokusage",2], ["tomodachi",2], ["hikikae",2], ["yabaitsubo",1], ["kusuri",2]]
     },
     {
-      "no": 7, "kind": "boss", "name": "おてあげウサギ", "after": [6], "x": 330, "y": 1290, "boss": "usagi", "card": "oteage_usagi",
+      "no": 9, "kind": "normal", "name": "こおりの のり", "parents": [5,6], "pos": { "x": 1, "y": 4 },
+      "theme": { "hira": "ひえひえ じわじわ", "kanji": "ひえひえじわじわ" },
+      "deck": [["yukidaruma",3], ["sarashiage",2], ["surimu",2], ["yonhon",2], ["dokusage",2], ["kusuri",2], ["supodori",2]]
+    },
+    {
+      "no": 10, "kind": "normal", "name": "あかペン せんせい", "parents": [6], "pos": { "x": 3, "y": 4 },
+      "theme": { "hira": "みを けずって なぐる", "kanji": "身を削って殴る" },
+      "deck": [["shovelcar",3], ["bakuhatsu",2], ["toriashi",2], ["sanbon",2], ["hataage",2], ["himitsu_yaiba",2], ["kimyou_drink",2]]
+    },
+    {
+      "no": 11, "kind": "boss", "name": "おてあげウサギ", "parents": [7], "pos": { "x": -5, "y": 4 }, "boss": "usagi", "card": "oteage_usagi",
       "theme": { "hira": "バランスがた：ひいて まもって ひっくりかえす", "kanji": "バランス型：引いて守ってひっくり返す" },
       "bossRule": { "text": { "hira": "ボスは 2ターンに 1かい ドローする", "kanji": "ボスは2ターンに1回ドローする" }, "boss": { "drawEveryNTurns": 2 } },
-      "deck": [["oteage_usagi", 3], ["kawaiage", 2], ["piero", 2], ["surimu", 2], ["hataage", 1], ["tomodachi", 1], ["medusa", 1], ["hikikae", 1], ["kusuri", 2]]
+      "deck": [["oteage_usagi",3], ["kawaiage",2], ["piero",2], ["surimu",2], ["hataage",1], ["tomodachi",1], ["medusa",1], ["hikikae",1], ["kusuri",2]]
     },
     {
-      "no": 8, "kind": "normal", "name": "えんぴつ けずり", "after": [3], "x": 640, "y": 730,
-      "theme": { "hira": "とがった こうげき", "kanji": "とがった攻撃" },
-      "deck": [["otesage", 3], ["sanbon", 3], ["yatsuashi", 2], ["toriashi", 2], ["himitsu_yaiba", 3], ["kusuri", 2]]
+      "no": 12, "kind": "normal", "name": "てつの ふでばこ", "parents": [8,9], "pos": { "x": 0, "y": 5 },
+      "theme": { "hira": "おもくて がんじょう", "kanji": "重くて頑丈" },
+      "deck": [["hon777",2], ["mutsuashi",2], ["sarashiage",2], ["hasami",2], ["dokusage",2], ["yukidaruma",1], ["kusuri",2], ["supodori",2]]
     },
     {
-      "no": 9, "kind": "normal", "name": "あかペン せんせい", "after": [8], "x": 640, "y": 900,
-      "theme": { "hira": "みを けずって なぐる", "kanji": "身を削って殴る" },
-      "deck": [["shovelcar", 3], ["bakuhatsu", 2], ["toriashi", 2], ["sanbon", 2], ["hataage", 2], ["himitsu_yaiba", 2], ["kimyou_drink", 2]]
-    },
-    {
-      "no": 10, "kind": "normal", "name": "はんこ やさん", "after": [9], "x": 640, "y": 1070,
+      "no": 13, "kind": "normal", "name": "はんこ やさん", "parents": [9,10,12], "pos": { "x": 3, "y": 5 },
       "theme": { "hira": "いちげき ひっさつ", "kanji": "一撃必殺" },
-      "deck": [["karaage", 2], ["bakeage", 2], ["yatsuashi", 2], ["bakuhatsu", 2], ["shovelcar", 2], ["moyasu", 1], ["himitsu_yaiba", 2], ["kimyou_drink", 1], ["kusuri", 1]]
+      "deck": [["karaage",2], ["bakeage",2], ["yatsuashi",2], ["bakuhatsu",2], ["shovelcar",2], ["moyasu",1], ["himitsu_yaiba",2], ["kimyou_drink",1], ["kusuri",1]]
     },
     {
-      "no": 11, "kind": "boss", "name": "おてあげザムライ", "after": [10], "x": 640, "y": 1290, "boss": "zamurai", "card": "oteage_zamurai",
+      "no": 14, "kind": "boss", "name": "おてあげザムライ", "parents": [13], "pos": { "x": 5, "y": 5 }, "boss": "zamurai", "card": "oteage_zamurai",
       "theme": { "hira": "こうげきがた：きって きって きりまくる", "kanji": "攻撃型：斬って斬って斬りまくる" },
       "bossRule": { "text": { "hira": "ボスの ダメージわざは いつも +20", "kanji": "ボスのダメージ技は常に+20" }, "boss": { "attackBonus": 20 } },
-      "deck": [["oteage_zamurai", 1], ["otesage", 2], ["yatsuashi", 2], ["sanbon", 2], ["shovelcar", 2], ["toriashi", 2], ["himitsu_yaiba", 2], ["kusuri", 2]]
+      "deck": [["oteage_zamurai",1], ["otesage",2], ["yatsuashi",2], ["sanbon",2], ["shovelcar",2], ["toriashi",2], ["himitsu_yaiba",2], ["kusuri",2]]
     },
     {
-      "no": 12, "kind": "normal", "name": "ぶあつい じしょ", "after": [3], "x": 950, "y": 730,
-      "theme": { "hira": "かたくて たおれない", "kanji": "硬くて倒れない" },
-      "deck": [["mutsuashi", 3], ["yonhon", 3], ["shikaku", 2], ["yukidaruma", 2], ["kusuri", 3], ["supodori", 2]]
-    },
-    {
-      "no": 13, "kind": "normal", "name": "こおりの のり", "after": [12], "x": 950, "y": 900,
-      "theme": { "hira": "ひえひえ じわじわ", "kanji": "ひえひえじわじわ" },
-      "deck": [["yukidaruma", 3], ["sarashiage", 2], ["surimu", 2], ["yonhon", 2], ["dokusage", 2], ["kusuri", 2], ["supodori", 2]]
-    },
-    {
-      "no": 14, "kind": "normal", "name": "てつの ふでばこ", "after": [13], "x": 950, "y": 1070,
-      "theme": { "hira": "おもくて がんじょう", "kanji": "重くて頑丈" },
-      "deck": [["hon777", 2], ["mutsuashi", 2], ["sarashiage", 2], ["hasami", 2], ["dokusage", 2], ["yukidaruma", 1], ["kusuri", 2], ["supodori", 2]]
-    },
-    {
-      "no": 15, "kind": "boss", "name": "おてあげドラゴン", "after": [14], "x": 950, "y": 1290, "boss": "dragon", "card": "oteage_dragon",
+      "no": 15, "kind": "boss", "name": "おてあげドラゴン", "parents": [12], "pos": { "x": 0, "y": 6 }, "boss": "dragon", "card": "oteage_dragon",
       "theme": { "hira": "ぼうぎょがた：さいごの とりで", "kanji": "防御型：最後の砦" },
       "bossRule": { "text": { "hira": "ボスの おてあげを 4たい たおさないと かてない", "kanji": "ボスのおてあげを4体倒さないと勝てない" }, "player": { "koToWin": 4 } },
-      "deck": [["oteage_dragon", 1], ["hon777", 2], ["mutsuashi", 2], ["yonhon", 2], ["yukidaruma", 2], ["sarashiage", 1], ["hasami", 1], ["kusuri", 2], ["supodori", 2]]
+      "deck": [["oteage_dragon",1], ["hon777",2], ["mutsuashi",2], ["yonhon",2], ["yukidaruma",2], ["sarashiage",1], ["hasami",1], ["kusuri",2], ["supodori",2]]
     }
   ]
 }

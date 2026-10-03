@@ -4,6 +4,7 @@
 }
 .story-scene__title {
   position: absolute;
+  z-index: 5;
   left: 48px;
   top: 14px;
   margin: 0;
@@ -13,11 +14,13 @@
 }
 .story-scene__coins {
   position: absolute;
+  z-index: 5;
   right: 220px;
   top: 22px;
 }
 .story-scene__back {
   position: absolute;
+  z-index: 5;
   right: 36px;
   top: 14px;
   width: 150px;
@@ -26,40 +29,116 @@
 }
 .story-scene__hint {
   position: absolute;
+  z-index: 5;
   left: 260px;
+  max-width: 560px;
+  line-height: 1.15;
+  pointer-events: none;
   top: 32px;
   margin: 0;
   font-size: 18px;
 }
 
-/* ---------- 木（上下に動かす） ---------- */
+/* ---------- マップ（上下左右に動かす・拡大縮小。v2.1-N） ---------- */
 .story-map {
   position: absolute;
   left: 0;
   right: 0;
   top: 86px;
   bottom: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  scrollbar-width: thin;
+  overflow: hidden;
+  touch-action: none;
   cursor: grab;
 }
 .story-map:active {
   cursor: grabbing;
 }
 .story-map__paper {
-  position: relative;
-  width: 1280px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
 }
 .story-map__lines {
   position: absolute;
-  inset: 0;
-  width: 1280px;
-  height: 100%;
+  left: 0;
+  top: 0;
   overflow: visible;
   pointer-events: none;
+}
+/* 全体図（右下） */
+.story-minimap {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 4;
+  padding: 0;
+  border: 2.4px solid var(--ink);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 25%, transparent);
+}
+.story-minimap svg {
+  display: block;
+}
+.story-minimap__line {
+  fill: none;
+  stroke: var(--pencil);
+  stroke-width: 18;
+  stroke-dasharray: 20 22;
+}
+.story-minimap__line.is-open {
+  stroke: var(--ink);
+  stroke-dasharray: none;
+}
+.story-minimap__dot {
+  fill: var(--paper);
+  stroke: var(--pencil);
+  stroke-width: 16;
+}
+.story-minimap__dot.is-open {
+  fill: var(--marker-yellow);
+  stroke: var(--pen-green);
+}
+.story-minimap__dot.is-cleared {
+  fill: var(--pen-green);
+  stroke: var(--pen-green);
+}
+.story-minimap__dot--boss.is-open,
+.story-minimap__dot--boss.is-cleared {
+  stroke: var(--pen-red);
+}
+.story-minimap__view {
+  fill: color-mix(in srgb, var(--pen-blue) 12%, transparent);
+  stroke: var(--pen-blue);
+  stroke-width: 14;
+}
+/* 拡大・縮小のボタン（全体図の上） */
+.story-zoom {
+  position: absolute;
+  right: 18px;
+  z-index: 4;
+  display: flex;
+  gap: 10px;
+}
+.story-zoom__btn {
+  width: 58px;
+  height: 52px;
+  font-size: 30px;
+}
+/* まだ行けない：点線の枠に「？」 */
+.story-node__q {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: var(--pencil);
+}
+.story-node--boss .story-node__q {
+  font-size: 84px;
 }
 .story-line {
   fill: none;
@@ -140,20 +219,6 @@
 .story-node:focus-visible {
   outline: 3px dashed var(--pen-blue);
   outline-offset: 6px;
-}
-/* 南京錠 */
-.story-lock {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 40px;
-  height: 46px;
-  margin: -23px 0 0 -20px;
-  fill: none;
-  stroke: var(--pencil);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 /* クリアの はんこ と チェック */
 .story-stamp {

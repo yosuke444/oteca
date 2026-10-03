@@ -9,27 +9,54 @@ import { encodeSave } from '../src/save/binary';
 import { decodeSave } from '../src/save/migrate';
 import { decodeTransferCode, encodeTransferCode } from '../src/save/transferCode';
 import { createDefaultSave, normalizeSave } from '../src/save/saveData';
-import { ENEMY, PLAYER, STORY, applyStoryResult, isUnlocked, opensAfter, stageByNo, stageDeckNos, stageLevel, stageRules, stageState, storyReward } from '../src/story/story';
+import { ENEMY, PLAYER, STORY, applyStoryResult, childrenOf, isUnlocked, opensAfter, parseStory, stageByNo, stageDeckNos, stageLevel, stageRules, stageState, storyReward } from '../src/story/story';
+import storyRaw from '../src/data/story.json';
+import { mapEdges, mapLayout } from '../src/scenes/Story/StoryMap';
 
 const no = (id: string) => cardById(id)!.no;
+/** ボスのステージ番号（v2.1-N で番号が変わったので、ボスの id で探す） */
+const bossNo = (id: string) => STORY.stages.find((s) => s.boss === id)!.no;
 const clear = (save: ReturnType<typeof createDefaultSave>, ...stages: number[]) => {
   for (const s of stages) applyStoryResult(save, s, true);
 };
 
-describe('F01 story.json の15ステージと敵デッキ', () => {
-  it('15ステージ（ボス4・雑魚11）。番号は1〜15、前のステージの つながりが正しい', () => {
+describe('F01 story.json の15ステージと敵デッキ（v2.1-N の並び。UPDATE_v2_1 §4-2）', () => {
+  it('15ステージ（ボス4・雑魚11）。番号・位置・前のステージ・敵は §4-2 の表のとおり', () => {
     expect(STORY.stages.map((s) => s.no)).toEqual(Array.from({ length: 15 }, (_, i) => i + 1));
-    expect(STORY.stages.filter((s) => s.kind === 'boss').map((s) => s.no)).toEqual([3, 7, 11, 15]);
-    expect(new Set(STORY.stages.filter((s) => s.kind === 'boss').map((s) => s.boss))).toEqual(new Set(['ningen', 'usagi', 'zamurai', 'dragon']));
-    for (const s of STORY.stages) for (const a of s.after) expect(stageByNo(a), `${s.no} の前 ${a}`).toBeDefined();
-    // 3つ ＋ 分かれ道3本×4（UPDATE_v2 §7-1）
-    expect(stageByNo(1)!.after).toEqual([]);
-    expect(stageByNo(2)!.after).toEqual([1]);
-    expect(stageByNo(3)!.after).toEqual([2]);
-    expect(STORY.stages.filter((s) => s.after.includes(3)).map((s) => s.no)).toEqual([4, 8, 12]);
-    expect([5, 6, 7].map((n) => stageByNo(n)!.after[0])).toEqual([4, 5, 6]);
-    expect([9, 10, 11].map((n) => stageByNo(n)!.after[0])).toEqual([8, 9, 10]);
-    expect([13, 14, 15].map((n) => stageByNo(n)!.after[0])).toEqual([12, 13, 14]);
+    const table: [number, number, number, string, number[]][] = [
+      [1, 0, 0, 'らくがき こぞう', []],
+      [2, 0, 1, 'けしかす', [1]],
+      [3, 0, 2, 'おてあげニンゲン', [2]],
+      [4, -2, 3, 'おしゃべり ペン', [3]],
+      [5, 0, 3, 'ぶあつい じしょ', [3]],
+      [6, 2, 3, 'えんぴつ けずり', [3]],
+      [7, -3, 4, 'まいごの ふせん', [4]],
+      [8, -1, 4, 'よふかし ノート', [4, 5]],
+      [9, 1, 4, 'こおりの のり', [5, 6]],
+      [10, 3, 4, 'あかペン せんせい', [6]],
+      [11, -5, 4, 'おてあげウサギ', [7]],
+      [12, 0, 5, 'てつの ふでばこ', [8, 9]],
+      [13, 3, 5, 'はんこ やさん', [9, 10, 12]],
+      [14, 5, 5, 'おてあげザムライ', [13]],
+      [15, 0, 6, 'おてあげドラゴン', [12]],
+    ];
+    expect(STORY.stages.map((s) => [s.no, s.pos.x, s.pos.y, s.name, s.parents])).toEqual(table);
+    expect(STORY.stages.filter((s) => s.kind === 'boss').map((s) => [s.no, s.boss])).toEqual([
+      [3, 'ningen'],
+      [11, 'usagi'],
+      [14, 'zamurai'],
+      [15, 'dragon'],
+    ]);
+    // 形のおかしい story.json はエラー
+    const bad = (patch: (d: { stages: { no: number; parents: number[]; pos: { x: number; y: number } }[] }) => void) => {
+      const d = structuredClone(storyRaw) as unknown as { stages: { no: number; parents: number[]; pos: { x: number; y: number } }[] };
+      patch(d);
+      return () => parseStory(d);
+    };
+    expect(bad((d) => (d.stages[1].parents = [99]))).toThrow('前のステージ');
+    expect(bad((d) => (d.stages[1].no = 1))).toThrow('重複');
+    expect(bad((d) => (d.stages[1].pos = { x: 0, y: 0 }))).toThrow('同じ位置');
+    expect(bad((d) => (d.stages[1].parents = [2]))).toThrow('前のステージ');
   });
 
   it('どの敵デッキも、デッキのルール（15枚・おてあげ1枚以上・スーパーは1枚まで）を満たす', () => {
@@ -54,8 +81,8 @@ describe('F01 story.json の15ステージと敵デッキ', () => {
   });
 });
 
-describe('F02 分かれ道の解放', () => {
-  it('最初は1だけ。1 → 2 → 3。3 をクリアすると 4・8・12 が同時に開く。どれからでも進める', () => {
+describe('F02・N01 分かれ道と合流の解放（v2.1-N）', () => {
+  it('最初は1だけ。1 → 2 → 3 は真っすぐ。3 をクリアすると 4・5・6 が同時に開く', () => {
     const save = createDefaultSave();
     expect(STORY.stages.filter((s) => isUnlocked(save, s.no)).map((s) => s.no)).toEqual([1]);
     expect(opensAfter(save, 1)).toEqual([2]);
@@ -64,16 +91,90 @@ describe('F02 分かれ道の解放', () => {
     expect(stageState(save, 2)).toBe('open');
     expect(stageState(save, 3)).toBe('locked');
     clear(save, 2);
-    expect(opensAfter(save, 3)).toEqual([4, 8, 12]);
+    expect(opensAfter(save, 3)).toEqual([4, 5, 6]);
     clear(save, 3);
-    expect([4, 8, 12].map((n) => stageState(save, n))).toEqual(['open', 'open', 'open']);
-    expect([5, 9, 13].map((n) => stageState(save, n))).toEqual(['locked', 'locked', 'locked']);
-    // 右の道から進んでもよい
-    clear(save, 12, 13, 14);
-    expect(stageState(save, 15)).toBe('open');
-    expect(stageState(save, 5)).toBe('locked');
-    clear(save, 8);
-    expect(stageState(save, 9)).toBe('open');
+    expect([4, 5, 6].map((n) => stageState(save, n))).toEqual(['open', 'open', 'open']);
+    expect([7, 8, 9, 10].map((n) => stageState(save, n))).toEqual(['locked', 'locked', 'locked', 'locked']);
+  });
+
+  it('N01 全15ステージに、スタートから行ける（行き止まりや孤立が無い）', () => {
+    // スタートから「前のステージ → 次のステージ」をたどって、全部に届く
+    const start = STORY.stages.filter((s) => s.parents.length === 0).map((s) => s.no);
+    expect(start).toEqual([1]);
+    const seen = new Set(start);
+    const queue = [...start];
+    while (queue.length) for (const c of childrenOf(queue.shift()!)) if (!seen.has(c)) (seen.add(c), queue.push(c));
+    expect([...seen].sort((a, b) => a - b)).toEqual(STORY.stages.map((s) => s.no));
+    // 実際にクリアしていっても、全部が開いて全部クリアできる
+    const save = createDefaultSave();
+    for (let round = 0; round < 20; round++) {
+      const open = STORY.stages.filter((s) => stageState(save, s.no) === 'open').map((s) => s.no);
+      if (!open.length) break;
+      clear(save, ...open);
+    }
+    expect(STORY.stages.every((s) => stageState(save, s.no) === 'cleared')).toBe(true);
+    // 最初の3つは分かれ道なしで真っすぐ上
+    expect([1, 2, 3].map((n) => [stageByNo(n)!.pos.x, childrenOf(n).length])).toEqual([
+      [0, 1],
+      [0, 1],
+      [0, 3],
+    ]);
+  });
+
+  it('N02 ボス11（ウサギ）・14（ザムライ）・15（ドラゴン）は行き止まり（次のステージが無い）。ニンゲンは行き止まりではない', () => {
+    for (const id of ['usagi', 'zamurai', 'dragon']) expect(childrenOf(bossNo(id)), id).toEqual([]);
+    expect(childrenOf(bossNo('ningen')).length).toBeGreaterThan(0);
+    // 行き止まりは ボスだけ
+    for (const s of STORY.stages) if (childrenOf(s.no).length === 0) expect(s.kind, `ステージ ${s.no}`).toBe('boss');
+    // ウサギは左へ横に、ザムライは右へ横に、ドラゴンは一番上
+    expect(stageByNo(11)!.pos).toEqual({ x: -5, y: 4 });
+    expect(stageByNo(14)!.pos).toEqual({ x: 5, y: 5 });
+    expect(Math.max(...STORY.stages.map((s) => s.pos.y))).toBe(stageByNo(15)!.pos.y);
+  });
+
+  it('N03 合流のステージは、どちらの前のステージからでも開く（13 は 9・10・12 のどれからでも）', () => {
+    const merges = STORY.stages.filter((s) => s.parents.length >= 2);
+    expect(merges.map((s) => s.no)).toEqual([8, 9, 12, 13]);
+    for (const m of merges) {
+      for (const p of m.parents) {
+        const save = createDefaultSave();
+        clear(save, p);
+        expect(stageState(save, m.no), `${m.no} を ${p} から`).toBe('open');
+      }
+      // 前のステージでないステージだけをクリアしても開かない（例：8 は 6 だけでは開かない）
+      const others = STORY.stages.filter((s) => !m.parents.includes(s.no) && s.no !== m.no).map((s) => s.no);
+      for (const o of others) {
+        const save = createDefaultSave();
+        clear(save, o);
+        expect(stageState(save, m.no), `${m.no} を ${o} だけで`).toBe('locked');
+      }
+    }
+  });
+
+  it('マップの大きさと線は story.json から自動で決まる（合流点に線が集まる）', () => {
+    const layout = mapLayout();
+    const { edges, stubs } = mapEdges(layout);
+    // 線は「前のステージ」の数だけ
+    expect(edges).toHaveLength(STORY.stages.reduce((n, s) => n + s.parents.length, 0));
+    // 下から2本以上来るステージ（8・9・12・13）には、合流点からの1本
+    expect(stubs.map((s) => s.to)).toEqual([8, 9, 12, 13]);
+    // 上のステージほど紙の上（y が小さい）。左右は pos.x の順
+    expect(layout.at(15).y).toBeLessThan(layout.at(12).y);
+    expect(layout.at(12).y).toBeLessThan(layout.at(1).y);
+    expect(layout.at(11).x).toBeLessThan(layout.at(7).x);
+    expect(layout.at(14).x).toBeGreaterThan(layout.at(13).x);
+    for (const s of STORY.stages) {
+      const p = layout.at(s.no);
+      expect(p.x).toBeGreaterThan(0);
+      expect(p.x).toBeLessThan(layout.width);
+      expect(p.y).toBeGreaterThan(0);
+      expect(p.y).toBeLessThan(layout.height);
+    }
+    // 合流のステージに下から来る線は、同じ1点で終わる
+    for (const m of [8, 9, 12, 13]) {
+      const ends = edges.filter((e) => e.to === m && stageByNo(e.from)!.pos.y < stageByNo(m)!.pos.y).map((e) => e.d.split(' ').slice(-2).join(' '));
+      expect(new Set(ends).size, `${m}`).toBe(1);
+    }
   });
 });
 
@@ -99,7 +200,7 @@ describe('F03 ボスルール4種がエンジンで効く', () => {
   });
 
   it('おてあげウサギ：ボスは2ターンに1回ドローする（プレイヤーは3ターンに1回のまま）', () => {
-    const st = stageByNo(7)!;
+    const st = stageByNo(bossNo('usagi'))!;
     // むつあし どうしで回復の目（1）ばかり出す：だれも倒れない
     let s = sandboxGame(stageRules(st), { p1: 'mutsuashi', p2: 'mutsuashi' }, Array(20).fill(1));
     const draws: Record<Side, number[]> = { p1: [], p2: [] };
@@ -114,14 +215,14 @@ describe('F03 ボスルール4種がエンジンで効く', () => {
   });
 
   it('おてあげザムライ：ボスのダメージ技は +20（0ダメージ・回復には付かない。プレイヤーには付かない）', () => {
-    const s = sandboxGame(stageRules(stageByNo(11)!), { p1: 'oteage', p2: 'oteage' }, []);
+    const s = sandboxGame(stageRules(stageByNo(bossNo('zamurai'))!), { p1: 'oteage', p2: 'oteage' }, []);
     const boss = s.cards[s.players[ENEMY].active!];
     const me = s.cards[s.players[PLAYER].active!];
     expect(moveDamage(s, boss, 30)).toBe(50);
     expect(moveDamage(s, boss, 0)).toBe(0);
     expect(moveDamage(s, me, 30)).toBe(30);
     // 実際に攻撃しても +20：自分の攻撃（目1：30ダメ）→ ボスの攻撃（目2：30 → 50）
-    const g = sandboxGame(stageRules(stageByNo(11)!), { p1: 'oteage', p2: 'oteage' }, [1, 2]);
+    const g = sandboxGame(stageRules(stageByNo(bossNo('zamurai'))!), { p1: 'oteage', p2: 'oteage' }, [1, 2]);
     const r1 = applyAction(g, { type: 'END_TURN', player: PLAYER });
     expect(r1.events.find((e) => e.type === 'Damaged')).toMatchObject({ amount: 30 });
     const r2 = applyAction(r1.state, { type: 'END_TURN', player: ENEMY });
@@ -130,7 +231,7 @@ describe('F03 ボスルール4種がエンジンで効く', () => {
   });
 
   it('おてあげドラゴン：プレイヤーはボスのおてあげを4体倒さないと勝てない。ボスは3体で勝ち', () => {
-    const st = stageByNo(15)!;
+    const st = stageByNo(bossNo('dragon'))!;
     const s = createGame({ seed: 'd', decks: { p1: stageDeckNos(stageByNo(1)!), p2: stageDeckNos(st) }, cardDb: CARD_DB, rules: stageRules(st) }).state;
     expect(s.rules[PLAYER].koToWin).toBe(4);
     expect(s.rules[ENEMY].koToWin).toBe(3);
@@ -166,7 +267,7 @@ describe('F04 報酬', () => {
   });
 
   it('ボス：初クリア200 ＋ 限定カード1枚、2回目以降50（カードは増えない）', () => {
-    for (const n of [3, 7, 11, 15]) {
+    for (const n of [3, 11, 14, 15]) {
       const save = createDefaultSave();
       const st = stageByNo(n)!;
       const card = no(st.card!);
@@ -198,12 +299,14 @@ describe('F04 報酬', () => {
 describe('F05 進み具合が保存・引き継ぎコードで残る', () => {
   it('クリアの印・初クリアの印が、保存の形に変えて戻しても同じ', () => {
     const save = createDefaultSave();
-    clear(save, 1, 2, 3, 8);
+    clear(save, 1, 2, 3, 5);
     applyStoryResult(save, 1, true);
     const back = normalizeSave(decodeSave(encodeSave(normalizeSave(save))));
     expect(back.story).toEqual(normalizeSave(save).story);
+    expect(stageState(back, 8)).toBe('open');
     expect(stageState(back, 9)).toBe('open');
     expect(stageState(back, 4)).toBe('open');
+    expect(stageState(back, 7)).toBe('locked');
     expect(back.collection[no('oteage_ningen')]).toBe(1);
   });
 

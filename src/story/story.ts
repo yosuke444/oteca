@@ -19,11 +19,10 @@ export type StageDef = {
   /** 敵の名前（固有名詞なので言語で変えない） */
   name: string;
   theme: LocalText;
-  /** 前のステージ（どれか1つをクリアすると行ける） */
-  after: number[];
-  /** 木の中の位置 */
-  x: number;
-  y: number;
+  /** 前のステージ（どれか1つをクリアすると行ける。合流は「どちらから来てもよい」。空ならスタート） */
+  parents: number[];
+  /** マップの中の位置（1マス＝ステージ1つ分の間隔。横は右が＋、縦は上が＋。v2.1-N） */
+  pos: { x: number; y: number };
   /** [カード id, 枚数] */
   deck: [string, number][];
   boss?: BossId;
@@ -34,13 +33,39 @@ export type StageDef = {
 
 export type StoryData = {
   version: number;
-  map: { height: number };
   levels: Record<StageKind, CpuLevel>;
   rewards: Record<StageKind, { first: number; again: number }>;
   stages: StageDef[];
 };
 
-export const STORY = storyRaw as unknown as StoryData;
+/** 形が正しくなければエラー（同じ番号・無い前のステージ・自分を前に・同じ位置） */
+export function parseStory(data: unknown): StoryData {
+  const d = data as StoryData;
+  const fail = (m: string): never => {
+    throw new Error(`story.json: ${m}`);
+  };
+  if (!d || !Array.isArray(d.stages)) fail('stages がありません');
+  const nos = new Set<number>();
+  const places = new Set<string>();
+  for (const s of d.stages) {
+    if (!Number.isInteger(s.no) || s.no <= 0 || nos.has(s.no)) fail(`ステージ ${String(s?.no)}: 番号が無いか重複しています`);
+    nos.add(s.no);
+    if (!Array.isArray(s.parents)) fail(`ステージ ${s.no}: parents がありません`);
+    if (!s.pos || !Number.isInteger(s.pos.x) || !Number.isInteger(s.pos.y)) fail(`ステージ ${s.no}: pos が不正です`);
+    const key = `${s.pos.x},${s.pos.y}`;
+    if (places.has(key)) fail(`ステージ ${s.no}: 同じ位置 ${key} にほかのステージがあります`);
+    places.add(key);
+  }
+  for (const s of d.stages) for (const p of s.parents) if (!nos.has(p) || p === s.no) fail(`ステージ ${s.no}: 前のステージ ${p} が不正です`);
+  return d;
+}
+
+export const STORY = parseStory(storyRaw);
+
+/** このステージの次のステージ（このステージを前に持つもの） */
+export function childrenOf(no: number, data: StoryData = STORY): number[] {
+  return data.stages.filter((s) => s.parents.includes(no)).map((s) => s.no);
+}
 
 /** ストーリーでは、自分が p1（下）、敵が p2 */
 export const PLAYER: Side = 'p1';
@@ -85,7 +110,7 @@ export function isCleared(save: Pick<SaveData, 'story'>, no: number): boolean {
 export function isUnlocked(save: Pick<SaveData, 'story'>, no: number, data: StoryData = STORY): boolean {
   const st = stageByNo(no, data);
   if (!st) return false;
-  return st.after.length === 0 || st.after.some((a) => isCleared(save, a));
+  return st.parents.length === 0 || st.parents.some((a) => isCleared(save, a));
 }
 
 export type StageState = 'locked' | 'open' | 'cleared';
@@ -97,7 +122,7 @@ export function stageState(save: Pick<SaveData, 'story'>, no: number, data: Stor
 
 /** このステージをクリアすると新しく行けるようになるステージ（まだ行けないもの） */
 export function opensAfter(save: Pick<SaveData, 'story'>, no: number, data: StoryData = STORY): number[] {
-  return data.stages.filter((s) => s.after.includes(no) && !isUnlocked(save, s.no, data)).map((s) => s.no);
+  return data.stages.filter((s) => s.parents.includes(no) && !isUnlocked(save, s.no, data)).map((s) => s.no);
 }
 
 export type StoryReward = {

@@ -1,5 +1,5 @@
 // ストーリー（UPDATE_v2 §7・SPEC §7 S08）の確認：両方の言語で撮る。
-// ステージ選択（最初・途中・全体をスワイプ）→ 確認カード → ボスのカットイン → 対戦（ボスルールの表示）→ 負け（もういちど）、
+// ステージ選択（最初・途中・上下左右のドラッグと拡大縮小・全体図。v2.1-N）→ 確認カード → ボスのカットイン → 対戦（ボスルールの表示）→ 負け（もういちど）、
 // 勝ち（リザルトの報酬・限定カードの演出）→ ステージ選びへ戻ると線が描かれて次が開く、保存されていること。
 // 使い方：npm run dev を動かしたまま node scripts/shots-story.mjs 0（1280×720）／1（844×390）
 import { SIZES, launch, openPage, shot } from './pw.mjs';
@@ -155,28 +155,90 @@ for (const lang of ['hira', 'kanji']) {
   await snap(lang, '13_map_drawing');
   await page.waitForTimeout(2200);
   await snap(lang, '14_map_opened');
-  const cls5 = await page.getByTestId('story-stage-5').getAttribute('class');
-  if (!cls5.includes('is-open')) problems.push(`${lang} ステージ4のあと 5 が開いていない`);
+  // 4 をクリアすると 7 と 8（合流）が開く（v2.1-N）
+  for (const n of [7, 8]) {
+    const cls = await page.getByTestId(`story-stage-${n}`).getAttribute('class');
+    if (!cls.includes('is-open')) problems.push(`${lang} ステージ4のあと ${n} が開いていない：${cls}`);
+  }
 
-  // ---------------- 全体をスワイプで見られる（いちばん下まで）
-  await setSave(lang, [1, 2, 3, 4, 5, 6, 7, 8, 9, 12]);
+  // ---------------- 上下左右のドラッグ・拡大縮小で、マップ全体を見られる（UPDATE_v2_1 §4-7）
+  await setSave(lang, [1, 2, 3, 4, 5, 6, 8, 9]);
   await toStory(lang);
   await snap(lang, '15_map_mid');
+  // 開いた時は「行ける」ステージの中でいちばん新しいもの（12・13 のうち 13）が真ん中あたり
+  if (!(await inView(13))) problems.push(`${lang} 開いた時に 13 が見えない`);
   const map = page.getByTestId('story-map');
   const box = await map.boundingBox();
-  // 上へドラッグをくり返す（小さい画面ほど回数が要る）
-  for (let i = 0; i < 6; i++) {
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height - 20);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2, box.y + 10, { steps: 8 });
-    await page.mouse.up();
-  }
+  /** ドラッグ：画面の (dx, dy) だけ動かす（何回か） */
+  const dragBy = async (dx, dy, times = 4) => {
+    for (let i = 0; i < times; i++) {
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 8 });
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(200);
+  };
+  /** その向きに少しずつドラッグして、ステージが見えるまで（見えたら true） */
+  const dragUntil = async (no, dx, dy, max = 12) => {
+    for (let i = 0; i < max; i++) {
+      if (await inView(no)) return true;
+      await dragBy(dx, dy, 1);
+    }
+    return inView(no);
+  };
+  // 右へ（左の端のウサギ 11 が見える）
+  if (!(await dragUntil(11, box.width * 0.25, 0))) problems.push(`${lang} 右へドラッグしても 11（ウサギ）が見えない`);
+  await snap(lang, '16_map_left');
+  // 左へ（右の端のザムライ 14）
+  if (!(await dragUntil(14, -box.width * 0.25, 0))) problems.push(`${lang} 左へドラッグしても 14（ザムライ）が見えない`);
+  await snap(lang, '17_map_right');
+  // 右へ（真ん中の 12）→ 下へ（一番上のドラゴン 15）→ 上へ（スタートの 1）
+  if (!(await dragUntil(12, box.width * 0.25, 0))) problems.push(`${lang} 右へドラッグしても 12 が見えない`);
+  if (!(await dragUntil(15, 0, box.height * 0.25))) problems.push(`${lang} 下へドラッグしても 15（ドラゴン）が見えない`);
+  await snap(lang, '17b_map_top');
+  if (!(await dragUntil(1, 0, -box.height * 0.25, 20))) problems.push(`${lang} 上へドラッグしても 1 が見えない`);
+  await snap(lang, '18_map_start_again');
+  // ホイールで縮小（0.6倍まで）・拡大（1.5倍まで）
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(0, 300);
   await page.waitForTimeout(300);
-  await snap(lang, '16_map_bottom');
-  const bottom = await map.evaluate((el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
-  if (!bottom) problems.push(`${lang} ドラッグで いちばん下まで動かせない`);
-  const v15 = await page.getByTestId('story-stage-15').isVisible();
-  if (!v15) problems.push(`${lang} ステージ15が見えない`);
+  const zMin = Number(await map.getAttribute('data-zoom'));
+  if (Math.abs(zMin - 0.6) > 0.001) problems.push(`${lang} ホイールで縮小しても 0.6 にならない：${zMin}`);
+  await snap(lang, '19_map_zoom_min');
+  for (let i = 0; i < 20; i++) await page.mouse.wheel(0, -300);
+  await page.waitForTimeout(300);
+  const zMax = Number(await map.getAttribute('data-zoom'));
+  if (Math.abs(zMax - 1.5) > 0.001) problems.push(`${lang} ホイールで拡大しても 1.5 にならない：${zMax}`);
+  await snap(lang, '20_map_zoom_max');
+  // 「－」ボタンで縮小
+  for (let i = 0; i < 5; i++) await page.getByTestId('story-zoom-out').click();
+  if (Number(await map.getAttribute('data-zoom')) >= zMax) problems.push(`${lang} 「－」で縮小しない`);
+  // 全体図を押すと、そこへ動く（右上を押すとザムライ 14 のあたり）
+  const mini = await page.getByTestId('story-minimap').boundingBox();
+  await page.mouse.click(mini.x + mini.width * 0.95, mini.y + mini.height * 0.2);
+  await page.waitForTimeout(300);
+  if (!(await inView(14))) problems.push(`${lang} 全体図の右上を押しても 14 が見えない`);
+  await snap(lang, '21_minimap_jump');
+  // ドラッグの後でも、ステージを押せる（動かさずに押した時だけ開く）
+  await page.getByTestId('story-stage-13').click().catch(() => {});
+  if (!(await page.getByTestId('stage-confirm').count())) {
+    // 13 が見えていなければ全体図で動かしてから押す
+    await page.mouse.click(mini.x + mini.width * 0.75, mini.y + mini.height * 0.3);
+    await page.waitForTimeout(300);
+    await page.getByTestId('story-stage-13').click();
+  }
+  if (!(await page.getByTestId('stage-confirm').count())) problems.push(`${lang} ドラッグの後にステージを押しても確認カードが開かない`);
+}
+
+/** ステージの枠が地図の窓の中に見えているか */
+async function inView(no) {
+  const m = await page.getByTestId('story-map').boundingBox();
+  const b = await page.getByTestId(`story-stage-${no}`).boundingBox();
+  if (!m || !b) return false;
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  return cx > m.x && cx < m.x + m.width && cy > m.y && cy < m.y + m.height;
 }
 
 console.log(size.name, problems.length ? `\n${problems.join('\n')}` : '問題 なし');

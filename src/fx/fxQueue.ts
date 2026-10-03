@@ -87,7 +87,8 @@ export class FxQueue {
       try {
         if (preset?.before) await preset.before(this.env, e, ctx);
       } catch (err) {
-        console.error('[fx]', e.type, err);
+        // 画面を離れた後（演出の層が無い）に途中の演出が失敗したのは、知らせなくてよい
+        if (!this.disposed) console.error('[fx]', e.type, err);
       }
       const before = this.env.view();
       this.env.setView((v) => applyEventToView(v, e));
@@ -95,7 +96,7 @@ export class FxQueue {
       try {
         if (preset?.after) await preset.after(this.env, e, ctx);
       } catch (err) {
-        console.error('[fx]', e.type, err);
+        if (!this.disposed) console.error('[fx]', e.type, err);
       }
     }
   }

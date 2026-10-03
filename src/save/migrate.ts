@@ -12,7 +12,7 @@ import {
   readSaveV4,
   readSaveV5,
 } from './binary';
-import { COINS_MAX, DECK_SLOTS, OWN_MAX, type SaveData, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from './saveData';
+import { COINS_MAX, DECK_SLOTS, OWN_MAX, type SaveData, type StoryStage, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from './saveData';
 
 /**
  * 形式版数を見て、古い形式なら最新の SaveData へ変換する（SPEC §12-3）
@@ -31,6 +31,8 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   3: readSaveV3,
   4: readSaveV4,
   5: readSaveV5,
+  // 形式版数6 は 5 と同じ並び
+  6: readSaveV5,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -46,7 +48,58 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   3: (old) => upgradeToV4(old as SaveDataV3),
   /** 4 → 5（v2.1-L）：ログボの日付を、その日の0時の時刻に（SPEC §12-3c）。tutorial.step と daily を足す */
   4: (old) => upgradeToV5(old as SaveDataV4),
+  /** 5 → 6（v2.1-N）：ストーリーのステージ番号を、新しいマップの番号へ（敵の名前を手がかりに。SPEC §12-3d） */
+  5: (old) => upgradeToV6(old as SaveData),
 };
+
+/**
+ * v2.0（形式版数5まで）のステージ番号と敵の名前（UPDATE_v2 §7-3。変えない。移行のための記録。
+ * 新しい番号の敵の名前と同じことをテスト N04 で確かめる）
+ */
+export const OLD_STAGE_NAMES: Record<number, string> = {
+  1: 'らくがき こぞう',
+  2: 'けしかす',
+  3: 'おてあげニンゲン',
+  4: 'おしゃべり ペン',
+  5: 'まいごの ふせん',
+  6: 'よふかし ノート',
+  7: 'おてあげウサギ',
+  8: 'えんぴつ けずり',
+  9: 'あかペン せんせい',
+  10: 'はんこ やさん',
+  11: 'おてあげザムライ',
+  12: 'ぶあつい じしょ',
+  13: 'こおりの のり',
+  14: 'てつの ふでばこ',
+  15: 'おてあげドラゴン',
+};
+
+/**
+ * 古いステージ番号 → v2.1-N の新しい番号（UPDATE_v2_1 §4-2 の表を、敵の名前で突き合わせたもの）。
+ * 移行は固定にする（あとで story.json の名前や番号を変えても、5 → 6 の結果が変わらないように）
+ */
+export const NEW_STAGE_NO: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 7, 6: 8, 7: 11, 8: 6, 9: 10, 10: 13, 11: 14, 12: 5, 13: 9, 14: 12, 15: 15 };
+
+/** 古いステージ番号 → 新しい番号（知らない番号は undefined） */
+export function newStageNo(oldNo: number): number | undefined {
+  return NEW_STAGE_NO[oldNo];
+}
+
+/**
+ * 形式版数5 → 6（UPDATE_v2_1 §4-6）：クリア済み・初クリア報酬済みの印を、新しいステージ番号へ移す。
+ * 移した結果、前のステージが未クリアなのにクリア済みのステージができても、クリア済みのまま（行けるかは関係ない）。
+ * 知らない番号は消す
+ */
+export function upgradeToV6(d: SaveData): SaveData {
+  const stages = new Map<number, StoryStage>();
+  for (const s of d.story.stages) {
+    const no = newStageNo(s.no);
+    if (no === undefined) continue;
+    const prev = stages.get(no);
+    stages.set(no, { no, cleared: s.cleared || !!prev?.cleared, firstClear: s.firstClear || !!prev?.firstClear });
+  }
+  return { ...d, story: { stages: [...stages.values()].sort((a, b) => a.no - b.no) } };
+}
 
 /** YYYYMMDD → その日の0時（端末の時刻）のミリ秒。0 や壊れた日付は 0 */
 export function dayStartMs(key: number): number {

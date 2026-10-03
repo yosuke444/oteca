@@ -5,7 +5,8 @@ import { validateDeck } from '../src/engine';
 import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, encodeBody, encodeSave } from '../src/save/binary';
 import { checkSavedDeck } from '../src/save/collection';
 import { openSave, sealBytes } from '../src/save/cookieStore';
-import { dayStartMs, decodeSave, migrate } from '../src/save/migrate';
+import { OLD_STAGE_NAMES, dayStartMs, decodeSave, migrate, newStageNo, upgradeToV6 } from '../src/save/migrate';
+import { STORY, stageByNo } from '../src/story/story';
 import { DECK_SLOTS, type SaveData, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from '../src/save/saveData';
 import { decodeTransferCode, encodeTransferBytes } from '../src/save/transferCode';
 import { makeRandom } from './save.helpers';
@@ -148,16 +149,31 @@ describe('形式の移行（固定の見本）', () => {
     updateNoticeSeen: true,
     tutorial: { done: true, gachaInviteShown: true },
   };
-  /** 形式版数4 を今の形（形式版数5）にした時：ログボは受け取った日の0時、tutorial.step 0、daily は空 */
-  const V4_AS_LATEST: SaveData = {
+  /** 形式版数4 を形式版数5 にした時：ログボは受け取った日の0時、tutorial.step 0、daily は空 */
+  const V4_AS_V5: SaveData = {
     ...V4_EXPECTED,
     loginBonus: { claimedAt: new Date(2026, 9, 2).getTime() },
     tutorial: { done: true, gachaInviteShown: true, step: 0 },
     daily: emptyDaily(),
   };
+  /**
+   * 形式版数5 → 6（v2.1-N）：ステージ番号を敵の名前で付け替える。
+   * 見本のステージ 1（らくがき こぞう）・4（おしゃべり ペン）・9（あかペン せんせい）→ 1・4・10
+   */
+  const renumbered = (d: SaveData): SaveData => ({
+    ...d,
+    story: {
+      stages: [
+        { no: 1, cleared: true, firstClear: true },
+        { no: 4, cleared: true, firstClear: false },
+        { no: 10, cleared: false, firstClear: false },
+      ],
+    },
+  });
+  const V4_AS_LATEST = renumbered(V4_AS_V5);
   /** 形式版数5（v2.1-L）：すべての項目に初期値でない値を入れた見本 */
   const V5_EXPECTED: SaveData = {
-    ...V4_AS_LATEST,
+    ...V4_AS_V5,
     loginBonus: { claimedAt: 1791012345678 },
     tutorial: { done: false, gachaInviteShown: true, step: 16 },
     daily: {
@@ -170,6 +186,14 @@ describe('形式の移行（固定の見本）', () => {
       allClearClaimed: true,
     },
   };
+  const V5_AS_LATEST = renumbered(V5_EXPECTED);
+  /** 形式版数6（v2.1-N。今の形式）：並びは5と同じ。ステージは新しい番号 */
+  const V6_EXPECTED: SaveData = V5_AS_LATEST;
+  const V6_FIXTURE_HEX =
+    '0601d20909e382aae38386e382aba009011b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a00000142010c' +
+    '000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ceae9e' +
+    '85903489d1d4091403010304010a00870109029601ffeeddccbbaa99880111112222333344446202aaaaaaaaaaaaaaaa000000000000000107746f6b2d78797a0202' +
+    '723106e5a0b1e5918a108bd1d4090306010100ac020004000001';
   const V5_FIXTURE_HEX =
     '0501d20909e382aae38386e382aba009011b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a00000142010c' +
     '000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ceae9e8590' +
@@ -229,14 +253,22 @@ describe('形式の移行（固定の見本）', () => {
     expect((migrate(4, { ...V4_EXPECTED, loginBonus: { lastDate: 0 } }) as SaveData).loginBonus.claimedAt).toBe(0);
   });
 
-  it('V05 今の形式（形式版数5）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    expect(toHex(encodeSave(V5_EXPECTED))).toBe(V5_FIXTURE_HEX);
-    expect(decodeSave(hexToBytes(V5_FIXTURE_HEX))).toEqual(V5_EXPECTED);
-    expect(migrate(5, V5_EXPECTED)).toEqual(V5_EXPECTED);
+  it('V05 形式版数5（v2.1-L）→ 最新：ステージ番号を新しい番号へ', () => {
+    expect(toHex(encodeBody(V5_EXPECTED, 5))).toBe(V5_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V5_FIXTURE_HEX))).toEqual(V5_AS_LATEST);
+    expect(migrate(5, V5_EXPECTED)).toEqual(V5_AS_LATEST);
+  });
+
+  it('V05 今の形式（形式版数6）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
+    expect(toHex(encodeSave(V6_EXPECTED))).toBe(V6_FIXTURE_HEX);
+    // 並びは形式版数5と同じ（先頭の版数とステージの番号だけ違う）
+    expect(V6_FIXTURE_HEX.slice(2).length).toBe(V5_FIXTURE_HEX.slice(2).length);
+    expect(decodeSave(hexToBytes(V6_FIXTURE_HEX))).toEqual(V6_EXPECTED);
+    expect(migrate(6, V6_EXPECTED)).toEqual(V6_EXPECTED);
   });
 
   it('V05 読めない形式版数・余分なバイト・壊れた値はエラーになる', () => {
-    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX]) {
+    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX, V6_FIXTURE_HEX]) {
       const bytes = hexToBytes(hex);
       const future = bytes.slice();
       future[0] = 99;
@@ -272,7 +304,8 @@ describe('形式の移行（固定の見本）', () => {
   it('V06 形式版数4（v2.0）の Cookie の中身と引き継ぎコードが、v2.1 でも読める', async () => {
     expect(openSave(sealBytes(hexToBytes(V4_FIXTURE_HEX)))).toEqual(V4_AS_LATEST);
     expect(await decodeTransferCode(encodeTransferBytes(hexToBytes(V4_FIXTURE_HEX), 37))).toEqual({ ok: true, data: V4_AS_LATEST });
-    expect(await decodeTransferCode(encodeTransferBytes(hexToBytes(V5_FIXTURE_HEX), 5))).toEqual({ ok: true, data: V5_EXPECTED });
+    expect(await decodeTransferCode(encodeTransferBytes(hexToBytes(V5_FIXTURE_HEX), 5))).toEqual({ ok: true, data: V5_AS_LATEST });
+    expect(openSave(sealBytes(hexToBytes(V5_FIXTURE_HEX)))).toEqual(V5_AS_LATEST);
   });
 
   it('V06 形式版数1・2・3で作った古い引き継ぎコード（圧縮なし）が、v2.0 でも読める', async () => {
@@ -287,6 +320,72 @@ describe('形式の移行（固定の見本）', () => {
     expect(openSave(sealBytes(hexToBytes(V3_FIXTURE_HEX)))).toEqual(V3_AS_LATEST);
   });
 });
+
+describe('N04 ストーリーのステージ番号の付け替え（形式版数5 → 6。UPDATE_v2_1 §4-6）', () => {
+  it('古い15ステージは、敵の名前どおりの新しい番号へ（旧4 おしゃべり ペン は新4、旧12 ぶあつい じしょ は新5）', () => {
+    expect(newStageNo(4)).toBe(4);
+    expect(newStageNo(12)).toBe(5);
+    expect(newStageNo(99)).toBeUndefined();
+    const all = Object.keys(OLD_STAGE_NAMES).map(Number);
+    expect(all).toHaveLength(15);
+    for (const o of all) expect(stageByNo(newStageNo(o)!)!.name, `旧${o}`).toBe(OLD_STAGE_NAMES[o]);
+    // 1対1（2つが同じ番号にならない）
+    expect(new Set(all.map(newStageNo)).size).toBe(15);
+    expect(all.map(newStageNo)).toEqual([1, 2, 3, 4, 7, 8, 11, 6, 10, 13, 14, 5, 9, 12, 15]);
+    expect(STORY.stages).toHaveLength(15);
+  });
+
+  it('形式版数1〜3 の古いセーブからも、番号が付け替わる（旧5 まいごの ふせん → 新7、旧12 ぶあつい じしょ → 新5）', () => {
+    const old = { ...oldPlayer(5), story: { cleared: [1, 2, 3, 5, 12] } };
+    for (const v of [1, 2, 3] as const) {
+      const got = decodeSave(encodeOldSave(old, v));
+      expect(got.story.stages.map((s) => s.no), `形式版数${v}`).toEqual([1, 2, 3, 5, 7]);
+      expect(got.story.stages.every((s) => s.cleared && s.firstClear)).toBe(true);
+    }
+  });
+
+  it('クリア済み・初クリア報酬済みの印が移る。前のステージが未クリアでもクリア済みのまま。知らない番号は消える', () => {
+    const s = createDefault();
+    // 旧：ザムライの道（8・9・10・11）を全部クリアした人
+    s.story.stages = [1, 2, 3, 8, 9, 10, 11].map((no) => ({ no, cleared: true, firstClear: true }));
+    s.story.stages.push({ no: 12, cleared: false, firstClear: true }, { no: 40, cleared: true, firstClear: true });
+    const got = upgradeToV6(s);
+    expect(got.story.stages).toEqual([
+      { no: 1, cleared: true, firstClear: true },
+      { no: 2, cleared: true, firstClear: true },
+      { no: 3, cleared: true, firstClear: true },
+      { no: 5, cleared: false, firstClear: true },
+      { no: 6, cleared: true, firstClear: true },
+      { no: 10, cleared: true, firstClear: true },
+      { no: 13, cleared: true, firstClear: true },
+      { no: 14, cleared: true, firstClear: true },
+    ]);
+    // ほかは変わらない
+    expect({ ...got, story: s.story }).toEqual(s);
+  });
+});
+
+/** 新しいセーブ（テスト用） */
+function createDefault(): SaveData {
+  return structuredClone(migrate(5, { ...laterFieldsDefault(), ...baseForV6() }) as SaveData);
+}
+function baseForV6() {
+  return {
+    saveVersion: 1 as const,
+    saveCounter: 1,
+    playerName: 'a',
+    settings: { bgm: 7, se: 7, fxSpeed: 0 as const, reduceFx: false, hints: true, lang: 'hira' as const },
+    decks: emptyRest(0),
+    selectedDeck: 0,
+    collection: {},
+    unlockAll: false,
+    coins: 0,
+    stats: { wins: 0, losses: 0 },
+    cpuStats: emptyCpuStats(),
+    story: { stages: [] as SaveData['story']['stages'] },
+    updateNoticeSeen: true,
+  };
+}
 
 // ---------------------------------------------------------------- 今までのプレイヤーの見本（V07）
 
@@ -460,7 +559,7 @@ describe('V07 今までのプレイヤーの移行（保存していたデッキ
     expect(got.collection[2]).toBe(999);
   });
 
-  it('移行して保存し直したデータ（形式版数5）を読んでも同じ', () => {
+  it('移行して保存し直したデータ（形式版数6）を読んでも同じ', () => {
     for (const { save } of NAMED_PLAYERS) {
       const got = decodeSave(encodeOldSave(save, 3));
       expect(decodeSave(encodeSave(got))).toEqual(got);

@@ -30,9 +30,10 @@ import {
 /**
  * 形式版数（バイト列の先頭1バイト）。
  * 1＝v1.3 まで／2＝v1.4（末尾に cpuStats）／3＝v2.0-A（末尾に lang）／4＝v2.0-B（デッキ20個・所持カードなど。並びを作り直した）／
- * 5＝v2.1-L（ログボは受け取った時刻 claimedAt、末尾に tutorial.step と daily）
+ * 5＝v2.1-L（ログボは受け取った時刻 claimedAt、末尾に tutorial.step と daily）／
+ * 6＝v2.1-N（並びは5と同じ。ストーリーのステージ番号を新しいマップの番号に付け替えた印）
  */
-export const FORMAT_VERSION = 5;
+export const FORMAT_VERSION = 6;
 
 /** 形式版数4の形（v2.0-B。ログボは日付、tutorial.step・daily が無い） */
 export type SaveDataV4 = Omit<SaveData, 'loginBonus' | 'tutorial' | 'daily'> & {
@@ -167,16 +168,16 @@ export class ByteReader {
 /** 印のビット（形式版数4） */
 const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16 } as const;
 
-/** 最新の形式（形式版数5）でバイト列にする */
+/** 最新の形式（形式版数6）でバイト列にする */
 export function encodeSave(data: SaveData): Uint8Array {
-  return encodeBody(data, 5);
+  return encodeBody(data, FORMAT_VERSION as 6);
 }
 
 /**
- * 形式版数4・5の並び（SPEC §12-3）。version 4 はテストで「形式版数4の固定のバイト列」を作るためだけに使う。
- * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く
+ * 形式版数4〜6の並び（SPEC §12-3）。version 4・5 はテストで「古い形式の固定のバイト列」を作るためだけに使う。
+ * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く。6 は 5 と同じ並び（ステージ番号の付け替えの印）
  */
-export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5): Uint8Array {
+export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5 | 6): Uint8Array {
   const w = new ByteWriter();
   w.byte(version);
   w.uint(data.saveVersion);
