@@ -14,8 +14,10 @@ export type PackDef = {
   name: string;
   /** 絞り込みのボタンに出す短い名前（固有名詞） */
   short: string;
-  /** 仮の絵の色（パックの絵が届くまで。SPEC §7 S09） */
-  color: 'blue' | 'red' | 'green';
+  /** 仮の絵の色（パックの絵が届くまで。SPEC §7 S09）。daily は緑と黄色のしま（v2.1-M） */
+  color: 'blue' | 'red' | 'green' | 'daily';
+  /** false：パックガチャでは売らない（デイリーパック。ミッションの報酬でだけ手に入る。v2.1-M）。書かなければ売る */
+  purchasable?: boolean;
   normal: string[];
   super: string[];
 };
@@ -54,8 +56,10 @@ export function parsePackData(data: unknown): PackData {
   }
   for (const id of d.limited) check(!!cardById(id), `limited の ${id} は cards.json にありません`);
   for (const p of d.packs) {
-    check(['blue', 'red', 'green'].includes(p.color), `パック ${p.id}: color が不正です`);
-    check(p.normal.length > 0 && p.super.length > 0, `パック ${p.id}: ノーマルとスーパーレアが1枚以上必要です`);
+    check(['blue', 'red', 'green', 'daily'].includes(p.color), `パック ${p.id}: color が不正です`);
+    check(p.purchasable === undefined || typeof p.purchasable === 'boolean', `パック ${p.id}: purchasable が不正です`);
+    // 売るパックはノーマルとスーパーレアが1枚以上。売らないパック（デイリー）はスーパーレア無しでもよい
+    check(p.normal.length > 0 && (p.super.length > 0 || p.purchasable === false), `パック ${p.id}: ノーマルとスーパーレアが1枚以上必要です`);
   }
   const dr = d.draw;
   const rate = (v: unknown) => typeof v === 'number' && v >= 0 && v <= 1;
@@ -71,6 +75,9 @@ function check(ok: boolean, message: string): asserts ok {
 }
 
 export const PACK_DATA: PackData = parsePackData(raw);
+
+/** パックガチャで売るパック（デイリーパックは売らない） */
+export const SHOP_PACKS: PackDef[] = PACK_DATA.packs.filter((p) => p.purchasable !== false);
 
 /** 絞り込みの「パック」：各パックと 限定 */
 export type PackFilter = string | 'limited';

@@ -11,6 +11,7 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import './debug.css';
 import { useT } from '../../i18n/useT';
 import { ECONOMY, addCoins, debugNextDay } from '../../economy/rewards';
+import { debugNextDaily } from '../../daily/daily';
 import { Dialog } from '../../ui/common/Dialog';
 
 /** 山札の上に積めるのは何枚まで（画面に並べる都合） */
@@ -149,6 +150,9 @@ export function DebugScene() {
             </RoughButton>
             <RoughButton seed="tool-day" className="debug-row__choice debug-tool" onClick={() => tool(() => update((d) => debugNextDay(d)))}>
               {D.nextDay}
+            </RoughButton>
+            <RoughButton seed="tool-daily" className="debug-row__choice debug-tool" onClick={() => tool(() => update((d) => debugNextDaily(d)))} data-testid="debug-next-daily">
+              {D.nextDaily}
             </RoughButton>
             <RoughButton seed="tool-tutorial" className="debug-row__choice debug-tool" onClick={() => {
               update((d) => {

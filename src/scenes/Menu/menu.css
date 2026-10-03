@@ -59,6 +59,9 @@
   pointer-events: none;
   overflow: visible;
 }
+.menu-scene__fx--top {
+  z-index: 70;
+}
 
 .menu-scene__gear {
   width: 64px;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import packsRaw from '../src/data/packs.json';
 import { CARD_DB } from '../src/data/cards';
-import { PACK_DATA } from '../src/data/packs';
+import { PACK_DATA, SHOP_PACKS } from '../src/data/packs';
 import { DRAW, applyPull, canAfford, cardRate, convertSuper, drawBags, offerById, packById, superRate, type Bag } from '../src/gacha/gacha';
 import { createDefaultSave } from '../src/save/saveData';
 import { makeRandom } from './save.helpers';
@@ -76,7 +76,7 @@ describe('G04 パックの中身・確率は packs.json の値', () => {
       [15, 200],
     ]);
     expect(DRAW.superToCoins).toBe(50);
-    for (const pack of PACK_DATA.packs) {
+    for (const pack of SHOP_PACKS) {
       const ids = [...new Set([...pack.normal, ...pack.super])];
       const total = ids.reduce((t, id) => t + cardRate(pack, id), 0);
       expect(total, pack.id).toBeCloseTo(1, 10);

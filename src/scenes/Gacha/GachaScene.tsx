@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { audio } from '../../audio/audioManager';
 import { CARD_DB, cardById } from '../../data/cards';
-import { PACK_DATA } from '../../data/packs';
+import { type PackDef, SHOP_PACKS } from '../../data/packs';
+import { addDailyProgress, dailyPack } from '../../daily/daily';
+import { addDailyNotice } from '../../daily/noticeStore';
 import { useFx } from '../../fx/fxSettings';
 import { setFxSpeed } from '../../fx/timing';
 import { DRAW, type Bag, type Offer, type PullResult, applyPull, canAfford, coinsRoomFor, cardRate, convertSuper, cryptoRand, drawBags, superRate } from '../../gacha/gacha';
@@ -19,10 +21,17 @@ import { PackArt } from './PackArt';
 import { Summary } from './Summary';
 import './gacha.css';
 
-/** チュートリアルの最後の案内から来た時：選んでおくパックと、蛍光ペンで囲むボタン（UPDATE_v2 §6T-6） */
-export type GachaPayload = { packId?: string; guideOffer?: string } | null;
+/** デイリーパックの開封（確定のミッションの報酬。保存は済んでいる。v2.1-M） */
+export type DailyRun = { bags: Bag[]; results: PullResult[]; coinsBefore: number; coins: number };
 
-type Run = { packIndex: number; offer: Offer; bags: Bag[]; results: PullResult[] };
+/**
+ * 画面に渡す値。packId・guideOffer：チュートリアルの最後の案内から来た時に選んでおくパックと、蛍光ペンで囲むボタン（UPDATE_v2 §6T-6）。
+ * daily：デイリーミッションの報酬のデイリーパックを開ける（SPEC §7 S17）
+ */
+export type GachaPayload = { packId?: string; guideOffer?: string; daily?: DailyRun } | null;
+
+/** offer が null はデイリーパック（買ったのではない） */
+type Run = { pack: PackDef; packIndex: number; offer: Offer | null; bags: Bag[]; results: PullResult[] };
 
 /** S09 パックガチャ（SPEC §7 S09・UPDATE_v2 §6） */
 export function GachaScene() {
@@ -31,10 +40,13 @@ export function GachaScene() {
   const { save, update } = useSave();
   const tr = useT();
   const fx = useFx();
-  const packs = PACK_DATA.packs;
+  const packs = SHOP_PACKS;
   const [index, setIndex] = useState(() => Math.max(0, packs.findIndex((p) => p.id === guide?.packId)));
-  const [view, setView] = useState<'shop' | 'open' | 'summary'>('shop');
-  const [run, setRun] = useState<Run | null>(null);
+  const daily = guide?.daily ?? null;
+  const [view, setView] = useState<'shop' | 'open' | 'summary'>(daily ? 'open' : 'shop');
+  const [run, setRun] = useState<Run | null>(() => (daily ? { pack: dailyPack(), packIndex: -1, offer: null, bags: daily.bags, results: daily.results } : null));
+  /** デイリーパックの50コインは、まとめ画面に出てから飛んでくる。それまでコイン表示は前の枚数 */
+  const [heldCoins, setHeldCoins] = useState<number | null>(daily ? daily.coinsBefore : null);
   const [contents, setContents] = useState(false);
   const [msg, setMsg] = useState<{ text: string; n: number } | null>(null);
   const artRef = useRef<HTMLDivElement>(null);
@@ -70,17 +82,34 @@ export function GachaScene() {
       return;
     }
     const bags = drawBags(packs[packIndex], offer.bags, cryptoRand);
+    // デイリーミッション「パックガチャを 1かい ひく」も同じ保存で数える（その日が変わっていたら入れ替え、前の日の報酬の知らせを置く）
+    const now = Date.now();
+    const carry = addDailyProgress(structuredClone(save), now, { gacha: true });
     // 保存したのと同じ計算の結果（NEW・換金できるか）を画面に出す。flushSync で、保存をこの場で済ませてから読む
     let results: PullResult[] | null = null;
     flushSync(() =>
       update((d) => {
         results = applyPull(d, offer, bags);
+        if (results) addDailyProgress(d, now, { gacha: true });
       }),
     );
     if (!results) return;
+    if (carry) addDailyNotice(carry);
     audio.play('se_coin');
-    setRun({ packIndex, offer, bags, results });
+    setRun({ pack: packs[packIndex], packIndex, offer, bags, results });
     setView('open');
+  };
+
+  /** デイリーパックのまとめ画面が出た：確定のミッションのコイン（+50）が飛んでくる */
+  const landDailyCoins = (from: HTMLElement | null) => {
+    const L = layerRef.current;
+    if (!daily || heldCoins === null) return;
+    if (!L || !from || daily.coins <= 0) {
+      setHeldCoins(null);
+      return;
+    }
+    audio.play('se_coin_burst');
+    void flyCoins(L, centerIn(L, from), 16, { reduce: fx.reduceFx, burst: true }).then(() => setHeldCoins(null));
   };
 
   // 所持数はセーブの数そのもの（デバッグの「ぜんぶ もっている」でも ∞ と出さない）
@@ -88,10 +117,10 @@ export function GachaScene() {
 
   return (
     <div className={`gacha-scene gacha-scene--${pack.color}`} data-testid="gacha-scene">
-      <h1 className="gacha-scene__title">{tr.gacha.title}</h1>
-      <CoinCounter value={save.coins} className="gacha-scene__coins" />
+      <h1 className="gacha-scene__title">{daily ? run?.pack.name : tr.gacha.title}</h1>
+      <CoinCounter value={heldCoins ?? save.coins} className="gacha-scene__coins" />
       {view !== 'open' && (
-        <RoughButton seed="gacha-back" className="gacha-scene__back" onClick={() => (view === 'summary' ? setView('shop') : go('menu'))}>
+        <RoughButton seed="gacha-back" className="gacha-scene__back" onClick={() => (view === 'summary' && !daily ? setView('shop') : go('menu'))}>
           {tr.common.back}
         </RoughButton>
       )}
@@ -169,14 +198,15 @@ export function GachaScene() {
       )}
 
       {view === 'open' && run && (
-        <Opening pack={packs[run.packIndex]} bags={run.bags} results={run.results} onDone={() => setView('summary')} />
+        <Opening pack={run.pack} bags={run.bags} results={run.results} onDone={() => setView('summary')} />
       )}
 
       {view === 'summary' && run && (
         <Summary
           results={run.results}
           owned={owned}
-          canAgain={canAfford(save, run.offer)}
+          simple={daily ? { label: tr.daily.toMenu, onClose: () => go('menu'), onShown: (from) => landDailyCoins(from) } : undefined}
+          canAgain={!!run.offer && canAfford(save, run.offer)}
           onNoCoins={noCoins}
           roomForCoins={coinsRoomFor(save)}
           onConvert={(i, from) => {
@@ -186,7 +216,7 @@ export function GachaScene() {
             const L = layerRef.current;
             if (L && from) void flyCoins(L, centerIn(L, from), 12, { reduce: fx.reduceFx, burst: true });
           }}
-          onAgain={() => buy(run.offer, run.packIndex)}
+          onAgain={() => run.offer && buy(run.offer, run.packIndex)}
           onShop={() => setView('shop')}
         />
       )}

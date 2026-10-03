@@ -29,6 +29,9 @@ import type { StoryPayload } from '../Story/StoryScene';
 import '../Story/story.css';
 import { DeckPickerDialog } from '../../ui/deck/DeckPicker';
 import { type RateChange, applyRateResult, rateOutcome } from '../../online/rate';
+import { type DailyMatchKind, addDailyProgress, dailyMatchKind, matchProgress } from '../../daily/daily';
+import { addDailyNotice } from '../../daily/noticeStore';
+import type { SaveData } from '../../save/saveData';
 import type { LobbyPayload } from '../Lobby/LobbyScene';
 import type { RatePayload } from '../Online/RateScene';
 
@@ -146,6 +149,33 @@ export function ResultScene() {
   const [reward, setReward] = useState<(RewardResult & { before: number }) | null>(null);
   const [coinsLanded, setCoinsLanded] = useState(false);
 
+  /**
+   * デイリーミッション（SPEC §7 S17）：この試合の分を数える準備。保存は勝敗の記録と同じ update の中で apply(d) を呼ぶ。
+   * その日が変わっていて前の日の報酬を自動で受け取った時の知らせは、写しで先に計算して置く（保存は同じ計算で1回）
+   */
+  const dailyKind = (rateDecided?: boolean) =>
+    dailyMatchKind({
+      mode: r.setup.mode,
+      record: r.setup.record,
+      debug: r.setup.debug,
+      rated: !!r.setup.rated,
+      story: !!r.setup.story,
+      reason: r.reason,
+      agree,
+      rateDecided,
+      win,
+      turnCounts: r.stats.turnCounts,
+      minTurns: ECONOMY.minTurnsEach,
+    });
+  const dailyFor = (kind: DailyMatchKind | null) => {
+    if (!kind) return null;
+    const now = Date.now();
+    const p = matchProgress(kind, win, r.stats.sides[me]);
+    const carry = addDailyProgress(structuredClone(save), now, p);
+    if (carry) addDailyNotice(carry);
+    return (d: SaveData) => void addDailyProgress(d, now, p);
+  };
+
   // 勝敗数をセーブデータに記録（フレンド対戦は stats、CPU対戦は強さごとの cpuStats。中断・切断は記録しない）
   useEffect(() => {
     if (recorded.current || !r.setup.record || r.setup.rated) return;
@@ -158,6 +188,8 @@ export function ResultScene() {
     // 表示用の見積もり（保存は下の update の中で、同じ計算で行う）
     const got = matchReward(save, info, today);
     const before = save.coins;
+    // デイリーミッション：CPU・フレンド（デバッグ・ひとりで両方・切断・すぐ終わった試合は数えない。daily.ts dailyMatchKind）
+    const daily = dailyFor(dailyKind());
     update((d) => {
       const rec = r.setup.mode === 'cpu' ? d.cpuStats[CPU_LEVELS.indexOf(r.setup.cpuLevel ?? 'normal')] : d.stats;
       if (rec) {
@@ -165,6 +197,7 @@ export function ResultScene() {
         else rec.losses += 1;
       }
       applyMatchReward(d, info, today);
+      daily?.(d);
     });
     setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
   }, [r.setup.record, r.setup.mode, r.setup.cpuLevel, r.stats.turnCounts, update, win, agree, save]);
@@ -185,8 +218,13 @@ export function ResultScene() {
     const before = save.coins;
     // 「レート対戦中」の印が、この相手のものの時だけ書く（別のタブなどで先に計算していたら書かない）
     setRateChange(applyRateResult(structuredClone(save), rated.oppRate, outcome, rated.oppId) ?? { before: save.rate, after: save.rate, outcome: 'void' });
+    // デイリーミッション：2人の結果がそろった試合だけ（切断・食い違い・無効・相手が消えた試合は数えない）
+    const daily = dailyFor(dailyKind(decided.coins && !!applyRateResult(structuredClone(save), rated.oppRate, outcome, rated.oppId)));
     update((d) => {
-      if (applyRateResult(d, rated.oppRate, outcome, rated.oppId)) applyMatchReward(d, info, today);
+      if (applyRateResult(d, rated.oppRate, outcome, rated.oppId)) {
+        applyMatchReward(d, info, today);
+        daily?.(d);
+      }
     });
     setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
   }, [agree, oppGone]);
@@ -199,12 +237,20 @@ export function ResultScene() {
   useEffect(() => {
     if (!story || recorded.current) return;
     recorded.current = true;
-    if (!win) return;
+    // デイリーミッション「ストーリーを 1かい あそぶ」などは、勝ち・負けどちらでも数える
+    const daily = dailyFor(dailyKind());
+    if (!win) {
+      if (daily) update((d) => daily(d));
+      return;
+    }
     const opened = opensAfter(save, story.stage);
     const before = save.coins;
     // 表示用は、今のセーブの写しに同じ計算をして作る（保存は下の update で、同じ関数で1回）
     const res = applyStoryResult(structuredClone(save), story.stage, true);
-    update((d) => void applyStoryResult(d, story.stage, true));
+    update((d) => {
+      applyStoryResult(d, story.stage, true);
+      daily?.(d);
+    });
     if (!res) return;
     // はんこ・線を描く演出は、初めてクリアした時だけ
     if (res.first) setStoryBack({ justCleared: story.stage, opened });

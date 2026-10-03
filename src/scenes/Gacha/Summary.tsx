@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CARD_DB } from '../../data/cards';
 import { DRAW, type PullResult } from '../../gacha/gacha';
 import { useT } from '../../i18n/useT';
@@ -20,8 +20,11 @@ export function Summary({
   canAgain,
   onNoCoins,
   roomForCoins,
+  simple,
 }: {
   results: PullResult[];
+  /** デイリーパック（v2.1-M）：「もういちど」「パックを えらぶ」の代わりにボタン1つ。onShown はまとめ画面が出た時（コインを飛ばす） */
+  simple?: { label: string; onClose: () => void; onShown: (from: HTMLElement | null) => void };
   /** 今の所持数（換金すると減る） */
   owned: (no: number) => number;
   /** i 番目のカードを換金する（保存は呼ぶ側） */
@@ -38,9 +41,22 @@ export function Summary({
   const [converted, setConverted] = useState<Set<number>>(new Set());
   const [asking, setAsking] = useState<number | null>(null);
   const many = results.length > 8;
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const shown = useRef(false);
+  useEffect(() => {
+    if (!simple || shown.current) return;
+    shown.current = true;
+    const id = window.setTimeout(() => simple.onShown(titleRef.current), 600);
+    return () => {
+      window.clearTimeout(id);
+      shown.current = false;
+    };
+  }, []);
   return (
     <div className="gacha-summary" data-testid="gacha-summary">
-      <h2 className="gacha-summary__title">{tr.gacha.summaryTitle}</h2>
+      <h2 className="gacha-summary__title" ref={titleRef}>
+        {tr.gacha.summaryTitle}
+      </h2>
       <div className={`gacha-summary__grid ${many ? 'gacha-summary__grid--many' : ''}`}>
         {results.map((r, i) => {
           const def = CARD_DB[r.no];
@@ -65,6 +81,13 @@ export function Summary({
           );
         })}
       </div>
+      {simple ? (
+        <div className="gacha-summary__buttons">
+          <RoughButton seed="gacha-daily-close" className="gacha-summary__btn" highlight onClick={simple.onClose} data-testid="gacha-daily-close">
+            {simple.label}
+          </RoughButton>
+        </div>
+      ) : (
       <div className="gacha-summary__buttons">
         <RoughButton seed="gacha-again" className="gacha-summary__btn" highlight={canAgain} disabled={!canAgain} onDisabledClick={onNoCoins} onClick={onAgain}>
           {tr.gacha.again}
@@ -73,6 +96,7 @@ export function Summary({
           {tr.gacha.toShop}
         </RoughButton>
       </div>
+      )}
       {asking !== null && (
         <Dialog
           seed="gacha-convert"

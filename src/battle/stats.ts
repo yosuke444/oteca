@@ -9,6 +9,10 @@ export type SideStats = {
   /** 一番ダメージを与えたおてあげ（カードNo）。いなければ null */
   mvpNo: number | null;
   mvpDamage: number;
+  /** ドローした枚数（ターンの始めのドローと効果のドロー。最初の手札は数えない。デイリーミッション v2.1-M） */
+  draws?: number;
+  /** 使ったアイテムの数（デイリーミッション v2.1-M） */
+  items?: number;
 };
 
 export type MatchStats = {
@@ -28,10 +32,14 @@ export class StatsCollector {
   private readonly byCard = new Map<string, number>();
   private readonly damage: Record<Side, number> = { p1: 0, p2: 0 };
   private readonly turnsDone: Record<Side, number> = { p1: 0, p2: 0 };
+  private readonly draws: Record<Side, number> = { p1: 0, p2: 0 };
+  private readonly items: Record<Side, number> = { p1: 0, p2: 0 };
 
   add(events: GameEvent[], state: GameState): void {
     for (const e of events) {
       if (e.type === 'MoveSelected') this.attacker = e.uid;
+      if (e.type === 'Drew') this.draws[e.player] += 1;
+      if (e.type === 'ItemUsed') this.items[e.player] += 1;
       if (e.type === 'TurnEnded') {
         this.attacker = null;
         this.turnsDone[e.player] += 1;
@@ -65,6 +73,8 @@ export class StatsCollector {
         kos: state.players[side].koCount,
         mvpNo: mvp ? state.cards[mvp].no : null,
         mvpDamage: best,
+        draws: this.draws[side],
+        items: this.items[side],
       };
     };
     return {

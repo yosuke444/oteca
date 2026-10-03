@@ -105,6 +105,11 @@ export function canAfford(save: Pick<SaveData, 'coins'>, offer: Offer): boolean 
 export function applyPull(draft: Pick<SaveData, 'coins' | 'collection'>, offer: Offer, bags: Bag[]): PullResult[] | null {
   if (!canAfford(draft, offer)) return null;
   addCoins(draft, -offer.price);
+  return applyBags(draft, bags);
+}
+
+/** 引いた袋のカードを所持数に足す（コインは変えない。デイリーパックの報酬でも使う。v2.1-M） */
+export function applyBags(draft: Pick<SaveData, 'collection'>, bags: Bag[]): PullResult[] {
   const results: PullResult[] = [];
   for (const bag of bags) {
     for (const c of bag.cards) {

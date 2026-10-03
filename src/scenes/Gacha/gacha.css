@@ -167,6 +167,42 @@
 .pack-art--green .pack-art__body {
   fill: var(--note-green);
 }
+/* デイリーパック（v2.1-M）：しま模様は SVG の pattern。黄色の太い縁取り、特大の「デイリー」 */
+.pack-art__daily-frame {
+  fill: none;
+  stroke: var(--pack-daily-yellow);
+  stroke-width: 12;
+  stroke-linejoin: round;
+}
+.pack-art--daily .pack-art__logo {
+  color: var(--ink);
+  background: var(--paper);
+  left: 30%;
+  right: 30%;
+  border-radius: 6px;
+}
+.pack-art__daily {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 33%;
+  font-size: 64px;
+  font-weight: bold;
+  line-height: 1;
+  text-align: center;
+  color: var(--pack-daily-yellow);
+  -webkit-text-stroke: 2.5px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--ink);
+  transform: rotate(-8deg);
+  letter-spacing: -2px;
+}
+.pack-art--small .pack-art__daily {
+  top: 36%;
+  font-size: 38px;
+  -webkit-text-stroke-width: 1.6px;
+  text-shadow: 2px 2px 0 var(--ink);
+}
 .pack-art__seam {
   fill: none;
   stroke: var(--ink);
@@ -368,6 +404,9 @@
 }
 .gacha-strip--green {
   background: var(--note-green);
+}
+.gacha-strip--daily {
+  background: repeating-linear-gradient(-30deg, var(--pack-daily-green) 0 14px, var(--pack-daily-yellow) 14px 22px);
 }
 
 /* ---------- 真ん中の舞台（めくる・次の袋。v2.1-K） ---------- */

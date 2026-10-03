@@ -20,6 +20,9 @@
   /* ふせんの色（§6-6 アイテムカード・じゅんびちゅう） */
   --note-yellow: #fff3a8;
   --note-green: #d8f2d0;
+  /* デイリーパックの袋（緑の地に黄色のしま。v2.1-M） */
+  --pack-daily-green: #4fb85f;
+  --pack-daily-yellow: #ffd83a;
   --note-red: #fbd3d0;
   --note-purple: #e6d8f5;
   --note-blue: #d2ecf7;

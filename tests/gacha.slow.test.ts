@@ -1,7 +1,7 @@
 // 重いテスト（npm run test:slow）：ガチャの大量抽選（CLAUDE.md 14）
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../src/data/cards';
-import { PACK_DATA } from '../src/data/packs';
+import { SHOP_PACKS } from '../src/data/packs';
 import { cardRate, drawBags, superRate } from '../src/gacha/gacha';
 import { makeRandom } from './save.helpers';
 
@@ -9,7 +9,7 @@ const rand = (seed: number) => makeRandom(seed).next;
 
 describe('G02 10万袋を引くと、スーパーおてあげは重みどおり（元祖 11.1%・真 9.7%・よせあつめ 4.3%）・ダブル約5%', () => {
   it('どのパックでも、確率どおりに出て、どのカードも出る', () => {
-    for (const pack of PACK_DATA.packs) {
+    for (const pack of SHOP_PACKS) {
       const bags = drawBags(pack, 100000, rand(pack.id.length * 7919));
       const cards = bags.flatMap((b) => b.cards);
       const doubles = bags.filter((b) => b.double).length / bags.length;

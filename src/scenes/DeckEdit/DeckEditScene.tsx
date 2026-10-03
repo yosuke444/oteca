@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CARD_DB, CARD_LIST } from '../../data/cards';
-import { PACK_DATA, inPack } from '../../data/packs';
+import { PACK_DATA, SHOP_PACKS, inPack } from '../../data/packs';
 import { DEFAULT_RULES } from '../../engine';
 import type { CardDef } from '../../engine/types';
 import { useNav } from '../../router';
@@ -26,7 +26,8 @@ type Sort = 'no' | 'name' | 'hp' | 'owned';
 const FILTERS: Filter[] = ['all', 'owned', 'otege', 'item', 'super'];
 const SORTS: Sort[] = ['no', 'name', 'hp', 'owned'];
 /** パックの絞り込み：ぜんぶ（null）→ 各パック → 限定 */
-const PACKS: (string | null)[] = [null, ...PACK_DATA.packs.map((p) => p.id), 'limited'];
+// デイリーパックは、ほかのパックのカードだけなので絞り込みには出さない
+const PACKS: (string | null)[] = [null, ...SHOP_PACKS.map((p) => p.id), 'limited'];
 
 const rules = DEFAULT_RULES;
 

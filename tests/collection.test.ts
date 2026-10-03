@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../src/data/cards';
-import { PACK_DATA, inPack, parsePackData } from '../src/data/packs';
+import { PACK_DATA, SHOP_PACKS, inPack, parsePackData } from '../src/data/packs';
 import { DEFAULT_RULES, validateDeck } from '../src/engine';
 import { checkSavedDeck, getOwnedCount, usableDecks } from '../src/save/collection';
 import { createDefaultSave, type SaveData } from '../src/save/saveData';
@@ -102,7 +102,9 @@ describe('V10 所持数が減ったデッキ（トレードなど）', () => {
 
 describe('パックの中身（packs.json。デッキ編集の絞り込み）', () => {
   it('どのパックのカードも cards.json にあり、ノーマルとスーパーの分け方が正しい', () => {
-    expect(PACK_DATA.packs.map((p) => p.id)).toEqual(['ganso', 'shin', 'yoseatsume']);
+    expect(PACK_DATA.packs.map((p) => p.id)).toEqual(['ganso', 'shin', 'yoseatsume', 'daily']);
+    // 売るのは3つ（デイリーパックは売らない。v2.1-M）
+    expect(SHOP_PACKS.map((p) => p.id)).toEqual(['ganso', 'shin', 'yoseatsume']);
     expect(inPack('kami', 'ganso')).toBe(true);
     expect(inPack('kami', 'shin')).toBe(false);
     expect(inPack('oteage', 'yoseatsume')).toBe(true);

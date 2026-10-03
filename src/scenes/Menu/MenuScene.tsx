@@ -1,4 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { audio } from '../../audio/audioManager';
+import { type DailyCarry, claimAllClear, claimMission, claimableCount, cycleKeyAt, drawDailyBags, rollDaily } from '../../daily/daily';
+import { addDailyNotice, clearDailyNotice, peekDailyNotice } from '../../daily/noticeStore';
+import { CARD_DB } from '../../data/cards';
+import { useFx } from '../../fx/fxSettings';
+import { type PullResult, cryptoRand } from '../../gacha/gacha';
+import type { DailyMissionId } from '../../save/saveData';
+import { CardMini } from '../../ui/card/CardMini';
+import { imageUrl } from '../../ui/imageFiles';
+import { DailyIcon, DailyPanel } from '../Daily/DailyPanel';
+import type { GachaPayload } from '../Gacha/GachaScene';
+import '../Daily/daily.css';
 import { clearPendingNotice, peekPendingNotice } from '../../online/rate';
 import { loadPendingTrade } from '../../trade/pendingStore';
 import { features } from '../../config/features';
@@ -13,7 +26,7 @@ import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useSave } from '../../state/SaveContext';
 import { useT } from '../../i18n/useT';
-import { CoinCounter } from '../../ui/coin/Coin';
+import { CoinCounter, centerIn, flyCoins } from '../../ui/coin/Coin';
 import { PresentBox } from '../../ui/coin/PresentBox';
 import { ECONOMY, canClaimLoginBonus, claimLoginBonus, loginBonusRemainingMs } from '../../economy/rewards';
 import { PresentWait } from '../../ui/coin/PresentWait';
@@ -58,6 +71,66 @@ export function MenuScene() {
   const [rateNotice, setRateNotice] = useState(() => peekPendingNotice());
   useEffect(() => clearPendingNotice(), []);
 
+  // デイリーミッション（SPEC §7 S17・v2.1-M）：開いた時に「その日」が変わっていたら入れ替える。
+  // 前の日に受け取らなかった報酬は自動で受け取り、「きのうの ミッションの ほうしゅうを うけとったよ」と知らせる
+  const fx = useFx();
+  const [dailyOpen, setDailyOpen] = useState(false);
+  const [carry, setCarry] = useState<DailyCarry | null>(null);
+  const topFx = useRef<HTMLDivElement>(null);
+  const rollNow = () => {
+    const now = Date.now();
+    if (!features.daily || save.daily.cycleKey === cycleKeyAt(now)) return;
+    // 知らせは写しで先に計算する（保存は同じ計算で1回。結果は同じ。src/daily/daily.ts rollDaily）
+    const c = rollDaily(structuredClone(save), now);
+    if (c) addDailyNotice(c);
+    update((d) => void rollDaily(d, now));
+  };
+  // 開発時の StrictMode で2回走っても、知らせを2回足さない
+  const rolledOnce = useRef(false);
+  useEffect(() => {
+    if (!rolledOnce.current) {
+      rolledOnce.current = true;
+      rollNow();
+    }
+    setCarry(peekDailyNotice());
+  }, []);
+  const closeCarry = () => {
+    clearDailyNotice();
+    setCarry(null);
+  };
+  /** ミッションの報酬：コインがボタンから飛んで、コイン表示へ */
+  const claimDaily = (id: DailyMissionId, from: HTMLElement) => {
+    const now = Date.now();
+    const got = claimMission(structuredClone(save), id, now);
+    if (got === null) return;
+    setHeldCoins(save.coins);
+    update((d) => void claimMission(d, id, now));
+    audio.play('se_coin_burst');
+    const L = topFx.current;
+    // コインが上限で増えなかった時は、印だけ付ける（飛ばさない）
+    if (!L || got <= 0) {
+      setHeldCoins(null);
+      return;
+    }
+    void flyCoins(L, centerIn(L, from), 12, { reduce: fx.reduceFx, burst: true }).then(() => setHeldCoins(null));
+  };
+  /** 確定のミッションの報酬：デイリーパック3袋と50コインを1回の保存で書いてから、パックガチャの開封の演出へ */
+  const claimDailyAll = () => {
+    const now = Date.now();
+    const bags = drawDailyBags(cryptoRand);
+    const before = save.coins;
+    let got: { results: PullResult[]; coins: number } | null = null;
+    flushSync(() =>
+      update((d) => {
+        got = claimAllClear(d, now, bags) ?? got;
+      }),
+    );
+    const res = got as { results: PullResult[]; coins: number } | null;
+    if (!res) return;
+    go('gacha', { daily: { bags, results: res.results, coinsBefore: before, coins: res.coins } } satisfies GachaPayload);
+  };
+  const dailyBadge = features.daily ? claimableCount(save.daily) : 0;
+
   const pressLocked = (id: LockedId) => {
     // 機能フラグが ON になったら、その画面へ進む
     if (features[id]) {
@@ -72,6 +145,18 @@ export function MenuScene() {
       {/* 上の帯：小さいロゴ／コイン／なまえ／設定 */}
       <Logo width={170} className="menu-scene__logo" />
       <div className="menu-scene__top-right">
+        {features.daily && (
+          <div className="daily-icon">
+            <RoughButton seed="menu-daily" ariaLabel={tr.daily.iconAria(dailyBadge)} onClick={() => setDailyOpen(true)} data-testid="menu-daily">
+              <DailyIcon img={imageUrl('images/daily.png')} />
+            </RoughButton>
+            {dailyBadge > 0 && (
+              <span className="daily-icon__badge num" data-testid="daily-badge">
+                {dailyBadge}
+              </span>
+            )}
+          </div>
+        )}
         {features.coins && <CoinCounter value={heldCoins ?? save.coins} className="menu-scene__coins" />}
         <RoughBox seed="menu-name" className="menu-scene__name" paper>
           <span className="tilt" style={tiltStyle('menu-name')}>
@@ -211,6 +296,47 @@ export function MenuScene() {
         </div>
       )}
       <div className="menu-scene__fx" ref={fxLayer} aria-hidden />
+
+      {dailyOpen && (
+        <DailyPanel
+          daily={save.daily}
+          onClaim={claimDaily}
+          onClaimAllClear={claimDailyAll}
+          onRoll={() => {
+            rollNow();
+            setCarry(peekDailyNotice());
+          }}
+          onClose={() => setDailyOpen(false)}
+        />
+      )}
+      {/* デイリーの報酬のコインは、パネルより上を飛ぶ */}
+      <div className="menu-scene__fx menu-scene__fx--top" ref={topFx} aria-hidden />
+      {carry && save.updateNoticeSeen && !rateNotice && (
+        <Dialog
+          seed="daily-carry"
+          title={tr.daily.carryTitle}
+          onClose={closeCarry}
+          width={720}
+          actions={
+            <RoughButton seed="daily-carry-ok" highlight onClick={closeCarry} data-testid="daily-carry-ok">
+              {tr.common.ok}
+            </RoughButton>
+          }
+        >
+          <p data-testid="daily-carry">{tr.daily.carryText}</p>
+          {carry.coins > 0 && <p className="num">{tr.daily.carryCoins(carry.coins)}</p>}
+          {carry.cards.length > 0 && (
+            <>
+              <p>{tr.daily.carryCards(carry.cards.length)}</p>
+              <div className="daily-carry__cards">
+                {carry.cards.map((no, i) => (
+                  <CardMini key={i} def={CARD_DB[no]} seed={`carry-${no}-${i}`} variant="slot" />
+                ))}
+              </div>
+            </>
+          )}
+        </Dialog>
+      )}
 
       {/* 余白の落書き（星・サイコロはゆっくり動く。おてあげの絵は動かさない） */}
       <OtegeArt width={150} className="menu-scene__doodle menu-scene__doodle--oteage" />
