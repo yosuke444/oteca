@@ -370,16 +370,90 @@
   background: var(--note-green);
 }
 
+/* ---------- 真ん中の舞台（めくる・次の袋。v2.1-K） ---------- */
+.gacha-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+}
+.gacha-stage.is-super {
+  background: color-mix(in srgb, var(--note-yellow) 92%, transparent);
+}
+/* 方眼ノートに描いた集中線が、ゆっくり回る */
+.gacha-spin {
+  position: absolute;
+  left: 640px;
+  top: 330px;
+  width: 1800px;
+  height: 1800px;
+  margin: -900px 0 0 -900px;
+  pointer-events: none;
+  opacity: 0.16;
+  stroke: var(--ink);
+  stroke-linecap: round;
+}
+.gacha-stage .gacha-spin {
+  opacity: 0.22;
+}
+.gacha-stage.is-super .gacha-spin {
+  stroke: var(--super-gold);
+  opacity: 0.5;
+}
+.gacha-spin__g {
+  transform-origin: 0 0;
+  animation: gacha-spin calc(40s / var(--fx-speed)) linear infinite;
+}
+@keyframes gacha-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* 2袋目から：真ん中に滑ってくる袋 */
+.gacha-center {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+}
+.gacha-bag--center {
+  position: absolute;
+  left: 640px;
+  top: 190px;
+  width: 200px;
+  height: 300px;
+  margin-left: -100px;
+  cursor: default;
+}
+.gacha-center__left {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 530px;
+  margin: 0;
+  font-size: 22px;
+  text-align: center;
+}
+/* チュートリアルの見返しの「みほん」など */
+.gacha-open__banner {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  z-index: 90;
+  padding: 2px 22px;
+  font-size: 30px;
+  border: 3px solid var(--pen-red);
+  border-radius: 10px;
+  background: var(--paper);
+  transform: translateX(-50%) rotate(-3deg);
+  pointer-events: none;
+}
+
 /* ---------- めくる ---------- */
 .gacha-reveal {
   position: absolute;
   inset: 0;
-  z-index: 50;
-  background: color-mix(in srgb, var(--paper) 86%, transparent);
   cursor: pointer;
-}
-.gacha-reveal.is-super {
-  background: color-mix(in srgb, var(--note-yellow) 70%, transparent);
 }
 .gacha-reveal__cards {
   position: absolute;
@@ -424,26 +498,32 @@
   border-radius: 6px;
   transform: rotate(-12deg);
 }
-.gacha-reveal__next {
+.gacha-reveal__nextwrap {
   position: absolute;
-  border: none;
-  background: none;
-  font-family: inherit;
-  cursor: pointer;
   left: 0;
   right: 0;
-  top: 640px;
+  top: 600px;
   z-index: 76;
-  margin: 0;
-  font-size: 20px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 22px;
+  cursor: default;
+}
+.gacha-reveal__next {
+  width: 220px;
+  height: 72px;
+  font-size: 30px;
+}
+.gacha-reveal__left {
+  font-size: 24px;
 }
 .gacha-reveal__skip {
   position: absolute;
   right: 36px;
   top: 16px;
   z-index: 80;
-  width: 150px;
+  width: 220px;
   height: 60px;
   font-size: 22px;
 }

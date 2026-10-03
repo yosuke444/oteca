@@ -111,7 +111,7 @@ log('ガチャ（15まい）');
 await A.page.getByTestId('tutorial-gacha').click();
 await A.page.getByTestId('gacha-buy-fifteen').click();
 await A.page.waitForTimeout(1200);
-await A.page.getByRole('button', { name: 'スキップ' }).first().click();
+await A.page.getByTestId('gacha-skip').click();
 await A.page.getByTestId('gacha-summary').waitFor();
 await snap(A, '02_gacha');
 let s = await readSave(A);

@@ -332,6 +332,15 @@ export const RECIPES: Record<string, Recipe> = {
       { src: 'triangle', gain: 0.08, freq: [90, 110], env: { a: 0.1, d: 0.6, s: 0.3, r: 0.3 }, drive: 0.3 },
     ],
   },
+  // キラキラが飛ぶ（v2.1-K。約1秒）：高い鈴の粒が上から下へ流れる「しゃらしゃら」＋ ひらひらした高いノイズ
+  se_sparkle: {
+    gain: 0.55,
+    layers: [
+      { src: 'sine', gain: 0.12, freq: [5200, 2600], freqTime: 0.9, partials: [1, 2.76], env: { a: 0.002, d: 0.06, s: 0, r: 0.08 }, grains: { count: 30, spread: 0.85, jitter: 0.6, pitchJitter: 0.2, gainJitter: 0.5, fade: 0.6 }, reverb: 0.45, pan: [-0.6, 0.6] },
+      sparkle(0.02, 0.7, 20, 0.07),
+      { src: 'white', gain: 0.07, filter: { type: 'highpass', freq: [9000, 6000], time: 0.8 }, env: { a: 0.05, d: 0.6, s: 0, r: 0.2 }, pan: [0.5, -0.5] },
+    ],
+  },
   // スーパーレア（v2.0-E。約2.5秒）：上がるアルペジオ → 和音のファンファーレ＋ドラム＋きらきら
   jingle_super: {
     gain: 0.85,

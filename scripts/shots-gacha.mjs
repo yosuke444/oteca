@@ -1,5 +1,6 @@
 // パックガチャ（UPDATE_v2 E・SPEC §7 S09）の確認：にほんご／日本語 で画面を撮る。
-// 店 → なかみ → 3まい（ノーマル）→ 15まい（スキップ）→ ダブル＋スーパーレア（乱数を決めて）→ 換金、コインが足りない時。
+// 店 → なかみ → 3まい（1袋目を開けて「つぎへ」で最後まで）→ ダブル＋スーパーレア（乱数を決めて）→ 換金
+// → 15まい（「つぎへ」で15袋を最後まで。v2.1-K）→ 15まい（ぜんぶ スキップ）、コインが足りない時。
 // 引いた直後に読み込み直しても「コインだけ減ってカードが増えない」ことが無いかも確かめる。
 // 使い方：npm run dev を動かしたまま node scripts/shots-gacha.mjs 0（1280×720）／1（844×390）
 import { SIZES, launch, openPage, shot } from './pw.mjs';
@@ -48,20 +49,39 @@ async function readSave() {
   });
 }
 
-/** 乱数を決める：最初の n 回は 0（ダブル・スーパーレア・先頭のカード）、そのあとは ふつうの乱数 */
-async function forceLuck(n) {
-  await page.evaluate((n) => {
+/** 乱数を決める：最初の何回かは values（0〜1）の順、そのあとは ふつうの乱数 */
+async function forceLuck(values) {
+  await page.evaluate((values) => {
     const real = crypto.getRandomValues.bind(crypto);
-    let left = n;
+    const left = [...values];
     crypto.getRandomValues = (a) => {
-      if (left > 0 && a instanceof Uint32Array && a.length === 1) {
-        left -= 1;
-        a[0] = 0;
+      if (left.length && a instanceof Uint32Array && a.length === 1) {
+        a[0] = Math.floor(left.shift() * 2 ** 32);
         return a;
       }
       return real(a);
     };
-  }, n);
+  }, values);
+}
+
+/** 「つぎへ」を押していき、まとめ画面まで進む（v2.1-K）。押した回数を返す */
+async function nextToSummary(lang, shotAt = {}) {
+  let n = 0;
+  for (;;) {
+    await page.getByTestId('gacha-next').waitFor({ timeout: 20000 });
+    if (shotAt[n]) await snap(lang, shotAt[n]);
+    await page.getByTestId('gacha-next').click();
+    n += 1;
+    if (await page.getByTestId('gacha-summary').count()) return n;
+    // 次の袋が真ん中に滑ってきて、自動で開く
+    if (n === 1 && shotAt.center) {
+      await page.getByTestId(/gacha-center-/).waitFor();
+      await page.waitForTimeout(150);
+      await snap(lang, shotAt.center);
+    }
+    await page.waitForTimeout(50);
+    if (await page.getByTestId('gacha-summary').count()) return n;
+  }
 }
 
 async function snap(lang, name) {
@@ -70,7 +90,7 @@ async function snap(lang, name) {
 }
 
 for (const lang of ['hira', 'kanji']) {
-  const L = lang === 'kanji' ? { all: '全部開ける', summary: 'まとめを見る', skip: 'スキップ', shop: 'パックを選ぶ', yes: '替える', close: '閉じる' } : { all: 'ぜんぶ あける', summary: 'まとめを みる', skip: 'スキップ', shop: 'パックを えらぶ', yes: 'かえる', close: 'とじる' };
+  const L = lang === 'kanji' ? { skip: '全部スキップ', shop: 'パックを選ぶ', yes: '替える', close: '閉じる' } : { skip: 'ぜんぶ スキップ', shop: 'パックを えらぶ', yes: 'かえる', close: 'とじる' };
   // かみ（No8）を1枚持っている：スーパーレアのかみを引いたら換金できる
   await setSave(lang, { top: { coins: 1000 }, collection: { 8: 1 } });
   await toGacha(lang);
@@ -93,22 +113,19 @@ for (const lang of ['hira', 'kanji']) {
   if (after.total < before.total + 3) problems.push(`${lang} 3まい：カード ${before.total} → ${after.total}`);
   await page.waitForTimeout(800);
   await snap(lang, '04_bags3');
-  await page.getByTestId('gacha-bag-0').click({ force: true });
-  await page.waitForTimeout(700);
+  await page.getByTestId('gacha-bag-1').click({ force: true });
+  await page.waitForTimeout(450);
+  await snap(lang, '05a_sparkle_fountain');
+  await page.waitForTimeout(500);
   await snap(lang, '05_reveal_normal');
-  // 演出が終わって「タップで つぎへ」が出てから閉じる（ダブルの時は長い）
-  await page.locator('.gacha-reveal__next').waitFor({ timeout: 15000 });
-  await page.getByTestId('gacha-reveal').click();
-  await page.getByTestId('gacha-reveal').waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: L.all }).click();
-  await page.getByRole('button', { name: L.summary }).waitFor({ timeout: 30000 });
-  await snap(lang, '06_bags3_opened');
-  await page.getByRole('button', { name: L.summary }).click();
+  // 1袋目のあとは「つぎへ」で、次の袋が真ん中へ来て自動で開く。最後の「つぎへ」でまとめ画面へ
+  const n3 = await nextToSummary(lang, { 0: '06_next_button', center: '06b_center_bag' });
+  if (n3 !== 3) problems.push(`${lang} 3まい：つぎへ の回数 ${n3}`);
   await snap(lang, '07_summary3');
   await page.getByRole('button', { name: L.shop }).click();
 
-  // ダブル＋スーパーレア（乱数を決める）：1袋目がダブルで、2枚ともスーパーレア（かみ）
-  await forceLuck(5);
+  // ダブル＋スーパーレア（乱数を決める）：1袋目がダブルで、2枚ともスーパーレア（かみ。重み 24〜25 / 27）
+  await forceLuck([0.01, 0.9, 0.9]);
   await page.getByTestId('gacha-buy-three').click();
   await page.waitForTimeout(1200);
   await snap(lang, '08_bags_super');
@@ -118,10 +135,13 @@ for (const lang of ['hira', 'kanji']) {
   await snap(lang, '09_reveal_double_super');
   await page.waitForTimeout(1800);
   await snap(lang, '10_reveal_double_super_done');
-  await page.locator('.gacha-reveal__next').waitFor({ timeout: 15000 });
-  await page.getByTestId('gacha-reveal').click();
-  await page.getByTestId('gacha-reveal').waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: L.skip }).click();
+  await page.getByTestId('gacha-next').waitFor({ timeout: 15000 });
+  await page.getByTestId('gacha-next').click();
+  // 2袋目（真ん中）でも、キラキラは降り続ける
+  await page.waitForTimeout(400);
+  await snap(lang, '10b_rain_next_bag');
+  if (!(await page.locator('.spark').count())) problems.push(`${lang} スーパーレアのあと キラキラが 降っていない`);
+  await page.getByTestId('gacha-skip-all').click();
   await snap(lang, '11_summary_convert');
   // 換金：すでに持っていた かみ → 50コイン
   const c0 = await readSave();
@@ -136,12 +156,22 @@ for (const lang of ['hira', 'kanji']) {
   }
   await page.getByRole('button', { name: L.shop }).click();
 
-  // 15まい：5×3 → スキップ
+  // 15まい：5×3 → 1袋目を開けて「つぎへ」で15袋を最後まで → まとめ画面（UPDATE_v2_1 §1-4）
   await page.getByTestId('gacha-buy-fifteen').click();
   await page.waitForTimeout(1200);
   await snap(lang, '13_bags15');
-  await page.getByRole('button', { name: L.skip }).click();
+  await page.getByTestId('gacha-bag-7').click({ force: true });
+  const n15 = await nextToSummary(lang);
+  if (n15 !== 15) problems.push(`${lang} 15まい：つぎへ の回数 ${n15}`);
   await snap(lang, '14_summary15');
+  const got15 = await page.locator('.gacha-summary .card-mini').count();
+  if (got15 < 15) problems.push(`${lang} 15まい：まとめのカード ${got15}`);
+  await page.getByRole('button', { name: L.shop }).click();
+  // 15まい：ぜんぶ スキップ
+  await page.getByTestId('gacha-buy-fifteen').click();
+  await page.waitForTimeout(800);
+  await page.getByTestId('gacha-skip').click();
+  await page.getByTestId('gacha-summary').waitFor();
   await page.getByRole('button', { name: L.shop }).click();
 
   // 引いた直後に読み込み直す：コインとカードの両方が変わっている（片方だけにならない）

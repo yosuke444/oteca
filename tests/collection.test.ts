@@ -114,7 +114,7 @@ describe('パックの中身（packs.json。デッキ編集の絞り込み）', 
       version: 1,
       packs: [{ id: 'a', name: 'A', short: 'A', color: 'blue', normal: ['oteage'], super: ['kami'] }],
       limited: [],
-      draw: { superRate: 0.06, doubleRate: 0.1, offers: [{ id: 'x', bags: 3, price: 50 }], superToCoins: 50 },
+      draw: { weights: { normal: 2, super: 1 }, doubleRate: 0.05, offers: [{ id: 'x', bags: 3, price: 50 }], superToCoins: 50 },
     };
     expect(() => parsePackData(ok)).not.toThrow();
     expect(() => parsePackData({ ...ok, packs: [{ ...ok.packs[0], normal: ['nai'] }] })).toThrow('nai');

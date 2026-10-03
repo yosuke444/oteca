@@ -6,7 +6,7 @@ import { CARD_DB, cardById } from '../../data/cards';
 import { PACK_DATA } from '../../data/packs';
 import { useFx } from '../../fx/fxSettings';
 import { setFxSpeed } from '../../fx/timing';
-import { DRAW, type Bag, type Offer, type PullResult, applyPull, canAfford, coinsRoomFor, cardRate, convertSuper, cryptoRand, drawBags } from '../../gacha/gacha';
+import { DRAW, type Bag, type Offer, type PullResult, applyPull, canAfford, coinsRoomFor, cardRate, convertSuper, cryptoRand, drawBags, superRate } from '../../gacha/gacha';
 import { useT } from '../../i18n/useT';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
@@ -197,7 +197,7 @@ export function GachaScene() {
             {tr.common.close}
           </RoughButton>
         }>
-          <p className="gacha-contents__note">{tr.gacha.rateNote(pct(DRAW.superRate), pct(DRAW.doubleRate))}</p>
+          <p className="gacha-contents__note">{tr.gacha.rateNote(pct(superRate(pack)), pct(DRAW.doubleRate))}</p>
           {(['super', 'normal'] as const).map((kind) => (
             <div key={kind} className={`gacha-contents__group gacha-contents__group--${kind}`}>
               <h3 className="gacha-contents__head">{kind === 'super' ? tr.gacha.super : tr.gacha.normal}</h3>

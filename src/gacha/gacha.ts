@@ -35,18 +35,37 @@ export function offerById(id: string): Offer | undefined {
   return DRAW.offers.find((o) => o.id === id);
 }
 
-/** パックの中のカード1枚が、1枚引いた時に出る確率（「なかみ」パネル用。SPEC §7 S09） */
+/** パックの全カードの重みの合計（ノーマル1種類 weights.normal・スーパー1種類 weights.super。v2.1-K） */
+function totalWeight(pack: PackDef, rules: DrawRules): number {
+  return pack.normal.length * rules.weights.normal + pack.super.length * rules.weights.super;
+}
+
+/** パックの中のカード1枚が、1枚引いた時に出る確率（「なかみ」パネル用。SPEC §7 S09）＝重み ÷ 合計 */
 export function cardRate(pack: PackDef, id: string, rules: DrawRules = DRAW): number {
   const inNormal = pack.normal.filter((x) => x === id).length;
   const inSuper = pack.super.filter((x) => x === id).length;
-  return (inNormal * (1 - rules.superRate)) / pack.normal.length + (inSuper * rules.superRate) / pack.super.length;
+  return (inNormal * rules.weights.normal + inSuper * rules.weights.super) / totalWeight(pack, rules);
 }
 
-/** 1枚引く：スーパーレア superRate、残りはノーマル。それぞれの中では同じ確率 */
+/** 1枚引いた時に、スーパーおてあげのどれかが出る確率（「なかみ」パネル用） */
+export function superRate(pack: PackDef, rules: DrawRules = DRAW): number {
+  return (pack.super.length * rules.weights.super) / totalWeight(pack, rules);
+}
+
+/** 1枚引く：重みの割合で1枚を選ぶ（SPEC §7 S09。v2.1-K） */
 function pickOne(pack: PackDef, rand: Rand, rules: DrawRules): Pull {
-  const sr = rand() < rules.superRate;
-  const list = sr ? pack.super : pack.normal;
-  const id = list[Math.min(list.length - 1, Math.floor(rand() * list.length))];
+  let r = rand() * totalWeight(pack, rules);
+  const nN = pack.normal.length * rules.weights.normal;
+  let id: string;
+  let sr: boolean;
+  if (r < nN) {
+    sr = false;
+    id = pack.normal[Math.min(pack.normal.length - 1, Math.floor(r / rules.weights.normal))];
+  } else {
+    sr = true;
+    r -= nN;
+    id = pack.super[Math.min(pack.super.length - 1, Math.floor(r / rules.weights.super))];
+  }
   const def = cardById(id);
   if (!def) throw new Error(`カード ${id} は cards.json にありません`);
   return { no: def.no, super: sr };

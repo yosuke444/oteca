@@ -20,9 +20,12 @@ export type PackDef = {
   super: string[];
 };
 
-/** 引き方（SPEC §7 S09）：1枚ごとのスーパーレアの確率・1袋ごとのダブルの確率・買い方・換金の枚数 */
+/**
+ * 引き方（SPEC §7 S09）：1枚ごとの重み（ノーマル1種類・スーパー1種類。v2.1-K）・1袋ごとのダブルの確率・買い方・換金の枚数。
+ * 1枚の確率＝そのカードの重み ÷ パックの全カードの重みの合計
+ */
 export type DrawRules = {
-  superRate: number;
+  weights: { normal: number; super: number };
   doubleRate: number;
   offers: { id: string; bags: number; price: number }[];
   superToCoins: number;
@@ -56,7 +59,8 @@ export function parsePackData(data: unknown): PackData {
   }
   const dr = d.draw;
   const rate = (v: unknown) => typeof v === 'number' && v >= 0 && v <= 1;
-  check(!!dr && rate(dr.superRate) && rate(dr.doubleRate), 'draw の確率が不正です');
+  const weight = (v: unknown) => typeof v === 'number' && v > 0 && Number.isFinite(v);
+  check(!!dr && !!dr.weights && weight(dr.weights.normal) && weight(dr.weights.super) && rate(dr.doubleRate), 'draw の重み・確率が不正です');
   check(Array.isArray(dr.offers) && dr.offers.length > 0 && dr.offers.every((o) => typeof o.id === 'string' && Number.isInteger(o.bags) && o.bags > 0 && Number.isInteger(o.price) && o.price > 0), 'draw.offers が不正です');
   check(Number.isInteger(dr.superToCoins) && dr.superToCoins >= 0, 'draw.superToCoins が不正です');
   return d;

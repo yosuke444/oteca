@@ -126,6 +126,7 @@ export const SE_KEYS = [
   'se_bag_tear',
   'se_card_flip',
   'se_super_shine',
+  'se_sparkle',
   'jingle_super',
   'jingle_double',
   'se_sou',

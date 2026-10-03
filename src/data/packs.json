@@ -28,8 +28,8 @@
   ],
   "limited": ["oteage_ningen", "oteage_zamurai", "oteage_dragon", "oteage_usagi"],
   "draw": {
-    "superRate": 0.06,
-    "doubleRate": 0.1,
+    "weights": { "normal": 2, "super": 1 },
+    "doubleRate": 0.05,
     "offers": [
       {
         "id": "three",

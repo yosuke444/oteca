@@ -443,6 +443,23 @@
   background: var(--fx-flash);
   pointer-events: none;
 }
+/* 黄色いキラキラ（v2.1-K） */
+.spark {
+  position: absolute;
+  z-index: 86;
+  line-height: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 5px var(--fx-onom-fill));
+}
+.spark-beam {
+  position: absolute;
+  z-index: 62;
+  height: 90px;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--fx-onom-fill) 0%, color-mix(in srgb, var(--super-gold) 70%, transparent) 35%, transparent 100%);
+  clip-path: polygon(0 0, 100% 46%, 100% 54%, 0 100%);
+  mix-blend-mode: multiply;
+}
 .paper-confetti,
 .paper-scrap,
 .paper-firework,

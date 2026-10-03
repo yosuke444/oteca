@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import packsRaw from '../src/data/packs.json';
 import { CARD_DB } from '../src/data/cards';
 import { PACK_DATA } from '../src/data/packs';
-import { DRAW, applyPull, canAfford, cardRate, convertSuper, drawBags, offerById, packById, type Bag } from '../src/gacha/gacha';
+import { DRAW, applyPull, canAfford, cardRate, convertSuper, drawBags, offerById, packById, superRate, type Bag } from '../src/gacha/gacha';
 import { createDefaultSave } from '../src/save/saveData';
 import { makeRandom } from './save.helpers';
 
@@ -67,9 +67,10 @@ describe('G03 コインが足りない時は引けない', () => {
 
 describe('G04 パックの中身・確率は packs.json の値', () => {
   it('確率・値段・中身が packs.json と同じ。「なかみ」の確率の合計は100%', () => {
-    expect(DRAW.superRate).toBe(packsRaw.draw.superRate);
-    expect(DRAW.superRate).toBe(0.06);
-    expect(DRAW.doubleRate).toBe(0.1);
+    // v2.1-K：ノーマル1種類＝2、スーパー1種類＝1 の重み・ダブル 5%
+    expect(DRAW.weights).toEqual(packsRaw.draw.weights);
+    expect(DRAW.weights).toEqual({ normal: 2, super: 1 });
+    expect(DRAW.doubleRate).toBe(0.05);
     expect(DRAW.offers.map((o) => [o.bags, o.price])).toEqual([
       [3, 50],
       [15, 200],
@@ -79,9 +80,19 @@ describe('G04 パックの中身・確率は packs.json の値', () => {
       const ids = [...new Set([...pack.normal, ...pack.super])];
       const total = ids.reduce((t, id) => t + cardRate(pack, id), 0);
       expect(total, pack.id).toBeCloseTo(1, 10);
-      for (const id of pack.super) expect(cardRate(pack, id)).toBeCloseTo(0.06 / pack.super.length, 10);
-      for (const id of pack.normal) expect(cardRate(pack, id)).toBeCloseTo(0.94 / pack.normal.length, 10);
+      const total2 = pack.normal.length * 2 + pack.super.length;
+      for (const id of pack.super) expect(cardRate(pack, id)).toBeCloseTo(1 / total2, 10);
+      for (const id of pack.normal) expect(cardRate(pack, id)).toBeCloseTo(2 / total2, 10);
+      // スーパー1種類は、ノーマル1種類の半分
+      expect(cardRate(pack, pack.super[0]) * 2).toBeCloseTo(cardRate(pack, pack.normal[1]), 10);
     }
+    // UPDATE_v2_1 §1-1 の表（スーパーのどれかが出る確率）
+    expect(superRate(packById('ganso')!)).toBeCloseTo(3 / 27, 10); // 11.1%
+    expect(superRate(packById('shin')!)).toBeCloseTo(3 / 31, 10); // 9.7%
+    expect(superRate(packById('yoseatsume')!)).toBeCloseTo(2 / 46, 10); // 4.3%
+    expect(Math.round(cardRate(packById('ganso')!, 'mitsume') * 1000) / 10).toBe(7.4);
+    expect(Math.round(cardRate(packById('shin')!, 'bakudan') * 1000) / 10).toBe(3.2);
+    expect(Math.round(cardRate(packById('yoseatsume')!, 'karaage') * 1000) / 10).toBe(4.3);
     // 限定カードはどのパックにも入っていない
     for (const pack of PACK_DATA.packs) for (const id of PACK_DATA.limited) expect([...pack.normal, ...pack.super]).not.toContain(id);
   });
