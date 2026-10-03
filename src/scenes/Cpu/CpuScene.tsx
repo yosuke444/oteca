@@ -7,6 +7,7 @@ import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { Sticky } from '../../ui/common/Sticky';
+import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './cpu.css';
 import { useT } from '../../i18n/useT';
 
@@ -55,6 +56,7 @@ export function CpuScene() {
   return (
     <div className="cpu-scene" data-testid="cpu-scene">
       <h1 className="cpu-scene__title">{tr.cpu.title}</h1>
+      <ModeGuide mode="cpu" className="cpu-scene__guide" />
       <RoughButton seed="cpu-back" className="cpu-scene__back" onClick={back}>
         {tr.common.back}
       </RoughButton>

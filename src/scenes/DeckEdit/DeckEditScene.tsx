@@ -18,6 +18,7 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { addCard, autoFill, blockText, checkAdd, problemText, removeAt, summarize } from './deckOps';
 import { useT } from '../../i18n/useT';
+import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './deckEdit.css';
 
 type Filter = 'all' | 'owned' | 'otege' | 'item' | 'super';
@@ -107,6 +108,8 @@ export function DeckEditScene() {
 
   return (
     <div className="deck-scene">
+      {/* このモードの せつめい（上に空きが無いので、下の空いた所。v2.1-O） */}
+      <ModeGuide mode="deck" className="deck-scene__guide" />
       {/* いまのデッキ：名前 ✎ ／ デッキを えらぶ */}
       <div className="deck-scene__name">
         <span className="pencil deck-scene__name-label">{tr.deck.current}</span>

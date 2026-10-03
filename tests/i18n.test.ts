@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { guideNumbers } from '../src/guide/guideData';
 // @ts-expect-error 型定義の無い .mjs（調べ方を scripts/find-jp.mjs と共通にする）
 import { findJapanese, listFiles, stripComments } from '../scripts/find-jp.mjs';
 import { CARD_LIST } from '../src/data/cards';
@@ -15,11 +16,15 @@ function flatten(obj: unknown, path = ''): Map<string, unknown> {
   return out;
 }
 
+const GUIDE_WORDS = { levels: { weak: 'a', normal: 'b', strong: 'c', strongest: 'd' }, levelNotes: { weak: 'a', normal: 'b', strong: 'c', strongest: 'd' }, missions: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7'] };
+
 /** 関数の文言を、それらしい値で呼んでみる（引数の数だけ 7 / 'あ' / true を渡す） */
-function sample(v: unknown): string[] {
+function sample(v: unknown, key = ''): string[] {
   if (typeof v === 'string') return [v];
-  if (Array.isArray(v)) return v.flatMap(sample);
+  if (Array.isArray(v)) return v.flatMap((x) => sample(x));
   if (typeof v === 'function') {
+    // 「このモードの せつめい」（guide.modes）は、数（guideNumbers）と言葉を受け取る
+    if (key.startsWith('guide.modes.')) return sample((v as (...a: unknown[]) => unknown)(guideNumbers(), GUIDE_WORDS));
     const outs: string[] = [];
     for (const arg of [7, 'テスト', true, false, 0, 1, 2]) {
       const args = Array.from({ length: v.length }, () => arg);
@@ -28,6 +33,8 @@ function sample(v: unknown): string[] {
     }
     return outs;
   }
+  // 説明のページなど、文を持つ物（title・lines）
+  if (v && typeof v === 'object') return Object.values(v).flatMap((x) => sample(x));
   return [];
 }
 
@@ -77,7 +84,7 @@ describe('I02 にほんご・日本語の辞書が同じキーを持つ', () => 
   it('どの文言も空でない（関数は呼んだ結果も）', () => {
     for (const lang of LANGS) {
       for (const [k, v] of flatten(DICTS[lang])) {
-        for (const s of sample(v)) expect(s.trim().length, `${lang} ${k}`).toBeGreaterThan(0);
+        for (const s of sample(v, k)) expect(s.trim().length, `${lang} ${k}`).toBeGreaterThan(0);
       }
     }
   });
@@ -86,8 +93,8 @@ describe('I02 にほんご・日本語の辞書が同じキーを持つ', () => 
     let differ = 0;
     let withKanji = 0;
     for (const [k, v] of hira) {
-      const a = sample(v).join('|');
-      const b = sample(kanji.get(k)).join('|');
+      const a = sample(v, k).join('|');
+      const b = sample(kanji.get(k), k).join('|');
       if (a !== b) differ += 1;
       if (/[一-鿿]/.test(b)) withKanji += 1;
     }

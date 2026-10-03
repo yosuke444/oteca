@@ -10,6 +10,7 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { PackArt } from '../Gacha/PackArt';
+import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './daily.css';
 
 /**
@@ -73,6 +74,7 @@ export function DailyPanel({
                 {D.title}
               </span>
             </h2>
+            <ModeGuide mode="daily" className="daily-panel__guide" />
             <p className="daily-panel__next">
               <span className="pencil">{D.next}</span> <span className="num daily-panel__time">{formatCountdown(nextResetAt(now) - now)}</span>
             </p>

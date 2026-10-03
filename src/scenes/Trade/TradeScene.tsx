@@ -20,6 +20,7 @@ import { Dialog } from '../../ui/common/Dialog';
 import { NumberPad } from '../../ui/common/NumberPad';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
+import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './trade.css';
 
 const MIN_DIGITS = 4;
@@ -218,6 +219,7 @@ export function TradeScene() {
         <RoughButton seed="trade-back" className="trade-scene__back" onClick={() => go('menu')}>
           {tr.common.back}
         </RoughButton>
+        <ModeGuide mode="trade" className="trade-scene__guide" />
         <section className="trade-input">
           <p className="trade-input__label">{tr.trade.roomInput}</p>
           <RoughBox seed="trade-num" className="trade-input__num" paper radius={10} strokeWidth={3}>

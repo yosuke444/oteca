@@ -4,6 +4,8 @@
  * - カード名・アイテム名・ボス名・パック名は辞書に入れない（cards.json の name をそのまま使う）
  * - 値を差し込む文言は関数にする。ルールせつめいの **…** は蛍光ペンの強調
  */
+import type { GuideNumbers, GuideWords } from '../guide/guideData';
+
 export const hira = {
   common: {
     back: 'もどる',
@@ -610,6 +612,142 @@ export const hira = {
     carryCards: (n: number) => `デイリーパックの カード ${n}まい`,
     packBig: 'デイリー',
     toMenu: 'メニューへ',
+  },
+
+  guide: {
+    tab: 'せつめい',
+    fold: 'たたむ',
+    foldAria: 'せつめいを たたむ',
+    unfoldAria: 'せつめいを ひらく',
+    helpMark: '？',
+    helpAria: 'このモードの くわしい せつめい',
+    prev: 'まえへ',
+    next: 'つぎへ',
+    page: (n: number, t: number) => `${n} / ${t}`,
+    /**
+     * 各モードの短い説明（2〜3行）と詳しい説明（1〜3ページ）。
+     * n：数（src/guide/guideData.ts でデータから）。w：ほかの辞書の言葉（CPU の強さの名前・ミッションの文）
+     */
+    modes: {
+      online: (n: GuideNumbers, _w: GuideWords) => ({
+        title: 'オンラインたいせんの せつめい',
+        short: ['レートたいせん：しらない ひとと たいせん', 'フレンドたいせん：へやばんごうで ともだちと'],
+        pages: [
+          {
+            title: 'レートたいせん',
+            lines: [
+              'しらない ひとと 1たい1で たいせんするよ',
+              `はじめの レートは ${n.online.rateStart}。かつと あがって、まけると さがるよ`,
+              'つよい あいてに かつほど、たくさん あがるよ',
+              'とちゅうで ページを とじると まけに なるよ',
+            ],
+          },
+          {
+            title: 'フレンドたいせん',
+            lines: ['ともだちと おなじ へやばんごうを いれてね', `へやには ${n.online.roomMax}にん まで はいれるよ。あいてを えらんで もうしこもう`, '2にん だけなら すぐに はじまるよ'],
+          },
+          {
+            title: 'コイン',
+            lines: [
+              `かっても まけても ${n.online.friend}コイン もらえるよ（レートたいせんも ${n.online.rate}コイン）`,
+              `どちらも ${n.online.minTurns}ターン いじょう たたかった しあいだけ`,
+              `コインが もらえるのは 1にち ${n.online.dailyLimit}しあい まで`,
+            ],
+          },
+        ],
+      }),
+      cpu: (n: GuideNumbers, w: GuideWords) => ({
+        title: 'CPUたいせんの せつめい',
+        short: ['コンピューターと たいせん。つよさを えらべるよ', 'かつと コインが もらえる'],
+        pages: [
+          { title: `${n.cpu.levels.length}つの つよさ`, lines: n.cpu.levels.map((l) => `${w.levels[l.level]}：${w.levelNotes[l.level]}`) },
+          { title: 'もらえる コイン', lines: [...n.cpu.levels.map((l) => `${w.levels[l.level]}に かつ：${l.coins}コイン`), 'まけた ときは もらえないよ。なんかいでも あそべるよ'] },
+        ],
+      }),
+      story: (n: GuideNumbers, _w: GuideWords) => ({
+        title: 'ストーリーの せつめい',
+        short: ['ステージを クリアして マップを すすもう', 'ボスに かつと げんていカード！'],
+        pages: [
+          {
+            title: 'すすみかた',
+            lines: [
+              'したから うえへ すすむよ。ドラッグで マップを うごかせるよ',
+              'まえの ステージの どれか 1つを クリアすると、つぎに いけるよ',
+              'せんが あつまる ところ（ごうりゅう）は、どちらから きても いいよ',
+              `いきどまりには ボスが いるよ（ぜんぶで ${n.story.stages}ステージ、ボスは ${n.story.bosses}たい）`,
+            ],
+          },
+          { title: 'ボスルール', lines: ['ボスとの たたかいには、とくべつな ルールが あるよ', 'ステージを えらぶと、ルールが みられるよ', 'ボスは つよい。デッキを くふうして いどもう'] },
+          {
+            title: 'ほうしゅう',
+            lines: [
+              `はじめて クリア：${n.story.normalFirst}コイン（ボスは ${n.story.bossFirst}コイン ＋ げんていカード）`,
+              `2かいめ いこう：${n.story.normalAgain}コイン（ボスは ${n.story.bossAgain}コイン）`,
+              'げんていカードは パックからは でないよ',
+            ],
+          },
+        ],
+      }),
+      gacha: (n: GuideNumbers, _w: GuideWords) => ({
+        title: 'パックガチャの せつめい',
+        short: ['コインで パックを ひこう', 'たまに 2まい はいってるかも！'],
+        pages: [
+          { title: 'ねだん', lines: [...n.gacha.offers.map((o) => `${o.bags}まい（${o.bags}ふくろ）：${o.price}コイン`), 'パックの えを タップすると「なかみ」が みられるよ'] },
+          {
+            title: 'かくりつ',
+            lines: [
+              `1ふくろに 1まい。${n.gacha.double}%で ダブル（2まい いり）`,
+              'スーパー 1しゅるいは、ノーマル 1しゅるいの はんぶんの でやすさ',
+              ...n.gacha.supers.map((s) => `${s.name}：スーパーレアが でるのは 1まいごとに ${s.rate}%`),
+            ],
+          },
+          { title: 'スーパーおてあげの かんきん', lines: ['もう もっている スーパーおてあげが でたら、', `まとめの がめんで ${n.gacha.superToCoins}コインに かえられるよ`, 'トレードに つかうなら のこしておこう'] },
+        ],
+      }),
+      deck: (n: GuideNumbers, _w: GuideWords) => ({
+        title: 'デッキへんしゅうの せつめい',
+        short: ['もっている カードで デッキを つくろう', `${n.deck.size}まい ちょうどで かんせい`],
+        pages: [
+          { title: 'デッキの ルール', lines: [`${n.deck.size}まい ちょうど`, 'おてあげが 1まい いじょう', `スーパーおてあげは ${n.deck.superMax}まい まで`] },
+          { title: 'もっている まいすう', lines: ['1つの デッキに、もっている まいすう まで いれられるよ', 'ほかの デッキに いれていても だいじょうぶ（ざいこは デッキごと）', 'もっていない カードは「？」で みえるよ'] },
+          { title: 'デッキは いくつでも', lines: [`デッキは ${n.deck.slots}こ まで つくれるよ`, 'かえたら じどうで ほぞんされるよ', '「デッキを えらぶ」で つかう デッキを きめよう'] },
+        ],
+      }),
+      trade: (n: GuideNumbers, _w: GuideWords) => ({
+        title: 'カードトレードの せつめい',
+        short: ['ともだちと おなじ ばんごうを いれて、', 'カードを こうかんしよう'],
+        pages: [
+          { title: 'ながれ', lines: ['あげる カードを えらぶと、あいてにも みえるよ', 'ふたりとも「これで OK」を おしてから「こうかんする」', 'ないようを かえると、OK は はずれるよ'] },
+          { title: 'きまり', lines: [`かたほう ${n.trade.kinds}しゅるい・あわせて ${n.trade.cards}まい まで`, 'コインは こうかん できないよ', 'なにも もらわずに あげる ことも できるよ'] },
+          { title: 'ちゅうい', lines: ['こうかんで デッキが つかえなく なる ときは、おしらせが でるよ', 'こうかんした カードは もどせないよ。よく たしかめてね'] },
+        ],
+      }),
+      daily: (n: GuideNumbers, w: GuideWords) => ({
+        title: 'デイリーミッションの せつめい',
+        short: [`まいにち ${n.daily.resetHour}じに かわる ミッション`, 'ぜんぶ クリアで デイリーパック！'],
+        pages: [
+          {
+            title: `${n.daily.missions.length}つの ミッション（まいにち ${n.daily.pick}つ でるよ）`,
+            lines: n.daily.missions.map((m, i) => `${w.missions[i]}（${m.coins}コイン）`),
+          },
+          {
+            title: 'かぞえかた',
+            lines: [
+              'ひいた カード（こうかの ドローも）・つかった アイテム・たおした かずは、CPU・ストーリー・フレンド・レートの たいせんで かぞえるよ',
+              'さいしょに くばられた カードは かぞえないよ',
+              'チュートリアル・きれた しあい、すぐ おわった フレンド・レート・ストーリーの まけは かぞえないよ',
+            ],
+          },
+          {
+            title: 'かくていの ミッションと うけとりわすれ',
+            lines: [
+              `${n.daily.pick}つ ぜんぶ クリアで、デイリーパック ${n.daily.allClearBags}ふくろ ＋ ${n.daily.allClearCoins}コイン（デイリーパックは ここでしか もらえない）`,
+              `うけとらないまま ${n.daily.resetHour}じを すぎても、つぎに メニューを ひらいた ときに じどうで うけとるよ`,
+            ],
+          },
+        ],
+      }),
+    },
   },
 
   settings: {

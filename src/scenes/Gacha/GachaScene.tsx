@@ -19,6 +19,7 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { Opening } from './Opening';
 import { PackArt } from './PackArt';
 import { Summary } from './Summary';
+import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './gacha.css';
 
 /** デイリーパックの開封（確定のミッションの報酬。保存は済んでいる。v2.1-M） */
@@ -127,6 +128,7 @@ export function GachaScene() {
 
       {view === 'shop' && (
         <>
+          <ModeGuide mode="gacha" className="gacha-scene__guide" />
           <RoughButton seed="gacha-prev" className="gacha-scene__arrow gacha-scene__arrow--prev" ariaLabel={tr.gacha.prev} onClick={() => slide(-1)}>
             ◀
           </RoughButton>

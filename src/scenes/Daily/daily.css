@@ -9,7 +9,7 @@
   background: color-mix(in srgb, var(--paper) 55%, transparent);
 }
 .daily-panel__paper {
-  width: 1000px;
+  width: 1180px;
 }
 .daily-panel__box {
   width: 100%;
@@ -20,12 +20,12 @@
 .daily-panel__title {
   margin: 0;
   font-size: 40px;
-  text-align: center;
+  text-align: left;
 }
 .daily-panel__next {
   margin: 4px 0 10px;
   font-size: 22px;
-  text-align: center;
+  text-align: left;
 }
 .daily-panel__time {
   display: inline-block;

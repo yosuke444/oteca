@@ -6,6 +6,7 @@ import { CoinCounter } from '../../ui/coin/Coin';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
+import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './online.css';
 
 /**
@@ -24,6 +25,8 @@ export function OnlineScene() {
       <RoughButton seed="online-back" className="online-scene__back" onClick={() => go('menu')}>
         {tr.common.back}
       </RoughButton>
+
+      <ModeGuide mode="online" className="online-scene__guide" />
 
       <RoughButton seed="online-rate" className="online-scene__choice online-scene__choice--rate" strokeWidth={3} onClick={() => go('rate')} data-testid="online-rate">
         <span className="online-scene__label">

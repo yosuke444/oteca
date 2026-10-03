@@ -612,6 +612,95 @@ export const kanji: Dict = {
     toMenu: 'メニューへ',
   },
 
+  guide: {
+    tab: '説明',
+    fold: 'たたむ',
+    foldAria: '説明をたたむ',
+    unfoldAria: '説明を開く',
+    helpMark: '？',
+    helpAria: 'このモードの詳しい説明',
+    prev: '前へ',
+    next: '次へ',
+    page: (n, t) => `${n} / ${t}`,
+    modes: {
+      online: (n, _w) => ({
+        title: 'オンライン対戦の説明',
+        short: ['レート対戦：知らない人と対戦', 'フレンド対戦：部屋番号で友達と'],
+        pages: [
+          { title: 'レート対戦', lines: ['知らない人と1対1で対戦するよ', `初めのレートは${n.online.rateStart}。勝つと上がって、負けると下がるよ`, '強い相手に勝つほど、たくさん上がるよ', '途中でページを閉じると負けになるよ'] },
+          { title: 'フレンド対戦', lines: ['友達と同じ部屋番号を入れてね', `部屋には${n.online.roomMax}人まで入れるよ。相手を選んで申し込もう`, '2人だけならすぐに始まるよ'] },
+          { title: 'コイン', lines: [`勝っても負けても${n.online.friend}コインもらえるよ（レート対戦も${n.online.rate}コイン）`, `どちらも${n.online.minTurns}ターン以上戦った試合だけ`, `コインがもらえるのは1日${n.online.dailyLimit}試合まで`] },
+        ],
+      }),
+      cpu: (n, w) => ({
+        title: 'CPU対戦の説明',
+        short: ['コンピューターと対戦。強さを選べるよ', '勝つとコインがもらえる'],
+        pages: [
+          { title: `${n.cpu.levels.length}つの強さ`, lines: n.cpu.levels.map((l) => `${w.levels[l.level]}：${w.levelNotes[l.level]}`) },
+          { title: 'もらえるコイン', lines: [...n.cpu.levels.map((l) => `${w.levels[l.level]}に勝つ：${l.coins}コイン`), '負けた時はもらえないよ。何回でも遊べるよ'] },
+        ],
+      }),
+      story: (n, _w) => ({
+        title: 'ストーリーの説明',
+        short: ['ステージをクリアしてマップを進もう', 'ボスに勝つと限定カード！'],
+        pages: [
+          { title: '進み方', lines: ['下から上へ進むよ。ドラッグでマップを動かせるよ', '前のステージのどれか1つをクリアすると、次に行けるよ', '線が集まるところ（合流）は、どちらから来てもいいよ', `行き止まりにはボスがいるよ（全部で${n.story.stages}ステージ、ボスは${n.story.bosses}体）`] },
+          { title: 'ボスルール', lines: ['ボスとの戦いには、特別なルールがあるよ', 'ステージを選ぶと、ルールが見られるよ', 'ボスは強い。デッキを工夫して挑もう'] },
+          { title: '報酬', lines: [`初めてクリア：${n.story.normalFirst}コイン（ボスは${n.story.bossFirst}コイン＋限定カード）`, `2回目以降：${n.story.normalAgain}コイン（ボスは${n.story.bossAgain}コイン）`, '限定カードはパックからは出ないよ'] },
+        ],
+      }),
+      gacha: (n, _w) => ({
+        title: 'パックガチャの説明',
+        short: ['コインでパックを引こう', 'たまに2枚入ってるかも！'],
+        pages: [
+          { title: '値段', lines: [...n.gacha.offers.map((o) => `${o.bags}枚（${o.bags}袋）：${o.price}コイン`), 'パックの絵をタップすると「中身」が見られるよ'] },
+          { title: '確率', lines: [`1袋に1枚。${n.gacha.double}%でダブル（2枚入り）`, 'スーパー1種類は、ノーマル1種類の半分の出やすさ', ...n.gacha.supers.map((s) => `${s.name}：スーパーレアが出るのは1枚ごとに${s.rate}%`)] },
+          { title: 'スーパーおてあげの換金', lines: ['もう持っているスーパーおてあげが出たら、', `まとめの画面で${n.gacha.superToCoins}コインに替えられるよ`, 'トレードに使うなら残しておこう'] },
+        ],
+      }),
+      deck: (n, _w) => ({
+        title: 'デッキ編集の説明',
+        short: ['持っているカードでデッキを作ろう', `${n.deck.size}枚ちょうどで完成`],
+        pages: [
+          { title: 'デッキのルール', lines: [`${n.deck.size}枚ちょうど`, 'おてあげが1枚以上', `スーパーおてあげは${n.deck.superMax}枚まで`] },
+          { title: '持っている枚数', lines: ['1つのデッキに、持っている枚数まで入れられるよ', 'ほかのデッキに入れていても大丈夫（在庫はデッキごと）', '持っていないカードは「？」で見えるよ'] },
+          { title: 'デッキはいくつでも', lines: [`デッキは${n.deck.slots}個まで作れるよ`, '変えたら自動で保存されるよ', '「デッキを選ぶ」で使うデッキを決めよう'] },
+        ],
+      }),
+      trade: (n, _w) => ({
+        title: 'カードトレードの説明',
+        short: ['友達と同じ番号を入れて、', 'カードを交換しよう'],
+        pages: [
+          { title: '流れ', lines: ['あげるカードを選ぶと、相手にも見えるよ', '2人とも「これで OK」を押してから「交換する」', '内容を変えると、OK は外れるよ'] },
+          { title: '決まり', lines: [`片方${n.trade.kinds}種類・合わせて${n.trade.cards}枚まで`, 'コインは交換できないよ', '何ももらわずにあげることもできるよ'] },
+          { title: '注意', lines: ['交換でデッキが使えなくなる時は、お知らせが出るよ', '交換したカードは戻せないよ。よく確かめてね'] },
+        ],
+      }),
+      daily: (n, w) => ({
+        title: 'デイリーミッションの説明',
+        short: [`毎日${n.daily.resetHour}時に変わるミッション`, '全部クリアでデイリーパック！'],
+        pages: [
+          { title: `${n.daily.missions.length}つのミッション（毎日${n.daily.pick}つ出るよ）`, lines: n.daily.missions.map((m, i) => `${w.missions[i]}（${m.coins}コイン）`) },
+          {
+            title: '数え方',
+            lines: [
+              '引いたカード（効果のドローも）・使ったアイテム・倒した数は、CPU・ストーリー・フレンド・レートの対戦で数えるよ',
+              '最初に配られたカードは数えないよ',
+              'チュートリアル・切れた試合、すぐ終わったフレンド・レート・ストーリーの負けは数えないよ',
+            ],
+          },
+          {
+            title: '確定のミッションと受け取り忘れ',
+            lines: [
+              `${n.daily.pick}つ全部クリアで、デイリーパック${n.daily.allClearBags}袋＋${n.daily.allClearCoins}コイン（デイリーパックはここでしかもらえない）`,
+              `受け取らないまま${n.daily.resetHour}時を過ぎても、次にメニューを開いた時に自動で受け取るよ`,
+            ],
+          },
+        ],
+      }),
+    },
+  },
+
   settings: {
     title: '設定',
     speed: { normal: '普通', fast: '速い', fastest: '最速' },

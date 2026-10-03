@@ -18,6 +18,7 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { BossArt, BossCutin } from './BossCutin';
 import { StoryMap } from './StoryMap';
+import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './story.css';
 
 /** リザルトから戻る時に渡すもの：クリアしたステージと、それで新しく開いたステージ（線を描く演出に使う） */
@@ -97,6 +98,7 @@ export function StoryScene() {
         {tr.common.back}
       </RoughButton>
       <p className="story-scene__hint pencil">{tr.story.dragHint}</p>
+      <ModeGuide mode="story" className="story-scene__guide" />
 
       {picked && (
         <StageConfirm
