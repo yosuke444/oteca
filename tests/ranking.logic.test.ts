@@ -6,7 +6,10 @@ import { nextRate } from '../src/online/rateMath';
 import { RATING } from '../src/config/rating';
 
 /** 16桁の16進数の playerId を作る */
-const pid = (n: number) => n.toString(16).padStart(16, '0');
+/** ユーザーID（15桁。v2.0-J） */
+const pid = (n: number) => String(100000000000000 + n);
+/** 試合ID（16桁の16進数） */
+const mid = (n: number) => n.toString(16).padStart(16, '0');
 
 function waiter(n: number, over: Partial<Waiter> = {}): Waiter {
   return { id: `w${n}`, playerId: pid(n), protocol: 6, lastOpponentId: '', name: '', rate: 100, joinedAt: n * 10, seq: n, ...over };
@@ -76,25 +79,25 @@ describe('I01 受付係の待ち行列', () => {
   });
 
   it('join の中身を確かめる', () => {
-    expect(cleanJoin({ playerId: pid(1), protocol: 6, lastOpponentId: pid(2), name: ' あいうえおかきくけこ ', rate: 123.6 })).toEqual({
+    expect(cleanJoin({ userId: pid(1), protocol: 6, lastOpponentId: pid(2), name: ' あいうえおかきくけこ ', rate: 123.6 })).toEqual({
       playerId: pid(1),
       protocol: 6,
       lastOpponentId: pid(2),
       name: 'あいうえおかきく',
       rate: 124,
     });
-    expect(cleanJoin({ playerId: 'xyz', protocol: 6 })).toBeNull();
-    expect(cleanJoin({ playerId: pid(1), protocol: 0 })).toBeNull();
-    expect(cleanJoin({ playerId: pid(1), protocol: 1.5 })).toBeNull();
+    expect(cleanJoin({ userId: 'xyz', protocol: 6 })).toBeNull();
+    expect(cleanJoin({ userId: pid(1), protocol: 0 })).toBeNull();
+    expect(cleanJoin({ userId: pid(1), protocol: 1.5 })).toBeNull();
     expect(cleanJoin(null)).toBeNull();
-    expect(cleanJoin({ playerId: pid(1), protocol: 6, lastOpponentId: 'bad' })?.lastOpponentId).toBe('');
+    expect(cleanJoin({ userId: pid(1), protocol: 6, lastOpponentId: 'bad' })?.lastOpponentId).toBe('');
   });
 });
 
 describe('I02 結果の突き合わせ', () => {
   const A = pid(1);
   const B = pid(2);
-  const M = pid(100);
+  const M = mid(100);
   const match: MatchInfo = { matchId: M, a: A, b: B, created: 1000 };
   const rep = (playerId: string, winner: string, at = 2000): Report => ({ matchId: M, playerId, winner, at });
 
@@ -158,7 +161,7 @@ describe('I03 まとめ処理', () => {
   const DAY = Date.UTC(2026, 9, 4, 3, 0, 0);
   const NOW = Date.UTC(2026, 9, 4, 19, 0, 0); // 10-05 4:00 JST
   let seq = 0;
-  const res = (a: string, b: string, winner: string, at: number) => ({ id: ++seq, matchId: pid(1000 + seq), a, b, winner, at });
+  const res = (a: string, b: string, winner: string, at: number) => ({ id: ++seq, matchId: mid(1000 + seq), a, b, winner, at });
 
   it('次のまとめ処理は日本時間 4:00 と 14:00 の近い方', () => {
     // 2026-10-04 3:59 JST → 同じ日の 4:00
@@ -290,7 +293,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
       },
     };
   }
-  const row = (n: number, a: string, b: string, winner: string) => ({ matchId: pid(5000 + n), a, b, winner, at: 1_800_000_000_000 + n, known: true });
+  const row = (n: number, a: string, b: string, winner: string) => ({ matchId: mid(5000 + n), a, b, winner, at: 1_800_000_000_000 + n, known: true });
   const A = pid(1);
   const B = pid(2);
 
@@ -346,7 +349,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     const { runBatchJob } = await import('../worker/src/ranking');
     // 2026-10-04（日本時間）の 1:00・3:00（4:00 の更新で数える）と 10:00・12:00・13:00（14:00 の更新で数える）
     const at = (h: number) => Date.UTC(2026, 9, 3, 15 + h, 0);
-    const mk = (n: number, h: number) => ({ matchId: pid(7000 + n), a: A, b: B, winner: A, at: at(h), known: true });
+    const mk = (n: number, h: number) => ({ matchId: mid(7000 + n), a: A, b: B, winner: A, at: at(h), known: true });
     const db = fakeDb();
     const lobby = fakeLobby([mk(1, 1), mk(2, 3)]);
     const r1 = await runBatchJob(db as never, lobby, at(4));
@@ -378,11 +381,11 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
   it('予備の待合所の試合は、1人1日10試合まで（日の区切りは日本時間 0:00）', () => {
     const C = pid(3);
     const rs = [];
-    for (let i = 0; i < 12; i++) rs.push({ id: i, matchId: pid(9000 + i), a: A, b: i % 2 ? B : C, winner: A, at: Date.UTC(2026, 9, 4, 3, 0) + i, known: false });
+    for (let i = 0; i < 12; i++) rs.push({ id: i, matchId: mid(9000 + i), a: A, b: i % 2 ? B : C, winner: A, at: Date.UTC(2026, 9, 4, 3, 0) + i, known: false });
     const out = runBatch(new Map(), rs, Date.UTC(2026, 9, 4, 19, 0));
     expect(out.counted).toBe(6); // A-B 3試合・A-C 3試合（同じ2人は3試合まで）
     const many = [];
-    for (let i = 0; i < 15; i++) many.push({ matchId: pid(9100 + i), a: A, b: pid(100 + i), winner: A, at: Date.UTC(2026, 9, 4, 3, 0) + i, known: false });
+    for (let i = 0; i < 15; i++) many.push({ matchId: mid(9100 + i), a: A, b: pid(100 + i), winner: A, at: Date.UTC(2026, 9, 4, 3, 0) + i, known: false });
     expect(runBatch(new Map(), many, 0).counted).toBe(10);
     // 受付係が組んだ試合には この制限は無い
     expect(runBatch(new Map(), many.map((r) => ({ ...r, known: true })), 0).counted).toBe(15);

@@ -5,6 +5,9 @@
  * - 待っているのが直前の相手だけなら、ほかの人が来るまで待つ。
  */
 
+import { isUserId } from '../../../src/save/userId';
+
+/** 待っている人（playerId は、v2.0-J からはユーザーID（15桁）） */
 export type Waiter = {
   /** WebSocket ごとの番号（受付係の中だけで使う） */
   id: string;
@@ -66,8 +69,9 @@ export function waitingCounts(waiters: readonly Waiter[]): Map<number, number> {
 export function cleanJoin(x: unknown): Omit<Waiter, 'id' | 'joinedAt' | 'seq'> | null {
   if (!x || typeof x !== 'object') return null;
   const o = x as Record<string, unknown>;
-  const id = (v: unknown) => (typeof v === 'string' && /^[0-9a-f]{16}$/.test(v) ? v : null);
-  const playerId = id(o.playerId);
+  // ユーザーID（v2.0-J。join では userId）
+  const id = (v: unknown) => (isUserId(v) ? v : null);
+  const playerId = id(o.userId);
   if (!playerId) return null;
   if (!Number.isInteger(o.protocol) || (o.protocol as number) < 1 || (o.protocol as number) > 1000) return null;
   const name = typeof o.name === 'string' && o.name.trim() !== '' ? [...o.name.trim()].slice(0, 8).join('') : '';

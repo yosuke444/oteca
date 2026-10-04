@@ -1,4 +1,5 @@
 import { RANKING } from '../config/rating';
+import { isUserId } from '../save/userId';
 import { RANKING_UNSENT_MAX, type SaveData } from '../save/saveData';
 
 /** 更新の時刻のこれだけ前より後の試合は、まだ数えられていないかもしれない（片方だけの報告の10分 ＋ 1分の余裕） */
@@ -23,7 +24,8 @@ export function encodeUnsent(r: UnsentReport): string {
 /** セーブの文字 → 報告（形の変なものは null） */
 export function decodeUnsent(s: string): UnsentReport | null {
   const [matchId, winner, ...rest] = s.split(':');
-  if (rest.length || !HEX16.test(matchId ?? '') || !(winner === 'void' || HEX16.test(winner ?? ''))) return null;
+  // 勝った人はユーザーID（v2.0-J）
+  if (rest.length || !HEX16.test(matchId ?? '') || !(winner === 'void' || isUserId(winner))) return null;
   return { matchId, winner };
 }
 
@@ -51,7 +53,18 @@ export function reportWinner(outcome: 'win' | 'lose' | 'void', myId: string, opp
 }
 
 /** サーバーにある自分のデータ（GET /me・/ranking の me） */
-export type ServerMe = { rate: number; wins: number; losses: number; best: number; rank: number | null; visible: boolean; name: string; optIn: boolean };
+export type ServerMe = {
+  rate: number;
+  wins: number;
+  losses: number;
+  best: number;
+  rank: number | null;
+  visible: boolean;
+  name: string;
+  optIn: boolean;
+  /** 最後に数えた試合の試合ID（v2.0-J。'' ＝まだ） */
+  lastMatch?: string;
+};
 
 /**
  * 正式なレートで上書きする（次の更新の後にゲームを開いた時。SPEC §7 S15）。
@@ -66,7 +79,9 @@ export function applyServerRate(draft: RankingSave, me: ServerMe | null, updated
   if (!me || me.wins + me.losses === 0) return false;
   if (draft.ranking.syncedAt >= updatedAt) return false;
   // まとめ処理の少し前より後にも遊んでいる：サーバーの値にその試合が入っていないかもしれないので、上書きせず「かり」のまま
-  if (draft.ranking.playedAt > 0 && draft.ranking.playedAt > updatedAt - UNCOUNTED_MARGIN_MS) return false;
+  // ただし、サーバーが最後に数えた試合が自分の最後の試合なら、もう数えられている（v2.0-J）
+  const counted = !!draft.ranking.lastMatchId && me.lastMatch === draft.ranking.lastMatchId && draft.ranking.playedAt <= updatedAt;
+  if (!counted && draft.ranking.playedAt > 0 && draft.ranking.playedAt > updatedAt - UNCOUNTED_MARGIN_MS) return false;
   draft.rate = me.rate;
   draft.rateStats = { wins: me.wins, losses: me.losses, best: me.best };
   draft.ranking.provisional = draft.ranking.unsent.length > 0;
@@ -74,10 +89,11 @@ export function applyServerRate(draft: RankingSave, me: ServerMe | null, updated
   return true;
 }
 
-/** 対戦の後：端末で計算したレートは「かり」。遊んだ時刻を覚える */
-export function markProvisional(draft: Pick<SaveData, 'ranking'>, now = Date.now()): void {
+/** 対戦の後：端末で計算したレートは「かり」。遊んだ時刻と試合ID を覚える */
+export function markProvisional(draft: Pick<SaveData, 'ranking'>, now = Date.now(), matchId = ''): void {
   draft.ranking.provisional = true;
   draft.ranking.playedAt = now;
+  draft.ranking.lastMatchId = matchId;
 }
 
 /** ランキングの一覧の1行（サーバーの写し） */

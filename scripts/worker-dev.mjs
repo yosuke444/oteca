@@ -83,9 +83,9 @@ export async function api(base, path, { method = 'GET', body, admin, origin = OR
   };
 }
 
-/** 受付係に WebSocket でつなぐ（player：{ id, token }。token で本人を確かめる）。届いたものは msgs に入る */
+/** 受付係に WebSocket でつなぐ（player：{ id（ユーザーID）, token }。token で本人を確かめる）。届いたものは msgs に入る */
 export function connectLobby(base, player, origin = ORIGIN) {
-  const q = player ? `?playerId=${player.id}&token=${player.token}` : '';
+  const q = player ? `?userId=${player.id}&token=${player.token}` : '';
   const ws = new WebSocket(`${base.replace(/^http/, 'ws')}/lobby${q}`, { headers: { Origin: origin } });
   const c = { ws, msgs: [], closed: false, opened: false, code: 0 };
   ws.onopen = () => (c.opened = true);
@@ -117,13 +117,20 @@ export async function until(fn, ms = 5000) {
 
 export { sleep };
 
-/** 登録して token をもらう（{ id, token, name }） */
-export async function register(base, id, name = 'p') {
-  const r = await api(base, '/register', { method: 'POST', body: { playerId: id, name, optIn: true } });
-  return { id, name, token: r.json?.token };
+/** ユーザーID を登録する（token は端末が作る。{ id, token, name, status }） */
+export async function register(base, id, name = 'p', optIn = true) {
+  const token = newToken();
+  const r = await api(base, '/register', { method: 'POST', body: { userId: id, token, name, optIn } });
+  return { id, name, token: r.status === 200 ? token : undefined, status: r.status, json: r.json };
 }
 
 /** 16桁の16進数の playerId */
+/** ユーザーID（15桁の数字。v2.0-J）。prefix（a〜f）ごとに別の番号の帯にする */
 export function pid(n, prefix = 'a') {
-  return (prefix + n.toString(16)).padStart(16, '0').slice(-16);
+  return `${'abcdef'.indexOf(prefix) + 1}${String(n).padStart(14, '0')}`;
+}
+
+/** 端末が作る token（32桁の16進数） */
+export function newToken() {
+  return [...crypto.getRandomValues(new Uint8Array(16))].map((x) => x.toString(16).padStart(2, '0')).join('');
 }

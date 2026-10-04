@@ -50,7 +50,7 @@ export type WireAction = Action extends infer A ? (A extends { player: unknown }
 
 export type MsgBody = {
   /** state 以降は v2.0-G で追加（部屋の まちあい。rate はレート対戦の時だけ） */
-  hello: { protocol: number; appVersion: string; name: string; ticket: Ticket; playerId: string; state?: MemberState; deckName?: string; nextGame?: number; rate?: number };
+  hello: { protocol: number; appVersion: string; name: string; ticket: Ticket; playerId: string; state?: MemberState; deckName?: string; nextGame?: number; rate?: number; userId?: string };
   full: Record<string, never>;
   /** 自分の状態が変わった（部屋全体へ。v2.0-G） */
   presence: { state: MemberState; deckName: string; nextGame: number };
@@ -69,7 +69,7 @@ export type MsgBody = {
   pairPropose: { to: string; roomId: string };
   pairAccept: { to: string; roomId: string; accept: boolean };
   /** カードトレード（v2.0-H）：入室（pending＝とちゅうの交換ID、done＝処理済みの交換ID） */
-  tradeHello: { protocol: number; appVersion: string; name: string; ticket: Ticket; playerId: string; pending: string; done: string[] };
+  tradeHello: { protocol: number; appVersion: string; name: string; ticket: Ticket; playerId: string; pending: string; done: string[]; userId?: string };
   /** あげるカード（カードNo → 枚数） */
   tradeOffer: { offer: Record<number, number> };
   /** これで OK（hash が空なら取り消し） */
@@ -97,6 +97,21 @@ export type MsgBody = {
   pong: { t: number; n?: number; game?: number };
   /** 追加：seq に飛びがあった時の再送要求（from 番以降を送り直して） */
   resend: { from: number; game: number };
+  // ---------------- 観戦（v2.0-J。管理者メニューの「大会閲覧」。SPEC §11-10）
+  /** 観戦者 → 部屋の人：観戦に来た（観戦者は hello を送らないので、まちあいの一覧にも対戦にも入らない） */
+  specHello: { protocol: number };
+  /** 対戦者 → 観戦者：観戦者がもう3人いる */
+  specFull: Record<string, never>;
+  /** 対戦者 → 観戦者：自分の様子（対戦中なら、相手のピアID・何試合目か・名前） */
+  specInfo: { state: MemberState; name: string; game: number; oppPeer: string; names?: Record<Side, string>; role?: Side };
+  /** 観戦者 → 対戦者2人：この試合を見る */
+  specWatch: { game: number };
+  /** 対戦者 → 観戦者：試合の始まり（乱数の種・デッキ・名前）と、自分の操作の記録（それまで全部） */
+  specSync: { game: number; seed: string; decks: Record<Side, number[]>; names: Record<Side, string>; side: Side; log: WireAction[] };
+  /** 対戦者 → 観戦者：自分の操作（seq は自分の何番目の操作か） */
+  specAction: { game: number; side: Side; seq: number; action: WireAction };
+  /** 観戦者 → 対戦者：観戦をやめた */
+  specLeave: Record<string, never>;
 };
 
 export type MsgType = keyof MsgBody;

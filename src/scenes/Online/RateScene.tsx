@@ -8,7 +8,7 @@ import type { RateSearch } from '../../net/matchmaker';
 import { type OnlineLink, createRateSearch, currentOnline, endOnline, startOnline } from '../../net/online';
 import type { RatePaired } from '../../net/rateLobby';
 import { safeName, startRateMatch } from '../../online/rate';
-import { ensureIdentity, syncRanking } from '../../online/rankingApi';
+import { type Identity, ensureIdentity, syncRanking } from '../../online/rankingApi';
 import { queueReport } from '../../online/ranking';
 import { RateValue } from '../../ui/common/RateValue';
 import { isDebugMode, useNav } from '../../router';
@@ -106,12 +106,13 @@ export function RateScene() {
     setPhase({ kind: 'searching' });
     wantSearch.current = true;
     // 初めてのレート対戦：受付係に並ぶ・結果を報告するための token をもらう（もらえなければ予備の待合所で遊べる）
-    const start = (id: { token: string; playerId: string } | null) => {
+    const start = (id: Identity | null) => {
       if (!wantSearch.current || lobbyRef.current) return;
       wantSearch.current = false;
       const cur = saveRef.current;
-      const playerId = id?.playerId ?? cur.playerId;
-      const lobby = createRateSearch({ playerId, name: cur.playerName, rate: cur.rate, lastOpponentId: cur.lastRateOpponentId, token: id?.token ?? '' });
+      // 相手の判別はユーザーID（v2.0-J）
+      const userId = id?.userId ?? cur.userId;
+      const lobby = createRateSearch({ userId, name: cur.playerName, rate: cur.rate, lastOpponentId: cur.lastRateOpponentId, token: id?.token ?? '' });
       lobbyRef.current = lobby;
       lobby.onWaiting = setCount;
       lobby.onFallback = () => setFallback(true);
@@ -131,7 +132,7 @@ export function RateScene() {
       // 2人だけの部屋へ移る（2人の部屋と同じ流れで、自動で始まる）
       const cur = saveRef.current;
       const d = cur.decks[cur.selectedDeck];
-      const link = startOnline({ kind: 'rate', roomId: p.roomId }, { name: cur.playerName, deck: d.cards, deckName: d.name, rate: cur.rate, playerId: cur.playerId });
+      const link = startOnline({ kind: 'rate', roomId: p.roomId }, { name: cur.playerName, deck: d.cards, deckName: d.name, rate: cur.rate, playerId: cur.userId });
       linkRef.current = link;
       // 聞き取りは、対戦へ進む時・画面を出る時に外す（リザルトで相手が出ていった時に、裏で さがし直さないように）
       offLink();

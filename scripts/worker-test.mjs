@@ -2,7 +2,7 @@
 // 手元の Worker（wrangler dev。まっさらな保存領域）で、登録・受付係・報告・まとめ処理・ランキング・CORS・管理キーを確かめる。
 // 受付係・結果・まとめ処理の細かい決まりは tests/ranking.logic.test.ts（npm test）で確かめている。
 import { createHash } from 'node:crypto';
-import { LOCAL_ADMIN_KEY as ADMIN, ORIGIN, api, connectLobby, pid, register, sleep, startWorker, until } from './worker-dev.mjs';
+import { LOCAL_ADMIN_KEY as ADMIN, ORIGIN, api, connectLobby, newToken, pid, register, sleep, startWorker, until } from './worker-dev.mjs';
 
 const results = [];
 function check(name, ok, detail = '') {
@@ -30,33 +30,48 @@ try {
   check('管理キーが違えば 401', (await api(B, '/admin/stats', { method: 'POST', admin: 'nope', origin: null })).status === 401);
   check('管理キーが無ければ 401', (await api(B, '/admin/stats', { method: 'POST', origin: null })).status === 401);
 
-  console.log('登録と token');
-  const P = ['a1', 'a2', 'a3', 'a4', 'a5'].map((s, i) => ({ id: pid(i + 1), name: ['あお', 'ばかくん', 'みどり', 'ひみつ', 'きいろ'][i] }));
-  for (const p of P) {
-    const r = await api(B, '/register', { method: 'POST', body: { playerId: p.id, name: p.name, optIn: p.name !== 'ひみつ' } });
-    p.token = r.json?.token;
-  }
-  check('登録すると token（32桁）がもらえる', P.every((p) => /^[0-9a-f]{32}$/.test(p.token ?? '')));
-  check('2回目の登録は 409（token は1回しか出さない）', (await api(B, '/register', { method: 'POST', body: { playerId: P[0].id } })).status === 409);
-  check('playerId の形が変なら 400', (await api(B, '/register', { method: 'POST', body: { playerId: 'xyz' } })).status === 400);
-  const me0 = await api(B, `/me?playerId=${P[0].id}&token=${P[0].token}`);
+  console.log('ユーザーID の登録（v2.0-J）');
+  const P = [];
+  for (const [i, name] of ['あお', 'ばかくん', 'みどり', 'ひみつ', 'きいろ'].entries()) P.push(await register(B, pid(i + 1), name, name !== 'ひみつ'));
+  check('ユーザーID と端末が作った token で登録できる', P.every((p) => p.status === 200 && /^[0-9a-f]{32}$/.test(p.token ?? '')));
+  const again = await api(B, '/register', { method: 'POST', body: { userId: P[0].id, token: P[0].token, name: 'あお' } });
+  check('同じユーザーID と同じ token の送り直しは、登録できたことになる', again.status === 200 && again.json?.again === true);
+  check('ほかの token で同じユーザーID は 409（ほかの人のユーザーID。端末は作り直す）', (await api(B, '/register', { method: 'POST', body: { userId: P[0].id, token: newToken() } })).status === 409);
+  check('ユーザーID の形が変なら 400（先頭0・16進数・桁数）', (
+    await Promise.all(['012345678901234', 'abcdefabcdefabcd', '12345'].map((u) => api(B, '/register', { method: 'POST', body: { userId: u, token: newToken() } })))
+  ).every((r) => r.status === 400));
+  // 今までの人（v2.0-I で playerId と token を持っている人）：その行をユーザーID に付け替え、レート・勝敗を引き継ぐ
+  const legacyId = 'abcdefabcdef0123';
+  const legacyTok = newToken();
+  await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, body: { legacy: [{ playerId: legacyId, token: legacyTok, rate: 157, wins: 6, losses: 2, best: 160 }, { playerId: 'abcdefabcdef0999', token: newToken(), rate: 140, name: 'のこる' }] } });
+  const L = { id: pid(90), token: legacyTok };
+  const mig = await api(B, '/register', { method: 'POST', body: { userId: L.id, token: legacyTok, legacyPlayerId: legacyId, name: 'むかし' } });
+  const lme = await api(B, `/me?userId=${L.id}&token=${legacyTok}`);
+  check('J02 今までの playerId の行を、ユーザーID に付け替えてレート・勝敗を引き継ぐ', mig.json?.migrated === true && lme.json?.me?.rate === 157 && lme.json?.me?.wins === 6 && lme.json?.me?.best === 160, JSON.stringify([mig.json, lme.json]));
+  const t91 = newToken();
+  const wrongTok = await api(B, '/register', { method: 'POST', body: { userId: pid(91), token: t91, legacyPlayerId: 'abcdefabcdef0999' } });
+  const wme = await api(B, `/me?userId=${pid(91)}&token=${t91}`);
+  const left = await api(B, '/admin/lookup', { method: 'POST', admin: ADMIN, origin: null, body: { name: 'のこる' } });
+  check('token の合わない playerId は付け替えない（新しい人はレート100、前の行は残る）', wrongTok.json?.ok === true && !wrongTok.json?.migrated && wme.json?.me?.rate === 100 && left.json?.players?.[0]?.id === 'abcdefabcdef0999', JSON.stringify([wrongTok.json, wme.json, left.json]));
+  check('古い版の端末（playerId で報告）には 426（token を消させない）', (await api(B, '/result', { method: 'POST', body: { matchId: 'ab'.repeat(8), playerId: legacyId, token: legacyTok, winner: 'void' } })).status === 426);
+  const me0 = await api(B, `/me?userId=${P[0].id}&token=${P[0].token}`);
   check('/me で自分のデータ（レート 100）', me0.json?.me?.rate === 100 && me0.json?.nextAt > Date.now());
-  const meBad = await api(B, `/me?playerId=${P[0].id}&token=${'0'.repeat(32)}`);
+  const meBad = await api(B, `/me?userId=${P[0].id}&token=${'0'.repeat(32)}`);
   check('token が違えば me は null', meBad.status === 200 && meBad.json?.me === null);
 
   console.log('受付係');
-  const join = (c, p, extra = {}) => c.join({ playerId: p.id, protocol: PROTOCOL, lastOpponentId: '', name: p.name, rate: 100, ...extra });
+  const join = (c, p, extra = {}) => c.join({ userId: p.id, protocol: PROTOCOL, lastOpponentId: '', name: p.name, rate: 100, ...extra });
   const bad = connectLobby(B, P[0], 'https://evil.example');
   await sleep(500);
   check('ほかのサイトからは受付係につながらない', !bad.opened);
   const noTok = connectLobby(B, { id: P[0].id, token: 'f'.repeat(32) });
   await sleep(500);
-  check('token が違えば受付係につながらない（他人の playerId で並べない）', !noTok.opened);
+  check('token が違えば受付係につながらない（他人のユーザーID で並べない）', !noTok.opened);
   const other = connectLobby(B, P[2]);
   await other.waitOpen();
   join(other, P[0]);
   await until(() => other.closed);
-  check('つないだ人と違う playerId の join は切られる', other.closed && other.msgs.some((m) => m.t === 'error' && m.body.reason === 'auth'));
+  check('つないだ人と違うユーザーID の join は切られる', other.closed && other.msgs.some((m) => m.t === 'error' && m.body.reason === 'auth'));
   const c1 = connectLobby(B, P[0]);
   const c2 = connectLobby(B, P[1]);
   await c1.waitOpen();
@@ -69,7 +84,7 @@ try {
   const p1 = c1.paired();
   const p2 = c2.paired();
   check('2人が組まれ、同じ試合ID と部屋名が届く', p1 && p2 && p1.matchId === p2.matchId && p1.roomId === p2.roomId && /^[0-9a-f]{16}$/.test(p1.matchId));
-  check('相手の playerId・名前・レートが届く', p1?.opponent.playerId === P[1].id && p2?.opponent.playerId === P[0].id && p1?.opponent.name === P[1].name);
+  check('相手のユーザーID・名前・レートが届く', p1?.opponent.userId === P[1].id && p2?.opponent.userId === P[0].id && p1?.opponent.name === P[1].name);
   await until(() => c1.closed && c2.closed);
   check('組めたら受付係との接続が切れる', c1.closed && c2.closed);
 
@@ -86,7 +101,7 @@ try {
   check('直前の相手どうしは組まれない（2にん まっている）', !a.paired() && !b.paired() && b.lastCount() === 2);
   join(c, P[2]);
   await until(() => a.paired() && c.paired());
-  check('ほかの人が来たら、先に待っていた人と組む', a.paired()?.opponent.playerId === P[2].id && c.paired()?.opponent.playerId === P[0].id && !b.paired());
+  check('ほかの人が来たら、先に待っていた人と組む', a.paired()?.opponent.userId === P[2].id && c.paired()?.opponent.userId === P[0].id && !b.paired());
   await until(() => b.lastCount() === 1);
   check('人数が変わったら知らせる（1にんに もどる）', b.lastCount() === 1);
 
@@ -104,7 +119,7 @@ try {
   await e.waitOpen();
   join(e, P[4]);
   await until(() => d.paired() && e.paired());
-  check('（D と E が組まれる）', d.paired()?.opponent.playerId === P[4].id);
+  check('（D と E が組まれる）', d.paired()?.opponent.userId === P[4].id);
   const G = await register(B, pid(100), 'g');
   const H = await register(B, pid(101), 'h');
   const V = await register(B, pid(102), 'old');
@@ -122,11 +137,11 @@ try {
   // プロトコル版数の違い
   const v5 = connectLobby(B, V);
   await v5.waitOpen();
-  v5.join({ playerId: pid(102), protocol: 5, lastOpponentId: '', name: 'old', rate: 100 });
+  v5.join({ userId: pid(102), protocol: 5, lastOpponentId: '', name: 'old', rate: 100 });
   await sleep(500);
   check('プロトコル版数の違う人とは組まない', !v5.paired() && !h.paired());
   check('人数は版数ごとに数える', v5.lastCount() === 1 && h.lastCount() === 1);
-  // 同じ playerId の2つ目のタブ：前の接続は外れる
+  // 同じユーザーID の2つ目のタブ：前の接続は外れる
   const h2 = connectLobby(B, H);
   await h2.waitOpen();
   join(h2, H);
@@ -134,13 +149,13 @@ try {
   check('同じセーブの2つ目のタブが来たら、前の接続は外れる（自分どうしでは組まない。前のタブには replaced（4000））', h.closed && h.code === 4000 && !h2.paired());
   const bad2 = connectLobby(B, H);
   await bad2.waitOpen();
-  bad2.join({ playerId: 'xyz', protocol: PROTOCOL });
+  bad2.join({ userId: 'xyz', protocol: PROTOCOL });
   await until(() => bad2.closed);
   check('形の変な join は切られる', bad2.closed && bad2.msgs.some((m) => m.t === 'error'));
   for (const x of [v5, h2]) x.ws.close();
 
   console.log('結果の報告');
-  const report = (p, matchId, winner, token = p.token) => api(B, '/result', { method: 'POST', body: { matchId, playerId: p.id, token, winner } });
+  const report = (p, matchId, winner, token = p.token) => api(B, '/result', { method: 'POST', body: { matchId, userId: p.id, token, winner } });
   check('token が違えば 401', (await report(P[0], p1.matchId, P[0].id, 'f'.repeat(32))).status === 401);
   check('試合の2人でない人の報告は 403', (await report(P[2], p1.matchId, P[2].id)).status === 403);
   const r1 = await report(P[0], p1.matchId, P[0].id);
@@ -172,7 +187,7 @@ try {
   check('まとめ処理が動く（2試合を数える）', batch.json?.ok && batch.json.counted === 2, JSON.stringify(batch.json));
   stats = (await api(B, '/admin/stats', { method: 'POST', admin: ADMIN, origin: null })).json;
   check('処理した結果は受付係から消える（片方だけの報告は10分まで残る）', stats.lobby.results === 0 && stats.lobby.open === 1, JSON.stringify(stats));
-  const rk = await api(B, `/ranking?playerId=${P[0].id}&token=${P[0].token}`);
+  const rk = await api(B, `/ranking?userId=${P[0].id}&token=${P[0].token}`);
   const top = rk.json?.top ?? [];
   const aRate = nextRate(100, 100, true);
   const eRate = nextRate(100, 100, true);
@@ -181,26 +196,27 @@ try {
   check('同じレートは同じ順位', top.filter((r) => r.rank === 1).length === 2 && eRate === aRate);
   const key = (id) => createHash('sha256').update(id).digest('hex').slice(0, 12);
   const row = (id) => top.find((r) => r.key === key(id));
-  check('自分の行の印（playerId は出さない）', row(P[0].id) && !JSON.stringify(rk.json).includes(P[0].id));
+  check('自分の行の印（ユーザーID は出さない）', row(P[0].id) && !JSON.stringify(rk.json).includes(P[0].id));
   check('禁止語の名前は ""（画面で「ななし」）', row(P[1].id)?.name === '');
   check('ふつうの名前は載る', row(P[0].id)?.name === 'あお');
   check('自分の順位と正式なレート', rk.json.me?.rank === 1 && rk.json.me?.rate === aRate && rk.json.me?.visible === true);
   check('次の更新の時刻（日本時間 4:00 か 14:00）', [4, 14].includes(new Date(rk.json.nextAt + 9 * 3600e3).getUTCHours()) && new Date(rk.json.nextAt).getUTCMinutes() === 0 && rk.json.nextAt > Date.now() && rk.json.nextAt - Date.now() <= 14 * 3600e3 && rk.json.updatedAt > 0);
-  const meU = await api(B, `/me?playerId=${P[0].id}&token=${P[0].token}`);
+  const meU = await api(B, `/me?userId=${P[0].id}&token=${P[0].token}`);
   check('/me の updatedAt は、本当に まとめ処理をした時刻（一覧と同じ）', meU.json?.updatedAt === rk.json.updatedAt && meU.json?.me?.rate === aRate);
+  check('/me は最後に数えた試合の試合ID を返す（端末が自分の試合が数えられたか比べる）', meU.json?.me?.lastMatch === p1.matchId, JSON.stringify(meU.json?.me));
   // 名前を載せない設定（/profile）
-  check('/profile は token が要る', (await api(B, '/profile', { method: 'POST', body: { playerId: P[0].id, token: 'f'.repeat(32), name: 'x', optIn: false } })).status === 401);
-  await api(B, '/profile', { method: 'POST', body: { playerId: P[0].id, token: P[0].token, name: 'あお', optIn: false } });
+  check('/profile は token が要る', (await api(B, '/profile', { method: 'POST', body: { userId: P[0].id, token: 'f'.repeat(32), name: 'x', optIn: false } })).status === 401);
+  await api(B, '/profile', { method: 'POST', body: { userId: P[0].id, token: P[0].token, name: 'あお', optIn: false } });
   await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
   const rk2 = await api(B, '/ranking');
   check('名前を載せない設定にすると、次の更新から ""', rk2.json.top.find((r) => r.key === key(P[0].id))?.name === '');
   // 管理キーで名前を消す
-  const hid = await api(B, '/admin/hide-name', { method: 'POST', admin: ADMIN, origin: null, body: { playerId: P[2].id } });
+  const hid = await api(B, '/admin/hide-name', { method: 'POST', admin: ADMIN, origin: null, body: { userId: P[2].id } });
   const rk3 = await api(B, '/ranking');
   check('管理キーで名前を消すと、すぐ一覧でも ""', hid.json?.changed === 1 && rk3.json.top.find((r) => r.key === key(P[2].id))?.name === '');
   check('名前を消しても更新の時刻は変わらない', rk3.json.updatedAt === rk2.json.updatedAt);
   const lk = await api(B, '/admin/lookup', { method: 'POST', admin: ADMIN, origin: null, body: { name: 'みど' } });
-  check('名前で playerId を探せる', lk.json?.players?.[0]?.id === P[2].id);
+  check('名前でユーザーID を探せる', lk.json?.players?.[0]?.id === P[2].id);
 
   // 7日の非表示・1日3試合：時刻を指定して結果を入れる
   const now = Date.now();
@@ -228,7 +244,7 @@ try {
   // 7日以上レートが変わっていない人は表示から外す（データは残す）。次に遊べば戻る
   const later = now + 8 * 24 * 3600e3;
   await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null, body: { now: later } });
-  const hidden = await api(B, `/ranking?playerId=${P[0].id}&token=${P[0].token}`);
+  const hidden = await api(B, `/ranking?userId=${P[0].id}&token=${P[0].token}`);
   const hk = hidden.json.top.map((r) => r.key);
   check('7日以上たつと、一覧から外れる', hidden.json.me?.rank === null && ![P[0], P[1], P[2]].some((p) => hk.includes(key(p.id))));
   // D-E は D だけが報告していた：10分たったので D の申告どおり（D の勝ち）に記録され、一覧に出る
@@ -237,7 +253,7 @@ try {
   check('データは残る（レート・勝敗）', hidden.json.me?.rate === aRate && hidden.json.me?.wins === 1);
   await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, body: { results: [{ a: P[0].id, b: old, winner: P[0].id, at: later - 1000 }] } });
   await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null, body: { now: later } });
-  const back = await api(B, `/ranking?playerId=${P[0].id}&token=${P[0].token}`);
+  const back = await api(B, `/ranking?userId=${P[0].id}&token=${P[0].token}`);
   check('次に遊べば一覧に戻る', back.json.top.length === 4 && back.json.top.some((r) => r.key === key(P[0].id)) && back.json.me?.wins === 2, JSON.stringify(back.json.top));
 
   // まとめ処理が遅れている（最後の写しが前の 4:00 より古い）：一覧は5分後に聞き直してもらう

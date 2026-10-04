@@ -212,3 +212,29 @@
   height: 46px;
   font-size: 18px;
 }
+
+/* あなたの ユーザーID（v2.0-J） */
+.settings-userid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.settings-userid__label {
+  font-size: 18px;
+  width: 100%;
+}
+.settings-userid__value {
+  font-size: 30px;
+  letter-spacing: 0.04em;
+  color: var(--pen-blue);
+}
+.settings-userid__copy {
+  min-width: 80px;
+  height: 42px;
+  font-size: 18px;
+}
+.settings-userid__note {
+  width: 100%;
+  font-size: 15px;
+}

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { features } from '../../config/features';
 import { sendProfile } from '../../online/rankingApi';
+import { formatUserId } from '../../save/userId';
+import { copyText } from '../../ui/common/copyText';
 import { useNav } from '../../router';
 import { NAME_MAX, VOLUME_MAX, clampText } from '../../save/saveData';
 import { useSave } from '../../state/SaveContext';
@@ -25,6 +27,13 @@ export function SettingsScene() {
   const { go } = useNav();
   const { save, update, replace, reset, markCodeCreated } = useSave();
   const [dialog, setDialog] = useState<'make' | 'enter' | 'wipe1' | 'wipe2' | null>(null);
+  /** 「コピーしたよ」 */
+  const [copyNote, setCopyNote] = useState('');
+  useEffect(() => {
+    if (!copyNote) return;
+    const id = window.setTimeout(() => setCopyNote(''), 2500);
+    return () => window.clearTimeout(id);
+  }, [copyNote]);
   const s = save.settings;
   const tr = useT();
 
@@ -130,6 +139,26 @@ export function SettingsScene() {
           <RoughButton seed="enter-code-btn" className="settings-transfer__btn" onClick={() => setDialog('enter')}>
             {tr.settings.enterCode}
           </RoughButton>
+        </div>
+        {/* あなたの ユーザーID（v2.0-J）：5桁ずつ区切って出す。コピーは区切りなしの15桁 */}
+        <div className="settings-userid" data-testid="settings-userid">
+          <span className="settings-userid__label">{tr.settings.userId}</span>
+          <span className="settings-userid__value num" data-testid="settings-userid-value">
+            {formatUserId(save.userId)}
+          </span>
+          <RoughButton
+            seed="settings-userid-copy"
+            className="settings-userid__copy"
+            onClick={() => void copyText(save.userId).then((ok) => setCopyNote(ok ? tr.settings.copied : tr.settings.copyFailed))}
+            data-testid="settings-userid-copy"
+          >
+            {tr.settings.copy}
+          </RoughButton>
+          {(copyNote || !save.userIdRegistered) && (
+            <small className="settings-userid__note pencil" data-testid="settings-userid-note">
+              {copyNote || tr.settings.userIdNotRegistered}
+            </small>
+          )}
         </div>
         {features.ranking && (
           <div className="settings-ranking" data-testid="settings-ranking">

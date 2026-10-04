@@ -3,6 +3,7 @@
 > v1.1 の変更点：効果音とジングルは Claude Code がプログラムで合成する。企画者が渡すのは BGM だけ（§10）。
 > v1.2 の変更点：ピンチ時の曲（`bgm_battle_pinch`）と切り替えの仕組みを廃止。戦闘曲は `public/audio/bgm/battle/` の複数の曲をシャッフルで流す（§10-2）。
 > v2.0-A の変更点（UPDATE_v2 §2）：言語切り替え（にほんご／日本語）。画面の文言はすべて辞書（src/i18n）に置く。カードの効果文は cards.json に2言語で持つ。セーブに言語を追加（形式版数3）。
+> v2.0-J の変更点（企画者の指示）：ランキングの更新を1日2回（4:00・14:00）に。変えられない15桁のユーザーID（設定に表示・コピー。ランキング・待合所の相手の判別もユーザーID）。セーブ形式版数8。管理者メニュー（S20）は §7 S20。
 > v2.0-I の変更点（UPDATE_v2 §8-4・§10。改訂版）：レート対戦の待合所を Cloudflare の Durable Object「受付係」に移した（予備は8つの小部屋の P2P）。ランキング（S19）と正式なレートは、毎日 日本時間 4:00 と 14:00 のまとめ処理で1日2回更新（v2.0-J で2回に）。対戦直後は「かりのレート」。Worker（`worker/`）・D1・Cron。セーブ形式版数7（`ranking.provisional`・`ranking.syncedAt`）。プロトコル版数6。
 > v2.1-P の変更点（UPDATE_v2_1 §6）：最初の起動に「ことばを えらぶ」（S18）。チュートリアルを、対戦のあと パックガチャ（15まい）→ デッキ編集（1まい入れる）→ メニューの紹介 まで延ばした（#16〜#25）。見返しはガチャが見本・デッキが練習用の写し。途中で閉じたら #16（またはデッキの #20）から再開（`tutorial.step`）。
 > v2.1-O の変更点（UPDATE_v2_1 §5）：すべてのモードの最初の画面に「このモードの せつめい」（2〜3行の短い説明と、「？」で詳しい説明。§7 共通）。
@@ -830,7 +831,7 @@ type RuleSet = {
 **レートの計算**（数値は `src/config/rating.ts`）
 - 初期レート 100。期待勝率 E = 1 / (1 + 10 ^ ((相手 − 自分) / 200))。新しいレート = 自分 + 20 × (結果 − E)（勝ち=1、負け=0）。小数は四捨五入、0 未満にしない。
 - 例：100 対 100 は ±10、100 対 200 は +15／−5、100 対 300 は +18／−2、200 対 100 は +5／−15。
-- **正式なレートはサーバー**（v2.0-I。§11-9）。対戦直後は、両者の端末が同じ式で計算した「かりのレート」を出す（レートの横に「かり」の印。`ranking.provisional`）。毎日 日本時間 4:00 と 14:00 のまとめ処理（1日2回）の後にゲームを開いたら、サーバーの正式なレート・勝敗・最高レートで上書きし、「かり」を消す（サーバーで1試合も数えられていない時・まとめ処理の後にもう遊んでいた時は上書きしない。送れていない報告があれば「かり」のまま。更新の時刻の11分前より後に終わった試合は、まだ数えられていないかもしれないので、上書きしない）。マッチングにレートは使わない。
+- **正式なレートはサーバー**（v2.0-I。§11-9）。対戦直後は、両者の端末が同じ式で計算した「かりのレート」を出す（レートの横に「かり」の印。`ranking.provisional`）。毎日 日本時間 4:00 と 14:00 のまとめ処理（1日2回）の後にゲームを開いたら、サーバーの正式なレート・勝敗・最高レートで上書きし、「かり」を消す（サーバーで1試合も数えられていない時・まとめ処理の後にもう遊んでいた時は上書きしない。送れていない報告があれば「かり」のまま。更新の時刻の11分前より後に終わった試合は、まだ数えられていないかもしれないので、上書きしない。ただし、サーバーが返す「最後に数えた試合」が自分の最後の試合と同じなら上書きする。v2.0-J）。マッチングにレートは使わない。
 
 **途中で終わった試合**
 | 状況 | 扱い |
@@ -846,8 +847,8 @@ type RuleSet = {
 - 自由入力のチャットは作らない（スタンプのみ）。
 
 **結果の報告**（v2.0-I）
-- 試合が終わったら、リザルトで受付係へ結果を送る（試合ID・自分の playerId と token・勝った人の playerId、または無効）。送れなかった時は `ranking.unsent` に入れて、次に開いた時・次の試合の後に送り直す。
-- 初めてレート対戦をする時（token が無い時）は、「さがす」を押した時に登録して token をもらってから受付係につなぐ（受付係は token で本人を確かめる）。登録できなければ予備の待合所で遊べる（その試合は報告できない）。その playerId がもう登録されていたら（409）、playerId を作り直して登録し直す。
+- 試合が終わったら、リザルトで受付係へ結果を送る（試合ID・自分のユーザーID と token・勝った人のユーザーID、または無効。v2.0-J）。送れなかった時は `ranking.unsent` に入れて、次に開いた時・次の試合の後に送り直す。
+- ユーザーID は、起動してサーバーにつながった時に登録する（v2.0-J。§11-9）。まだ登録できていなければ「さがす」を押した時にも登録してから受付係につなぐ（受付係は token で本人を確かめる）。登録できなければ予備の待合所で遊べる（その試合は報告できない）。
 - 組んだのに対戦が始まらなかった時（部屋につながらない・相手が来ない）は、その試合を「無効」と報告する（来なかった相手が1人で「勝ち」を報告しても記録されないように）。
 
 ### S19 ランキング（v2.0-I。UPDATE_v2 §10）
@@ -955,6 +956,7 @@ type RuleSet = {
 | データひきつぎ | 「コードを つくる」／「コードを いれる」（§12）。コードを作った時と、コードで復元する時に「まえの たんまつでは もう つかわないでね」と出す（同じデータを2台で使うと、カードやコインが2倍になるため。v2.0） |
 | データを けす | 2回確認してから初期化 |
 | チュートリアルを もういちど | 画面の上に置く（v2.0-T）。S13 の見返し |
+| あなたの ユーザーID | v2.0-J。15桁の数字を「12345-67890-12345」のように5桁ずつ区切って出す。横に「コピー」ボタン（区切りなしの15桁をコピーし、「コピーしたよ」）。変えられない。サーバーに登録する前は「（まだ とうろく していないよ）」を小さく添える |
 
 ### S07 ルールせつめい（P1）
 
@@ -1531,24 +1533,34 @@ src/audio/sfx/
 
 **全体**：Cloudflare の無料プラン。`worker/` の Worker（名前 `oteca-api`）に、Durable Object「受付係」（`Matchmaker`。SQLite 保存・休止機能）と D1（`oteca-ranking`）と Cron（毎日 UTC 19:00 ＝ 日本時間 4:00 と、UTC 5:00 ＝ 日本時間 14:00 の2回。v2.0-J）。無料枠を超えた時はエラーになるだけで、料金はかからない。
 
+**ユーザーID（v2.0-J）**
+- 各セーブに、変えられない15桁の数字のユーザーID（先頭は0以外。表示は5桁ずつ区切る）を1回だけ作る。新しいセーブは起動した時、今までのセーブは移行（形式版数8）の時。
+- 初めてサーバーにつながった時（起動した時）に `POST /register` で登録する。端末が自分で作った token（32桁の16進数）も一緒に送り、サーバーは token のハッシュだけを保存する。
+  - そのユーザーID が、ほかの token でもう登録されていたら 409。端末はユーザーID を作り直して登録し直す（登録の前だけ。登録できた後は変えない）。
+  - 同じユーザーID と同じ token なら、もう一度送っても登録できたことになる（返事が届かなかった時の送り直し）。
+  - 今までのプレイヤー（v2.0-I で登録した playerId と token を持っている人）は、`legacyPlayerId` も送る。token が合えば、サーバーのその行をユーザーID の行に付け替える（レート・勝敗・最高レートを引き継ぐ。受付係に残っている まだ数えていない試合の ID も付け替える）。
+  - token は起動の時に作ってセーブに入れておく（登録を送り直しても同じ token）。同じ時に何回呼ばれても登録は1回にまとめる。登録できた後は、サーバーに自分の行が無くても（401）同じユーザーID で登録し直し、ユーザーID は変えない。
+  - 古い版（v2.0-I）の端末が playerId で報告してきたら 426（token を消させない）。
+- ランキング・待合所・結果の報告での人の判別は、すべてユーザーID。端末どうしの部屋（レート対戦の2人の部屋・予備の待合所）でも、相手の判別にはユーザーID を送る。
+
 **受付係（WebSocket `/lobby`）**
-- ブラウザ → 受付係：`join`（playerId・protocol・lastOpponentId・name・rate）、`leave`。
-- 受付係 → ブラウザ：`waiting`（同じ版数で待っている人数。変わった時だけ）、`paired`（matchId・roomId・opponent：playerId・name・rate）、`error`（形が変・本人でない）。版数の違う人には何も送らず、同じ版数の人が来るまで待たせる。
-- 受付係につなぐ時は `/lobby?playerId=&token=`。Worker が token を確かめ、受付係は join の playerId がその人のものか確かめる（他人の playerId で並べない）。同じ playerId の2つ目の接続が来たら、前の接続を 4000（replaced）で切る（端末は予備へ行かずに「さがす」をやめる）。待っている途中で切れた端末は、1回だけ つなぎ直してから予備の待合所へ。
+- ブラウザ → 受付係：`join`（userId・protocol・lastOpponentId・name・rate）、`leave`。
+- 受付係 → ブラウザ：`waiting`（同じ版数で待っている人数。変わった時だけ）、`paired`（matchId・roomId・opponent：userId・name・rate）、`error`（形が変・本人でない）。版数の違う人には何も送らず、同じ版数の人が来るまで待たせる。
+- 受付係につなぐ時は `/lobby?userId=&token=`。Worker が token を確かめ、受付係は join の playerId がその人のものか確かめる（他人の playerId で並べない）。同じ playerId の2つ目の接続が来たら、前の接続を 4000（replaced）で切る（端末は予備へ行かずに「さがす」をやめる）。待っている途中で切れた端末は、1回だけ つなぎ直してから予備の待合所へ。
 - 待ち行列は WebSocket の付け札（attachment）に持つので、休止から戻っても消えない。
 - 組んだ試合・2人の報告・記録した結果は、受付係の SQLite の `games` 表に **1試合1行**（WITHOUT ROWID。索引なし）。書き込みは1試合あたり 組んだ時1・1人目の報告1・2人目の報告（記録）1・まとめ処理の後に消す1 の4行（無料枠の書き込み行を節約する）。報告の来ない試合は1日たったら消す。
 
 **HTTP**
 | 道 | 中身 |
 |---|---|
-| `POST /register` | playerId → token（初めての時だけ。2回目は 409） |
-| `POST /result` | matchId・playerId・token・winner（playerId か 'void'） |
-| `POST /profile` | playerId・token・name・optIn（名前・載せる設定を変えた時） |
-| `GET /ranking?playerId=&token=` | 上位100人の写し・自分の順位とレート・次の更新の時刻 |
-| `GET /me?playerId=&token=` | 正式なレート・勝敗・最高・順位・最後の更新の時刻 |
+| `POST /register` | userId・token（端末が作る）・legacyPlayerId（今までの人だけ）・name・optIn → ok（ほかの人のユーザーID なら 409） |
+| `POST /result` | matchId・userId・token・winner（userId か 'void'） |
+| `POST /profile` | userId・token・name・optIn（名前・載せる設定を変えた時） |
+| `GET /ranking?userId=&token=` | 上位100人の写し・自分の順位とレート・次の更新の時刻 |
+| `GET /me?userId=&token=` | 正式なレート・勝敗・最高・順位・最後に数えた試合の試合ID（lastMatch）・最後の更新の時刻 |
 | `POST /admin/hide-name` | 管理キー：その人の名前を「ななし」にする |
 | `POST /admin/run-batch` | 管理キー：まとめ処理をすぐ動かす（確かめる時用） |
-| `POST /admin/lookup` | 管理キー：名前で playerId を探す（名前を消す前に） |
+| `POST /admin/lookup` | 管理キー：名前でユーザーID を探す（名前を消す前に） |
 | `POST /admin/stats` | 管理キー：受付係の様子とプレイヤーの人数 |
 | `POST /admin/delete-players`・`/admin/clear-games`・`/admin/seed` | 管理キー：テストの後片づけ・負荷の見積もり用 |
 
@@ -1581,7 +1593,7 @@ src/audio/sfx/
 **用語**：「ヴィジュネル暗号」は、鍵の文字列を1文字ずつずらしながら、元の文字を鍵の分だけずらす暗号。
 **注意（事実）**：鍵はプログラムの中に入るため、本気で調べる人には解読できる。目的は **「中身を見ても意味がわからない」「数字を書き換えるとエラーになる」** ようにすること。
 
-### 12-2. セーブデータの中身（形式版数7・v2.0-I。6 は v2.1-N、5 は v2.1-L、4 は v2.0-B）
+### 12-2. セーブデータの中身（形式版数8・v2.0-J。7 は v2.0-I、6 は v2.1-N、5 は v2.1-L、4 は v2.0-B）
 
 ```ts
 type SaveData = {
@@ -1589,7 +1601,9 @@ type SaveData = {
   saveCounter: number;          // 保存するたび +1
   playerName: string;           // 8文字まで
   settings: { bgm: 0-10; se: 0-10; fxSpeed: 0|1|2; reduceFx: boolean; hints: boolean; lang: 'hira' | 'kanji' };  // hints は使わない値（v1.3）
-  playerId: string;             // ランダムな8バイト（16桁の16進数）。'' はまだ無い（起動時に作る）
+  playerId: string;             // ランダムな8バイト（16桁の16進数）。'' はまだ無い（起動時に作る）。部屋の中の再接続などに使う（相手の判別は userId）
+  userId: string;               // ユーザーID（v2.0-J）。15桁の数字（先頭は0以外）。'' はまだ無い（起動時・移行時に1回だけ作る）。変わらない
+  userIdRegistered: boolean;    // ユーザーID をサーバーに登録できたか（v2.0-J。登録前に重複していた時だけ作り直す。登録後は変えない）
   decks: { name: string; cards: number[] }[];  // 必ず20個。cards はカードNoの配列
   selectedDeck: 0-19;           // いまのデッキ
   collection: Record<number, number>;  // 所持数（No → 枚数 1〜999。0枚の No は持たない）。デッキに入れても減らない
@@ -1602,10 +1616,10 @@ type SaveData = {
   story: { stages: { no: number; cleared: boolean; firstClear: boolean }[] };  // ステージごとのクリアと初クリア（報酬）済みの印
   rate: number;                                     // レート（初期値100）
   rateStats: { wins: number; losses: number; best: number };
-  lastRateOpponentId: string;                       // 直前のレート対戦の相手の playerId（'' ＝なし）
+  lastRateOpponentId: string;                       // 直前のレート対戦の相手のユーザーID（'' ＝なし。v2.0-I までは playerId）
   pendingRateMatch: { opponentId: string; opponentRate: number } | null;  // レート対戦中の印
   trade: { doneIds: string[] };                     // 処理済みの交換ID（16桁の16進数）の直近20件
-  ranking: { token: string; optIn: boolean; unsent: string[]; provisional: boolean; syncedAt: number; playedAt: number };  // token：サーバーの合言葉、optIn：名前を載せる（初期値オン）、unsent：送れなかった結果の報告（「試合ID:勝った人 か void」）、provisional：レートが「かり」、syncedAt：正式なレートを最後に受け取った時刻、playedAt：最後にレート対戦の結果が出た時刻（v2.0-I）
+  ranking: { token: string; optIn: boolean; unsent: string[]; provisional: boolean; syncedAt: number; playedAt: number; lastMatchId: string };  // token：サーバーの合言葉、optIn：名前を載せる（初期値オン）、unsent：送れなかった結果の報告（「試合ID:勝った人 か void」）、provisional：レートが「かり」、syncedAt：正式なレートを最後に受け取った時刻、playedAt：最後にレート対戦の結果が出た時刻（v2.0-I）、lastMatchId：最後に「かり」で計算した試合の試合ID（v2.0-J）
   updateNoticeSeen: boolean;                        // アップデートの おしらせ を見たか
   tutorial: { done: boolean; gachaInviteShown: boolean; step: number };  // step：v2.1-P。途中まで進んだ時の再開位置（0＝はじめから。16＝ガチャの案内から）
   daily: {                                          // デイリーミッション（v2.1-M。§7 S17）
@@ -1623,7 +1637,9 @@ type SaveData = {
 
 JSONのままだと長すぎるので、バイト列に詰める。数値は **可変長整数**（小さい数は1バイト、大きい数は2バイト以上になる方式。LEB128）で書く。
 
-**形式版数7（v2.0-I。今の形式）**：形式版数6 と同じ並びで、印の1バイトに `ranking.provisional`（32）、最後に `[ranking.syncedAt][ranking.playedAt]`（§12-3e）。
+**形式版数8（v2.0-J。今の形式）**：形式版数7 と同じ並びで、印の1バイトに `userIdRegistered`（64）、最後に `[userId（数。0＝まだ）][ranking.lastMatchId（8バイト）]`。`lastRateOpponentId`・`pendingRateMatch.opponentId` の8バイトの場所には、相手のユーザーID の数を16進数で入れる（§12-3f）。
+
+**形式版数7（v2.0-I）**：形式版数6 と同じ並びで、印の1バイトに `ranking.provisional`（32）、最後に `[ranking.syncedAt][ranking.playedAt]`（§12-3e）。
 
 **形式版数6（v2.1-N）**：形式版数5 と同じ並び（先頭の版数だけ6。ステージ番号を付け替えた印。§12-3d）。
 
@@ -1674,6 +1690,14 @@ JSONのままだと長すぎるので、バイト列に詰める。数値は **�
 
 - 形式版数：1＝v1.3 まで／2＝v1.4（末尾に cpuStats）／3＝v2.0-A（末尾に lang）／4＝v2.0-B（デッキ20個・所持カードなど。並びを作り直した）。
 - 読み込み時は形式版数を見て、古い形式なら `migrate()` で1つずつ最新形式へ変換する（1→2：cpuStats を0／2→3：lang を にほんご／3→4：§12-3b）。
+
+### 12-3f. 形式版数7 → 8（v2.0-J。ユーザーID）
+
+- ユーザーID を1回だけ作る（15桁の数字。先頭は0以外。ランダム）。`userIdRegistered` は false（次にサーバーにつながった時に登録する）。
+- 相手の判別をユーザーID に変えたので、`lastRateOpponentId`（前の playerId）は消す（次の1試合だけ、前の相手と組まれることがある）。
+- `pendingRateMatch`（レート対戦の途中で閉じた印）が残っていたら、移行の時に負けとして計算して消す（今まで通り「次に開いた時に負け」。おしらせは出ない）。
+- `ranking.unsent`（送れなかった報告）は前の playerId で書いてあるので消す。
+- 引き継ぎコードもセーブのバイト列なので、ユーザーID も入る（同じ人が別の端末で続けると、同じユーザーID）。
 
 ### 12-3e. 形式版数6 → 7（v2.0-I。UPDATE_v2 §10）
 
@@ -2077,6 +2101,14 @@ type GameEvent =
 | I06 | （Worker のテスト・`npm run test:worker`）ローカルの Worker（`wrangler dev`）で、登録・受付係・報告・まとめ処理・ランキング・CORS・管理キー |
 | I07 | （負荷）1試合・ランキング表示・まとめ処理（1,000人）の回数と行数を測り、無料枠で耐えられる人数を表にする。受付係に200人が同時に待つ模擬（`npm run worker:load` → worker/LOAD.md） |
 | I08 | （Playwright。公開した Worker）4つのブラウザでレート対戦 → 2組 → 直前の相手と続けて組まれない → まとめ処理を手で動かしてランキングに出る。受付係を止めて、予備の小部屋でも組める（scripts/online-ranking.mjs。画面は scripts/shots-ranking.mjs） |
+
+### 16-2j. ユーザーID・管理者メニュー（v2.0-J）
+
+| ID | 内容 |
+|---|---|
+| J01 | ユーザーID：15桁・先頭は0以外・5桁ずつ区切った表示、新しいセーブと移行（形式版数8）で1回だけ作る、引き継ぎコードに入る、登録の前に重複していたら作り直す（登録の後は変えない）、同じ token の送り直しは登録できたことになる（tests/userid.test.ts・npm run test:worker） |
+| J02 | 今までの playerId と token の行を、ユーザーID の行に付け替えて、レート・勝敗を引き継ぐ（npm run test:worker） |
+| J03 | ランキング・待合所・結果の報告の人の判別がユーザーID（npm run test:worker・scripts/online-ranking.mjs） |
 
 ### 16-2g. オンライン対戦の再編（v2.0-G）
 

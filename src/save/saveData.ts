@@ -5,6 +5,7 @@
 import economy from '../data/economy.json';
 import { STARTER_COINS, STARTER_DECK_NAME, starterDeckNos } from '../data/starterDeck';
 import type { Lang } from '../i18n';
+import { isUserId, normalizeUserId } from './userId';
 
 export type Settings = {
   /** BGM音量 0〜10 */
@@ -51,8 +52,12 @@ export type SaveData = {
   /** 8文字まで */
   playerName: string;
   settings: Settings;
-  /** ランダムな8バイト（16桁の16進数）。'' はまだ無い（起動時に作る） */
+  /** ランダムな8バイト（16桁の16進数）。'' はまだ無い（起動時に作る）。部屋の中の再接続などに使う（相手の判別は userId） */
   playerId: string;
+  /** ユーザーID（v2.0-J）。15桁の数字（先頭は0以外）。'' はまだ無い（起動時・移行時に1回だけ作る）。変わらない */
+  userId: string;
+  /** ユーザーID をサーバーに登録できたか（登録前に重複していた時だけ作り直す。登録後は変えない） */
+  userIdRegistered: boolean;
   /** 必ず20個。cards はカードNoの配列 */
   decks: SavedDeck[];
   /** いまのデッキ 0〜19 */
@@ -76,7 +81,7 @@ export type SaveData = {
   /** レート（初期値100） */
   rate: number;
   rateStats: WinLoss & { best: number };
-  /** 直前のレート対戦の相手の playerId（'' ＝なし） */
+  /** 直前のレート対戦の相手のユーザーID（'' ＝なし。v2.0-I までは playerId） */
   lastRateOpponentId: string;
   /** レート対戦中の印 */
   pendingRateMatch: { opponentId: string; opponentRate: number } | null;
@@ -85,7 +90,8 @@ export type SaveData = {
   /**
    * ランキング（v2.0-I。SPEC §11-9）：token＝サーバーの合言葉（'' ＝まだ登録していない）、optIn＝名前を載せる（初期値オン）、
    * unsent＝送れなかった結果の報告（「試合ID:勝った人の playerId か void」）、provisional＝レートが「かり」、
-   * syncedAt＝正式なレートを最後に受け取った時刻（ミリ秒。0＝まだ）、playedAt＝最後にレート対戦の結果が出た時刻（0＝まだ）
+   * syncedAt＝正式なレートを最後に受け取った時刻（ミリ秒。0＝まだ）、playedAt＝最後にレート対戦の結果が出た時刻（0＝まだ）、
+   * lastMatchId＝最後に「かり」で計算した試合の試合ID（v2.0-J。サーバーが数えたかを比べる。'' ＝なし）
    */
   ranking: Ranking;
   /** アップデートの おしらせ を見たか（古いセーブから移行した人だけ false） */
@@ -97,7 +103,7 @@ export type SaveData = {
 };
 
 /** ランキングの項目（v2.0-I。形式版数7） */
-export type Ranking = { token: string; optIn: boolean; unsent: string[]; provisional: boolean; syncedAt: number; playedAt: number };
+export type Ranking = { token: string; optIn: boolean; unsent: string[]; provisional: boolean; syncedAt: number; playedAt: number; lastMatchId: string };
 
 export const SAVE_VERSION = 1;
 export const DECK_SLOTS = 20;
@@ -186,6 +192,8 @@ export function normalizeSave(data: SaveData): SaveData {
       lang: data.settings.lang === 'kanji' ? 'kanji' : 'hira',
     },
     playerId: normalizeId(data.playerId),
+    userId: normalizeUserId(data.userId),
+    userIdRegistered: !!data.userIdRegistered && isUserId(data.userId),
     decks: Array.from({ length: DECK_SLOTS }, (_, i) => {
       const deck = data.decks[i] ?? { name: '', cards: [] };
       const deckName = clampText(deck.name.trim(), DECK_NAME_MAX);
@@ -203,9 +211,9 @@ export function normalizeSave(data: SaveData): SaveData {
     story: { stages: [...stages.values()].sort((a, b) => a.no - b.no) },
     rate: clampInt(data.rate),
     rateStats: { ...winLoss(data.rateStats), best: clampInt(data.rateStats?.best) },
-    lastRateOpponentId: normalizeId(data.lastRateOpponentId),
+    lastRateOpponentId: normalizeUserId(data.lastRateOpponentId),
     pendingRateMatch:
-      pending && normalizeId(pending.opponentId) ? { opponentId: normalizeId(pending.opponentId), opponentRate: clampInt(pending.opponentRate) } : null,
+      pending && normalizeUserId(pending.opponentId) ? { opponentId: normalizeUserId(pending.opponentId), opponentRate: clampInt(pending.opponentRate) } : null,
     trade: { doneIds: (data.trade?.doneIds ?? []).map(normalizeId).filter((id) => id !== '').slice(-TRADE_IDS_MAX) },
     ranking: {
       token: clampText(data.ranking?.token ?? '', RANKING_TEXT_MAX),
@@ -214,6 +222,7 @@ export function normalizeSave(data: SaveData): SaveData {
       provisional: !!data.ranking?.provisional,
       syncedAt: clampInt(data.ranking?.syncedAt),
       playedAt: clampInt(data.ranking?.playedAt),
+      lastMatchId: normalizeId(data.ranking?.lastMatchId),
     },
     tutorial: { done: !!data.tutorial?.done, gachaInviteShown: !!data.tutorial?.gachaInviteShown, step: clampInt(data.tutorial?.step, TUTORIAL_STEP_MAX) },
     daily: normalizeDaily(data.daily),
@@ -240,10 +249,12 @@ export function emptyDaily(): DailyState {
 /** 後の項目（D〜I）の枠の初期値。新しいセーブと、古いセーブからの移行で共通 */
 export function laterFieldsDefault(): Pick<
   SaveData,
-  'playerId' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
+  'playerId' | 'userId' | 'userIdRegistered' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
 > {
   return {
     playerId: '',
+    userId: '',
+    userIdRegistered: false,
     loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     rate: RATE_START,
@@ -252,7 +263,7 @@ export function laterFieldsDefault(): Pick<
     pendingRateMatch: null,
     trade: { doneIds: [] },
     // 名前を載せる設定は初期値オン（v2.0-I）
-    ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0 },
+    ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0, lastMatchId: '' },
     tutorial: { done: false, gachaInviteShown: false, step: 0 },
     daily: emptyDaily(),
   };

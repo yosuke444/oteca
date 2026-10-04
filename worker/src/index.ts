@@ -4,7 +4,8 @@ import { isVisible, lastBatchAt, nextBatchAt } from './logic/batch';
 /** まとめ処理が遅れている時に、端末が聞き直すまでの時間 */
 const LATE_RETRY_MS = 5 * 60 * 1000;
 import { Db, type PlayerRow, rerank, writeSnapshot } from './ranking';
-import { randomHex, sameText, sha256Hex } from './util';
+import { sameText, sha256Hex } from './util';
+import { isUserId } from '../../src/save/userId';
 
 export { Matchmaker } from './matchmaker';
 
@@ -66,13 +67,17 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}): 
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
 }
 
-const isId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{16}$/.test(v);
+/** ユーザーID（v2.0-J。15桁の数字） */
+const isId = (v: unknown): v is string => isUserId(v);
+/** 今までの playerId（16桁の16進数。ユーザーID に付け替える時だけ使う） */
+const isLegacyId = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{16}$/.test(v);
+const isToken = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{32}$/.test(v);
 const cleanName = (v: unknown) => (typeof v === 'string' ? [...v.trim()].slice(0, 8).join('') : '');
 
 /** token が正しいか（サーバーには token のハッシュだけがある） */
-async function authed(c: Ctx, playerId: unknown, token: unknown): Promise<boolean> {
-  if (!isId(playerId) || typeof token !== 'string' || !/^[0-9a-f]{32}$/.test(token)) return false;
-  const row = (await c.all<{ token_hash: string }>(`SELECT token_hash FROM players WHERE id = ?`, playerId))[0];
+async function authed(c: Ctx, userId: unknown, token: unknown): Promise<boolean> {
+  if (!isId(userId) || !isToken(token)) return false;
+  const row = (await c.all<{ token_hash: string }>(`SELECT token_hash FROM players WHERE id = ?`, userId))[0];
   if (!row || !row.token_hash) return false;
   return sameText(row.token_hash, await sha256Hex(token));
 }
@@ -92,6 +97,7 @@ function meOf(row: PlayerRow | undefined, now: number) {
     losses: row.losses,
     best: row.best,
     rank: row.rank,
+    lastMatch: row.last_match ?? '',
     visible: isVisible({ lastPlayed: row.last_played }, now),
     name: row.name,
     optIn: row.opt_in === 1,
@@ -103,52 +109,81 @@ async function route(req: Request, c: Ctx): Promise<Response> {
   const now = Date.now();
   const p = url.pathname;
 
-  // 待合所（WebSocket）：token で本人を確かめてから受付係へ（他人の playerId で並べないように）
+  // 待合所（WebSocket）：token で本人を確かめてから受付係へ（他人のユーザーID で並べないように）
   if (p === '/lobby') {
-    const playerId = url.searchParams.get('playerId');
-    if (!(await authed(c, playerId, url.searchParams.get('token')))) return json({ error: 'auth' }, 401);
+    const userId = url.searchParams.get('userId');
+    if (!(await authed(c, userId, url.searchParams.get('token')))) return json({ error: 'auth' }, 401);
     const fwd = new Request(req, { headers: new Headers(req.headers) });
-    fwd.headers.set('x-player-id', playerId!);
+    fwd.headers.set('x-user-id', userId!);
     return c.lobby('/lobby', fwd);
   }
 
   if (p === '/register' && req.method === 'POST') {
+    // ユーザーID の登録（v2.0-J）：token は端末が作って送る（サーバーにはハッシュだけ）
     const b = await body(req);
-    if (!isId(b.playerId)) return json({ error: 'bad' }, 400);
-    const token = randomHex(16);
+    if (!isId(b.userId) || !isToken(b.token)) return json({ error: 'bad' }, 400);
+    const hash = await sha256Hex(b.token);
+    const sameOwner = async () => {
+      const row = (await c.all<{ token_hash: string }>(`SELECT token_hash FROM players WHERE id = ?`, b.userId))[0];
+      return row ? sameText(row.token_hash, hash) : null;
+    };
+    // もう登録してある：同じ token なら送り直し（登録できたことにする）、違えば ほかの人のユーザーID（409。端末は作り直す）
+    const owner = await sameOwner();
+    if (owner === true) return json({ ok: true, again: true });
+    if (owner === false) return json({ error: 'exists' }, 409);
+    // 今までの人：playerId と token が合えば、その行をユーザーID に付け替える（レート・勝敗を引き継ぐ）
+    if (isLegacyId(b.legacyPlayerId)) {
+      const r = await c.run(
+        `UPDATE players SET id = ?, name = ?, opt_in = ? WHERE id = ? AND token_hash = ?`,
+        b.userId,
+        cleanName(b.name),
+        b.optIn === false ? 0 : 1,
+        b.legacyPlayerId,
+        hash,
+      );
+      if (r.meta.changes) {
+        // 受付係に残っている、まだ数えていない前の playerId の試合も付け替える
+        await c.lobby('/rename', { method: 'POST', body: JSON.stringify({ from: b.legacyPlayerId, to: b.userId }) });
+        await writeSnapshot(c, null);
+        return json({ ok: true, migrated: true });
+      }
+    }
     const r = await c.run(
       `INSERT INTO players (id, token_hash, name, opt_in, created) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
-      b.playerId,
-      await sha256Hex(token),
+      b.userId,
+      hash,
       cleanName(b.name),
       b.optIn === false ? 0 : 1,
       now,
     );
-    // もう登録してある（token は1回しか出さない）
-    if (!r.meta.changes) return json({ error: 'exists' }, 409);
-    return json({ token });
+    if (r.meta.changes) return json({ ok: true });
+    // 同じ時に同じユーザーID が登録された
+    return (await sameOwner()) ? json({ ok: true, again: true }) : json({ error: 'exists' }, 409);
   }
 
   if (p === '/result' && req.method === 'POST') {
     const b = await body(req);
-    if (!(await authed(c, b.playerId, b.token))) return json({ error: 'auth' }, 401);
-    const res = await c.lobby('/report', { method: 'POST', body: JSON.stringify({ matchId: b.matchId, playerId: b.playerId, winner: b.winner }) });
+    // 古い版（v2.0-I）の端末：401 だと token を消してしまうので、版を上げてもらう（426）
+    if (b.userId === undefined && isLegacyId(b.playerId)) return json({ error: 'upgrade' }, 426);
+    if (!(await authed(c, b.userId, b.token))) return json({ error: 'auth' }, 401);
+    const res = await c.lobby('/report', { method: 'POST', body: JSON.stringify({ matchId: b.matchId, playerId: b.userId, winner: b.winner }) });
     return json(await res.json(), res.status);
   }
 
   if (p === '/profile' && req.method === 'POST') {
     const b = await body(req);
-    if (!(await authed(c, b.playerId, b.token))) return json({ error: 'auth' }, 401);
-    await c.run(`UPDATE players SET name = ?, opt_in = ? WHERE id = ?`, cleanName(b.name), b.optIn === false ? 0 : 1, b.playerId);
+    if (b.userId === undefined && isLegacyId(b.playerId)) return json({ error: 'upgrade' }, 426);
+    if (!(await authed(c, b.userId, b.token))) return json({ error: 'auth' }, 401);
+    await c.run(`UPDATE players SET name = ?, opt_in = ? WHERE id = ?`, cleanName(b.name), b.optIn === false ? 0 : 1, b.userId);
     return json({ ok: true });
   }
 
   if ((p === '/ranking' || p === '/me') && req.method === 'GET') {
-    const playerId = url.searchParams.get('playerId');
+    const userId = url.searchParams.get('userId');
     const token = url.searchParams.get('token');
     let me = null;
-    if (playerId && token && (await authed(c, playerId, token))) {
-      const row = (await c.all<PlayerRow>(`SELECT * FROM players WHERE id = ?`, playerId))[0];
+    if (userId && token && (await authed(c, userId, token))) {
+      const row = (await c.all<PlayerRow>(`SELECT * FROM players WHERE id = ?`, userId))[0];
       me = meOf(row, now);
     }
     // 更新の時刻（4:00・14:00）を過ぎたのに まとめ処理がまだ終わっていない：5分後に聞き直してもらう（古い一覧を次の更新まで覚えさせない）
@@ -168,8 +203,8 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     switch (p) {
       case '/admin/hide-name': {
         // 不適切な名前を「ななし」にする（hidden: false で戻す）。次の まとめ処理で一覧にも反映。すぐ一覧を作り直す
-        if (!isId(b.playerId)) return json({ error: 'bad' }, 400);
-        const r = await c.run(`UPDATE players SET name_banned = ? WHERE id = ?`, b.hidden === false ? 0 : 1, b.playerId);
+        if (!isId(b.userId)) return json({ error: 'bad' }, 400);
+        const r = await c.run(`UPDATE players SET name_banned = ? WHERE id = ?`, b.hidden === false ? 0 : 1, b.userId);
         await writeSnapshot(c, null);
         return json({ ok: true, changed: r.meta.changes });
       }
@@ -193,12 +228,29 @@ async function route(req: Request, c: Ctx): Promise<Response> {
             JSON.stringify(players),
           );
         }
+        // 今までの人（v2.0-I の playerId と token）の行を作る（付け替えのテスト用）
+        for (const l of Array.isArray(b.legacy) ? (b.legacy as Record<string, unknown>[]) : []) {
+          if (!isLegacyId(l.playerId) || !isToken(l.token)) continue;
+          await c.run(
+            `INSERT INTO players (id, token_hash, rate, wins, losses, best, last_played, created, name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+            l.playerId,
+            await sha256Hex(l.token),
+            Number(l.rate) || 100,
+            Number(l.wins) || 0,
+            Number(l.losses) || 0,
+            Number(l.best) || 100,
+            // 最後に遊んだのは まだ（ランキングに出さない）
+            0,
+            now,
+            cleanName(l.name),
+          );
+        }
         const res = await c.lobby('/debug/seed', { method: 'POST', body: JSON.stringify({ results: b.results ?? [] }) });
         return json({ ok: true, lobby: await res.json() });
       }
       case '/admin/delete-players': {
         // 確かめる時用：テストで作ったプレイヤーを消す（順位と一覧の写しも作り直す）
-        const ids = Array.isArray(b.playerIds) ? (b.playerIds as unknown[]).filter(isId) : [];
+        const ids = Array.isArray(b.userIds) ? (b.userIds as unknown[]).filter(isId) : [];
         if (!ids.length) return json({ error: 'bad' }, 400);
         const r = await c.run(`DELETE FROM players WHERE id IN (SELECT value FROM json_each(?))`, JSON.stringify(ids));
         await rerank(c, now);
@@ -207,13 +259,13 @@ async function route(req: Request, c: Ctx): Promise<Response> {
       }
       case '/admin/clear-games': {
         // 確かめる時用：テストの人（playerIds）の試合（報告待ち・記録した結果）だけを消す
-        const ids = Array.isArray(b.playerIds) ? (b.playerIds as unknown[]).filter(isId) : [];
+        const ids = Array.isArray(b.userIds) ? (b.userIds as unknown[]).filter(isId) : [];
         if (!ids.length) return json({ error: 'bad' }, 400);
-        const res = await c.lobby('/debug/clear', { method: 'POST', body: JSON.stringify({ playerIds: ids }) });
+        const res = await c.lobby('/debug/clear', { method: 'POST', body: JSON.stringify({ userIds: ids }) });
         return json(await res.json());
       }
       case '/admin/lookup': {
-        // 名前で探す（消す人の playerId を調べる）
+        // 名前で探す（消す人のユーザーID を調べる）
         const rows = await c.all<PlayerRow>(`SELECT id, name, rate, rank, name_banned FROM players WHERE name LIKE ? LIMIT 20`, `%${cleanName(b.name)}%`);
         return json({ players: rows });
       }

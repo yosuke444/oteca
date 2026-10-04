@@ -38,6 +38,8 @@ export type GameStart = {
   oppPlayerId: string;
   /** 相手のレート（レート対戦の時だけ） */
   oppRate?: number;
+  /** 相手のユーザーID（v2.0-J。停止中か確かめる。古い版の相手・まだ無い時は ''） */
+  oppUserId: string;
   /** 同じ相手との再戦で、相手が前の試合とデッキを変えた（v2.0-G） */
   oppDeckChanged: boolean;
 };
@@ -68,6 +70,8 @@ export type SessionOptions = {
   playerId: string;
   /** レート対戦の時だけ：自分のレート（相手に知らせる） */
   rate?: number;
+  /** 自分のユーザーID（v2.0-J。相手が停止中か確かめるために送る） */
+  userId?: string;
   clock?: Clock;
   randomBytes?: (n: number) => Uint8Array;
 };
@@ -100,6 +104,8 @@ export const LOST_AFTER_MS = 30000;
 export const PICK_AFTER_MS = 1000;
 /** 1部屋に入れる人数（v2.0-G。全員が全員とつながる方式のため） */
 export const ROOM_MAX = 8;
+/** 観戦者の数（部屋の人数とは別。v2.0-J） */
+export const SPECTATOR_MAX = 3;
 /** 申し込みの返事を待つ時間（v2.0-G） */
 export const INVITE_MS = 15000;
 /** 承諾してから組み合わせ（pairStart）が届くまで待つ時間 */
@@ -138,6 +144,8 @@ export class OnlineSession {
   onDesync: (turn: number) => void = () => {};
   /** 相手が見つかった（VS画面用） */
   onMatched: (opponentName: string) => void = () => {};
+  /** 今の試合を観戦している人の数が変わった（v2.0-J。画面の隅に「かんせんちゅう」） */
+  onSpectators: (count: number) => void = () => {};
   /** 相手を待っている間、1秒ごと（入ってからの ms） */
   onWaitingTick: (ms: number) => void = () => {};
   /** 部屋の人が変わった（v2.0-G） */
@@ -159,6 +167,8 @@ export class OnlineSession {
   private readonly peers = new Map<string, PeerInfo>();
   private opponentPeer: string | null = null;
   private opponentPlayerId: string | null = null;
+  /** 相手のユーザーID（v2.0-J。hello で届く。古い版の相手は ''） */
+  private opponentUserId = '';
   private opponentName = '';
   private opponentRate: number | undefined = undefined;
   private role: Side = 'p1';
@@ -198,6 +208,10 @@ export class OnlineSession {
   /** 「もうすこし まつ」を押した時、この時刻までは「きれた」にしない */
   private graceUntil = 0;
   private oppRematch = -1;
+  /** 観戦者（ピアID → 今の試合を見ているか）。部屋の人（peers）には入れない（v2.0-J） */
+  private readonly spectators = new Map<string, { watching: boolean }>();
+  /** 今の試合の始まり（観戦者に送る） */
+  private lastStart: GameStart | null = null;
   /** 受け取った不正なメッセージの記録（SPEC §11-5「ログに残す」） */
   readonly ignored: string[] = [];
 
@@ -268,6 +282,14 @@ export class OnlineSession {
     const body = { seq: this.myLog.length + 1, action: toWire(action), game: this.game };
     this.myLog.push(body);
     this.sendToOpponent(makeMsg('action', this.opts.protocol, body));
+    // 観戦者にも（v2.0-J）
+    for (const [peer, sp] of this.spectators)
+      if (sp.watching) this.send(makeMsg('specAction', this.opts.protocol, { game: this.game, side: this.role, seq: body.seq, action: body.action }), peer);
+  }
+
+  /** 今の試合を見ている観戦者の数 */
+  get spectatorCount(): number {
+    return [...this.spectators.values()].filter((s) => s.watching).length;
   }
 
   /** ターン終了ごとの状態ハッシュ（SPEC §11-6） */
@@ -379,6 +401,17 @@ export class OnlineSession {
         return;
       case 'presence':
         this.gotPresence(m.body, from);
+        return;
+      case 'specHello':
+      case 'specWatch':
+      case 'specLeave':
+        this.gotSpectator(m, from);
+        return;
+      case 'specFull':
+      case 'specInfo':
+      case 'specSync':
+      case 'specAction':
+        // 観戦者あてのもの（対戦者どうしでは使わない）
         return;
       case 'invite':
       case 'inviteReply':
@@ -504,6 +537,7 @@ export class OnlineSession {
         deckName: this.opts.deckName ?? '',
         nextGame: this.nextGame,
         ...(this.opts.rate !== undefined ? { rate: this.opts.rate } : {}),
+        ...(this.opts.userId ? { userId: this.opts.userId } : {}),
       }),
       to,
     );
@@ -685,6 +719,7 @@ export class OnlineSession {
     if (!info) return;
     this.opponentPeer = peerId;
     this.opponentPlayerId = info.playerId;
+    this.opponentUserId = info.userId ?? '';
     this.opponentName = info.name;
     this.opponentRate = info.rate;
     info.state = 'playing';
@@ -706,6 +741,7 @@ export class OnlineSession {
     this.negToken += 1;
     this.opponentPeer = null;
     this.opponentPlayerId = null;
+    this.opponentUserId = '';
     this.opponentName = '';
     this.neg = null;
     this.myLog = [];
@@ -827,9 +863,22 @@ export class OnlineSession {
       decks: { [this.role]: this.opts.deck, [opp]: neg.oppDeck } as Record<Side, number[]>,
       names: { [this.role]: this.opts.name, [opp]: this.opponentName } as Record<Side, string>,
       oppPlayerId: oppId,
+      oppUserId: this.opponentUserId,
       ...(this.opponentRate !== undefined ? { oppRate: this.opponentRate } : {}),
       oppDeckChanged: before !== undefined && before !== deckKey,
     });
+    this.lastStart = {
+      game: neg.game,
+      seed,
+      me: this.role,
+      decks: { [this.role]: this.opts.deck, [opp]: neg.oppDeck } as Record<Side, number[]>,
+      names: { [this.role]: this.opts.name, [opp]: this.opponentName } as Record<Side, string>,
+      oppPlayerId: oppId,
+      oppUserId: this.opponentUserId,
+      oppDeckChanged: false,
+    };
+    // 観戦者に知らせる（見ている人には、新しい試合の始まりを送る。再戦でも見続けられる）
+    this.tellSpectators();
     // 種が決まる前に届いていた操作
     this.flushActions();
   }
@@ -971,6 +1020,10 @@ export class OnlineSession {
   }
 
   private peerLeft(id: string): void {
+    if (this.spectators.delete(id)) {
+      this.onSpectators(this.spectatorCount);
+      return;
+    }
     const p = this.peers.get(id);
     this.peers.delete(id);
     if (p && p.playerId !== this.opponentPlayerId) this.onJoinLeave({ kind: 'leave', name: p.name });
@@ -1015,7 +1068,16 @@ export class OnlineSession {
     this.status = s;
     this.onStatus(s);
     // 部屋の人に、自分の状態（まちあい／たいせんちゅう）を知らせる
-    if (this.myState() !== before) this.sendPresence();
+    if (this.myState() !== before) {
+      this.sendPresence();
+      // 対戦が終わった（まちあいに戻った）：観戦者にも知らせ、見ていた試合は終わり
+      if (this.myState() === 'waiting') {
+        this.lastStart = null;
+        for (const sp of this.spectators.values()) sp.watching = false;
+        this.onSpectators(0);
+        this.tellSpectators();
+      }
+    }
     if (s.kind === 'waiting') this.armPick();
     this.emitMembers();
   }
@@ -1027,6 +1089,71 @@ export class OnlineSession {
 
   private emitMembers(): void {
     this.onMembers(this.members);
+  }
+
+  // ---------------------------------------------------------------- 観戦（v2.0-J。SPEC §11-10）
+
+  private gotSpectator(m: Extract<Msg, { t: 'specHello' | 'specWatch' | 'specLeave' }>, from: string): void {
+    if (this.peers.has(from)) return; // 部屋の人は観戦者になれない
+    switch (m.t) {
+      case 'specHello': {
+        if (m.body?.protocol !== this.opts.protocol) return;
+        if (!this.spectators.has(from) && this.spectators.size >= SPECTATOR_MAX) {
+          this.send(makeMsg('specFull', this.opts.protocol, {}), from);
+          return;
+        }
+        if (!this.spectators.has(from)) this.spectators.set(from, { watching: false });
+        this.send(this.specInfoMsg(), from);
+        return;
+      }
+      case 'specWatch': {
+        const sp = this.spectators.get(from);
+        if (!sp) return;
+        const start = this.lastStart;
+        if (!start || m.body?.game !== start.game) return;
+        sp.watching = true;
+        this.send(this.specSyncMsg(start), from);
+        this.onSpectators(this.spectatorCount);
+        return;
+      }
+      case 'specLeave':
+        if (this.spectators.delete(from)) this.onSpectators(this.spectatorCount);
+        return;
+    }
+  }
+
+  private specInfoMsg(): Msg {
+    const s = this.lastStart;
+    const playing = !!s && this.myState() === 'playing';
+    return makeMsg('specInfo', this.opts.protocol, {
+      state: playing ? 'playing' : 'waiting',
+      name: this.opts.name,
+      game: playing ? s.game : -1,
+      oppPeer: playing ? (this.opponentPeer ?? '') : '',
+      ...(playing ? { names: s.names, role: s.me } : {}),
+    });
+  }
+
+  private specSyncMsg(s: GameStart): Msg {
+    return makeMsg('specSync', this.opts.protocol, {
+      game: s.game,
+      seed: s.seed,
+      decks: s.decks,
+      names: s.names,
+      side: s.me,
+      log: this.myLog.filter((a) => a.game === s.game).map((a) => a.action),
+    });
+  }
+
+  /** 観戦者みんなに今の様子を知らせ、見ている人には試合の始まりと記録を送る */
+  private tellSpectators(): void {
+    if (!this.spectators.size) return;
+    const info = this.specInfoMsg();
+    for (const [peer, sp] of this.spectators) {
+      this.send(info, peer);
+      if (sp.watching && this.lastStart) this.send(this.specSyncMsg(this.lastStart), peer);
+    }
+    this.onSpectators(this.spectatorCount);
   }
 
   private close(): void {
@@ -1058,6 +1185,7 @@ function cleanHello(h: MsgBody['hello']): PeerInfo | null {
     playerId: h.playerId.slice(0, 64),
     state: h.state === 'playing' ? 'playing' : 'waiting',
     deckName: typeof h.deckName === 'string' ? h.deckName.slice(0, 16) : '',
+    ...(typeof h.userId === 'string' && /^[1-9][0-9]{14}$/.test(h.userId) ? { userId: h.userId } : {}),
     nextGame: Number.isInteger(h.nextGame) && (h.nextGame as number) >= 0 ? (h.nextGame as number) : 0,
     ...(typeof h.rate === 'number' && Number.isFinite(h.rate) ? { rate: Math.max(0, Math.round(h.rate)) } : {}),
   };

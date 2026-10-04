@@ -7,13 +7,17 @@ import {
   type SaveDataV3,
   type SaveDataV4,
   type SaveDataV6,
+  type SaveDataV7,
   readSaveV1,
   readSaveV2,
   readSaveV3,
   readSaveV4,
   readSaveV5,
   readSaveV7,
+  readSaveV8,
 } from './binary';
+import { applyRateResult } from '../online/rate';
+import { newUserId } from './userId';
 import { COINS_MAX, DECK_SLOTS, OWN_MAX, RATE_START, type SaveData, type StoryStage, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from './saveData';
 
 /**
@@ -36,6 +40,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   // 形式版数6 は 5 と同じ並び
   6: readSaveV5,
   7: readSaveV7,
+  8: readSaveV8,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -55,7 +60,30 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   5: (old) => upgradeToV6(old as SaveDataV6),
   /** 6 → 7（v2.0-I）：ランキングの「かり」と、正式なレートを受け取った時刻を足す（SPEC §12-3e） */
   6: (old) => upgradeToV7(old as SaveDataV6),
+  /** 7 → 8（v2.0-J）：ユーザーID を作る。相手の判別をユーザーID に変えた（SPEC §12-3f） */
+  7: (old) => upgradeToV8(old as SaveDataV7),
 };
+
+/**
+ * 形式版数7 → 8（v2.0-J）：
+ * - ユーザーID を1回だけ作る（まだサーバーに登録していない）
+ * - 直前の相手（前の playerId）は消す
+ * - レート対戦の途中で閉じた印が残っていたら、ここで負けとして計算する（今まで通り「次に開いた時に負け」）
+ * - 送れなかった報告は前の playerId で書いてあるので消す
+ * @param randomBytes 乱数（テストで差し替える）
+ */
+export function upgradeToV8(d: SaveDataV7, randomBytes?: (n: number) => Uint8Array): SaveData {
+  const draft = structuredClone(d);
+  if (draft.pendingRateMatch) applyRateResult(draft, draft.pendingRateMatch.opponentRate, 'lose');
+  return {
+    ...draft,
+    userId: newUserId(randomBytes),
+    userIdRegistered: false,
+    lastRateOpponentId: '',
+    pendingRateMatch: null,
+    ranking: { ...draft.ranking, unsent: [], lastMatchId: '' },
+  };
+}
 
 /**
  * 形式版数6 → 7（UPDATE_v2 §10）：
@@ -63,7 +91,7 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
  * - syncedAt・playedAt：0（まだ受け取っていない・まだ数えていない）
  * - optIn：今まで使っていなかった値なので、初期値のオンにする
  */
-export function upgradeToV7(d: SaveDataV6): SaveData {
+export function upgradeToV7(d: SaveDataV6): SaveDataV7 {
   return { ...d, ranking: { ...d.ranking, optIn: true, provisional: d.rate !== RATE_START, syncedAt: 0, playedAt: 0 } };
 }
 

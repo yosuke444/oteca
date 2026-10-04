@@ -4,13 +4,16 @@ import { RATE_SUBROOMS, rateLobbyName } from '../src/net/protocol';
 import { RateLobby, type RatePaired, SUBROOM_HOP_MS } from '../src/net/rateLobby';
 import { MemoryHub } from '../src/net/transport';
 import { applyServerRate, cacheFresh, countdown, decodeUnsent, encodeUnsent, markProvisional, queueReport, removeReport, reportWinner, type ServerMe } from '../src/online/ranking';
-import { ensureIdentity, flushReports, nextBatchAfter, sendReport } from '../src/online/rankingApi';
+import { ensureIdentity, flushReports, forgetRegistration, nextBatchAfter, sendReport, syncRanking } from '../src/online/rankingApi';
 import { nextBatchAt } from '../worker/src/logic/batch';
 import { RANKING_UNSENT_MAX, type SaveData, createDefaultSave } from '../src/save/saveData';
 import { FakeClock, settle } from './net.helpers';
 import { makeRandom } from './save.helpers';
 
+/** 16桁の16進数（試合ID・部屋ID・playerId） */
 const ID = (n: number) => n.toString(16).padStart(16, '0');
+/** ユーザーID（15桁。v2.0-J） */
+const UID = (n: number) => String(100000000000000 + n);
 
 describe('I04 予備の待合所（8つの小部屋）', () => {
   /** 最初の小部屋を決めておける乱数（1バイト目＝小部屋の番号） */
@@ -195,11 +198,11 @@ describe('I01 受付係につなぐ（端末の側）', () => {
     const { s, sock, got } = make();
     s.join();
     sock.open();
-    expect(sock.sent[0]).toEqual({ t: 'join', body: { playerId: ID(1), protocol: 6, lastOpponentId: ID(9), name: 'あ', rate: 120 } });
+    expect(sock.sent[0]).toEqual({ t: 'join', body: { userId: ID(1), protocol: 6, lastOpponentId: ID(9), name: 'あ', rate: 120 } });
     sock.recv({ t: 'waiting', body: { count: 3 } });
     expect(got.waiting).toEqual([3]);
-    sock.recv({ t: 'paired', body: { matchId: ID(77), roomId: ID(88), opponent: { playerId: ID(2), name: 'い', rate: 130 } } });
-    expect(got.paired).toEqual([{ roomId: ID(88), matchId: ID(77), viaLobby: true, opponentId: ID(2), opponentName: 'い', opponentRate: 130 }]);
+    sock.recv({ t: 'paired', body: { matchId: ID(77), roomId: ID(88), opponent: { userId: UID(2), name: 'い', rate: 130 } } });
+    expect(got.paired).toEqual([{ roomId: ID(88), matchId: ID(77), viaLobby: true, opponentId: UID(2), opponentName: 'い', opponentRate: 130 }]);
     expect(sock.closed).toBe(true);
     // 組めた後に切れても、予備へは行かない
     sock.drop();
@@ -277,24 +280,29 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
   const base = () => createDefaultSave();
   const me = (x: Partial<ServerMe> = {}): ServerMe => ({ rate: 150, wins: 3, losses: 1, best: 160, rank: 2, visible: true, name: '', optIn: true, ...x });
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    forgetRegistration();
+  });
 
   it('新しいセーブ：名前を載せる設定はオン、「かり」ではない', () => {
     const s = base();
-    expect(s.ranking).toEqual({ token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0 });
+    expect(s.ranking).toEqual({ token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0, lastMatchId: '' });
   });
 
   it('報告をセーブに入れる・消す（同じ試合は1つ、多すぎたら古いものから）', () => {
     const s = base();
-    queueReport(s, { matchId: ID(1), winner: ID(5) });
+    queueReport(s, { matchId: ID(1), winner: UID(5) });
     queueReport(s, { matchId: ID(1), winner: 'void' });
     expect(s.ranking.unsent).toEqual([`${ID(1)}:void`]);
-    for (let i = 2; i < 30; i++) queueReport(s, { matchId: ID(i), winner: ID(5) });
+    for (let i = 2; i < 30; i++) queueReport(s, { matchId: ID(i), winner: UID(5) });
     expect(s.ranking.unsent).toHaveLength(RANKING_UNSENT_MAX);
     expect(decodeUnsent(s.ranking.unsent[0])?.matchId).toBe(ID(10));
     removeReport(s, ID(29));
     expect(s.ranking.unsent.some((u) => u.startsWith(ID(29)))).toBe(false);
-    expect(decodeUnsent(encodeUnsent({ matchId: ID(3), winner: ID(4) }))).toEqual({ matchId: ID(3), winner: ID(4) });
+    expect(decodeUnsent(encodeUnsent({ matchId: ID(3), winner: UID(4) }))).toEqual({ matchId: ID(3), winner: UID(4) });
+    // 勝った人が前の playerId（16進数）のものは読まない
+    expect(decodeUnsent(`${ID(3)}:${ID(4)}`)).toBeNull();
     expect(decodeUnsent('xyz:void')).toBeNull();
     expect(decodeUnsent(`${ID(3)}:nope`)).toBeNull();
   });
@@ -333,7 +341,7 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
     expect(applyServerRate(s, me({ wins: 0, losses: 0, rate: 100 }), 10, 20)).toBe(false);
     expect(s.rate).toBe(180);
     expect(applyServerRate(s, null, 10, 20)).toBe(false);
-    s.ranking.unsent = [`${ID(1)}:${ID(2)}`];
+    s.ranking.unsent = [`${ID(1)}:${UID(2)}`];
     expect(applyServerRate(s, me(), 10, 20)).toBe(true);
     // まだ届いていない試合があるので「かり」のまま
     expect(s.ranking.provisional).toBe(true);
@@ -370,7 +378,7 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
   });
 
   it('送れなかった報告を送り直す：送れたものは消し、つながらなければ残す（token の誤りは捨てる）', async () => {
-    let s: SaveData = { ...base(), playerId: ID(1), ranking: { ...base().ranking, token: 'a'.repeat(32), unsent: [`${ID(10)}:${ID(1)}`, `${ID(11)}:void`, `${ID(12)}:${ID(2)}`] } };
+    let s: SaveData = { ...base(), userId: UID(1), userIdRegistered: true, ranking: { ...base().ranking, token: 'a'.repeat(32), unsent: [`${ID(10)}:${UID(1)}`, `${ID(11)}:void`, `${ID(12)}:${UID(2)}`] } };
     const update = (fn: (d: SaveData) => void) => {
       const d = structuredClone(s);
       fn(d);
@@ -385,36 +393,131 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
       return new Response(JSON.stringify({ ok: st === 200 }), { status: st });
     });
     await flushReports(() => s, update);
-    expect(bodies[0]).toEqual({ matchId: ID(10), playerId: ID(1), token: 'a'.repeat(32), winner: ID(1) });
-    // 1つ目は送れた、2つ目は token の誤り（捨てる）、3つ目はつながらない（残す）
-    expect(s.ranking.unsent).toEqual([`${ID(12)}:${ID(2)}`]);
-    expect(await sendReport({ playerId: ID(1), ranking: { ...s.ranking, token: '' } }, { matchId: ID(1), winner: 'void' })).toBe('retry');
-    // 2つ目の 401（token が使えない）の後は token を消している（次に登録し直す）
-    expect(s.ranking.token).toBe('');
+    expect(bodies[0]).toEqual({ matchId: ID(10), userId: UID(1), token: 'a'.repeat(32), winner: UID(1) });
+    // 1つ目は送れた、2つ目はサーバーに行が無い（登録し直しもつながらないので捨てる）、3つ目は送らずに残す
+    expect(s.ranking.unsent).toEqual([`${ID(12)}:${UID(2)}`]);
+    expect(await sendReport({ userId: UID(1), ranking: { ...s.ranking, token: '' } }, { matchId: ID(1), winner: 'void' })).toBe('retry');
+    // 2つ目の 401（サーバーに自分の行が無い）は、同じユーザーID と token で登録し直す（ここではつながらないので、その報告は捨てる）。
+    // ユーザーID・token・登録の印は変えない
+    expect(bodies[2]).toMatchObject({ userId: UID(1), token: 'a'.repeat(32) });
+    expect(s.userIdRegistered).toBe(true);
+    expect(s.userId).toBe(UID(1));
+    expect(s.ranking.token).toBe('a'.repeat(32));
     // 送るのは「単純なリクエスト」（事前確認が飛ばない：text/plain）
   });
 
-  it('登録：playerId がもう登録されていたら（409）、playerId を作り直して登録し直す', async () => {
-    let s: SaveData = { ...base(), playerId: ID(1), ranking: { ...base().ranking, unsent: [`${ID(9)}:void`] } };
+  it('J01 登録：ユーザーID がほかの人に使われていたら（409）、登録の前だけ作り直して登録し直す', async () => {
+    let s: SaveData = { ...base(), userId: UID(1), ranking: { ...base().ranking, token: 'e'.repeat(32), unsent: [`${ID(9)}:void`] } };
     const update = (fn: (d: SaveData) => void) => {
       const d = structuredClone(s);
       fn(d);
       s = d;
     };
-    const sent: { body: { playerId: string }; headers: unknown }[] = [];
+    const sent: { body: { userId: string; token: string; legacyPlayerId?: string }; headers: unknown }[] = [];
     vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
       sent.push({ body: JSON.parse(String(init.body)), headers: init.headers });
-      return sent.length === 1 ? new Response('{}', { status: 409 }) : new Response(JSON.stringify({ token: 'b'.repeat(32) }), { status: 200 });
+      return sent.length === 1 ? new Response('{}', { status: 409 }) : new Response(JSON.stringify({ ok: true }), { status: 200 });
     });
     const id = await ensureIdentity(s, update);
-    expect(sent[0].body.playerId).toBe(ID(1));
-    expect(sent[1].body.playerId).not.toBe(ID(1));
-    expect(id).toEqual({ token: 'b'.repeat(32), playerId: sent[1].body.playerId });
-    expect(s.playerId).toBe(sent[1].body.playerId);
-    expect(s.ranking.token).toBe('b'.repeat(32));
-    // 前の playerId の試合の報告は捨てる
+    expect(sent[0].body.userId).toBe(UID(1));
+    expect(sent[1].body.userId).not.toBe(UID(1));
+    expect(sent[1].body.userId).toMatch(/^[1-9][0-9]{14}$/);
+    // token は起動の時に作ってセーブに入れてある（送り直しても同じ）
+    expect(sent[0].body.token).toBe('e'.repeat(32));
+    expect(sent[1].body.token).toBe(sent[0].body.token);
+    expect(id).toEqual({ token: sent[0].body.token, userId: sent[1].body.userId });
+    expect(s.userId).toBe(sent[1].body.userId);
+    expect(s.userIdRegistered).toBe(true);
+    expect(s.ranking.token).toBe(sent[0].body.token);
+    // 前のユーザーID の送れなかった報告は捨てる
     expect(s.ranking.unsent).toEqual([]);
     expect(sent[0].headers).toEqual({ 'content-type': 'text/plain;charset=UTF-8' });
+    // 登録した後は、もうサーバーに聞かない・ユーザーID を変えない
+    const before = sent.length;
+    expect(await ensureIdentity(s, update)).toEqual(id);
+    expect(sent.length).toBe(before);
+  });
+
+  it('J02 今までの人（v2.0-I で token をもらった人）は、playerId も送って付け替えてもらう', async () => {
+    let s: SaveData = { ...base(), playerId: ID(7), userId: UID(3), ranking: { ...base().ranking, token: 'c'.repeat(32) } };
+    const update = (fn: (d: SaveData) => void) => {
+      const d = structuredClone(s);
+      fn(d);
+      s = d;
+    };
+    const sent: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      sent.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ ok: true, migrated: true }), { status: 200 });
+    });
+    expect(await ensureIdentity(s, update)).toEqual({ token: 'c'.repeat(32), userId: UID(3) });
+    expect(sent[0]).toMatchObject({ userId: UID(3), token: 'c'.repeat(32), legacyPlayerId: ID(7) });
+    expect(s.userIdRegistered).toBe(true);
+  });
+
+  it('つながらない時は登録しない（ユーザーID も変えない）', async () => {
+    let s: SaveData = { ...base(), userId: UID(4), ranking: { ...base().ranking, token: 'f'.repeat(32) } };
+    vi.stubGlobal('fetch', async () => {
+      throw new Error('offline');
+    });
+    expect(await ensureIdentity(s, (fn) => fn(s))).toBeNull();
+    expect(s.userId).toBe(UID(4));
+    expect(s.userIdRegistered).toBe(false);
+  });
+
+  it('J01 登録の直後に古いセーブで聞かれても（画面の描き直しの前）、登録は1回だけで、ユーザーID は変わらない', async () => {
+    // 送れなかった報告がある、まだ登録していない人
+    const stale: SaveData = { ...base(), userId: UID(5), ranking: { ...base().ranking, token: 'd'.repeat(32), unsent: [`${ID(30)}:void`] } };
+    let s = structuredClone(stale);
+    const update = (fn: (d: SaveData) => void) => {
+      const d = structuredClone(s);
+      fn(d);
+      s = d;
+    };
+    const paths: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      paths.push(new URL(url).pathname);
+      return new Response(JSON.stringify({ ok: true, me: null, updatedAt: 0, nextAt: 0 }), { status: 200 });
+    });
+    // getSave はずっと古いセーブを返す（React の描き直しの前）
+    await Promise.all([syncRanking(() => stale, update), ensureIdentity(stale, update), ensureIdentity(stale, update)]);
+    expect(paths.filter((p) => p === '/register')).toHaveLength(1);
+    expect(s.userId).toBe(UID(5));
+    expect(s.userIdRegistered).toBe(true);
+    // 報告も送った（ユーザーID を作り直して捨てたりしない）
+    expect(paths).toContain('/result');
+    expect(s.ranking.unsent).toEqual([]);
+  });
+
+  it('登録した後は、サーバーが 401（自分の行が無い）でもユーザーID を変えずに登録し直す', async () => {
+    let s: SaveData = { ...base(), userId: UID(6), userIdRegistered: true, ranking: { ...base().ranking, token: 'b'.repeat(32), unsent: [`${ID(31)}:void`] } };
+    const update = (fn: (d: SaveData) => void) => {
+      const d = structuredClone(s);
+      fn(d);
+      s = d;
+    };
+    const calls: { path: string; body: { userId?: string } }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      const path = new URL(url).pathname;
+      calls.push({ path, body: JSON.parse(String(init.body)) });
+      if (path === '/result') return new Response('{}', { status: 401 });
+      // ほかの人が使っている（409）：作り直さない
+      return new Response('{}', { status: 409 });
+    });
+    await flushReports(() => s, update);
+    expect(calls.map((c) => c.path)).toEqual(['/result', '/register']);
+    expect(calls[1].body.userId).toBe(UID(6));
+    expect(s.userId).toBe(UID(6));
+  });
+
+  it('サーバーが「最後に数えた試合」が自分の最後の試合と同じと言えば、更新の直後でも上書きする', () => {
+    const s = base();
+    const updatedAt = Date.UTC(2026, 9, 4, 5, 0);
+    s.rate = 140;
+    markProvisional(s, updatedAt - 60 * 1000, ID(42)); // 13:59 に終わった試合
+    expect(applyServerRate(s, { ...me(), lastMatch: ID(41) }, updatedAt, updatedAt + 1000)).toBe(false);
+    expect(applyServerRate(s, { ...me(), lastMatch: ID(42) }, updatedAt, updatedAt + 1000)).toBe(true);
+    expect(s.rate).toBe(150);
   });
 
   it('まとめ処理の後にも遊んでいたら、正式なレートで上書きしない（「かり」のまま）', () => {

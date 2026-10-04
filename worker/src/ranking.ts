@@ -13,7 +13,20 @@ import { randomHex, sha256Hex } from './util';
 /** ランキングに載せる人数 */
 export const TOP_N = RANKING.top;
 
-export type PlayerRow = { id: string; rate: number; wins: number; losses: number; best: number; name: string; opt_in: number; name_banned: number; last_played: number; rank: number | null };
+export type PlayerRow = {
+  /** ユーザーID（v2.0-J。それより前に登録して、まだ付け替えていない人は playerId） */
+  id: string;
+  rate: number;
+  wins: number;
+  losses: number;
+  best: number;
+  name: string;
+  opt_in: number;
+  name_banned: number;
+  last_played: number;
+  rank: number | null;
+  last_match: string;
+};
 
 /** D1 のうち、使う所だけ（ゲームのテストからも型を確かめられるように） */
 type D1Meta = { rows_read?: number; rows_written?: number; changes?: number };
@@ -77,7 +90,7 @@ export async function writeSnapshot(c: Db, updatedAt: number | null): Promise<nu
   const top = await Promise.all(
     rows.map(async (r) => ({
       rank: r.rank,
-      // 自分の行を見分けるための印（playerId そのものは出さない）
+      // 自分の行を見分けるための印（ユーザーID そのものは出さない）
       key: (await sha256Hex(r.id)).slice(0, 12),
       name: r.opt_in === 1 && r.name_banned === 0 ? safeName(r.name, '') : '',
       rate: r.rate,
@@ -137,12 +150,12 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
     // 1人1行で更新する。まとめて1つの文で（D1 は1回の呼び出しで使える文の数に上限があるので）。登録の無い人は作る
     const CHUNK = 500;
     for (let i = 0; i < out.changed.length; i += CHUNK) {
-      const part = JSON.stringify(out.changed.slice(i, i + CHUNK).map((x) => [x.id, x.rate, x.wins, x.losses, x.best, x.lastPlayed]));
+      const part = JSON.stringify(out.changed.slice(i, i + CHUNK).map((x) => [x.id, x.rate, x.wins, x.losses, x.best, x.lastPlayed, x.lastMatch ?? '']));
       stmts.push({
-        q: `INSERT INTO players (id, token_hash, rate, wins, losses, best, last_played, created)
-         SELECT json_extract(value, '$[0]'), '', json_extract(value, '$[1]'), json_extract(value, '$[2]'), json_extract(value, '$[3]'), json_extract(value, '$[4]'), json_extract(value, '$[5]'), ?
+        q: `INSERT INTO players (id, token_hash, rate, wins, losses, best, last_played, last_match, created)
+         SELECT json_extract(value, '$[0]'), '', json_extract(value, '$[1]'), json_extract(value, '$[2]'), json_extract(value, '$[3]'), json_extract(value, '$[4]'), json_extract(value, '$[5]'), json_extract(value, '$[6]'), ?
          FROM json_each(?) WHERE true
-         ON CONFLICT(id) DO UPDATE SET rate = excluded.rate, wins = excluded.wins, losses = excluded.losses, best = excluded.best, last_played = excluded.last_played`,
+         ON CONFLICT(id) DO UPDATE SET rate = excluded.rate, wins = excluded.wins, losses = excluded.losses, best = excluded.best, last_played = excluded.last_played, last_match = excluded.last_match`,
         binds: [now, part],
       });
     }

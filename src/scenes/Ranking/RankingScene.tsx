@@ -27,7 +27,7 @@ export function RankingScene() {
   const tr = useT();
   const [view, setView] = useState<View>(() => {
     const c = readRankingCache();
-    return cacheFresh(c, save.playerId, Date.now()) && c ? { kind: 'ok', data: c, stale: false } : { kind: 'loading' };
+    return cacheFresh(c, save.userId, Date.now()) && c ? { kind: 'ok', data: c, stale: false } : { kind: 'loading' };
   });
   const [now, setNow] = useState(() => Date.now());
   const [myKey, setMyKey] = useState('');
@@ -46,14 +46,14 @@ export function RankingScene() {
       }
       // つながらない：前に保存した一覧があれば、それを出す
       const c = readRankingCache();
-      setView(c && c.playerId === saveRef.current.playerId ? { kind: 'ok', data: c, stale: true } : { kind: 'offline' });
+      setView(c && c.playerId === saveRef.current.userId ? { kind: 'ok', data: c, stale: true } : { kind: 'offline' });
     });
   };
 
   useEffect(() => {
     alive.current = true;
     if (view.kind === 'loading') load();
-    void myRowKey(save.playerId).then((k) => alive.current && setMyKey(k));
+    void myRowKey(save.userId).then((k) => alive.current && setMyKey(k));
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => {
       alive.current = false;

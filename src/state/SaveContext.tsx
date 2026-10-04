@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { newToken, newUserId } from '../save/userId';
 import { FxSettingsProvider, prefersReducedMotion } from '../fx/fxSettings';
 import {
   type BackupInfo,
@@ -64,9 +65,13 @@ export function randomId(): string {
   return /^0+$/.test(hex) ? randomId() : hex;
 }
 
-/** playerId がまだ無ければ作る（新しいセーブ・古いセーブからの移行・引き継ぎ） */
+/** playerId・ユーザーID がまだ無ければ作る（新しいセーブ・古いセーブからの移行・引き継ぎ。ユーザーID は1回だけ。v2.0-J） */
 function withPlayerId(data: SaveData): SaveData {
-  return data.playerId ? data : { ...data, playerId: randomId() };
+  let d = data.playerId ? data : { ...data, playerId: randomId() };
+  if (!d.userId) d = { ...d, userId: newUserId(), userIdRegistered: false };
+  // サーバーの合言葉（token）も起動の時に作っておく（登録を送り直しても同じ token になるように。v2.0-J）
+  if (!d.ranking.token) d = { ...d, ranking: { ...d.ranking, token: newToken() } };
+  return d;
 }
 
 /** 起動時の読み込み。無ければ初期データ。起動のたびに保存し直して期限を延ばす（SPEC §12-5） */

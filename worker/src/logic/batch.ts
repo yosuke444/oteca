@@ -29,6 +29,8 @@ export type Player = {
   best: number;
   /** 最後に数えた試合のあった まとめ処理の時刻（0＝まだ） */
   lastPlayed: number;
+  /** 最後に数えた試合の試合ID（v2.0-J。端末が「自分の最後の試合が数えられたか」を比べる。'' ＝まだ） */
+  lastMatch?: string;
 };
 
 export type BatchResult = {
@@ -107,6 +109,7 @@ export function runBatch(players: ReadonlyMap<string, Player>, results: readonly
       else p.losses += 1;
       p.best = Math.max(p.best, p.rate);
       p.lastPlayed = now;
+      p.lastMatch = r.matchId;
       changed.add(p.id);
     }
     counted += 1;

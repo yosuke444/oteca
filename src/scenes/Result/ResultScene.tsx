@@ -229,8 +229,8 @@ export function ResultScene() {
         daily?.(d);
         if (features.ranking) {
           // ランキング（v2.0-I）：端末で計算したレートは「かり」。結果をサーバーへ送る（送れるまで セーブに残す）
-          if (outcome !== 'void') markProvisional(d);
-          if (rated.matchId) queueReport(d, { matchId: rated.matchId, winner: reportWinner(outcome, d.playerId, rated.oppId) });
+          if (outcome !== 'void') markProvisional(d, Date.now(), rated.matchId ?? '');
+          if (rated.matchId) queueReport(d, { matchId: rated.matchId, winner: reportWinner(outcome, d.userId, rated.oppId) });
         }
       }
     });

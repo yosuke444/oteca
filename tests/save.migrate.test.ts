@@ -2,15 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
 import { STARTER_COINS, classicDeckNos, starterCollection } from '../src/data/starterDeck';
 import { validateDeck } from '../src/engine';
-import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, type SaveDataV6, encodeBody, encodeSave } from '../src/save/binary';
+import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, type SaveDataV6, type SaveDataV7, encodeBody, encodeSave } from '../src/save/binary';
+import { applyRateResult } from '../src/online/rate';
+import { isUserId } from '../src/save/userId';
 import { checkSavedDeck } from '../src/save/collection';
 import { openSave, sealBytes } from '../src/save/cookieStore';
-import { OLD_STAGE_NAMES, dayStartMs, decodeSave, migrate, newStageNo, upgradeToV6, upgradeToV7 } from '../src/save/migrate';
+import { OLD_STAGE_NAMES, dayStartMs, decodeSave, migrate, newStageNo, upgradeToV6, upgradeToV7, upgradeToV8 } from '../src/save/migrate';
 import { STORY, stageByNo } from '../src/story/story';
 import { DECK_SLOTS, type SaveData, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from '../src/save/saveData';
 import { decodeTransferCode, encodeTransferBytes } from '../src/save/transferCode';
 import { makeRandom } from './save.helpers';
 import { encodeOldSave, hexToBytes, oldCookie, oldTransferCode, toHex } from './save.oldFormat';
+
+/** 移行で作るユーザーID（ランダムなので形だけ比べる） */
+const ANY_USER_ID = expect.stringMatching(/^[1-9]\d{14}$/) as unknown as string;
 
 /**
  * セーブ形式の移行（SPEC §12-3・§12-3b、テスト V05・V06・V07）
@@ -94,6 +99,9 @@ describe('形式の移行（固定の見本）', () => {
     },
     updateNoticeSeen: false,
     playerId: '',
+    // 形式版数8 への移行でユーザーID を作る（ランダム。まだ登録していない）
+    userId: ANY_USER_ID,
+    userIdRegistered: false,
     loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     rate: 100,
@@ -102,7 +110,7 @@ describe('形式の移行（固定の見本）', () => {
     pendingRateMatch: null,
     trade: { doneIds: [] },
     // 形式版数7 への移行で、名前を載せる設定はオン。レートは初期値なので「かり」ではない
-    ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0 },
+    ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0, lastMatchId: '' },
     tutorial: { done: false, gachaInviteShown: false, step: 0 },
     daily: emptyDaily(),
   });
@@ -174,8 +182,19 @@ describe('形式の移行（固定の見本）', () => {
   /**
    * 形式版数6 → 7（v2.0-I）：見本のレートは 135（初期値でない）ので「かり」。名前を載せる設定はオン、受け取った時刻は 0
    */
-  const toV7 = (d: SaveDataV6): SaveData => ({ ...d, ranking: { ...d.ranking, optIn: true, provisional: d.rate !== 100, syncedAt: 0, playedAt: 0 } });
-  const V4_AS_LATEST = toV7(renumbered(V4_AS_V5));
+  const toV7 = (d: SaveDataV6): SaveDataV7 => ({ ...d, ranking: { ...d.ranking, optIn: true, provisional: d.rate !== 100, syncedAt: 0, playedAt: 0 } });
+  /**
+   * 形式版数7 → 8（v2.0-J）：ユーザーID を作る（ランダムなので形だけ比べる）。直前の相手・送れなかった報告は消す。
+   * レート対戦の途中で閉じた印は、ここで負けとして計算する
+   */
+  const toV8 = (d: SaveDataV7): SaveData => {
+    const x = structuredClone(d);
+    if (x.pendingRateMatch) applyRateResult(x, x.pendingRateMatch.opponentRate, 'lose');
+    return { ...x, userId: ANY_USER_ID, userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, ranking: { ...x.ranking, unsent: [], lastMatchId: '' } };
+  };
+  /** 今の形式で書ける形（テスト用：ユーザーID を決まった値に） */
+  const asLatest = (d: SaveDataV7): SaveData => ({ ...d, userId: '123456789012345', userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, ranking: { ...d.ranking, lastMatchId: '' } });
+  const V4_AS_LATEST = toV8(toV7(renumbered(V4_AS_V5)));
   /** 形式版数5（v2.1-L）：すべての項目に初期値でない値を入れた見本 */
   const V5_EXPECTED: SaveDataV6 = {
     ...V4_AS_V5,
@@ -193,13 +212,29 @@ describe('形式の移行（固定の見本）', () => {
   };
   /** 形式版数6（v2.1-N）：並びは5と同じ。ステージは新しい番号 */
   const V6_EXPECTED: SaveDataV6 = renumbered(V5_EXPECTED);
-  const V5_AS_LATEST = toV7(V6_EXPECTED);
-  const V6_AS_LATEST = toV7(V6_EXPECTED);
-  /** 形式版数7（v2.0-I。今の形式）：ランキングの項目にも初期値でない値を入れた見本 */
-  const V7_EXPECTED: SaveData = {
-    ...V6_AS_LATEST,
+  const V6_AS_V7 = toV7(V6_EXPECTED);
+  const V5_AS_LATEST = toV8(V6_AS_V7);
+  const V6_AS_LATEST = toV8(V6_AS_V7);
+  /** 形式版数7（v2.0-I）：ランキングの項目にも初期値でない値を入れた見本 */
+  const V7_EXPECTED: SaveDataV7 = {
+    ...V6_AS_V7,
     ranking: { token: 'tok-xyz', optIn: false, unsent: ['r1', '報告'], provisional: true, syncedAt: 1791012345678, playedAt: 1791099999999 },
   };
+  const V7_AS_LATEST = toV8(V7_EXPECTED);
+  /** 形式版数8（v2.0-J。今の形式）：ユーザーID・登録の印・相手のユーザーID・最後の試合ID にも値を入れた見本 */
+  const V8_EXPECTED: SaveData = {
+    ...V7_EXPECTED,
+    userId: '123456789012345',
+    userIdRegistered: true,
+    lastRateOpponentId: '987654321098765',
+    pendingRateMatch: { opponentId: '111112222233333', opponentRate: 98 },
+    ranking: { ...V7_EXPECTED.ranking, lastMatchId: 'abcdef0123456789' },
+  };
+  const V8_FIXTURE_HEX =
+    '0801d20909e382aae38386e382aba009016b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a0000014201' +
+    '0c000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ce' +
+    'ae9e85903489d1d4091403010304010a008701090296010003824430f8500d010000650e548952f56202aaaaaaaaaaaaaaaa000000000000000107746f6b2d7879' +
+    '7a0202723106e5a0b1e5918a108bd1d4090306010100ac020004000001ceae9e859034ffad84af9034f9beb7b088891cabcdef0123456789';
   const V7_FIXTURE_HEX =
     '0701d20909e382aae38386e382aba009012b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a0000014201' +
     '0c000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ce' +
@@ -281,18 +316,41 @@ describe('形式の移行（固定の見本）', () => {
     expect(V6_FIXTURE_HEX.slice(2).length).toBe(V5_FIXTURE_HEX.slice(2).length);
     expect(decodeSave(hexToBytes(V6_FIXTURE_HEX))).toEqual(V6_AS_LATEST);
     expect(migrate(6, V6_EXPECTED)).toEqual(V6_AS_LATEST);
-    expect(V6_AS_LATEST.ranking).toEqual({ token: 'tok-xyz', optIn: true, unsent: ['r1', '報告'], provisional: true, syncedAt: 0, playedAt: 0 });
+    expect(V6_AS_V7.ranking).toEqual({ token: 'tok-xyz', optIn: true, unsent: ['r1', '報告'], provisional: true, syncedAt: 0, playedAt: 0 });
     // レートが初期値（100）なら「かり」にしない
     expect(upgradeToV7({ ...V6_EXPECTED, rate: 100 }).ranking.provisional).toBe(false);
   });
 
-  it('V05 今の形式（形式版数7）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    expect(toHex(encodeSave(V7_EXPECTED))).toBe(V7_FIXTURE_HEX);
+  it('V05 形式版数7（v2.0-I）→ 最新：ユーザーID を作り、途中で閉じたレート対戦は負けに、直前の相手と送れなかった報告は消す', () => {
+    expect(toHex(encodeBody(V7_EXPECTED, 7))).toBe(V7_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V7_FIXTURE_HEX))).toEqual(V7_AS_LATEST);
+    const up = upgradeToV8(V7_EXPECTED);
+    expect(isUserId(up.userId)).toBe(true);
+    // 見本は「レート 135・途中で閉じた試合（相手 98）」：負けとして計算した
+    expect(up.rate).toBeLessThan(135);
+    expect(up.rateStats.losses).toBe(V7_EXPECTED.rateStats.losses + 1);
+    // 乱数を決めれば同じ ID、違えば（ほぼ）違う ID
+    expect(upgradeToV8(V7_EXPECTED, (n) => new Uint8Array(n)).userId).toBe('100000000000000');
+    expect(upgradeToV8(V7_EXPECTED, (n) => new Uint8Array(n).fill(255)).userId).toMatch(/^[1-9]\d{14}$/);
+  });
+
+  it('V05 今の形式（形式版数8）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
+    expect(toHex(encodeSave(V8_EXPECTED))).toBe(V8_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V8_FIXTURE_HEX))).toEqual(V8_EXPECTED);
+    expect(migrate(8, V8_EXPECTED)).toEqual(V8_EXPECTED);
+    // 印の1バイトに登録の印（64）
+    expect(hexToBytes(V8_FIXTURE_HEX)[17] & 64).toBe(64);
+    // 形式版数7 までは、印の 64 は読めない
+    const bad7 = hexToBytes(V7_FIXTURE_HEX);
+    bad7[17] |= 64;
+    expect(() => decodeSave(bad7)).toThrow('印');
+  });
+
+  it('V05 形式版数7 の並び（形式版数6 ＋ 末尾に syncedAt・playedAt）', () => {
     // 並びは形式版数6と同じ ＋ 末尾に syncedAt・playedAt（先頭の版数と印の1バイトだけ違う）
     const v6 = toHex(encodeBody({ ...V7_EXPECTED, ranking: { token: 'tok-xyz', optIn: false, unsent: ['r1', '報告'] } }, 6));
     expect(V7_FIXTURE_HEX.startsWith('07' + v6.slice(2, 34) + '2b' + v6.slice(36))).toBe(true);
-    expect(decodeSave(hexToBytes(V7_FIXTURE_HEX))).toEqual(V7_EXPECTED);
-    expect(migrate(7, V7_EXPECTED)).toEqual(V7_EXPECTED);
+
     // 形式版数6 までは、印の 32 は読めない
     const bad = hexToBytes(V6_FIXTURE_HEX);
     bad[17] |= 32;
@@ -300,7 +358,7 @@ describe('形式の移行（固定の見本）', () => {
   });
 
   it('V05 読めない形式版数・余分なバイト・壊れた値はエラーになる', () => {
-    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX, V6_FIXTURE_HEX, V7_FIXTURE_HEX]) {
+    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX, V6_FIXTURE_HEX, V7_FIXTURE_HEX, V8_FIXTURE_HEX]) {
       const bytes = hexToBytes(hex);
       const future = bytes.slice();
       future[0] = 99;
@@ -328,9 +386,9 @@ describe('形式の移行（固定の見本）', () => {
     const step = [...base.slice(0, n - 17), 0x80, 0x02, ...base.slice(n - 16)];
     expect(() => decodeSave(new Uint8Array(step))).toThrow('範囲外');
     // 書く時も同じ範囲で止める
-    expect(() => encodeSave(toV7({ ...V5_EXPECTED, tutorial: { ...V5_EXPECTED.tutorial, step: 256 } }))).toThrow('tutorial.step');
+    expect(() => encodeSave(asLatest(toV7({ ...V5_EXPECTED, tutorial: { ...V5_EXPECTED.tutorial, step: 256 } })))).toThrow('tutorial.step');
     const m = V5_EXPECTED.daily.missions[0];
-    expect(() => encodeSave(toV7({ ...V5_EXPECTED, daily: { ...V5_EXPECTED.daily, missions: [m, m] } }))).toThrow('2つ');
+    expect(() => encodeSave(asLatest(toV7({ ...V5_EXPECTED, daily: { ...V5_EXPECTED.daily, missions: [m, m] } })))).toThrow('2つ');
   });
 
   it('V06 形式版数4（v2.0）の Cookie の中身と引き継ぎコードが、v2.1 でも読める', async () => {
@@ -516,8 +574,10 @@ function expectMigrated(old: SaveDataV3, got: SaveData, where: string) {
   expect(got.unlockAll, where).toBe(false);
   expect(got.updateNoticeSeen, where).toBe(false);
   expect(got.tutorial, where).toEqual({ done: false, gachaInviteShown: false, step: 0 });
-  const { playerId, ...later } = laterFieldsDefault();
+  const { playerId, userId: _u, ...later } = laterFieldsDefault();
   expect(got.playerId).toBe(playerId);
+  // ユーザーID は移行で1回だけ作る（ランダム）
+  expect(got.userId, where).toMatch(/^[1-9][0-9]{14}$/);
   for (const [k, v] of Object.entries(later)) if (k !== 'tutorial') expect(got[k as keyof SaveData], `${where} ${k}`).toEqual(v);
 }
 

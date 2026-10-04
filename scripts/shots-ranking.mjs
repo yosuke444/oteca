@@ -1,7 +1,7 @@
 // ランキング（S19）と待合所のスクリーンショット（v2.0-I。SPEC §16-2i）。両方の言語・2つの大きさ。
 // 手元の Worker（wrangler dev。ポート 8787。まっさらな保存領域）に 120人を入れて、?api=local で開く。
 // 使い方：npm run dev（ポート 5175）のまま node scripts/shots-ranking.mjs
-import { LOCAL_ADMIN_KEY as ADMIN, api, pid, startWorker } from './worker-dev.mjs';
+import { LOCAL_ADMIN_KEY as ADMIN, api, newToken, pid, startWorker } from './worker-dev.mjs';
 import { SIZES, launch, openPage, shot } from './pw.mjs';
 
 const NAMES = ['あおぞら', 'たぬき', 'ばかくん', 'ひまわり', 'もぐら', 'ゆきだるま', 'はやぶさ', 'こんぶ', 'ぺんぎん', 'かみなり', 'おにぎり', 'すいか'];
@@ -13,9 +13,10 @@ try {
   // 120人：名前を付けて登録し、試合結果を入れる（自分 ME は上位に）
   const ids = Array.from({ length: 120 }, (_, i) => pid(i + 1, 'f'));
   for (let i = 0; i < ids.length; i++)
-    await api(B, '/register', { method: 'POST', origin: ORIGIN, body: { playerId: ids[i], name: `${NAMES[i % NAMES.length]}${i >= NAMES.length ? Math.floor(i / NAMES.length) : ''}`, optIn: i % 9 !== 4 } });
+    await api(B, '/register', { method: 'POST', origin: ORIGIN, body: { userId: ids[i], token: newToken(), name: `${NAMES[i % NAMES.length]}${i >= NAMES.length ? Math.floor(i / NAMES.length) : ''}`, optIn: i % 9 !== 4 } });
   const ME = pid(999, 'f');
-  const token = (await api(B, '/register', { method: 'POST', origin: ORIGIN, body: { playerId: ME, name: 'じぶん', optIn: true } })).json.token;
+  const token = newToken();
+  await api(B, '/register', { method: 'POST', origin: ORIGIN, body: { userId: ME, token, name: 'じぶん', optIn: true } });
   const now = Date.now();
   const results = [];
   for (let i = 0; i < ids.length; i++) for (let j = 1; j <= 3; j++) results.push({ a: ids[i], b: ids[(i + j * 7) % ids.length], winner: i % (j + 2) ? ids[i] : ids[(i + j * 7) % ids.length], at: now - 100000 + results.length });
@@ -41,8 +42,9 @@ try {
             if (cache) localStorage.setItem('oteca.rankingCache', JSON.stringify(cache));
             const d = sd.createDefaultSave();
             d.playerName = 'じぶん';
-            // まだ のっていない人は、別の playerId
-            d.playerId = withToken ? ME : 'ffff00000000abcd';
+            // まだ のっていない人は、別のユーザーID（まだ登録していない）
+            d.userId = withToken ? ME : '600000000000077';
+            d.userIdRegistered = withToken;
             d.rate = 163;
             d.ranking.token = withToken ? token : '';
             d.ranking.provisional = provisional;

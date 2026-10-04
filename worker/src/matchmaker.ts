@@ -171,9 +171,22 @@ export class Matchmaker extends DurableObject<Env> {
         }
         break;
       }
+      case '/rename': {
+        // 今までの playerId → ユーザーID（v2.0-J。付け替えた時に、まだ数えていない試合も付け替える）
+        const b = (await req.json().catch(() => null)) as { from?: string; to?: string } | null;
+        const from = String(b?.from ?? '');
+        const to = String(b?.to ?? '');
+        if (!/^[0-9a-f]{16}$/.test(from) || !/^[1-9][0-9]{14}$/.test(to)) {
+          res = Response.json({ ok: false }, { status: 400 });
+          break;
+        }
+        for (const col of ['a', 'b', 'winner', 'rep_a', 'rep_b']) this.exec(`UPDATE games SET ${col} = ? WHERE ${col} = ?`, to, from);
+        res = Response.json({ ok: true });
+        break;
+      }
       case '/debug/clear': {
         // 確かめる時用：テストの人の試合だけを消す（テストの後片づけ。管理キーが要る）
-        const ids = JSON.stringify(((await req.json().catch(() => null)) as { playerIds?: string[] } | null)?.playerIds ?? []);
+        const ids = JSON.stringify(((await req.json().catch(() => null)) as { userIds?: string[] } | null)?.userIds ?? []);
         this.exec(`DELETE FROM games WHERE a IN (SELECT value FROM json_each(?)) OR b IN (SELECT value FROM json_each(?))`, ids, ids);
         res = Response.json({ ok: true });
         break;
@@ -203,8 +216,8 @@ export class Matchmaker extends DurableObject<Env> {
   private lobby(req: Request): Response {
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('expected websocket', { status: 426 });
     const pair = new WebSocketPair();
-    // 休止機能（Hibernation API）：待っている間は受付係が眠れる。Worker が token で確かめた playerId を札（tag）に付ける
-    const playerId = req.headers.get('x-player-id') ?? '';
+    // 休止機能（Hibernation API）：待っている間は受付係が眠れる。Worker が token で確かめたユーザーID を札（tag）に付ける
+    const playerId = req.headers.get('x-user-id') ?? '';
     this.ctx.acceptWebSocket(pair[1], playerId ? [playerId] : []);
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
@@ -236,7 +249,7 @@ export class Matchmaker extends DurableObject<Env> {
     const cur = ws.deserializeAttachment() as Attachment | null;
     if (cur) return; // 2回目の join は無視
     const j = cleanJoin(m.body);
-    // 本人の playerId でなければ受け付けない（つないだ時に token で確かめた playerId と同じか）
+    // 本人のユーザーID でなければ受け付けない（つないだ時に token で確かめたユーザーID と同じか）
     if (j && this.ctx.getTags(ws)[0] !== j.playerId) {
       ws.send(JSON.stringify({ t: 'error', body: { reason: 'auth' } }));
       ws.close(1008, 'auth');
@@ -300,7 +313,7 @@ export class Matchmaker extends DurableObject<Env> {
         if (!c) continue;
         used.add(me.id);
         c.ws.serializeAttachment({ ...c.att, state: 'done' });
-        c.ws.send(JSON.stringify({ t: 'paired', body: { matchId, roomId, opponent: { playerId: opp.playerId, name: opp.name, rate: opp.rate } } }));
+        c.ws.send(JSON.stringify({ t: 'paired', body: { matchId, roomId, opponent: { userId: opp.playerId, name: opp.name, rate: opp.rate } } }));
         // 組めたら受付係との接続は切る（ブラウザの側でも切る）
         try {
           c.ws.close(1000, 'paired');

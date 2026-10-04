@@ -1,5 +1,6 @@
 import { apiBase } from '../config/api';
 import { nextBatchAt } from './batchTime';
+import { newUserId } from '../save/userId';
 import { sha256, toHex } from '../net/sha256';
 import type { SaveData } from '../save/saveData';
 import { type RankingData, type ServerMe, type UnsentReport, applyServerRate, decodeUnsent, removeReport } from './ranking';
@@ -31,84 +32,121 @@ async function call(path: string, init?: RequestInit): Promise<Response | null> 
 
 const post = (path: string, body: unknown) => call(path, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'text/plain;charset=UTF-8' } });
 
-/** 新しい playerId（8バイトの16進数） */
-function newPlayerId(): string {
-  const b = new Uint8Array(8);
-  crypto.getRandomValues(b);
-  return [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
-}
-
 /** 名前を載せる時だけ名前を送る（載せない設定なら送らない） */
 function profileName(save: Pick<SaveData, 'playerName' | 'ranking'>): string {
   return save.ranking.optIn ? save.playerName : '';
 }
 
-/**
- * 登録して token をもらう（初めてレート対戦をする時。token はセーブに入る）。
- * その playerId がもう登録されていた（409。token をなくした・他人に先に登録された）時は、playerId を作り直して登録し直す
- * （まだ送れていない報告は、前の playerId の試合なので捨てる）。
- * @returns token。つながらない時は ''
- */
+/** 自分の判別（ユーザーID と token） */
+export type Identity = { token: string; userId: string };
+
+/** 登録して token を使えるようにする（ensureIdentity の token だけ） */
 export async function ensureToken(save: SaveData, update: Update): Promise<string> {
   return (await ensureIdentity(save, update))?.token ?? '';
 }
 
-/** ensureToken と同じ。作り直した playerId も返す（画面の描き直しの前に使う時） */
-export async function ensureIdentity(save: SaveData, update: Update): Promise<{ token: string; playerId: string } | null> {
-  if (save.ranking.token) return { token: save.ranking.token, playerId: save.playerId };
-  if (!save.playerId) return null;
-  let playerId = save.playerId;
-  for (let i = 0; i < 2; i++) {
-    const res = await post('/register', { playerId, name: profileName(save), optIn: save.ranking.optIn });
+/** 登録の途中（同じ時に2回登録しないように、1つにまとめる） */
+let registering: { userId: string; promise: Promise<Identity | null> } | null = null;
+/** この起動で登録できた ID（画面の描き直しの前の古いセーブで聞かれても、同じ答えを返す。from は作り直す前の ID） */
+let registered: (Identity & { from: string }) | null = null;
+
+/** テスト用：覚えている登録を忘れる */
+export function forgetRegistration(): void {
+  registering = null;
+  registered = null;
+}
+
+/**
+ * ユーザーID をサーバーに登録する（v2.0-J。初めてサーバーにつながった時。SPEC §11-9）。
+ * - token は起動の時に端末が作ってセーブに入れてある（送り直しても同じ token。サーバーにはハッシュだけを覚えてもらう）。
+ * - そのユーザーID がほかの人に使われていたら（409）、登録の前だけユーザーID を作り直して登録し直す。登録できた後は変えない。
+ * - 今までの人（v2.0-I で登録した playerId）の行は、token が合えばサーバーがユーザーID に付け替える（レート・勝敗を引き継ぐ）。
+ * - 同じ時に何回呼んでも、登録は1回にまとめる。
+ * @returns 登録できたユーザーID と token。つながらない時は null（画面の描き直しの前に使えるように返す）
+ */
+export async function ensureIdentity(save: SaveData, update: Update): Promise<Identity | null> {
+  if (!save.userId || !save.ranking.token) return null;
+  if (save.userIdRegistered) return { token: save.ranking.token, userId: save.userId };
+  if (registered && (registered.from === save.userId || registered.userId === save.userId)) return { token: registered.token, userId: registered.userId };
+  if (registering && registering.userId === save.userId) return registering.promise;
+  const promise = registerUser(save, update, true).finally(() => {
+    if (registering?.promise === promise) registering = null;
+  });
+  registering = { userId: save.userId, promise };
+  return promise;
+}
+
+/**
+ * 登録を送る
+ * @param allowNewId 409 の時にユーザーID を作り直してよいか（一度も登録できていない時だけ）
+ */
+async function registerUser(save: SaveData, update: Update, allowNewId: boolean): Promise<Identity | null> {
+  const from = save.userId;
+  const token = save.ranking.token;
+  let userId = from;
+  for (let i = 0; i < 3; i++) {
+    const res = await post('/register', {
+      userId,
+      token,
+      // 今までの人：v2.0-I で登録した playerId（サーバーに、その playerId と同じ token の行があれば付け替える。無ければ何もしない）
+      ...(/^[0-9a-f]{16}$/.test(save.playerId) ? { legacyPlayerId: save.playerId } : {}),
+      name: profileName(save),
+      optIn: save.ranking.optIn,
+    });
     if (res?.status === 409) {
-      playerId = newPlayerId();
+      if (!allowNewId) return null;
+      // ほかの人のユーザーID：作り直す（まだ登録していないので変えてよい）
+      userId = newUserId();
       continue;
     }
     if (!res || !res.ok) return null;
-    const body = (await res.json().catch(() => null)) as { token?: unknown } | null;
-    const token = typeof body?.token === 'string' && /^[0-9a-f]{32}$/.test(body.token) ? body.token : '';
-    if (!token) return null;
-    const changed = playerId !== save.playerId;
+    const changed = userId !== from;
+    registered = { userId, token, from };
     update((d) => {
-      d.ranking.token = token;
-      if (changed) {
-        d.playerId = playerId;
-        d.ranking.unsent = [];
-      }
+      // 登録の途中で、引き継ぎコードで別のセーブに入れ替えていたら書かない
+      if (d.userId !== from || d.ranking.token !== token) return;
+      d.userId = userId;
+      d.userIdRegistered = true;
+      // 前のユーザーID で書いた送れなかった報告は、もう送れない
+      if (changed) d.ranking.unsent = [];
     });
-    return { token, playerId };
+    return { token, userId };
   }
   return null;
 }
 
+/** サーバーに自分の行が無かった（401）：同じユーザーID と token で登録し直す（ユーザーID は変えない） */
+async function registerAgain(save: SaveData, update: Update, id: Identity): Promise<boolean> {
+  return !!(await registerUser({ ...save, userId: id.userId, ranking: { ...save.ranking, token: id.token } }, update, false));
+}
+
 /**
  * 1つの報告を送る
- * @returns ok＝受け付けた、drop＝送り直しても意味がない（試合の2人でない・形が変）、retry＝あとで送り直す
+ * @returns ok＝受け付けた、drop＝送り直しても意味がない（試合の2人でない・形が変）、retry＝あとで送り直す、auth＝token が使えない
  */
-export async function sendReport(save: Pick<SaveData, 'playerId' | 'ranking'>, r: UnsentReport): Promise<'ok' | 'drop' | 'retry' | 'auth'> {
+export async function sendReport(save: Pick<SaveData, 'userId' | 'ranking'>, r: UnsentReport): Promise<'ok' | 'drop' | 'retry' | 'auth'> {
   if (!save.ranking.token) return 'retry';
-  const res = await post('/result', { matchId: r.matchId, playerId: save.playerId, token: save.ranking.token, winner: r.winner });
+  const res = await post('/result', { matchId: r.matchId, userId: save.userId, token: save.ranking.token, winner: r.winner });
   if (!res) return 'retry';
   if (res.ok) return 'ok';
-  // token が使えない（サーバーのデータベースを作り直した時など）：token を消して、次に登録し直す
+  // token が使えない（サーバーのデータベースを作り直した時など）：次に登録し直す
   if (res.status === 401) return 'auth';
-  // 401（token の誤り）・400・403（試合の2人でない）は送り直さない
-  if (res.status === 400 || res.status === 401 || res.status === 403) return 'drop';
+  // 400・403（試合の2人でない・停止中）は送り直さない
+  if (res.status === 400 || res.status === 403) return 'drop';
   return 'retry';
 }
 
 /** 送れなかった報告を送り直す（起動した時・次の試合の後）。送れたものはセーブから消す */
 let flushing = false;
-export async function flushReports(getSave: () => SaveData, update: Update): Promise<void> {
+export async function flushReports(getSave: () => SaveData, update: Update, known?: Identity): Promise<void> {
   if (flushing) return;
   flushing = true;
   try {
     const save = getSave();
     if (!save.ranking.unsent.length) return;
-    const id = await ensureIdentity(save, update);
+    const id = known ?? (await ensureIdentity(save, update));
     if (!id) return;
-    const { token } = id;
-    // 登録した直後は、画面の描き直しの前なのでセーブがまだ古い：もらった token と今の playerId を直接使う
+    // 登録した直後は、画面の描き直しの前なのでセーブがまだ古い：もらった token と今のユーザーID を直接使う
     for (const u of [...getSave().ranking.unsent]) {
       const r = decodeUnsent(u);
       if (!r) {
@@ -116,13 +154,12 @@ export async function flushReports(getSave: () => SaveData, update: Update): Pro
         continue;
       }
       const cur = getSave();
-      const got = await sendReport({ playerId: id.playerId, ranking: { ...cur.ranking, token } }, r);
+      const got = await sendReport({ userId: id.userId, ranking: { ...cur.ranking, token: id.token } }, r);
       if (got === 'retry') break;
       if (got === 'auth') {
-        update((d) => {
-          d.ranking.token = '';
-          removeReport(d, r.matchId);
-        });
+        // サーバーに自分の行が無い（データベースを作り直した時など）：同じユーザーID と token で登録し直す（ユーザーID は変えない）
+        if (await registerAgain(cur, update, id)) continue;
+        update((d) => removeReport(d, r.matchId));
         break;
       }
       update((d) => removeReport(d, r.matchId));
@@ -135,31 +172,34 @@ export async function flushReports(getSave: () => SaveData, update: Update): Pro
 /** 名前・載せる設定をサーバーに知らせる（設定を変えた時。次の更新から反映） */
 export async function sendProfile(save: SaveData): Promise<boolean> {
   if (!save.ranking.token) return false;
-  const res = await post('/profile', { playerId: save.playerId, token: save.ranking.token, name: profileName(save), optIn: save.ranking.optIn });
+  if (!save.userIdRegistered) return false;
+  const res = await post('/profile', { userId: save.userId, token: save.ranking.token, name: profileName(save), optIn: save.ranking.optIn });
   return !!res?.ok;
 }
 
-function authQuery(save: Pick<SaveData, 'playerId' | 'ranking'>): string {
-  if (!save.ranking.token || !save.playerId) return '';
-  return `?playerId=${save.playerId}&token=${save.ranking.token}`;
+function authQuery(save: Pick<SaveData, 'userId' | 'userIdRegistered' | 'ranking'>): string {
+  if (!save.ranking.token || !save.userIdRegistered) return '';
+  return `?userId=${save.userId}&token=${save.ranking.token}`;
 }
 
 /** 自分の正式なデータ（GET /me） */
 export async function fetchMe(save: SaveData): Promise<{ me: ServerMe | null; updatedAt: number; nextAt: number } | null> {
-  if (!save.ranking.token) return null;
+  if (!save.ranking.token || !save.userIdRegistered) return null;
   const res = await call(`/me${authQuery(save)}`);
   if (!res?.ok) return null;
   return (await res.json().catch(() => null)) as { me: ServerMe | null; updatedAt: number; nextAt: number } | null;
 }
 
 /**
- * 起動した時：送れなかった報告を送り、次の更新の後なら正式なレートで上書きする（SPEC §7 S15）。
+ * 起動した時：ユーザーID を登録し（初めての時）、送れなかった報告を送り、次の更新の後なら正式なレートで上書きする（SPEC §7 S15）。
  * 名前・載せる設定がサーバーと違えば知らせる
  */
 export async function syncRanking(getSave: () => SaveData, update: Update): Promise<void> {
-  await flushReports(getSave, update);
-  const save = getSave();
-  if (!save.ranking.token) return;
+  const id = await ensureIdentity(getSave(), update);
+  if (!id) return;
+  await flushReports(getSave, update, id);
+  // 登録した直後は、画面の描き直しの前なのでセーブがまだ古い
+  const save = { ...getSave(), userId: id.userId, userIdRegistered: true, ranking: { ...getSave().ranking, token: id.token } };
   // 開くたびに聞く（1回 D1 の数行）。同じ更新で2回上書きしないのは applyServerRate が受け取った時刻で決める
   // （次の更新の時刻まで聞かない、にすると、まとめ処理を手で動かした時に受け取れなくなる）
   const got = await fetchMe(save);
@@ -205,12 +245,13 @@ export async function fetchRanking(save: SaveData): Promise<RankingCache | null>
   if (!res?.ok) return null;
   const body = (await res.json().catch(() => null)) as RankingData | null;
   if (!body || !Array.isArray(body.top)) return null;
-  const c: RankingCache = { ...body, playerId: save.playerId, savedAt: Date.now() };
+  // 保存した一覧が誰のものか（ユーザーID）
+  const c: RankingCache = { ...body, playerId: save.userId, savedAt: Date.now() };
   writeRankingCache(c);
   return c;
 }
 
-/** 自分の行の印（サーバーと同じ：playerId の SHA-256 の先頭12文字） */
-export async function myRowKey(playerId: string): Promise<string> {
-  return toHex(await sha256(new TextEncoder().encode(playerId))).slice(0, 12);
+/** 自分の行の印（サーバーと同じ：ユーザーID の SHA-256 の先頭12文字） */
+export async function myRowKey(userId: string): Promise<string> {
+  return toHex(await sha256(new TextEncoder().encode(userId))).slice(0, 12);
 }

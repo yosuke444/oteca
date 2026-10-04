@@ -1,3 +1,4 @@
+import { hexToUserId, isUserId, userIdToHex } from './userId';
 import {
   CARD_NO_MAX,
   CPU_LEVEL_COUNT,
@@ -14,6 +15,7 @@ import {
   TRADE_IDS_MAX,
   TUTORIAL_STEP_MAX,
   VOLUME_MAX,
+  type Ranking,
   type SaveData,
   type SavedDeck,
   type Settings,
@@ -32,15 +34,22 @@ import {
  * 1＝v1.3 まで／2＝v1.4（末尾に cpuStats）／3＝v2.0-A（末尾に lang）／4＝v2.0-B（デッキ20個・所持カードなど。並びを作り直した）／
  * 5＝v2.1-L（ログボは受け取った時刻 claimedAt、末尾に tutorial.step と daily）／
  * 6＝v2.1-N（並びは5と同じ。ストーリーのステージ番号を新しいマップの番号に付け替えた印）／
- * 7＝v2.0-I（印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt）
+ * 7＝v2.0-I（印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt）／
+ * 8＝v2.0-J（印に userIdRegistered、末尾に userId と ranking.lastMatchId。直前の相手・レート対戦中の相手はユーザーID）
  */
-export const FORMAT_VERSION = 7;
+export const FORMAT_VERSION = 8;
+
+/** 形式版数7のランキングの項目（lastMatchId が無い） */
+export type RankingV7 = Omit<Ranking, 'lastMatchId'>;
+
+/** 形式版数7の形（v2.0-I。ユーザーID が無い。直前の相手などは playerId） */
+export type SaveDataV7 = Omit<SaveData, 'userId' | 'userIdRegistered' | 'ranking'> & { ranking: RankingV7 };
 
 /** 形式版数6までのランキングの項目（token・optIn・unsent だけ） */
 export type RankingV6 = { token: string; optIn: boolean; unsent: string[] };
 
 /** 形式版数5・6の形（v2.1-L〜N。ランキングの「かり」と受け取った時刻が無い） */
-export type SaveDataV6 = Omit<SaveData, 'ranking'> & { ranking: RankingV6 };
+export type SaveDataV6 = Omit<SaveDataV7, 'ranking'> & { ranking: RankingV6 };
 
 /** 形式版数4の形（v2.0-B。ログボは日付、tutorial.step・daily が無い） */
 export type SaveDataV4 = Omit<SaveDataV6, 'loginBonus' | 'tutorial' | 'daily'> & {
@@ -173,11 +182,11 @@ export class ByteReader {
 }
 
 /** 印のビット（形式版数4） */
-const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16, rankingProvisional: 32 } as const;
+const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16, rankingProvisional: 32, userIdRegistered: 64 } as const;
 
-/** 最新の形式（形式版数7）でバイト列にする */
+/** 最新の形式（形式版数8）でバイト列にする */
 export function encodeSave(data: SaveData): Uint8Array {
-  return encodeBody(data, FORMAT_VERSION as 7);
+  return encodeBody(data, FORMAT_VERSION as 8);
 }
 
 /**
@@ -185,7 +194,9 @@ export function encodeSave(data: SaveData): Uint8Array {
  * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く。6 は 5 と同じ並び（ステージ番号の付け替えの印）。
  * 7 は 6 と同じ並びで、印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt が付く
  */
-export function encodeBody(data: SaveData | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7): Uint8Array {
+export function encodeBody(data: SaveData | SaveDataV7 | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7 | 8): Uint8Array {
+  /** 形式版数8から、相手の ID はユーザーID（数を16進数にして8バイトの場所に入れる） */
+  const oppId = (id: string) => (version >= 8 ? userIdToHex(id) : id);
   const w = new ByteWriter();
   w.byte(version);
   w.uint(data.saveVersion);
@@ -201,7 +212,8 @@ export function encodeBody(data: SaveData | SaveDataV6 | SaveDataV4, version: 4 
       (data.tutorial.done ? FLAG.tutorialDone : 0) |
       (data.tutorial.gachaInviteShown ? FLAG.gachaInviteShown : 0) |
       (data.ranking.optIn ? FLAG.rankingOptIn : 0) |
-      (version >= 7 && (data as SaveData).ranking.provisional ? FLAG.rankingProvisional : 0),
+      (version >= 7 && (data as SaveData).ranking.provisional ? FLAG.rankingProvisional : 0) |
+      (version >= 8 && (data as SaveData).userIdRegistered ? FLAG.userIdRegistered : 0),
   );
   w.id(data.playerId);
   w.uint(data.selectedDeck);
@@ -236,10 +248,10 @@ export function encodeBody(data: SaveData | SaveDataV6 | SaveDataV4, version: 4 
   w.uint(data.rateStats.wins);
   w.uint(data.rateStats.losses);
   w.uint(data.rateStats.best);
-  w.id(data.lastRateOpponentId);
+  w.id(oppId(data.lastRateOpponentId));
   if (data.pendingRateMatch) {
     w.byte(1);
-    w.id(data.pendingRateMatch.opponentId);
+    w.id(oppId(data.pendingRateMatch.opponentId));
     w.uint(data.pendingRateMatch.opponentRate);
   } else {
     w.byte(0);
@@ -271,15 +283,42 @@ export function encodeBody(data: SaveData | SaveDataV6 | SaveDataV4, version: 4 
     w.uint((data as SaveData).ranking.syncedAt);
     w.uint((data as SaveData).ranking.playedAt);
   }
+  if (version >= 8) {
+    const d = data as SaveData;
+    w.uint(isUserId(d.userId) ? Number(d.userId) : 0);
+    w.id(d.ranking.lastMatchId);
+  }
   return w.toBytes();
 }
 
+/** 形式版数8の本体を読む（形式版数7 の並び ＋ 印の userIdRegistered ＋ 末尾の userId・ranking.lastMatchId。相手の ID はユーザーID） */
+export function readSaveV8(r: ByteReader): SaveData {
+  const { data, flags } = readV7Body(r, 127);
+  const n = r.uint();
+  const userId = n === 0 ? '' : String(n);
+  if (userId && !isUserId(userId)) throw new Error('ユーザーID の値が不正です');
+  const lastMatchId = r.id();
+  const pending = data.pendingRateMatch;
+  return {
+    ...data,
+    userId,
+    userIdRegistered: (flags & FLAG.userIdRegistered) !== 0,
+    lastRateOpponentId: hexToUserId(data.lastRateOpponentId),
+    pendingRateMatch: pending ? { ...pending, opponentId: hexToUserId(pending.opponentId) } : null,
+    ranking: { ...data.ranking, lastMatchId },
+  };
+}
+
 /** 形式版数7の本体を読む（形式版数6 の並び ＋ 印の ranking.provisional ＋ 末尾の ranking.syncedAt・playedAt） */
-export function readSaveV7(r: ByteReader): SaveData {
-  const { data, flags } = readV5Body(r, 63);
+export function readSaveV7(r: ByteReader): SaveDataV7 {
+  return readV7Body(r, 63).data;
+}
+
+function readV7Body(r: ByteReader, flagMax: number): { data: SaveDataV7; flags: number } {
+  const { data, flags } = readV5Body(r, flagMax);
   const syncedAt = r.uint();
   const playedAt = r.uint();
-  return { ...data, ranking: { ...data.ranking, provisional: (flags & FLAG.rankingProvisional) !== 0, syncedAt, playedAt } };
+  return { data: { ...data, ranking: { ...data.ranking, provisional: (flags & FLAG.rankingProvisional) !== 0, syncedAt, playedAt } }, flags };
 }
 
 /** 形式版数5（と6）の本体を読む（先頭の形式版数1バイトは読み終わっている前提） */

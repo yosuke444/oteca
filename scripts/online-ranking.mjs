@@ -21,7 +21,7 @@ async function save(p) {
   return p.page.evaluate(async () => {
     const cs = await import('/src/save/cookieStore.ts');
     const d = cs.load({ jar: cs.browserCookieJar(), local: window.localStorage, secure: false });
-    return { rate: d.rate, stats: d.rateStats, id: d.playerId, ranking: d.ranking, last: d.lastRateOpponentId };
+    return { rate: d.rate, stats: d.rateStats, id: d.userId, registered: d.userIdRegistered, ranking: d.ranking, last: d.lastRateOpponentId };
   });
 }
 
@@ -76,7 +76,7 @@ async function waitSent(p, ms = 30000) {
   const end = Date.now() + ms;
   for (;;) {
     const s = await save(p);
-    if (s.ranking.token && s.ranking.unsent.length === 0) return s;
+    if (s.registered && s.ranking.token && s.ranking.unsent.length === 0) return s;
     if (Date.now() > end) {
       problems.push(`${p.name} の報告が送れていない：${JSON.stringify(s.ranking)}`);
       return s;
@@ -199,10 +199,10 @@ try {
   // ---------------- 5：後片づけ
   // 途中で作り直された ID もふくめて、今のセーブの ID も足す
   for (const p of [...(globalThis.__pages ?? [])]) allIds.push(await save(p).then((x) => x.id).catch(() => ''));
-  const ids = [...new Set(allIds)].filter((x) => /^[0-9a-f]{16}$/.test(x));
-  if (ids.length) console.log('テストのプレイヤーを消す:', JSON.stringify(await admin('/admin/delete-players', { playerIds: ids })));
+  const ids = [...new Set(allIds)].filter((x) => /^[1-9][0-9]{14}$/.test(x));
+  if (ids.length) console.log('テストのプレイヤーを消す:', JSON.stringify(await admin('/admin/delete-players', { userIds: ids })));
   // 報告待ちの試合が残っていると、次の まとめ処理でテストの人がまた出てくるので、受付係の試合も消す
-  if (ids.length) console.log('テストの人の試合を消す:', JSON.stringify(await admin('/admin/clear-games', { playerIds: ids })));
+  if (ids.length) console.log('テストの人の試合を消す:', JSON.stringify(await admin('/admin/clear-games', { userIds: ids })));
   console.log('受付係:', JSON.stringify(await admin('/admin/stats')));
   await browser.close();
 }

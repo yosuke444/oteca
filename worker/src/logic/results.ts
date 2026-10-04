@@ -1,4 +1,5 @@
 import { RANKING } from '../../../src/config/rating';
+import { isUserId } from '../../../src/save/userId';
 
 /**
  * 試合の結果の突き合わせ（UPDATE_v2 §10・SPEC §11-9）。ふつうの処理だけ。
@@ -12,7 +13,7 @@ export const SINGLE_REPORT_MS = RANKING.singleReportMinutes * 60 * 1000;
 /** 受付係の知らない試合・報告の来ない試合を あきらめるまでの時間 */
 export const MATCH_EXPIRE_MS = 24 * 60 * 60 * 1000;
 
-/** 報告。winner は勝った人の playerId、無効なら 'void'（名前と載せる設定は /profile で別に送る） */
+/** 報告。playerId は報告した人、winner は勝った人（v2.0-J からはユーザーID）、無効なら 'void' */
 export type Report = { matchId: string; playerId: string; winner: string; at: number };
 /** 受付係が組んだ試合 */
 export type MatchInfo = { matchId: string; a: string; b: string; created: number };
@@ -24,7 +25,7 @@ export type Decision = { kind: 'record'; row: ResultRow } | { kind: 'drop' } | {
 
 /** 報告を受け付けてよいか（受付係が組んだ試合は、その2人だけ。勝った人は2人のどちらかか void） */
 export function acceptReport(match: MatchInfo | null, r: Report): boolean {
-  if (r.winner !== 'void' && !/^[0-9a-f]{16}$/.test(r.winner)) return false;
+  if (r.winner !== 'void' && !isUserId(r.winner)) return false;
   // 受付係の知らない試合（予備の小部屋）：2人そろった時に確かめる
   if (!match) return true;
   if (r.playerId !== match.a && r.playerId !== match.b) return false;
@@ -68,8 +69,8 @@ export function cleanReport(x: unknown, now: number): Report | null {
   if (!x || typeof x !== 'object') return null;
   const o = x as Record<string, unknown>;
   const hex = (v: unknown, n: number) => typeof v === 'string' && new RegExp(`^[0-9a-f]{${n}}$`).test(v);
-  if (!hex(o.matchId, 16) || !hex(o.playerId, 16)) return null;
-  const winner = o.winner === 'void' ? 'void' : hex(o.winner, 16) ? (o.winner as string) : null;
+  if (!hex(o.matchId, 16) || !isUserId(o.playerId)) return null;
+  const winner = o.winner === 'void' ? 'void' : isUserId(o.winner) ? (o.winner as string) : null;
   if (!winner) return null;
   return { matchId: o.matchId as string, playerId: o.playerId as string, winner, at: now };
 }

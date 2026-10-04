@@ -1,3 +1,4 @@
+import { isUserId } from '../save/userId';
 import type { RateLobby, RateLobbyOptions, RatePaired } from './rateLobby';
 
 /**
@@ -39,7 +40,7 @@ type Mode = 'idle' | 'connecting' | 'lobby' | 'p2p' | 'done';
 /** 受付係から届くもの */
 type ServerMsg =
   | { t: 'waiting'; body: { count: number } }
-  | { t: 'paired'; body: { matchId: string; roomId: string; opponent: { playerId: string; name: string; rate: number } } }
+  | { t: 'paired'; body: { matchId: string; roomId: string; opponent: { userId: string; name: string; rate: number } } }
   | { t: 'error'; body: { reason: string } };
 
 const realTimer = (fn: () => void, ms: number) => {
@@ -110,7 +111,8 @@ export class RateSearch {
       this.clearTimer();
       this.mode = 'lobby';
       const { playerId, protocol, lastOpponentId, name, rate } = this.opts;
-      ws.send(JSON.stringify({ t: 'join', body: { playerId, protocol, lastOpponentId, name, rate } }));
+      // 受付係には、ユーザーID（v2.0-J）を userId として送る
+      ws.send(JSON.stringify({ t: 'join', body: { userId: playerId, protocol, lastOpponentId, name, rate } }));
     };
     ws.onmessage = (ev) => {
       if (this.ws !== ws) return;
@@ -158,7 +160,7 @@ export class RateSearch {
 
   private paired(b: Extract<ServerMsg, { t: 'paired' }>['body']): void {
     const hex = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{16}$/.test(v);
-    if (!b || !hex(b.matchId) || !hex(b.roomId) || !hex(b.opponent?.playerId)) {
+    if (!b || !hex(b.matchId) || !hex(b.roomId) || !isUserId(b.opponent?.userId)) {
       this.toFallback();
       return;
     }
@@ -169,7 +171,7 @@ export class RateSearch {
       roomId: b.roomId,
       matchId: b.matchId,
       viaLobby: true,
-      opponentId: b.opponent.playerId,
+      opponentId: b.opponent.userId,
       opponentName: typeof b.opponent.name === 'string' ? b.opponent.name : '',
       opponentRate: Number.isFinite(b.opponent.rate) ? Math.max(0, Math.round(b.opponent.rate)) : 100,
     });

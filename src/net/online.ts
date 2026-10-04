@@ -34,13 +34,15 @@ type Events = {
   invite: InviteState;
   /** 相手が「ほかの ひとと あそぶ」で部屋に戻った */
   oppBack: void;
+  /** 今の試合を観戦している人の数（v2.0-J） */
+  spectators: number;
 };
 
 /** どこに入るか：フレンド部屋（部屋番号）か、レート対戦の2人だけの部屋（v2.0-G） */
 export type OnlinePlace = { kind: 'friend'; roomNumber: string } | { kind: 'rate'; roomId: string };
 
 /** 入る人の情報 */
-export type OnlineMe = { name: string; deck: number[]; deckName: string; rate?: number; playerId?: string };
+export type OnlineMe = { name: string; deck: number[]; deckName: string; rate?: number; playerId?: string; userId?: string };
 
 type Listener<T> = (v: T) => void;
 
@@ -65,6 +67,8 @@ export class OnlineLink {
   members: RoomMember[] = [];
   /** 相手が部屋に戻った（リザルトで「あいては へやに もどったよ」） */
   oppBack = false;
+  /** 今の試合を観戦している人の数（v2.0-J） */
+  spectators = 0;
 
   constructor(
     readonly place: OnlinePlace,
@@ -81,6 +85,7 @@ export class OnlineLink {
       appVersion,
       playerId: me.playerId ?? playerId(),
       ...(me.rate !== undefined ? { rate: me.rate } : {}),
+      ...(me.userId ? { userId: me.userId } : {}),
     });
     this.session = s;
     s.onStatus = (v) => this.emit('status', v);
@@ -110,6 +115,10 @@ export class OnlineLink {
       this.emit('members', m);
     };
     s.onJoinLeave = (e) => this.emit('joinLeave', e);
+    s.onSpectators = (n) => {
+      this.spectators = n;
+      this.emit('spectators', n);
+    };
     s.onInvite = (v) => this.emit('invite', v);
     s.onOpponentBack = () => {
       this.oppBack = true;
@@ -206,11 +215,12 @@ export function createTradeSession(opts: Omit<TradeOptions, 'protocol' | 'appVer
  * レート対戦の「さがす」（v2.0-I）：受付係（WebSocket）につなぎ、つながらなければ予備の P2P の待合所（8つの小部屋）。
  * 画面が閉じる時に leave する
  */
-export function createRateSearch(opts: { playerId: string; name: string; rate: number; lastOpponentId: string; token: string }): RateSearch {
+export function createRateSearch(opts: { userId: string; name: string; rate: number; lastOpponentId: string; token: string }): RateSearch {
   // 受付係は token で本人を確かめる（token が無ければ予備の待合所）
   const base = opts.token ? lobbyUrl() : null;
-  const url = base ? `${base}?playerId=${opts.playerId}&token=${opts.token}` : null;
-  const full = { ...opts, protocol: protocolVersion };
+  const url = base ? `${base}?userId=${opts.userId}&token=${opts.token}` : null;
+  // 待合所の中では、ユーザーID を playerId として使う（予備の待合所の P2P も同じ）
+  const full = { playerId: opts.userId, name: opts.name, rate: opts.rate, lastOpponentId: opts.lastOpponentId, protocol: protocolVersion };
   return new RateSearch(full, {
     openSocket: url ? () => new WebSocket(url) as unknown as SocketLike : null,
     createLobby: () => new RateLobby(createTransport(), full),

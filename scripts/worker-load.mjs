@@ -23,16 +23,16 @@ const measured = {};
 try {
   // ---------------------------------------------------------------- 1試合
   const P = [1, 2].map((n) => ({ id: pid(n, 'b') }));
-  for (const p of P) p.token = (await api(B, '/register', { method: 'POST', body: { playerId: p.id, name: `p${p.id.slice(-2)}`, optIn: true } })).json.token;
+  for (const p of P) p.token = (await register(B, p.id, `p${p.id.slice(-2)}`)).token;
   await stats(B, true);
   const cs = P.map((p) => connectLobby(B, p));
   await Promise.all(cs.map((c) => c.waitOpen()));
-  cs.forEach((c, i) => c.join({ playerId: P[i].id, protocol: PROTOCOL, lastOpponentId: '', name: 'p', rate: 100 }));
+  cs.forEach((c, i) => c.join({ userId: P[i].id, protocol: PROTOCOL, lastOpponentId: '', name: 'p', rate: 100 }));
   await until(() => cs.every((c) => c.paired()));
   const matchId = cs[0].paired().matchId;
   const lobbySt = (await stats(B, true)).totals;
   const reps = [];
-  for (const p of P) reps.push(await api(B, '/result', { method: 'POST', body: { matchId, playerId: p.id, token: p.token, winner: P[0].id } }));
+  for (const p of P) reps.push(await api(B, '/result', { method: 'POST', body: { matchId, userId: p.id, token: p.token, winner: P[0].id } }));
   const repSt = (await stats(B, true)).totals;
   // まとめ処理のうち、この1試合の分（受付係から読む・消す。D1 は人数で決まるので別に測る）
   const one = await admin(B, '/admin/run-batch');
@@ -52,13 +52,13 @@ try {
   log('');
   log(`- Worker へのリクエスト：${measured.match.workerReq}回（受付係への接続 2・結果の報告 2）`);
   log(`- Durable Object へのリクエスト：${measured.match.doReq.toFixed(2)}回（接続 2・WebSocket で受け取ったメッセージ ${lobbySt.wsMessages}通 ÷ 20・報告 2）`);
-  log(`- Durable Object の行：読み ${measured.match.doRead}・書き ${measured.match.doWrite}（組む・報告）＋ まとめ処理で 読み ${measured.match.batchDoRead}・書き ${measured.match.batchDoWrite}（このうち 書き2 は まとめ処理1回ごとの印。試合の多い日は1試合あたり 書き約1）`);
+  log(`- Durable Object の行：読み ${measured.match.doRead}・書き ${measured.match.doWrite}（組む・報告）＋ まとめ処理で 読み ${measured.match.batchDoRead}・書き ${measured.match.batchDoWrite}（このうち数行は まとめ処理1回ごとの印と「その日に数えた数」。試合の多い日は1試合あたり 書き約1）`);
   log(`- D1 の行：読み ${measured.match.d1Read}・書き ${measured.match.d1Write}（受付係への接続と報告の token の確かめ）`);
   log('');
 
   // ---------------------------------------------------------------- ランキング表示・起動
-  const rk = await api(B, `/ranking?playerId=${P[0].id}&token=${P[0].token}`);
-  const me = await api(B, `/me?playerId=${P[0].id}&token=${P[0].token}`);
+  const rk = await api(B, `/ranking?userId=${P[0].id}&token=${P[0].token}`);
+  const me = await api(B, `/me?userId=${P[0].id}&token=${P[0].token}`);
   measured.view = { workerReq: 1, d1Read: rk.count.d1Read, d1Write: rk.count.d1Written };
   measured.me = { workerReq: 1, d1Read: me.count.d1Read, d1Write: me.count.d1Written };
   log('## ランキング表示（GET /ranking。次の更新までは端末に保存した一覧を使うので、1人 更新1回につき1回まで＝1日2回まで）');
@@ -176,7 +176,7 @@ try {
     // ほぼ同時に入る（少しずつずらす）
     for (let i = 0; i < M; i++) {
       sentAt[i] = Date.now();
-      conns[i].join({ playerId: people[i].id, protocol: people[i].protocol ?? PROTOCOL, lastOpponentId: people[i].last ?? '', name: `n${i}`, rate: 100 + i });
+      conns[i].join({ userId: people[i].id, protocol: people[i].protocol ?? PROTOCOL, lastOpponentId: people[i].last ?? '', name: `n${i}`, rate: 100 + i });
       if (i % 20 === 19) await sleep(5);
     }
     await until(() => conns.filter((c) => c.paired()).length >= M - 2, 20000);
@@ -192,9 +192,9 @@ try {
       const list = pairedBy.get(p.matchId) ?? [];
       list.push(i);
       pairedBy.set(p.matchId, list);
-      const opp = people.findIndex((x) => x.id === p.opponent.playerId);
+      const opp = people.findIndex((x) => x.id === p.opponent.userId);
       if (opp < 0 || conns[opp].paired()?.matchId !== p.matchId) bad++;
-      if (people[i].last && people[i].last === p.opponent.playerId) bad++;
+      if (people[i].last && people[i].last === p.opponent.userId) bad++;
       if ((people[i].protocol ?? PROTOCOL) !== (people[opp]?.protocol ?? PROTOCOL)) bad++;
     });
     const pairedCount = conns.filter((c) => c.paired()).length;

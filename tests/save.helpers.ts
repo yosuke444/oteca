@@ -24,6 +24,8 @@ export function randomSave(seed: number): SaveData {
   const r = makeRandom(seed);
   const text = (min: number, max: number) => Array.from({ length: r.int(min, max) }, () => r.pick(CHARS)).join('');
   const bigOrSmall = () => (r.next() < 0.7 ? r.int(0, 200) : r.int(0, 2 ** 40));
+  /** ユーザーID（15桁。3割は ''） */
+  const uid = () => (r.next() < 0.3 ? '' : String(r.int(1, 9)) + Array.from({ length: 14 }, () => String(r.int(0, 9))).join(''));
   const id = () => (r.next() < 0.3 ? '' : Array.from({ length: 16 }, () => r.pick(HEX)).join('').replace(/^0{16}$/, '1'.padStart(16, '0')));
   const collection: Record<number, number> = {};
   for (let i = r.int(0, 30); i > 0; i--) collection[r.pick([r.int(1, 48), r.int(1, 300)])] = r.int(1, 999);
@@ -40,6 +42,8 @@ export function randomSave(seed: number): SaveData {
       hints: r.next() < 0.5,
     },
     playerId: id(),
+    userId: uid(),
+    userIdRegistered: r.next() < 0.5,
     decks: Array.from({ length: DECK_SLOTS }, (_, i) => ({
       name: r.next() < 0.5 ? defaultDeckName(i) : text(1, 8),
       cards: Array.from({ length: r.pick([0, 3, 15, 15]) }, () => r.pick([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 48, 200, 9999])),
@@ -55,10 +59,10 @@ export function randomSave(seed: number): SaveData {
     story: { stages: Array.from({ length: r.int(0, 5) }, (_, i) => ({ no: i * 3 + r.int(0, 2), cleared: r.next() < 0.7, firstClear: r.next() < 0.5 })) },
     rate: bigOrSmall(),
     rateStats: { wins: bigOrSmall(), losses: bigOrSmall(), best: bigOrSmall() },
-    lastRateOpponentId: id(),
-    pendingRateMatch: r.next() < 0.5 ? null : { opponentId: id() || 'abcdefabcdefabcd', opponentRate: bigOrSmall() },
+    lastRateOpponentId: uid(),
+    pendingRateMatch: r.next() < 0.5 ? null : { opponentId: uid() || '100000000000001', opponentRate: bigOrSmall() },
     trade: { doneIds: Array.from({ length: r.int(0, 20) }, () => id() || '00000000000000ff') },
-    ranking: { token: text(0, 40), optIn: r.next() < 0.5, unsent: Array.from({ length: r.int(0, 3) }, () => text(1, 30)), provisional: r.next() < 0.5, syncedAt: r.int(0, 2 ** 42), playedAt: r.int(0, 2 ** 42) },
+    ranking: { token: text(0, 40), optIn: r.next() < 0.5, unsent: Array.from({ length: r.int(0, 3) }, () => text(1, 30)), provisional: r.next() < 0.5, syncedAt: r.int(0, 2 ** 42), playedAt: r.int(0, 2 ** 42), lastMatchId: id() },
     updateNoticeSeen: r.next() < 0.5,
     tutorial: { done: r.next() < 0.5, gachaInviteShown: r.next() < 0.5, step: r.pick([0, 16, r.int(0, 255)]) },
     daily: {
