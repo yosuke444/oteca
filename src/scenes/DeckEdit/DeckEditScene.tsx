@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CARD_DB, CARD_LIST } from '../../data/cards';
-import { PACK_DATA, SHOP_PACKS, inPack } from '../../data/packs';
+import { CARD_DB } from '../../data/cards';
+import { PACK_DATA, SHOP_PACKS } from '../../data/packs';
 import { DEFAULT_RULES } from '../../engine';
 import type { CardDef } from '../../engine/types';
 import { useNav } from '../../router';
-import { checkSavedDeck, getOwnedCount, ownedTrophyDefs } from '../../save/collection';
+import { checkSavedDeck, getOwnedCount } from '../../save/collection';
 import { DECK_NAME_MAX, clampText } from '../../save/saveData';
 import { useSave } from '../../state/SaveContext';
 import { CardDetail } from '../../ui/card/CardDetail';
@@ -17,16 +17,17 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { tiltStyle } from '../../ui/rough/seed';
 import { addCard, autoFill, blockText, checkAdd, problemText, removeAt, summarize } from './deckOps';
+import { LIST_FILTERS, LIST_SORTS, type ListFilter, type ListSort, listCards } from './cardList';
 import { useT } from '../../i18n/useT';
 import { ModeGuide } from '../../ui/guide/ModeGuide';
 import { postState } from '../../tutorial/post';
 import './deckEdit.css';
 
-type Filter = 'all' | 'owned' | 'otege' | 'item' | 'super';
-type Sort = 'no' | 'name' | 'hp' | 'owned';
 
-const FILTERS: Filter[] = ['all', 'owned', 'otege', 'item', 'super'];
-const SORTS: Sort[] = ['no', 'name', 'hp', 'owned'];
+type Filter = ListFilter;
+type Sort = ListSort;
+const FILTERS = LIST_FILTERS;
+const SORTS = LIST_SORTS;
 /** パックの絞り込み：ぜんぶ（null）→ 各パック → 限定 */
 // デイリーパックは、ほかのパックのカードだけなので絞り込みには出さない
 const PACKS: (string | null)[] = [null, ...SHOP_PACKS.map((p) => p.id), 'limited'];
@@ -85,25 +86,8 @@ export function DeckEditScene() {
     setCards(addCard(deck.cards, no));
   };
 
-  const list = useMemo(() => {
-    const own = (c: CardDef) => getOwnedCount(save, c.no);
-    // 持っているトロフィーのカード（v2.0-J）も一覧に出す（パックで絞った時は出さない）
-    const filtered = [...CARD_LIST, ...(pack ? [] : ownedTrophyDefs(save))].filter((c) => {
-      if (pack && !inPack(c.id, pack)) return false;
-      if (filter === 'owned') return own(c) > 0;
-      if (filter === 'otege') return c.kind === 'otege';
-      if (filter === 'item') return c.kind === 'item';
-      if (filter === 'super') return c.kind === 'otege' && c.rarity === 'super';
-      return true;
-    });
-    const hp = (c: CardDef) => (c.kind === 'otege' ? c.hp : -1);
-    return [...filtered].sort((a, b) => {
-      if (sort === 'hp') return hp(b) - hp(a) || a.no - b.no;
-      if (sort === 'name') return a.name.localeCompare(b.name, 'ja') || a.no - b.no;
-      if (sort === 'owned') return own(b) - own(a) || a.no - b.no;
-      return a.no - b.no;
-    });
-  }, [filter, pack, sort, save]);
+  // 持っているカードだけ（v2.2）
+  const list = useMemo(() => listCards(save, filter, pack, sort), [filter, pack, sort, save]);
 
   const nextSort = () => setSort(SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length]);
   const nextPack = () => setPack(PACKS[(PACKS.indexOf(pack) + 1) % PACKS.length]);

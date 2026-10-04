@@ -4,7 +4,7 @@ Cloudflare の無料プランで動く Worker です（UPDATE_v2 §10・SPEC §1
 
 - **受付係**（Durable Object `Matchmaker`。SQLite 保存・休止機能）：レート対戦の待ち行列、組んだ試合、2人の結果の報告。
 - **ランキングのデータベース**（D1 `oteca-ranking`）：プレイヤー表（1人1行）と、上位100人の写し。
-- **まとめ処理**（Cron。毎日 UTC 19:00 ＝ 日本時間 4:00 と、UTC 5:00 ＝ 日本時間 14:00 の1日2回）：前回より後の結果からレートと順位を計算する。重い計算なので受付係の中で動かす。
+- **まとめ処理**（Cron。毎日 UTC 19:00 ＝ 日本時間 4:00 と、UTC 7:00 ＝ 日本時間 16:00 の1日2回）：前回より後の結果からレートと順位を計算する。重い計算なので受付係の中で動かす。
 - 公開先：https://oteca-api.oteca-api.workers.dev
 
 無料プランのまま上限を超えた時は、その日の残りの時間はエラーになるだけで、料金はかかりません。
@@ -67,7 +67,7 @@ D1 の表を変えた時（`migrations/` に新しいファイルを足した時
    curl -X POST -H "x-admin-key: $(cat worker/.admin-key.txt)" -H "content-type: application/json" -d '{"userId":"ここに id"}' https://oteca-api.oteca-api.workers.dev/admin/hide-name
    ```
 
-   `{"ok":true,"changed":1}` と出れば成功です。ランキングの一覧からもすぐ消えます（ただし、ゲームの画面は次の更新（4:00 か 14:00）まで前の一覧を覚えているので、そこではその時刻に消えます）。
+   `{"ok":true,"changed":1}` と出れば成功です。ランキングの一覧からもすぐ消えます（ただし、ゲームの画面は次の更新（4:00 か 16:00）まで前の一覧を覚えているので、そこではその時刻に消えます）。
 
 3. 元に戻す時は、`"userId"` の後に `,"hidden":false` を足して同じように打ちます。
 
@@ -78,7 +78,7 @@ curl -X POST -H "x-admin-key: $(cat worker/.admin-key.txt)" https://oteca-api.ot
 ```
 
 `{"ok":true,"results":…,"counted":…}` と出ます（results＝読んだ試合、counted＝レートに数えた試合、skipped＝同じ2人の4試合目から）。
-ゲームを開き直すと「かり」が消えて、正式なレートになります。ランキングの画面は、端末が前の一覧を覚えているので、ブラウザの開発者ツールで localStorage の `oteca.rankingCache` を消すか、次の更新（4:00 か 14:00）を待ちます。
+ゲームを開き直すと「かり」が消えて、正式なレートになります。ランキングの画面は、端末が前の一覧を覚えているので、ブラウザの開発者ツールで localStorage の `oteca.rankingCache` を消すか、次の更新（4:00 か 16:00）を待ちます。
 
 ## そのほかの管理用の道（すべて管理キーが要る）
 

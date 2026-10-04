@@ -32,9 +32,9 @@ async function call(path: string, init?: RequestInit): Promise<Response | null> 
 
 const post = (path: string, body: unknown) => call(path, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'text/plain;charset=UTF-8' } });
 
-/** 名前を載せる時だけ名前を送る（載せない設定なら送らない） */
-function profileName(save: Pick<SaveData, 'playerName' | 'ranking'>): string {
-  return save.ranking.optIn ? save.playerName : '';
+/** サーバーに送る名前（v2.2：「ランキングに のる」がオフでも送る。オフの人はランキングに一切出さないので、名前は管理者の検索だけで使う） */
+function profileName(save: Pick<SaveData, 'playerName'>): string {
+  return save.playerName;
 }
 
 /** 自分の判別（ユーザーID と token） */
@@ -174,6 +174,8 @@ export async function sendProfile(save: SaveData): Promise<boolean> {
   if (!save.ranking.token) return false;
   if (!save.userIdRegistered) return false;
   const res = await post('/profile', { userId: save.userId, token: save.ranking.token, name: profileName(save), optIn: save.ranking.optIn });
+  // 「ランキングに のる」をオフにした（v2.2）：サーバーはすぐ一覧から外すので、覚えていた一覧も捨てる（次に開いた時に聞き直す）
+  if (res?.ok && !save.ranking.optIn) forgetRankingCache();
   return !!res?.ok;
 }
 
@@ -211,7 +213,7 @@ export async function syncRanking(getSave: () => SaveData, update: Update): Prom
   return id;
 }
 
-/** その時刻の次の まとめ処理（日本時間 4:00 か 14:00 の近い方）の時刻 */
+/** その時刻の次の まとめ処理（日本時間 4:00 か 16:00 の近い方）の時刻 */
 export function nextBatchAfter(ms: number): number {
   return nextBatchAt(ms);
 }
@@ -229,6 +231,15 @@ export function readRankingCache(): RankingCache | null {
     return Array.isArray(c?.top) && Number.isFinite(c.nextAt) ? c : null;
   } catch {
     return null;
+  }
+}
+
+/** 覚えていた一覧を捨てる */
+export function forgetRankingCache(): void {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    // 消せなくても、次の更新で聞き直す
   }
 }
 

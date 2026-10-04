@@ -294,7 +294,8 @@ export function LobbyScene() {
           <p className="lobby-room__count pencil">{tr.lobby.count(members.length, ROOM_MAX)}</p>
           <ul className="lobby-room__members">
             {members.map((m) => {
-              const canInvite = !m.me && m.state === 'waiting' && invite.kind === 'none';
+              // 同じユーザーID の人（v2.2）には申し込めない
+              const canInvite = !m.me && !m.sameUser && m.state === 'waiting' && invite.kind === 'none';
               const label = m.me ? m.name : safeName(m.name, nameless);
               return (
                 <li key={m.peerId} className={`lobby-room__member is-${m.state} ${m.me ? 'is-me' : ''}`}>
@@ -306,6 +307,11 @@ export function LobbyScene() {
                     <span className="lobby-room__name">
                       {label}
                       {m.me && <small className="pencil">{tr.lobby.meTag}</small>}
+                      {m.sameUser && (
+                        <small className="red-pen" data-testid="room-cannot-play">
+                          {tr.common.cannotPlay}
+                        </small>
+                      )}
                     </span>
                   )}
                   <span className={`lobby-room__state ${m.state === 'waiting' ? 'blue-pen' : 'pencil'}`}>{m.state === 'waiting' ? tr.lobby.stateWaiting : tr.lobby.statePlaying}</span>
@@ -323,6 +329,10 @@ export function LobbyScene() {
                 {tr.lobby.inviteCancel}
               </RoughButton>
             </div>
+          ) : others.every((m) => m.sameUser) ? (
+            <p className="lobby-room__hint red-pen" data-testid="room-only-same">
+              {tr.common.cannotPlay}
+            </p>
           ) : (
             <p className="lobby-room__hint">{tr.lobby.inviteHint}</p>
           )}

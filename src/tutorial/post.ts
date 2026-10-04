@@ -77,8 +77,8 @@ export const POST_STEPS: PostStep[] = [
   // 20 デッキ選択パネルと「はじめての デッキ」
   { id: 'picker', no: 20, kind: 'act', spot: ['[data-testid="deck-pick"]'], at: 'bottomLeft', until: (c) => c.has('[data-testid="deck-slot-0"]'), goTo: 'deck' },
   { id: 'first', no: 20, kind: 'act', spot: ['[data-testid="deck-slot-0"]'], at: 'right', until: (c) => !c.has('[data-testid="deck-slot-0"]') && c.save.selectedDeck === 0 },
-  // 21 カードいちらんの見方 → 「もっている」
-  { id: 'list', no: 21, kind: 'act', spot: ['[data-testid="deck-filter-owned"]'], at: 'bottomLeft', until: (c) => c.has('[data-testid="deck-filter-owned"].is-on') },
+  // 21 カードいちらんの見方（持っているカードだけが並ぶ。v2.2）
+  { id: 'list', no: 21, kind: 'tap', spot: ['.list-panel__grid'], at: 'bottomLeft' },
   // 22 デッキから外す（入った時より1枚減ったら）
   { id: 'remove', no: 22, kind: 'act', spot: ['.deck-panel__slots'], at: 'right', until: (c) => deckLen(c) < c.enterLen },
   // 23 デッキに入れる（NEW のカード。入った時より1枚増えたら）

@@ -796,3 +796,20 @@
     font-size: 26px;
   }
 }
+
+/* レート対戦：名前の横のレートとトロフィあげの数（v2.2） */
+.battle-name__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  font-size: 15px;
+  color: var(--ink);
+}
+@media (max-height: 500px) {
+  .battle-name__badge {
+    gap: 3px;
+    margin-left: 5px;
+    font-size: 11px;
+  }
+}

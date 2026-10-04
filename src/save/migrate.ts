@@ -218,7 +218,7 @@ export function upgradeToV4(d: SaveDataV3): SaveDataV4 {
 /** 形式版数4の時の「後の項目」の初期値（3 → 4 の変換用） */
 function laterFieldsV4(): Pick<SaveDataV4, 'playerId' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial'> {
   const { daily: _daily, loginBonus: _lb, tutorial: _t, ranking: _r, ...rest } = laterFieldsDefault();
-  // 形式版数4 の時の初期値（名前を載せる設定はオフ。形式版数7 への移行でオンにする）
+  // 形式版数4 の時の初期値（「ランキングに のる」はオフ。形式版数7 への移行でオンにする）
   return { ...rest, ranking: { token: '', optIn: false, unsent: [] }, loginBonus: { lastDate: 0 }, tutorial: { done: false, gachaInviteShown: false } };
 }
 

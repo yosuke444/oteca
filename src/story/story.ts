@@ -29,6 +29,8 @@ export type StageDef = {
   /** ボスの初クリアで手に入る限定カードの id */
   card?: string;
   bossRule?: { text: LocalText; boss?: Partial<RuleSet>; player?: Partial<RuleSet> };
+  /** このステージだけの CPU の強さ（v2.2。書かなければ種類ごとの強さ levels） */
+  level?: CpuLevel;
 };
 
 export type StoryData = {
@@ -52,6 +54,7 @@ export function parseStory(data: unknown): StoryData {
     nos.add(s.no);
     if (!Array.isArray(s.parents)) fail(`ステージ ${s.no}: parents がありません`);
     if (!s.pos || !Number.isInteger(s.pos.x) || !Number.isInteger(s.pos.y)) fail(`ステージ ${s.no}: pos が不正です`);
+    if (s.level !== undefined && !['weak', 'normal', 'strong', 'strongest'].includes(s.level)) fail(`ステージ ${s.no}: level が不正です`);
     const key = `${s.pos.x},${s.pos.y}`;
     if (places.has(key)) fail(`ステージ ${s.no}: 同じ位置 ${key} にほかのステージがあります`);
     places.add(key);
@@ -86,9 +89,9 @@ export function stageDeckNos(stage: StageDef): number[] {
   return out;
 }
 
-/** 敵の強さ（雑魚は ふつう、ボスは つよい） */
+/** 敵の強さ（ステージの level があればそれ。v2.2：ステージ1・2は よわい。ほかの雑魚は ふつう、ボスは つよい） */
 export function stageLevel(stage: StageDef, data: StoryData = STORY): CpuLevel {
-  return data.levels[stage.kind];
+  return stage.level ?? data.levels[stage.kind];
 }
 
 /** ボスルール → プレイヤー別のルール（エンジンに渡す） */

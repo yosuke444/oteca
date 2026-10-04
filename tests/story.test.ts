@@ -67,9 +67,10 @@ describe('F01 story.json の15ステージと敵デッキ（v2.1-N の並び。U
     }
   });
 
-  it('雑魚は ふつう、ボスは つよい。ボスは限定カードとボスルールを持ち、限定カードはパックから出ない', () => {
+  it('K01 ステージ1・2（らくがき こぞう・けしかす）は よわい、ほかの雑魚は ふつう、ボスは つよい。ボスは限定カードとボスルールを持ち、限定カードはパックから出ない', () => {
+    expect(STORY.stages.filter((s) => s.no <= 2).map((s) => s.name)).toEqual(['らくがき こぞう', 'けしかす']);
     for (const s of STORY.stages) {
-      expect(stageLevel(s)).toBe(s.kind === 'boss' ? 'strong' : 'normal');
+      expect(stageLevel(s)).toBe(s.no <= 2 ? 'weak' : s.kind === 'boss' ? 'strong' : 'normal');
       if (s.kind === 'boss') {
         expect(s.bossRule?.text.hira, `${s.no}`).toBeTruthy();
         expect(s.bossRule?.text.kanji, `${s.no}`).toBeTruthy();

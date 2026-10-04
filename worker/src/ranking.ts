@@ -82,7 +82,7 @@ export type LobbyStore = {
 export type Pending = { id: string; matchIds: string[] };
 
 /**
- * 上位100人の写しを作る（名前を載せない人・禁止語・消された名前は ''。画面が「ななし」と出す）
+ * 上位100人の写しを作る（禁止語・消された名前は ''。画面が「ななし」と出す。「ランキングに のる」がオフの人は順位が無いので入らない。v2.2）
  * @param updatedAt 更新の時刻（null は前の写しの時刻のまま。名前を消した時）
  */
 export async function writeSnapshot(c: Db, updatedAt: number | null): Promise<number> {
@@ -92,7 +92,7 @@ export async function writeSnapshot(c: Db, updatedAt: number | null): Promise<nu
       rank: r.rank,
       // 自分の行を見分けるための印（ユーザーID そのものは出さない）
       key: (await sha256Hex(r.id)).slice(0, 12),
-      name: r.opt_in === 1 && r.name_banned === 0 ? safeName(r.name, '') : '',
+      name: r.name_banned === 0 ? safeName(r.name, '') : '',
       rate: r.rate,
       wins: r.wins,
       losses: r.losses,
@@ -108,7 +108,7 @@ export async function writeSnapshot(c: Db, updatedAt: number | null): Promise<nu
 }
 
 /**
- * まとめ処理（毎日 日本時間 4:00 と 14:00。UPDATE_v2 §10）：前回の まとめ処理より後に記録した
+ * まとめ処理（毎日 日本時間 4:00 と 16:00。UPDATE_v2 §10）：前回の まとめ処理より後に記録した
  * 受付係の結果を時刻順に読む → レートを計算（同じ2人は1日3試合まで）→ プレイヤー表を1人1行で更新 →
  * 全員の順位（7日以上遊んでいない人は外す）→ 上位100人の写し → 処理した結果を消す
  */
@@ -191,10 +191,11 @@ function rerankStmts(now: number): { q: string; binds: unknown[] }[] {
   const cutoff = now - HIDE_AFTER_MS;
   /** 停止中の人（v2.0-J。ランキングに載せない） */
   const suspended = `SELECT user_id FROM suspensions WHERE until = 0 OR until > ?`;
+  // 「ランキングに のる」がオフの人（opt_in = 0。v2.2）も載せない（順位も付けない。レートは計算している）
   return [
-    { q: `UPDATE players SET rank = NULL WHERE rank IS NOT NULL AND (last_played <= ? OR id IN (${suspended}))`, binds: [cutoff, now] },
+    { q: `UPDATE players SET rank = NULL WHERE rank IS NOT NULL AND (last_played <= ? OR opt_in = 0 OR id IN (${suspended}))`, binds: [cutoff, now] },
     {
-      q: `UPDATE players SET rank = t.r FROM (SELECT id, RANK() OVER (ORDER BY rate DESC) AS r FROM players WHERE last_played > ? AND id NOT IN (${suspended})) AS t
+      q: `UPDATE players SET rank = t.r FROM (SELECT id, RANK() OVER (ORDER BY rate DESC) AS r FROM players WHERE last_played > ? AND opt_in = 1 AND id NOT IN (${suspended})) AS t
      WHERE players.id = t.id AND (players.rank IS NULL OR players.rank != t.r)`,
       binds: [cutoff, now],
     },

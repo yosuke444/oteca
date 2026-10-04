@@ -136,7 +136,7 @@ try {
   const local = {};
   for (const p of ps) local[p.name] = await save(p);
 
-  // 2回目の まとめ処理（14:00 の分のつもり）：前回より後の2試合を足す。
+  // 2回目の まとめ処理（16:00 の分のつもり）：前回より後の2試合を足す。
   // 更新の11分前より後に終わった試合は端末が上書きしないので、まとめ処理の時刻を12分後にして動かす
   const b1 = await admin('/admin/run-batch', { now: Date.now() + 12 * 60 * 1000 });
   if (!b1.ok || b1.counted !== 2) problems.push(`2回目の まとめ処理（2試合）：${JSON.stringify(b1)}`);

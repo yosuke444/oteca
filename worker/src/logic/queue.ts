@@ -15,7 +15,12 @@ export type Waiter = {
   protocol: number;
   lastOpponentId: string;
   name: string;
+  /** レート（v2.2 からは D1 の正式なレート。Worker がつないだ時に読んで渡す） */
   rate: number;
+  /** 配ったトロフィあげの数（v2.2。D1 の trophies から） */
+  trophies: number;
+  /** タブの印（v2.2。同じタブの入り直しは前の接続と置き換え、ほかのタブ・端末の同じユーザーID は断る。'' ＝無し） */
+  tab: string;
   /** 待ち始めた時刻（ミリ秒） */
   joinedAt: number;
   /** 同じ時刻の時の順番 */
@@ -65,8 +70,23 @@ export function waitingCounts(waiters: readonly Waiter[]): Map<number, number> {
   return m;
 }
 
+/**
+ * サーバーの記録（つないだ時に Worker が D1 から読んで、受付係の札に付けたもの）を読む。
+ * 札は ["ユーザーID", "rate:123", "trophies:2"]。無ければ null（その時は端末が送ってきたレート・トロフィー 0）
+ */
+export function serverRecord(tags: readonly string[]): { rate: number; trophies: number } | null {
+  const num = (prefix: string) => {
+    const t = tags.find((x) => x.startsWith(prefix));
+    const n = t ? Number(t.slice(prefix.length)) : NaN;
+    return Number.isSafeInteger(n) && n >= 0 ? n : null;
+  };
+  const rate = num('rate:');
+  const trophies = num('trophies:');
+  return rate === null || trophies === null ? null : { rate, trophies };
+}
+
 /** 受け取った join の中身を確かめる（形の変なものは null） */
-export function cleanJoin(x: unknown): Omit<Waiter, 'id' | 'joinedAt' | 'seq'> | null {
+export function cleanJoin(x: unknown): Omit<Waiter, 'id' | 'joinedAt' | 'seq' | 'trophies'> | null {
   if (!x || typeof x !== 'object') return null;
   const o = x as Record<string, unknown>;
   // ユーザーID（v2.0-J。join では userId）
@@ -76,5 +96,6 @@ export function cleanJoin(x: unknown): Omit<Waiter, 'id' | 'joinedAt' | 'seq'> |
   if (!Number.isInteger(o.protocol) || (o.protocol as number) < 1 || (o.protocol as number) > 1000) return null;
   const name = typeof o.name === 'string' && o.name.trim() !== '' ? [...o.name.trim()].slice(0, 8).join('') : '';
   const rate = Number.isFinite(o.rate) ? Math.max(0, Math.min(100000, Math.round(o.rate as number))) : 100;
-  return { playerId, protocol: o.protocol as number, lastOpponentId: id(o.lastOpponentId) ?? '', name, rate };
+  const tab = typeof o.tab === 'string' && /^[0-9a-f]{16}$/.test(o.tab) ? o.tab : '';
+  return { playerId, protocol: o.protocol as number, lastOpponentId: id(o.lastOpponentId) ?? '', name, rate, tab };
 }

@@ -311,3 +311,22 @@
   background: transparent;
   cursor: progress;
 }
+
+/* トロフィあげの数（v2.2。VS 画面・対戦中の名前の欄） */
+.trophy-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  vertical-align: middle;
+}
+/* カードの絵の .trophy-doodle（幅 78%）より強く、文字の大きさに合わせる */
+.trophy-row .trophy-row__icon {
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+}
+.trophy-row__more {
+  margin-left: 3px;
+  font-size: 0.85em;
+  color: var(--ink);
+}

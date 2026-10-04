@@ -139,7 +139,7 @@ try {
       await p.page.waitForTimeout(800);
       await shot(p.page, `ranking_${tag}_07_lobby_fallback`);
       await p.ctx.close();
-      // 設定（ランキングに なまえを のせる）・オンラインの画面（かり）
+      // 設定（ランキングに のる）・オンラインの画面（かり）
       p = await open('?debug=1&api=local', { synced: true });
       await go(p, 'settings');
       await p.page.getByTestId('settings-ranking').waitFor();

@@ -23,8 +23,10 @@ export type SocketLike = {
 export const LOBBY_CONNECT_MS = 5000;
 /** 待っている途中で切れた時、つなぎ直すまでの時間（1回だけ。だめなら予備の待合所へ） */
 export const LOBBY_RETRY_MS = 1000;
-/** 同じセーブの別のタブが さがし始めたので、受付係がこのタブの接続を切った */
+/** 同じタブの新しい接続が来たので、受付係が前の接続を切った（v2.2 からは同じタブの入り直しの時だけ） */
 export const CLOSE_REPLACED = 4000;
+/** 同じユーザーID がもう待っているので、受付係がこの接続を受け付けなかった（v2.2） */
+export const CLOSE_SAME_USER = 4001;
 
 export type RateSearchDeps = {
   /** 受付係の WebSocket を開く（null は受付係を使わない：すぐ予備の待合所へ） */
@@ -40,8 +42,11 @@ type Mode = 'idle' | 'connecting' | 'lobby' | 'p2p' | 'done';
 /** 受付係から届くもの */
 type ServerMsg =
   | { t: 'waiting'; body: { count: number } }
-  | { t: 'paired'; body: { matchId: string; roomId: string; opponent: { userId: string; name: string; rate: number } } }
+  | { t: 'paired'; body: { matchId: string; roomId: string; me?: { rate: number; trophies: number }; opponent: { userId: string; name: string; rate: number; trophies?: number } } }
   | { t: 'error'; body: { reason: string } };
+
+/** 数（0〜9999 の整数。変な値は 0） */
+const count = (v: unknown): number => (Number.isSafeInteger(v) ? Math.max(0, Math.min(9999, v as number)) : 0);
 
 const realTimer = (fn: () => void, ms: number) => {
   const id = setTimeout(fn, ms);
@@ -57,6 +62,8 @@ export class RateSearch {
   onFallback: () => void = () => {};
   /** 同じセーブの別のタブが さがし始めたので、このタブは やめた */
   onReplaced: () => void = () => {};
+  /** 同じユーザーID がもう待っているので、さがせなかった（v2.2。画面は「この あいてとは あそべないよ」） */
+  onSameUser: () => void = () => {};
 
   private mode: Mode = 'idle';
   private ws: SocketLike | null = null;
@@ -67,7 +74,7 @@ export class RateSearch {
   private readonly setTimer: (fn: () => void, ms: number) => () => void;
 
   constructor(
-    private readonly opts: Pick<RateLobbyOptions, 'playerId' | 'name' | 'rate' | 'lastOpponentId' | 'protocol'>,
+    private readonly opts: Pick<RateLobbyOptions, 'playerId' | 'name' | 'rate' | 'trophies' | 'lastOpponentId' | 'protocol'> & { tab?: string },
     private readonly deps: RateSearchDeps,
   ) {
     this.setTimer = deps.setTimer ?? realTimer;
@@ -111,8 +118,8 @@ export class RateSearch {
       this.clearTimer();
       this.mode = 'lobby';
       const { playerId, protocol, lastOpponentId, name, rate } = this.opts;
-      // 受付係には、ユーザーID（v2.0-J）を userId として送る
-      ws.send(JSON.stringify({ t: 'join', body: { userId: playerId, protocol, lastOpponentId, name, rate } }));
+      // 受付係には、ユーザーID（v2.0-J）を userId として送る。tab：このタブの印（v2.2。同じタブの入り直しは置き換え）
+      ws.send(JSON.stringify({ t: 'join', body: { userId: playerId, protocol, lastOpponentId, name, rate, ...(this.opts.tab ? { tab: this.opts.tab } : {}) } }));
     };
     ws.onmessage = (ev) => {
       if (this.ws !== ws) return;
@@ -124,11 +131,16 @@ export class RateSearch {
       }
       if (m.t === 'waiting' && Number.isInteger(m.body?.count)) this.onWaiting(m.body.count);
       else if (m.t === 'paired') this.paired(m.body);
+      else if (m.t === 'error' && m.body?.reason === 'same-user') this.sameUser();
       else if (m.t === 'error') this.toFallback();
     };
     // つながる前に切れた：予備の待合所へ。待っている途中に切れた：1回だけ つなぎ直す（組めた後・やめた後は何もしない）
     ws.onclose = (ev) => {
       if (this.ws !== ws) return;
+      if (ev?.code === CLOSE_SAME_USER) {
+        this.sameUser();
+        return;
+      }
       if (ev?.code === CLOSE_REPLACED) {
         this.leave();
         this.onReplaced();
@@ -147,6 +159,19 @@ export class RateSearch {
     };
     // エラーの後には close が来るので、そちらで決める
     ws.onerror = () => {};
+  }
+
+  /**
+   * 同じユーザーID がもう待っていた。つなぎ直しの時（自分の前の接続が受付係に残っているかもしれない）は予備の待合所へ。
+   * 初めてつないだ時は やめる（予備の待合所でも同じユーザーID とは組まない）
+   */
+  private sameUser(): void {
+    if (this.retries > 0) {
+      this.toFallback();
+      return;
+    }
+    this.leave();
+    this.onSameUser();
   }
 
   /** 「やめる」・画面を出る・相手が決まった後 */
@@ -174,6 +199,9 @@ export class RateSearch {
       opponentId: b.opponent.userId,
       opponentName: typeof b.opponent.name === 'string' ? b.opponent.name : '',
       opponentRate: Number.isFinite(b.opponent.rate) ? Math.max(0, Math.round(b.opponent.rate)) : 100,
+      // 両者のレートとトロフィあげの数はサーバーの記録（v2.2）
+      opponentTrophies: count(b.opponent.trophies),
+      me: { rate: Number.isFinite(b.me?.rate) ? Math.max(0, Math.round(b.me!.rate)) : this.opts.rate, trophies: b.me ? count(b.me.trophies) : (this.opts.trophies ?? 0) },
     });
   }
 

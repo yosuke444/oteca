@@ -2,6 +2,7 @@ import { type Msg, type MsgBody, RATE_SUBROOMS, type Ticket, makeMsg, rateLobbyN
 import { toHex } from './sha256';
 import type { Clock } from './session';
 import type { NetTransport } from './transport';
+import type { PlayerBadge } from '../ui/common/trophyBadge';
 
 /**
  * レート対戦の予備の待合所（UPDATE_v2 §8-4・SPEC §7 S15。v2.0-I からは受付係につながらない時だけ使う）
@@ -18,6 +19,8 @@ export type RateLobbyOptions = {
   playerId: string;
   name: string;
   rate: number;
+  /** トロフィあげの数（v2.2。予備の待合所では自分で知らせる。書かなければ 0） */
+  trophies?: number;
   /** 直前のレート対戦の相手（'' ＝なし） */
   lastOpponentId: string;
   protocol: number;
@@ -29,11 +32,13 @@ export type RateLobbyOptions = {
 
 /**
  * 相手が決まった。matchId は結果の報告に使う試合ID（受付係が組んだ時は受付係の試合ID、予備の待合所では部屋ID）。
- * viaLobby：受付係が組んだ（false は予備の待合所）
+ * viaLobby：受付係が組んだ（false は予備の待合所）。
+ * me・opponentTrophies（v2.2）：VS 画面と対戦中の名前の欄に出す、両者のレートとトロフィあげの数
+ * （受付係が組んだ時はサーバーの記録、予備の待合所では端末が知らせたもの）
  */
-export type RatePaired = { roomId: string; matchId: string; viaLobby: boolean; opponentName: string; opponentId: string; opponentRate: number };
+export type RatePaired = { roomId: string; matchId: string; viaLobby: boolean; opponentName: string; opponentId: string; opponentRate: number; opponentTrophies: number; me: PlayerBadge };
 
-type Entry = { peerId: string; playerId: string; ticket: Ticket; lastOpponentId: string; name: string; rate: number; heard: number };
+type Entry = { peerId: string; playerId: string; ticket: Ticket; lastOpponentId: string; name: string; rate: number; trophies: number; heard: number };
 
 /** 待っている知らせを送る間隔 */
 export const QUEUE_EVERY_MS = 2000;
@@ -169,6 +174,8 @@ export class RateLobby {
       case 'queue': {
         const e = cleanQueue(m.body);
         if (!e) return;
+        // 自分と同じユーザーID の人（同じデータの別の端末・タブ）は一覧に入れない（人数にも数えない。組まない。v2.2）
+        if (e.playerId === this.opts.playerId) return;
         // 同じ人が入り直した（ピアIDが変わった）：前の分を消す
         for (const [id, x] of this.entries) if (id !== from && x.playerId === e.playerId) this.entries.delete(id);
         this.entries.set(from, { ...e, peerId: from, heard: this.clock.now() });
@@ -208,7 +215,7 @@ export class RateLobby {
   private paired(roomId: string, e: Entry): void {
     this.state = 'paired';
     // 予備の待合所で組んだ試合は、受付係の試合ID が無いので、部屋ID を試合ID にする（2人とも同じ）
-    this.onPaired({ roomId, matchId: roomId, viaLobby: false, opponentName: e.name, opponentId: e.playerId, opponentRate: e.rate });
+    this.onPaired({ roomId, matchId: roomId, viaLobby: false, opponentName: e.name, opponentId: e.playerId, opponentRate: e.rate, opponentTrophies: e.trophies, me: { rate: this.opts.rate, trophies: this.opts.trophies ?? 0 } });
   }
 
   private tick(): void {
@@ -270,7 +277,7 @@ export class RateLobby {
   private sendQueue(to?: string): void {
     if (this.state === 'idle' || this.state === 'paired') return;
     this.lastQueue = this.clock.now();
-    this.send(makeMsg('queue', this.opts.protocol, { playerId: this.opts.playerId, ticket: this.ticket, lastOpponentId: this.opts.lastOpponentId, name: this.opts.name, rate: this.opts.rate }), to);
+    this.send(makeMsg('queue', this.opts.protocol, { playerId: this.opts.playerId, ticket: this.ticket, lastOpponentId: this.opts.lastOpponentId, name: this.opts.name, rate: this.opts.rate, trophies: this.opts.trophies ?? 0 }), to);
   }
 
   private send(m: Msg, to?: string): void {
@@ -297,5 +304,6 @@ function cleanQueue(b: MsgBody['queue']): Omit<Entry, 'peerId' | 'heard'> | null
     lastOpponentId: typeof b.lastOpponentId === 'string' ? b.lastOpponentId.slice(0, 64) : '',
     name,
     rate: Number.isFinite(b.rate) ? Math.max(0, Math.round(b.rate)) : 100,
+    trophies: Number.isSafeInteger(b.trophies) ? Math.max(0, Math.min(9999, b.trophies as number)) : 0,
   };
 }

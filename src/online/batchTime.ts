@@ -1,7 +1,7 @@
 import { RANKING } from '../config/rating';
 
 /**
- * まとめ処理（レートとランキングの更新）の時刻（v2.0-J。毎日 日本時間 4:00 と 14:00 の1日2回）。
+ * まとめ処理（レートとランキングの更新）の時刻（v2.0-J。毎日 日本時間 4:00 と 16:00 の1日2回）。
  * ゲームと Worker（worker/）の両方で使う。ふつうの計算だけ。
  */
 
@@ -21,7 +21,7 @@ function jstMidnight(ms: number): number {
   return Math.floor((ms + JST_MS) / DAY_MS) * DAY_MS - JST_MS;
 }
 
-/** 次のまとめ処理の時刻（4:00 と 14:00 の近い方。ちょうどその時刻なら次） */
+/** 次のまとめ処理の時刻（4:00 と 16:00 の近い方。ちょうどその時刻なら次） */
 export function nextBatchAt(now: number): number {
   const base = jstMidnight(now);
   for (const day of [0, 1]) {

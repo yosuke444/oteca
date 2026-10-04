@@ -45,7 +45,8 @@ export type GameStart = {
 };
 
 /** 部屋の人（自分もふくむ。v2.0-G） */
-export type RoomMember = { peerId: string; name: string; state: MemberState; deckName: string; me: boolean };
+/** 部屋の人。sameUser：自分と同じユーザーID（同じデータ）の人（v2.2。対戦できない。理由は画面に出さない） */
+export type RoomMember = { peerId: string; name: string; state: MemberState; deckName: string; me: boolean; sameUser?: boolean };
 
 /** 申し込みの様子（v2.0-G） */
 export type InviteState =
@@ -272,7 +273,7 @@ export class OnlineSession {
   /** 部屋の人（自分もふくむ。入室チケットの順） */
   get members(): RoomMember[] {
     const me: RoomMember & { ticket: Ticket } = { peerId: this.selfId, name: this.opts.name, state: this.myState(), deckName: this.opts.deckName ?? '', me: true, ticket: this.ticket };
-    const others = [...this.peers].map(([peerId, h]) => ({ peerId, name: h.name, state: h.state, deckName: h.deckName, me: false, ticket: h.ticket }));
+    const others = [...this.peers].map(([peerId, h]) => ({ peerId, name: h.name, state: h.state, deckName: h.deckName, me: false, ticket: h.ticket, ...(this.isSameUser(h) ? { sameUser: true } : {}) }));
     return [me, ...others].sort(byTicket).map(({ ticket: _t, ...m }) => (void _t, m));
   }
 
@@ -325,10 +326,24 @@ export class OnlineSession {
 
   // ---------------------------------------------------------------- 部屋の中（v2.0-G。UPDATE_v2 §8-2）
 
+  /**
+   * 自分と同じユーザーID（同じデータ）の人か（v2.2。SPEC §7 S03）。古い版でユーザーID が無い時は、セーブのプレイヤーID で比べる。
+   * 同じなら対戦しない（申し込めない・申し込まれても断る・2人だけでも自動で始めない）
+   */
+  private isSameUser(h: Pick<PeerInfo, 'userId' | 'playerId'>): boolean {
+    if (this.opts.userId && h.userId) return h.userId === this.opts.userId;
+    return !!h.playerId && h.playerId === this.opts.playerId;
+  }
+
+  /** 部屋に、自分と同じユーザーID の人がいて、ほかに対戦できる人がいない（「この あいてとは あそべないよ」を出す） */
+  get onlySameUser(): boolean {
+    return this.peers.size > 0 && [...this.peers.values()].every((h) => this.isSameUser(h));
+  }
+
   /** まちあいの人に「あそぼう！」を申し込む */
   inviteTo(peerId: string): boolean {
     const target = this.peers.get(peerId);
-    if (this.status.kind !== 'waiting' || this.outgoing || this.incoming || this.awaiting || !target || target.state !== 'waiting') return false;
+    if (this.status.kind !== 'waiting' || this.outgoing || this.incoming || this.awaiting || !target || target.state !== 'waiting' || this.isSameUser(target)) return false;
     const id = toHex(this.randomBytes(6));
     this.outgoing = { to: peerId, id, until: this.clock.now() + INVITE_MS };
     this.send(makeMsg('invite', this.opts.protocol, { to: peerId, id }), peerId);
@@ -624,7 +639,8 @@ export class OnlineSession {
           }
           return;
         }
-        const busy = this.status.kind !== 'waiting' || !!this.outgoing || !!this.incoming || !!this.awaiting;
+        // 同じユーザーID の人からの申し込みは断る（v2.2）
+        const busy = this.status.kind !== 'waiting' || !!this.outgoing || !!this.incoming || !!this.awaiting || this.isSameUser(p);
         if (busy) {
           this.send(makeMsg('inviteReply', this.opts.protocol, { to: from, id: m.body.id, accept: false }), from);
           return;
@@ -707,6 +723,8 @@ export class OnlineSession {
     }
     if (this.peers.size !== 1) return;
     const [id, info] = [...this.peers][0];
+    // 同じユーザーID の2人は自動で始めない（v2.2）
+    if (this.isSameUser(info)) return;
     // 相手の方が先に決めて deck を送ってきた（相手は もう たいせんちゅう）：その試合番号で始める
     const early = (this.preMatch.get(id) ?? []).find((m): m is Extract<Msg, { t: 'deck' }> => m.t === 'deck');
     if (info.state !== 'waiting' && !early) return;
@@ -716,7 +734,7 @@ export class OnlineSession {
   /** この人と対戦を始める（種を決めるところから） */
   private startMatchWith(peerId: string, game: number): void {
     const info = this.peers.get(peerId);
-    if (!info) return;
+    if (!info || this.isSameUser(info)) return;
     this.opponentPeer = peerId;
     this.opponentPlayerId = info.playerId;
     this.opponentUserId = info.userId ?? '';

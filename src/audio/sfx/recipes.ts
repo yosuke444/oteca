@@ -393,29 +393,47 @@ export const RECIPES: Record<string, Recipe> = {
       sparkle(0.24, 0.4, 10, 0.07),
     ],
   },
-  // ダブル（v2.0-E。約1.8秒）：2回はねる「ドンドン」→ 花火の「ヒュー・パン」→ 明るい和音
-  jingle_double: {
+  // 確定の袋（v2.2。約2.4秒）：太鼓のロール → 花火の「ヒュー・パン」を3回 → 明るい和音を高く重ねる
+  jingle_guarantee: {
     gain: 0.85,
     layers: [
-      kick(0, 0.9),
-      kick(0.22, 0.9),
-      { src: 'sine', gain: 0.22, freq: [600, 2400], freqTime: 0.45, env: { a: 0.02, d: 0.45, s: 0, r: 0.02 }, delay: 0.42 },
-      { src: 'white', gain: 0.45, filter: { type: 'lowpass', freq: [5000, 600], time: 0.5 }, env: { a: 0.001, d: 0.5, s: 0, r: 0.1 }, delay: 0.9, reverb: 0.4, reverbLong: true },
-      kick(0.9, 1),
+      kick(0, 0.6),
+      kick(0.1, 0.65),
+      kick(0.2, 0.7),
+      kick(0.28, 0.75),
+      kick(0.36, 0.8),
+      kick(0.44, 0.9),
+      kick(0.52, 1),
+      { src: 'sine', gain: 0.2, freq: [600, 2400], freqTime: 0.4, env: { a: 0.02, d: 0.4, s: 0, r: 0.02 }, delay: 0.55 },
+      { src: 'white', gain: 0.4, filter: { type: 'lowpass', freq: [5000, 600], time: 0.45 }, env: { a: 0.001, d: 0.45, s: 0, r: 0.1 }, delay: 0.95, reverb: 0.4, reverbLong: true },
+      { src: 'sine', gain: 0.18, freq: [700, 2800], freqTime: 0.35, env: { a: 0.02, d: 0.35, s: 0, r: 0.02 }, delay: 0.8 },
+      { src: 'white', gain: 0.36, filter: { type: 'lowpass', freq: [5600, 700], time: 0.45 }, env: { a: 0.001, d: 0.45, s: 0, r: 0.1 }, delay: 1.15, reverb: 0.4, reverbLong: true },
+      { src: 'sine', gain: 0.18, freq: [800, 3200], freqTime: 0.3, env: { a: 0.02, d: 0.3, s: 0, r: 0.02 }, delay: 1.0 },
+      { src: 'white', gain: 0.42, filter: { type: 'lowpass', freq: [6200, 800], time: 0.5 }, env: { a: 0.001, d: 0.5, s: 0, r: 0.1 }, delay: 1.32, reverb: 0.45, reverbLong: true },
+      kick(1.32, 1.1),
       {
         src: 'triangle',
         gain: 0.32,
-        env: { a: 0.004, d: 0.08, s: 0.55, r: 0.2 },
+        env: { a: 0.004, d: 0.08, s: 0.55, r: 0.25 },
         notes: [
-          { t: 0.9, f: N.E5, d: 0.12 },
-          { t: 1.02, f: N.G5, d: 0.12 },
-          { t: 1.14, f: N.C6, d: 0.12 },
-          { t: 1.26, f: N.E6, d: 0.5, g: 1.1 },
+          { t: 1.36, f: N.C5, d: 0.1 },
+          { t: 1.46, f: N.E5, d: 0.1 },
+          { t: 1.56, f: N.G5, d: 0.1 },
+          { t: 1.66, f: N.C6, d: 0.1 },
+          { t: 1.76, f: N.E6, d: 0.65, g: 1.15 },
         ],
-        reverb: 0.3,
+        reverb: 0.35,
       },
-      { src: 'sawtooth', gain: 0.07, filter: { type: 'lowpass', freq: [2400, 2400] }, env: { a: 0.02, d: 0.2, s: 0.6, r: 0.3 }, notes: [N.C4, N.E4, N.G4, N.C5].map((f) => ({ t: 1.26, f, d: 0.5 })), reverb: 0.3 },
-      sparkle(0.95, 0.9, 30, 0.09),
+      { src: 'sawtooth', gain: 0.08, filter: { type: 'lowpass', freq: [2600, 2600] }, env: { a: 0.02, d: 0.2, s: 0.65, r: 0.4 }, notes: [N.C4, N.E4, N.G4, N.C5, N.E5].map((f) => ({ t: 1.76, f, d: 0.65 })), reverb: 0.35, reverbLong: true },
+      sparkle(1.3, 1.1, 50, 0.1),
+    ],
+  },
+  // 光ったのにノーマル（v2.2。約0.9秒）：期待の「ひゅ〜」が下がっていく → 小さな「ぽてっ」（がっかりしすぎない、ゆるい音）
+  se_letdown: {
+    gain: 0.7,
+    layers: [
+      { src: 'sine', gain: 0.28, freq: [1400, 380], freqTime: 0.6, curve: 'lin', env: { a: 0.02, d: 0.6, s: 0, r: 0.05 }, partials: [1, 1.01] },
+      { src: 'triangle', gain: 0.3, env: { a: 0.002, d: 0.12, s: 0, r: 0.05 }, notes: [{ t: 0.66, f: N.G3, d: 0.08 }, { t: 0.76, f: N.C3, d: 0.12 }] },
     ],
   },
   // ボス戦の前のカットイン（v2.0-F。約2秒）：低い太鼓の連打 → 不気味な金管の和音 → シンバル

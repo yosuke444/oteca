@@ -282,14 +282,43 @@
 .gacha-bag.is-torn .pack-art {
   clip-path: inset(16% 0 0 0);
 }
-/* スーパーレアの袋：開ける前から金色に震え、すき間から光が漏れる */
-.gacha-bag.is-super {
+/* 光る袋（v2.2。中身がスーパーとは限らない）：開ける前から金色に震え、すき間から光が漏れる */
+.gacha-bag.is-glow {
   animation: gacha-super-shake calc(0.5s / var(--fx-speed)) linear infinite;
   filter: drop-shadow(0 0 10px var(--super-gold)) drop-shadow(0 0 4px var(--super-gold));
 }
-.gacha-bag.is-super .pack-art__body {
+.gacha-bag.is-glow .pack-art__body {
   stroke: var(--super-gold);
   stroke-width: 5;
+}
+/* 確定の袋（v2.2）：金色の特別な袋。光を強くし、「かくてい！」の手描き文字 */
+.gacha-bag.is-guaranteed {
+  filter: drop-shadow(0 0 16px var(--super-gold)) drop-shadow(0 0 6px var(--super-gold)) drop-shadow(0 0 2px var(--pen-red));
+}
+.gacha-bag.is-guaranteed .pack-art__body {
+  fill: color-mix(in srgb, var(--super-gold) 55%, var(--paper));
+  stroke: var(--super-gold);
+  stroke-width: 7;
+}
+.gacha-bag__tag {
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  z-index: 2;
+  transform: translateX(-50%) rotate(-10deg);
+  padding: 0 8px;
+  font-size: 24px;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--pen-red);
+  background: linear-gradient(transparent 45%, var(--marker-yellow) 45%, var(--marker-yellow) 90%, transparent 90%);
+  pointer-events: none;
+}
+.gacha-open__bags--many .gacha-bag__tag {
+  font-size: 18px;
+}
+.gacha-bag--center .gacha-bag__tag {
+  font-size: 34px;
 }
 .gacha-bag__leak {
   position: absolute;
@@ -323,10 +352,6 @@
     opacity: 1;
     transform: scaleY(1.4);
   }
-}
-/* ダブルの袋：少しふくらんでいる */
-.gacha-bag.is-double .pack-art {
-  transform: scale(1.07, 1.03);
 }
 .gacha-bag.is-opened {
   cursor: default;
@@ -554,11 +579,21 @@
   font-size: 64px;
   color: var(--pen-blue);
 }
-.gacha-double {
-  font-size: 120px;
+/* 確定の袋・サプライズ（v2.2）：蛍光ペン2色の特大文字 */
+.gacha-guarantee,
+.gacha-surprise {
+  font-size: 110px;
   color: var(--ink);
   padding: 0 18px;
   background: linear-gradient(transparent 30%, var(--marker-pink) 30%, var(--marker-pink) 62%, var(--marker-yellow) 62%, var(--marker-yellow) 92%, transparent 92%);
+}
+.gacha-surprise {
+  color: var(--pen-red);
+}
+/* 光ったのにノーマル（v2.2）：ゆるい えんぴつの文字（がっかりしすぎない） */
+.gacha-letdown {
+  font-size: 60px;
+  color: var(--pencil);
 }
 .gacha-stamp {
   font-size: 64px;
@@ -653,6 +688,15 @@
   margin: 0 0 8px;
   font-size: 17px;
 }
+/* 15まいの確定・光る袋（v2.2） */
+.gacha-contents__note--big {
+  font-size: 22px;
+  background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
+  display: inline-block;
+}
+.gacha-contents__note--glow {
+  color: var(--super-gold);
+}
 .gacha-contents__head {
   margin: 8px 0 4px;
   font-size: 20px;
@@ -685,21 +729,31 @@
   filter: drop-shadow(0 0 6px var(--super-gold));
 }
 
-/* 演出をへらす：震え・光・ふくらみなし */
-html[data-reduce-fx] .gacha-bag.is-super,
+/* 演出をへらす：震え・光の動きなし（光っていることは、動かない金色の縁で分かるようにする） */
+html[data-reduce-fx] .gacha-bag.is-glow,
 html[data-reduce-fx] .gacha-bag__leak {
   animation: none;
 }
-html[data-reduce-fx] .gacha-bag.is-super {
-  filter: none;
-}
-html[data-reduce-fx] .gacha-bag.is-double .pack-art {
-  transform: none;
+html[data-reduce-fx] .gacha-bag.is-glow {
+  filter: drop-shadow(0 0 4px var(--super-gold));
 }
 /* 換金のコインが飛ぶ層 */
 .gacha-scene__layer {
   position: absolute;
   inset: 0;
   z-index: 90;
+  pointer-events: none;
+}
+
+/* 汗の落書き（光ったのにノーマル。v2.2） */
+.gacha-sweat {
+  position: absolute;
+  width: 26px;
+  height: 36px;
+  margin: -18px 0 0 -13px;
+  border: 3px solid var(--pen-sky);
+  background: color-mix(in srgb, var(--pen-sky) 25%, var(--paper));
+  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
+  transform-origin: 50% 0;
   pointer-events: none;
 }

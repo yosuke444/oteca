@@ -238,13 +238,28 @@ export function createTradeSession(opts: Omit<TradeOptions, 'protocol' | 'appVer
  * レート対戦の「さがす」（v2.0-I）：受付係（WebSocket）につなぎ、つながらなければ予備の P2P の待合所（8つの小部屋）。
  * 画面が閉じる時に leave する
  */
-export function createRateSearch(opts: { userId: string; name: string; rate: number; lastOpponentId: string; token: string }): RateSearch {
+/** このタブの印（v2.2。受付係が「同じタブの入り直し」と「ほかのタブ・端末」を見分ける。タブを閉じるまで同じ） */
+function tabId(): string {
+  try {
+    const k = 'oteca.tabId';
+    let v = sessionStorage.getItem(k);
+    if (!v || !/^[0-9a-f]{16}$/.test(v)) {
+      v = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('');
+      sessionStorage.setItem(k, v);
+    }
+    return v;
+  } catch {
+    return '';
+  }
+}
+
+export function createRateSearch(opts: { userId: string; name: string; rate: number; trophies: number; lastOpponentId: string; token: string }): RateSearch {
   // 受付係は token で本人を確かめる（token が無ければ予備の待合所）
   const base = opts.token ? lobbyUrl() : null;
   const url = base ? `${base}?userId=${opts.userId}&token=${opts.token}` : null;
   // 待合所の中では、ユーザーID を playerId として使う（予備の待合所の P2P も同じ）
-  const full = { playerId: opts.userId, name: opts.name, rate: opts.rate, lastOpponentId: opts.lastOpponentId, protocol: protocolVersion };
-  return new RateSearch(full, {
+  const full = { playerId: opts.userId, name: opts.name, rate: opts.rate, trophies: opts.trophies, lastOpponentId: opts.lastOpponentId, protocol: protocolVersion };
+  return new RateSearch({ ...full, tab: tabId() }, {
     openSocket: url ? () => new WebSocket(url) as unknown as SocketLike : null,
     createLobby: () => new RateLobby(createTransport(), full),
   });

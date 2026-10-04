@@ -79,15 +79,6 @@
   color: var(--pencil);
   text-decoration: line-through 2px var(--pen-red);
 }
-.daily-row__fixed {
-  display: inline-block;
-  margin-right: 8px;
-  padding: 0 6px;
-  font-size: 18px;
-  border: 2px solid var(--pen-red);
-  border-radius: 6px;
-  transform: rotate(-6deg);
-}
 .daily-row__bar {
   position: relative;
   height: 30px;

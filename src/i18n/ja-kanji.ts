@@ -7,6 +7,7 @@ import type { Dict } from './ja-hira';
  */
 export const kanji: Dict = {
   common: {
+    cannotPlay: 'この相手とは遊べないよ',
     back: '戻る',
     close: '閉じる',
     cancel: 'やめる',
@@ -59,6 +60,9 @@ export const kanji: Dict = {
   },
 
   battle: {
+    trophyMore: (n) => `+${n}`,
+    trophyCount: (n) => `トロフィあげ ${n}個`,
+    nameRate: (n) => `レート ${n}`,
     slotHere: 'ここに出す',
     slotActive: 'バトル場',
     slotBench: 'ベンチ',
@@ -330,7 +334,6 @@ export const kanji: Dict = {
     empty: 'どちらも何も出していないよ',
     notEnough: '持っている枚数が足りないよ',
     changed: '相手が内容を変えたよ。もう一度確かめてね',
-    self: '同じデータ同士では交換できないよ',
   },
 
   online: {
@@ -505,6 +508,7 @@ export const kanji: Dict = {
     hidden: '7日以上レート対戦をしていない人は載らないよ',
     myRank: (n) => `あなたは ${n}位`,
     notYet: 'まだ載っていないよ。レート対戦をすると次の更新で載るよ',
+    optedOut: 'ランキングに載らない設定だよ',
     offline: '今ランキングを見られないよ',
     lastSeen: (time) => `最後に見た時間：${time}`,
     loading: '読み込み中…',
@@ -565,7 +569,7 @@ export const kanji: Dict = {
   numpad: { clear: '消す', all: '全部' },
 
   deck: {
-    filter: { all: '全部', owned: '持っている', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
+    filter: { all: '全部', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
     pack: (name) => `パック：${name}`,
     packAll: '全部',
     packLimited: '限定',
@@ -641,7 +645,12 @@ export const kanji: Dict = {
     normal: 'ノーマル',
     super: 'スーパーレア',
     rate: (p) => `${p}%`,
-    rateNote: (sr, dbl) => `スーパーレアのどれかが出るのは1枚ごとに${sr}%（スーパー1種類は、ノーマル1種類の半分の出やすさ）。1袋ごとに${dbl}%でダブル（2枚入り）。%は小数第2位まで（四捨五入）`,
+    rateNote: (sr) => `1袋に1枚。スーパーレアのどれかが出るのは1袋${sr}%（スーパーの中でも、ノーマルの中でも、どれも同じ確率）。%は小数第2位まで（四捨五入）`,
+    guaranteeNote: (bags) => `${bags}枚ガチャの最後の1袋はスーパーレア確定！`,
+    glowNote: '光っている袋はスーパーレアのチャンス！（必ずではないよ）',
+    guaranteeTag: '確定！',
+    surprise: 'サプライズ！',
+    letdown: '…ぺらっ',
     ownedCount: (n) => `×${n}`,
     unknown: '？',
     skipAll: '全部スキップ',
@@ -650,7 +659,6 @@ export const kanji: Dict = {
     bagsLeft: (n) => `残り ${n}袋`,
     lastBag: 'これで最後！ 次はまとめ',
     superStamp: 'スーパーレア！',
-    double: 'ダブル！！',
     flip: 'ぺらっ',
     summaryTitle: '手に入れたカード',
     newTag: 'NEW',
@@ -682,7 +690,7 @@ export const kanji: Dict = {
     stageAria: (n, name, state) => `ステージ${n} ${name}（${state === 'locked' ? 'まだ行けない' : state === 'cleared' ? 'クリア' : '行ける'}）`,
     theme: 'テーマ',
     strength: '強さ',
-    level: { normal: 'ふつう', strong: '強い' },
+    level: { weak: '弱い', normal: 'ふつう', strong: '強い', strongest: '最強' },
     rule: 'ボスルール',
     reward: '報酬',
     rewardFirst: (coins) => `初クリア：${coins}コイン`,
@@ -766,7 +774,6 @@ export const kanji: Dict = {
     claim: '受け取る',
     claimed: '受け取った',
     notYet: 'まだ',
-    fixed: '確定',
     carryTitle: '昨日のミッション',
     carryText: '昨日のミッションの報酬を受け取ったよ',
     carryCoins: (n) => `コイン +${n}`,
@@ -803,7 +810,7 @@ export const kanji: Dict = {
             lines: [
               `上から${n.ranking.top}人が載るよ`,
               `${n.ranking.hideDays}日以上レート対戦をしないと載らないよ（また遊べば戻るよ）`,
-              '「設定」で名前を載せないようにできるよ。載せないと「ななし」になるよ',
+              '「設定」の「ランキングに載る」をオフにすると、載らないよ',
             ],
           },
         ],
@@ -836,10 +843,20 @@ export const kanji: Dict = {
       }),
       gacha: (n, _w) => ({
         title: 'パックガチャの説明',
-        short: ['コインでパックを引こう', 'たまに2枚入ってるかも！'],
+        short: ['コインでパックを引こう', ...n.gacha.guaranteeBags.slice(0, 1).map((b) => `${b}枚の最後の1袋はスーパーレア確定！`)],
         pages: [
-          { title: '値段', lines: [...n.gacha.offers.map((o) => `${o.bags}枚（${o.bags}袋）：${o.price}コイン`), 'パックの絵をタップすると「中身」が見られるよ'] },
-          { title: '確率', lines: [`1袋に1枚。${n.gacha.double}%でダブル（2枚入り）`, 'スーパー1種類は、ノーマル1種類の半分の出やすさ', ...n.gacha.supers.map((s) => `${s.name}：スーパーレアが出るのは1枚ごとに${s.rate}%`)] },
+          {
+            title: '値段',
+            lines: [...n.gacha.offers.map((o) => `${o.bags}枚（${o.bags}袋）：${o.price}コイン${o.guarantee ? '。最後の1袋はスーパーレア確定！' : ''}`), 'パックの絵をタップすると「中身」が見られるよ'],
+          },
+          {
+            title: '確率',
+            lines: [
+              `1袋に1枚。スーパーレアが出るのは1袋${n.gacha.superRate}%（どのパックも同じ）`,
+              '光っている袋はスーパーレアのチャンス！（必ずではないよ）',
+              ...n.gacha.guaranteeBags.map((b) => `${b}枚ガチャの最後の1袋はスーパーレア確定！`),
+            ],
+          },
           { title: 'スーパーおてあげの換金', lines: ['もう持っているスーパーおてあげが出たら、', `まとめの画面で${n.gacha.superToCoins}コインに替えられるよ`, 'トレードに使うなら残しておこう'] },
         ],
       }),
@@ -848,7 +865,7 @@ export const kanji: Dict = {
         short: ['持っているカードでデッキを作ろう', `${n.deck.size}枚ちょうどで完成`],
         pages: [
           { title: 'デッキのルール', lines: [`${n.deck.size}枚ちょうど`, 'おてあげが1枚以上', `スーパーおてあげは${n.deck.superMax}枚まで`] },
-          { title: '持っている枚数', lines: ['1つのデッキに、持っている枚数まで入れられるよ', 'ほかのデッキに入れていても大丈夫（在庫はデッキごと）', '持っていないカードは「？」で見えるよ'] },
+          { title: '持っている枚数', lines: ['1つのデッキに、持っている枚数まで入れられるよ', 'ほかのデッキに入れていても大丈夫（在庫はデッキごと）', 'カード一覧には、持っているカードだけが並ぶよ'] },
           { title: 'デッキはいくつでも', lines: [`デッキは${n.deck.slots}個まで作れるよ`, '変えたら自動で保存されるよ', '「デッキを選ぶ」で使うデッキを決めよう'] },
         ],
       }),
@@ -857,7 +874,7 @@ export const kanji: Dict = {
         short: ['友達と同じ番号を入れて、', 'カードを交換しよう'],
         pages: [
           { title: '流れ', lines: ['あげるカードを選ぶと、相手にも見えるよ', '2人とも「これで OK」を押してから「交換する」', '内容を変えると、OK は外れるよ'] },
-          { title: '決まり', lines: [`片方${n.trade.kinds}種類・合わせて${n.trade.cards}枚まで`, 'コインは交換できないよ', '何ももらわずにあげることもできるよ'] },
+          { title: '決まり', lines: [`片方${n.trade.kinds}種類・合わせて${n.trade.cards}枚まで`, 'コインと、限定カード・トロフィあげは交換できないよ', '何ももらわずにあげることもできるよ'] },
           { title: '注意', lines: ['交換でデッキが使えなくなる時は、お知らせが出るよ', '交換したカードは戻せないよ。よく確かめてね'] },
         ],
       }),
@@ -875,7 +892,7 @@ export const kanji: Dict = {
             ],
           },
           {
-            title: '確定のミッションと受け取り忘れ',
+            title: '全部クリアのミッションと受け取り忘れ',
             lines: [
               `${n.daily.pick}つ全部クリアで、デイリーパック${n.daily.allClearBags}袋＋${n.daily.allClearCoins}コイン（デイリーパックはここでしかもらえない）`,
               `受け取らないまま${n.daily.resetHour}時を過ぎても、次にメニューを開いた時に自動で受け取るよ`,
@@ -898,8 +915,8 @@ export const kanji: Dict = {
     copied: 'コピーしたよ',
     copyFailed: 'コピーできなかったよ',
     userIdNotRegistered: '（まだ登録していないよ）',
-    rankingName: 'ランキングに名前を載せる',
-    rankingNameNote: '載せないと「ななし」になるよ。次の更新から変わるよ',
+    rankingName: 'ランキングに載る',
+    rankingNameNote: 'オフにするとランキングに載らないよ（レートは変わらず計算するよ）',
     bgm: 'BGM',
     se: '効果音',
     fxSpeed: '演出スピード',
@@ -945,7 +962,6 @@ export const kanji: Dict = {
     enterNote: 'コードを貼り付けてね（ハイフンや空白があっても大丈夫）',
     inputAria: '引き継ぎコードの入力',
     wrong: 'コードが違うようです。もう一度確かめてね',
-    oldDevice: '前の端末では、もう使わないでね（同じデータを2台で使うと、カードやコインが2倍になってしまいます）',
     making: 'コードを作っています…',
   },
 
@@ -1179,7 +1195,8 @@ export const kanji: Dict = {
         se_super_shine: 'スーパーレアの袋',
         se_sparkle: 'キラキラ（しゃらしゃら）',
         jingle_super: 'スーパーレア！',
-        jingle_double: 'ダブル！！',
+        jingle_guarantee: '確定の袋',
+        se_letdown: '光ったのにノーマル',
         se_sou: 'そう！（チュートリアル）',
         jingle_boss: 'ボスのカットイン',
         jingle_limited: '限定カードをゲット',

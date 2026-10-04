@@ -26,7 +26,7 @@ function sample(v: unknown, key = ''): string[] {
     // 「このモードの せつめい」（guide.modes）は、数（guideNumbers）と言葉を受け取る
     if (key.startsWith('guide.modes.')) return sample((v as (...a: unknown[]) => unknown)(guideNumbers(), GUIDE_WORDS));
     // 更新の時刻の一覧を受け取る（v2.0-J）
-    if (key === 'ranking.daily' || key === 'rate.provisionalHint') return sample((v as (h: number[]) => unknown)([4, 14]));
+    if (key === 'ranking.daily' || key === 'rate.provisionalHint') return sample((v as (h: number[]) => unknown)([4, 16]));
     const outs: string[] = [];
     for (const arg of [7, 'テスト', true, false, 0, 1, 2]) {
       const args = Array.from({ length: v.length }, () => arg);

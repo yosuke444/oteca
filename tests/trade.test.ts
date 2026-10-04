@@ -3,7 +3,9 @@ import { cardById } from '../src/data/cards';
 import { type PendingTrade, TRADE_PICK_MS, TradeSession, type TradeView } from '../src/net/tradeSession';
 import { MemoryHub } from '../src/net/transport';
 import { createDefaultSave } from '../src/save/saveData';
-import { type Offer, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, cleanOffer, offerFits } from '../src/trade/trade';
+import { type Offer, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, cleanOffer, isTradable, offerFits } from '../src/trade/trade';
+import { PACK_DATA } from '../src/data/packs';
+import { trophyCardNo } from '../src/data/cards';
 import { FakeClock, settle } from './net.helpers';
 import { makeRandom } from './save.helpers';
 
@@ -69,12 +71,13 @@ describe('H03 デッキが使えなくなる警告', () => {
 
 type T = { s: TradeSession; views: TradeView[]; save: ReturnType<typeof createDefaultSave>; pending: PendingTrade | null; resumes: string[] };
 
-function trader(hub: MemoryHub, clock: FakeClock, id: string, playerId = `pl-${id}`, save = createDefaultSave()): T {
+function trader(hub: MemoryHub, clock: FakeClock, id: string, playerId = `pl-${id}`, save = createDefaultSave(), userId?: string): T {
   const r = makeRandom(id.charCodeAt(id.length - 1));
   const x: T = { s: null as unknown as TradeSession, views: [], save, pending: null, resumes: [] };
   const s = new TradeSession(hub.create(id), {
     name: id,
     playerId,
+    ...(userId ? { userId } : {}),
     protocol: 5,
     appVersion: '0',
     doneIds: () => x.save.trade.doneIds,
@@ -342,5 +345,56 @@ describe('H04b 突き合わせで見つかったこと', () => {
     clock.advance(TRADE_PICK_MS + 300);
     await settle(hub);
     expect(last(a).status).toBe('self');
+  });
+});
+
+describe('K04 ストーリーの限定カードとトロフィあげはトレードに出せない（v2.2）', () => {
+  it('おてあげニンゲン・ザムライ・ドラゴン・ウサギ（packs.json の limited）とトロフィあげは、出せない・受け取らない', () => {
+    expect(PACK_DATA.limited.sort()).toEqual(['oteage_dragon', 'oteage_ningen', 'oteage_usagi', 'oteage_zamurai']);
+    const s = createDefaultSave();
+    for (const id of PACK_DATA.limited) {
+      const n = no(id);
+      s.collection[n] = 3;
+      expect(isTradable(n), id).toBe(false);
+      expect(canAdd(s, {}, n), id).toBe(false);
+      // 相手から届いても受け取らない
+      expect(cleanOffer({ [n]: 1 }), id).toBeNull();
+    }
+    expect(isTradable(trophyCardNo(7))).toBe(false);
+    expect(cleanOffer({ [trophyCardNo(7)]: 1 })).toBeNull();
+    // ふつうのカード・スーパーレアは出せる
+    expect(isTradable(no('oteage'))).toBe(true);
+    expect(isTradable(no('kami'))).toBe(true);
+    expect(cleanOffer({ [no('oteage')]: 1 })).toEqual({ [no('oteage')]: 1 });
+  });
+});
+
+describe('K05 同じユーザーIDどうしはトレードしない（v2.2）', () => {
+  it('セーブ（プレイヤーID）が違っても、ユーザーID が同じなら始めない（self。画面は「この あいてとは あそべないよ」）', async () => {
+    const hub = new MemoryHub();
+    const clock = new FakeClock();
+    const a = trader(hub, clock, 'ua', 'pl-1', createDefaultSave(), '123456789012345');
+    const b = trader(hub, clock, 'ub', 'pl-2', createDefaultSave(), '123456789012345');
+    a.s.join('1717');
+    b.s.join('1717');
+    await settle(hub);
+    clock.advance(TRADE_PICK_MS + 300);
+    await settle(hub);
+    expect(last(a).status).toBe('self');
+    // 先に気づいた側が部屋を出るので、もう一方は ひとりで待つ（どちらも交換は始まらない）
+    expect(b.views.some((v) => v.status === 'trading')).toBe(false);
+  });
+
+  it('ユーザーID が違えば始まる', async () => {
+    const hub = new MemoryHub();
+    const clock = new FakeClock();
+    const a = trader(hub, clock, 'va', 'pl-1', createDefaultSave(), '123456789012345');
+    const b = trader(hub, clock, 'vb', 'pl-2', createDefaultSave(), '223456789012345');
+    a.s.join('1818');
+    b.s.join('1818');
+    await settle(hub);
+    clock.advance(TRADE_PICK_MS + 300);
+    await settle(hub);
+    expect(last(a).status).toBe('trading');
   });
 });

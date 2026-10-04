@@ -16,7 +16,7 @@ import { safeName } from '../../online/rate';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { loadPendingTrade, savePendingTrade } from '../../trade/pendingStore';
-import { type Offer, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, canonical, offerFits, offerSize } from '../../trade/trade';
+import { type Offer, isTradable, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, canonical, offerFits, offerSize } from '../../trade/trade';
 import { CardMini } from '../../ui/card/CardMini';
 import { Dialog } from '../../ui/common/Dialog';
 import { NumberPad } from '../../ui/common/NumberPad';
@@ -109,7 +109,7 @@ export function TradeScene() {
       setView(v);
       if (v.status !== 'trading') setConfirm(false);
       if (v.status === 'full' || v.status === 'version' || v.status === 'error' || v.status === 'self') {
-        setError(v.status === 'full' ? tr.trade.full : v.status === 'version' ? tr.trade.version : v.status === 'self' ? tr.trade.self : tr.trade.failed);
+        setError(v.status === 'full' ? tr.trade.full : v.status === 'version' ? tr.trade.version : v.status === 'self' ? tr.common.cannotPlay : tr.trade.failed);
         setPhase('error');
         sessionRef.current = null;
       }
@@ -280,7 +280,8 @@ export function TradeScene() {
   const getList = canonical(opp);
   const owned = Object.keys(save.collection)
     .map(Number)
-    .filter((no) => CARD_DB[no] && (save.collection[no] ?? 0) > 0)
+    // 限定カード・トロフィあげはトレードに出せないので、一覧に出さない（v2.2）
+    .filter((no) => isTradable(no) && (save.collection[no] ?? 0) > 0)
     .sort((a, b) => a - b);
   const warnings = confirm ? brokenDecks(save, my, opp) : [];
 

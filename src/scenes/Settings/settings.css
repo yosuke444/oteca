@@ -191,7 +191,7 @@
   white-space: nowrap;
 }
 
-/* ランキングに なまえを のせる（v2.0-I） */
+/* ランキングに のる（v2.0-I・v2.2） */
 .settings-ranking {
   display: flex;
   flex-direction: column;

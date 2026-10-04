@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { type Waiter, cleanJoin, pickPairs, waitingCounts } from './logic/queue';
+import { type Waiter, cleanJoin, pickPairs, serverRecord, waitingCounts } from './logic/queue';
 import { type MatchInfo, type Report, type ResultRow, acceptReport, cleanReport, decide } from './logic/results';
 import type { Env } from './env';
 import { randomHex } from './util';
@@ -17,6 +17,9 @@ import { jstDay } from './logic/batch';
 type Attachment = Omit<Waiter, 'id'> & { id: string; state: 'waiting' | 'done' };
 
 /** ブラウザから受け取るもの */
+/** 同じユーザーID がもう待っていたので切った（v2.2） */
+export const CLOSE_SAME_USER = 4001;
+
 type ClientMsg = { t: 'join'; body: unknown } | { t: 'leave' };
 
 /** 行数を数える（負荷の見積もり用。?metrics=1 の時だけ返す） */
@@ -109,7 +112,7 @@ export class Matchmaker extends DurableObject<Env> {
         res = await this.report(req);
         break;
       case '/batch': {
-        // まとめ処理（毎日 日本時間 4:00 と 14:00。Worker の Cron・管理キーから）。D1 も受付係の中から書く。同時に1つだけ
+        // まとめ処理（毎日 日本時間 4:00 と 16:00。Worker の Cron・管理キーから）。D1 も受付係の中から書く。同時に1つだけ
         if (this.batching) {
           res = Response.json({ ok: false, error: 'busy' }, { status: 409 });
           break;
@@ -218,7 +221,9 @@ export class Matchmaker extends DurableObject<Env> {
     const pair = new WebSocketPair();
     // 休止機能（Hibernation API）：待っている間は受付係が眠れる。Worker が token で確かめたユーザーID を札（tag）に付ける
     const playerId = req.headers.get('x-user-id') ?? '';
-    this.ctx.acceptWebSocket(pair[1], playerId ? [playerId] : []);
+    // 正式なレートと、配ったトロフィあげの数（v2.2。VS 画面に出す。Worker が D1 から読んだもの）
+    const rec = [`rate:${Number(req.headers.get('x-rate') ?? '')}`, `trophies:${Number(req.headers.get('x-trophies') ?? '')}`];
+    this.ctx.acceptWebSocket(pair[1], playerId ? [playerId, ...rec] : []);
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
@@ -260,10 +265,22 @@ export class Matchmaker extends DurableObject<Env> {
       ws.close(1008, 'bad');
       return;
     }
-    // 同じセーブの前の接続（タブの入り直し）は外す
-    for (const other of this.conns()) if (other.ws !== ws && other.att.playerId === j.playerId && other.att.protocol === j.protocol) this.drop(other.ws, 4000, 'replaced');
+    // 同じユーザーID がもう待っている（v2.2。SPEC §7 S15）：
+    // 同じタブの入り直し（前の接続が切れたのに残っていた）は前の接続を外す。ほかのタブ・端末なら2つ目は受け付けない（人数にも数えない）
+    for (const other of this.conns()) {
+      if (other.ws === ws || other.att.playerId !== j.playerId) continue;
+      if (j.tab && other.att.tab === j.tab) {
+        this.drop(other.ws, 4000, 'replaced');
+        continue;
+      }
+      ws.send(JSON.stringify({ t: 'error', body: { reason: 'same-user' } }));
+      ws.close(CLOSE_SAME_USER, 'same-user');
+      return;
+    }
     this.seq = (this.seq + 1) % 1e9;
-    ws.serializeAttachment({ ...j, id: randomHex(8), joinedAt: Date.now(), seq: this.seq, state: 'waiting' } satisfies Attachment);
+    // レートとトロフィーの数は、サーバーの記録（v2.2）。無ければ端末が送ってきたレート
+    const rec = serverRecord(this.ctx.getTags(ws));
+    ws.serializeAttachment({ ...j, rate: rec?.rate ?? j.rate, trophies: rec?.trophies ?? 0, id: randomHex(8), joinedAt: Date.now(), seq: this.seq, state: 'waiting' } satisfies Attachment);
     const left = this.match(this.conns());
     this.broadcastCounts(left);
   }
@@ -313,7 +330,8 @@ export class Matchmaker extends DurableObject<Env> {
         if (!c) continue;
         used.add(me.id);
         c.ws.serializeAttachment({ ...c.att, state: 'done' });
-        c.ws.send(JSON.stringify({ t: 'paired', body: { matchId, roomId, opponent: { userId: opp.playerId, name: opp.name, rate: opp.rate } } }));
+        // 両者の名前・レート・トロフィあげの数（v2.2。VS 画面と対戦中の名前の欄に出す）
+        c.ws.send(JSON.stringify({ t: 'paired', body: { matchId, roomId, me: { rate: me.rate, trophies: me.trophies }, opponent: { userId: opp.playerId, name: opp.name, rate: opp.rate, trophies: opp.trophies } } }));
         // 組めたら受付係との接続は切る（ブラウザの側でも切る）
         try {
           c.ws.close(1000, 'paired');

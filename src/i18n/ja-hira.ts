@@ -8,6 +8,8 @@ import type { GuideNumbers, GuideWords } from '../guide/guideData';
 
 export const hira = {
   common: {
+    /** 同じユーザーID の相手（v2.2。理由は書かない） */
+    cannotPlay: 'この あいてとは あそべないよ',
     back: 'もどる',
     close: 'とじる',
     cancel: 'やめる',
@@ -60,6 +62,10 @@ export const hira = {
   },
 
   battle: {
+    /** トロフィあげの数（v2.2。絵が5個を超えた分） */
+    trophyMore: (n: number) => `+${n}`,
+    trophyCount: (n: number) => `トロフィあげ ${n}こ`,
+    nameRate: (n: number) => `レート ${n}`,
     slotHere: 'ここに だす',
     slotActive: 'バトルば',
     slotBench: 'ベンチ',
@@ -331,7 +337,6 @@ export const hira = {
     empty: 'どちらも なにも だしていないよ',
     notEnough: 'もっている まいすうが たりないよ',
     changed: 'あいてが ないようを かえたよ。もういちど たしかめてね',
-    self: 'おなじ データ どうしでは こうかんできないよ',
   },
 
   online: {
@@ -509,6 +514,7 @@ export const hira = {
     hidden: '7にちいじょう レートたいせんを していない ひとは のらないよ',
     myRank: (n: number) => `あなたは ${n}い`,
     notYet: 'まだ のっていないよ。レートたいせんを すると つぎの こうしんで のるよ',
+    optedOut: 'ランキングに のらない せってい だよ',
     offline: 'いま ランキングを みられないよ',
     lastSeen: (time: string) => `さいごに みた じかん：${time}`,
     loading: 'よみこみちゅう…',
@@ -569,7 +575,7 @@ export const hira = {
   numpad: { clear: 'けす', all: 'ぜんぶ' },
 
   deck: {
-    filter: { all: 'ぜんぶ', owned: 'もっている', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
+    filter: { all: 'ぜんぶ', otege: 'おてあげ', item: 'アイテム', super: 'スーパー' },
     pack: (name: string) => `パック：${name}`,
     packAll: 'ぜんぶ',
     packLimited: 'げんてい',
@@ -645,7 +651,13 @@ export const hira = {
     normal: 'ノーマル',
     super: 'スーパーレア',
     rate: (p: string) => `${p}%`,
-    rateNote: (sr: string, dbl: string) => `スーパーレアの どれかが でるのは 1まいごとに ${sr}%（スーパー 1しゅるいは、ノーマル 1しゅるいの はんぶんの でやすさ）。1ふくろごとに ${dbl}% で ダブル（2まい いり）。%は 小数 2けたまで`,
+    rateNote: (sr: string) => `1ふくろに 1まい。スーパーレアの どれかが でるのは 1ふくろ ${sr}%（スーパーの なかでも、ノーマルの なかでも、どれも おなじ かくりつ）。%は 小数 2けたまで`,
+    /** なかみ・袋の並び（v2.2） */
+    guaranteeNote: (bags: number) => `${bags}まいガチャの さいごの 1ふくろは スーパーレア かくてい！`,
+    glowNote: 'ひかっている ふくろは スーパーレアの チャンス！（かならず では ないよ）',
+    guaranteeTag: 'かくてい！',
+    surprise: 'サプライズ！',
+    letdown: '…ぺらっ',
     ownedCount: (n: number) => `×${n}`,
     unknown: '？',
     skipAll: 'ぜんぶ スキップ',
@@ -654,7 +666,6 @@ export const hira = {
     bagsLeft: (n: number) => `のこり ${n}ふくろ`,
     lastBag: 'これで さいご！ つぎは まとめ',
     superStamp: 'スーパーレア！',
-    double: 'ダブル！！',
     flip: 'ぺらっ',
     summaryTitle: 'てに いれた カード',
     newTag: 'NEW',
@@ -686,7 +697,7 @@ export const hira = {
     stageAria: (n: number, name: string, state: 'locked' | 'open' | 'cleared') => `ステージ ${n} ${name}（${state === 'locked' ? 'まだ いけない' : state === 'cleared' ? 'クリア' : 'いける'}）`,
     theme: 'テーマ',
     strength: 'つよさ',
-    level: { normal: 'ふつう', strong: 'つよい' } as Record<'normal' | 'strong', string>,
+    level: { weak: 'よわい', normal: 'ふつう', strong: 'つよい', strongest: 'さいきょう' } as Record<'weak' | 'normal' | 'strong' | 'strongest', string>,
     rule: 'ボスルール',
     reward: 'ほうしゅう',
     rewardFirst: (coins: number) => `はじめて クリア：${coins}コイン`,
@@ -774,7 +785,6 @@ export const hira = {
     claim: 'うけとる',
     claimed: 'うけとった',
     notYet: 'まだ',
-    fixed: 'かくてい',
     carryTitle: 'きのうの ミッション',
     carryText: 'きのうの ミッションの ほうしゅうを うけとったよ',
     carryCoins: (n: number) => `コイン +${n}`,
@@ -815,7 +825,7 @@ export const hira = {
             lines: [
               `うえから ${n.ranking.top}にんが のるよ`,
               `${n.ranking.hideDays}にちいじょう レートたいせんを しないと のらないよ（また あそべば もどるよ）`,
-              '「せってい」で なまえを のせないように できるよ。のせないと「ななし」に なるよ',
+              '「せってい」の「ランキングに のる」を オフに すると、のらないよ',
             ],
           },
         ],
@@ -881,15 +891,21 @@ export const hira = {
       }),
       gacha: (n: GuideNumbers, _w: GuideWords) => ({
         title: 'パックガチャの せつめい',
-        short: ['コインで パックを ひこう', 'たまに 2まい はいってるかも！'],
+        short: ['コインで パックを ひこう', ...n.gacha.guaranteeBags.slice(0, 1).map((b) => `${b}まいの さいごの 1ふくろは スーパーレア かくてい！`)],
         pages: [
-          { title: 'ねだん', lines: [...n.gacha.offers.map((o) => `${o.bags}まい（${o.bags}ふくろ）：${o.price}コイン`), 'パックの えを タップすると「なかみ」が みられるよ'] },
+          {
+            title: 'ねだん',
+            lines: [
+              ...n.gacha.offers.map((o) => `${o.bags}まい（${o.bags}ふくろ）：${o.price}コイン${o.guarantee ? '。さいごの 1ふくろは スーパーレア かくてい！' : ''}`),
+              'パックの えを タップすると「なかみ」が みられるよ',
+            ],
+          },
           {
             title: 'かくりつ',
             lines: [
-              `1ふくろに 1まい。${n.gacha.double}%で ダブル（2まい いり）`,
-              'スーパー 1しゅるいは、ノーマル 1しゅるいの はんぶんの でやすさ',
-              ...n.gacha.supers.map((s) => `${s.name}：スーパーレアが でるのは 1まいごとに ${s.rate}%`),
+              `1ふくろに 1まい。スーパーレアが でるのは 1ふくろ ${n.gacha.superRate}%（どの パックも おなじ）`,
+              'ひかっている ふくろは スーパーレアの チャンス！（かならず では ないよ）',
+              ...n.gacha.guaranteeBags.map((b) => `${b}まいガチャの さいごの 1ふくろは スーパーレア かくてい！`),
             ],
           },
           { title: 'スーパーおてあげの かんきん', lines: ['もう もっている スーパーおてあげが でたら、', `まとめの がめんで ${n.gacha.superToCoins}コインに かえられるよ`, 'トレードに つかうなら のこしておこう'] },
@@ -900,7 +916,7 @@ export const hira = {
         short: ['もっている カードで デッキを つくろう', `${n.deck.size}まい ちょうどで かんせい`],
         pages: [
           { title: 'デッキの ルール', lines: [`${n.deck.size}まい ちょうど`, 'おてあげが 1まい いじょう', `スーパーおてあげは ${n.deck.superMax}まい まで`] },
-          { title: 'もっている まいすう', lines: ['1つの デッキに、もっている まいすう まで いれられるよ', 'ほかの デッキに いれていても だいじょうぶ（ざいこは デッキごと）', 'もっていない カードは「？」で みえるよ'] },
+          { title: 'もっている まいすう', lines: ['1つの デッキに、もっている まいすう まで いれられるよ', 'ほかの デッキに いれていても だいじょうぶ（ざいこは デッキごと）', 'カードいちらんには、もっている カードだけが ならぶよ'] },
           { title: 'デッキは いくつでも', lines: [`デッキは ${n.deck.slots}こ まで つくれるよ`, 'かえたら じどうで ほぞんされるよ', '「デッキを えらぶ」で つかう デッキを きめよう'] },
         ],
       }),
@@ -909,7 +925,7 @@ export const hira = {
         short: ['ともだちと おなじ ばんごうを いれて、', 'カードを こうかんしよう'],
         pages: [
           { title: 'ながれ', lines: ['あげる カードを えらぶと、あいてにも みえるよ', 'ふたりとも「これで OK」を おしてから「こうかんする」', 'ないようを かえると、OK は はずれるよ'] },
-          { title: 'きまり', lines: [`かたほう ${n.trade.kinds}しゅるい・あわせて ${n.trade.cards}まい まで`, 'コインは こうかん できないよ', 'なにも もらわずに あげる ことも できるよ'] },
+          { title: 'きまり', lines: [`かたほう ${n.trade.kinds}しゅるい・あわせて ${n.trade.cards}まい まで`, 'コインと、げんていカード・トロフィあげは こうかん できないよ', 'なにも もらわずに あげる ことも できるよ'] },
           { title: 'ちゅうい', lines: ['こうかんで デッキが つかえなく なる ときは、おしらせが でるよ', 'こうかんした カードは もどせないよ。よく たしかめてね'] },
         ],
       }),
@@ -930,7 +946,7 @@ export const hira = {
             ],
           },
           {
-            title: 'かくていの ミッションと うけとりわすれ',
+            title: 'ぜんぶ クリアの ミッションと うけとりわすれ',
             lines: [
               `${n.daily.pick}つ ぜんぶ クリアで、デイリーパック ${n.daily.allClearBags}ふくろ ＋ ${n.daily.allClearCoins}コイン（デイリーパックは ここでしか もらえない）`,
               `うけとらないまま ${n.daily.resetHour}じを すぎても、つぎに メニューを ひらいた ときに じどうで うけとるよ`,
@@ -953,8 +969,8 @@ export const hira = {
     copied: 'コピーしたよ',
     copyFailed: 'コピー できなかったよ',
     userIdNotRegistered: '（まだ とうろく していないよ）',
-    rankingName: 'ランキングに なまえを のせる',
-    rankingNameNote: 'のせないと「ななし」に なるよ。つぎの こうしんから かわるよ',
+    rankingName: 'ランキングに のる',
+    rankingNameNote: 'オフに すると ランキングに のらないよ（レートは かわらず けいさんするよ）',
     bgm: 'BGM',
     se: 'こうかおん',
     fxSpeed: 'えんしゅつ スピード',
@@ -1000,7 +1016,6 @@ export const hira = {
     enterNote: 'コードを はりつけてね（ハイフンや くうはくは あっても だいじょうぶ）',
     inputAria: 'ひきつぎコードの にゅうりょく',
     wrong: 'コードが ちがうみたい。もういちど たしかめてね',
-    oldDevice: 'まえの たんまつでは もう つかわないでね（おなじ データを 2だいで つかうと、カードや コインが 2ばいに なってしまうよ）',
     making: 'コードを つくっているよ…',
   },
 
@@ -1234,7 +1249,8 @@ export const hira = {
         se_super_shine: 'スーパーレアの ふくろ',
         se_sparkle: 'キラキラ（しゃらしゃら）',
         jingle_super: 'スーパーレア！',
-        jingle_double: 'ダブル！！',
+        jingle_guarantee: 'かくていの ふくろ',
+        se_letdown: 'ひかったのに ノーマル',
         se_sou: 'そう！（チュートリアル）',
         jingle_boss: 'ボスの カットイン',
         jingle_limited: 'げんてい カードを ゲット',

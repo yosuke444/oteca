@@ -64,7 +64,8 @@ export type MsgBody = {
   /** 「ほかの ひとと あそぶ」（相手へ） */
   back: Record<string, never>;
   /** レートの待合所：待っている（2秒ごと） */
-  queue: { playerId: string; ticket: Ticket; lastOpponentId: string; name: string; rate: number };
+  /** trophies：トロフィあげの数（v2.2。予備の待合所では、端末が自分で知らせる） */
+  queue: { playerId: string; ticket: Ticket; lastOpponentId: string; name: string; rate: number; trophies?: number };
   /** レートの待合所：組み合わせの申し込みと返事 */
   pairPropose: { to: string; roomId: string };
   pairAccept: { to: string; roomId: string; accept: boolean };

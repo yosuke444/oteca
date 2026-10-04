@@ -8,12 +8,14 @@
   },
   "stages": [
     {
-      "no": 1, "kind": "normal", "name": "らくがき こぞう", "parents": [], "pos": { "x": 0, "y": 0 },
+      "no": 1, "kind": "normal", "name": "らくがき こぞう",
+      "level": "weak", "parents": [], "pos": { "x": 0, "y": 0 },
       "theme": { "hira": "はじめての あいて。ゆっくりした こうげき", "kanji": "初めての相手。ゆっくりした攻撃" },
       "deck": [["oteage",4], ["mutsuashi",3], ["yonhon",2], ["mitsume",2], ["kusuri",4]]
     },
     {
-      "no": 2, "kind": "normal", "name": "けしかす", "parents": [1], "pos": { "x": 0, "y": 1 },
+      "no": 2, "kind": "normal", "name": "けしかす",
+      "level": "weak", "parents": [1], "pos": { "x": 0, "y": 1 },
       "theme": { "hira": "かいふく だいすき", "kanji": "回復大好き" },
       "deck": [["mitsume",3], ["yotsuashi",3], ["shikaku",2], ["mutsuashi",2], ["kusuri",3], ["supodori",2]]
     },

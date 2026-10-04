@@ -64,7 +64,7 @@ export function sparkleBurst(layer: HTMLElement, at: Pt, count = 24, w = 230, h 
 }
 
 /**
- * 画面の端から差し込む金色の光の筋（スーパーレア・ダブル）。ゆっくり脈打つ。
+ * 画面の端から差し込む金色の光の筋（スーパーレア・確定の袋・サプライズ）。ゆっくり脈打つ。
  * @returns 消す関数
  */
 export function goldBeams(layer: HTMLElement, center: Pt = { x: 640, y: 330 }): () => void {

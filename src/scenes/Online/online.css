@@ -165,3 +165,14 @@
   text-align: center;
   font-size: 24px;
 }
+
+/* VS 画面のトロフィあげの数（v2.2） */
+.rate-vs__trophies {
+  margin-top: 6px;
+  font-size: 44px;
+}
+@media (max-height: 500px) {
+  .rate-vs__trophies {
+    font-size: 30px;
+  }
+}

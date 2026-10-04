@@ -91,7 +91,7 @@ export type SaveData = {
   /** 処理済みの交換ID（16桁の16進数）の直近20件 */
   trade: { doneIds: string[] };
   /**
-   * ランキング（v2.0-I。SPEC §11-9）：token＝サーバーの合言葉（'' ＝まだ登録していない）、optIn＝名前を載せる（初期値オン）、
+   * ランキング（v2.0-I。SPEC §11-9）：token＝サーバーの合言葉（'' ＝まだ登録していない）、optIn＝ランキングに のる（初期値オン。v2.2 で「名前を載せる」から変更）、
    * unsent＝送れなかった結果の報告（「試合ID:勝った人の playerId か void」）、provisional＝レートが「かり」、
    * syncedAt＝正式なレートを最後に受け取った時刻（ミリ秒。0＝まだ）、playedAt＝最後にレート対戦の結果が出た時刻（0＝まだ）、
    * lastMatchId＝最後に「かり」で計算した試合の試合ID（v2.0-J。サーバーが数えたかを比べる。'' ＝なし）
@@ -288,7 +288,7 @@ export function laterFieldsDefault(): Pick<
     lastRateOpponentId: '',
     pendingRateMatch: null,
     trade: { doneIds: [] },
-    // 名前を載せる設定は初期値オン（v2.0-I）
+    // 「ランキングに のる」は初期値オン（v2.0-I・v2.2）
     ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0, lastMatchId: '' },
     tutorial: { done: false, gachaInviteShown: false, step: 0 },
     daily: emptyDaily(),

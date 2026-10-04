@@ -12,6 +12,8 @@ import { tiltStyle } from '../../ui/rough/seed';
 import { drawCounterText } from './battleText';
 import { useCardGesture } from './useCardGesture';
 import { useT } from '../../i18n/useT';
+import { TrophyRow } from '../../ui/common/TrophyRow';
+import type { PlayerBadge } from '../../ui/common/trophyBadge';
 
 export type BoardSel = { uid: string };
 
@@ -19,6 +21,8 @@ type Props = {
   view: GameState;
   me: Side;
   names: Record<Side, string>;
+  /** レート対戦：両者のレートとトロフィあげの数（v2.2。名前の欄に出す） */
+  badges?: Record<Side, PlayerBadge>;
   mode: BattleMode;
   canAct: boolean;
   /** 自分が決める番か（違えば自分の手札・場をえんぴつ色に） */
@@ -227,6 +231,7 @@ export function BattleBoard(p: Props) {
           <span className="tilt" style={tiltStyle(`name-${opp}`)}>
             {p.names[opp]}
           </span>
+          {p.badges && <NameBadge badge={p.badges[opp]} side="opp" />}
         </RoughBox>
         <span className="battle-top__item">
           {tr.battle.ko} {stars(opp)}
@@ -296,6 +301,7 @@ export function BattleBoard(p: Props) {
           <span className="tilt" style={tiltStyle(`name-${me}`)}>
             {p.names[me]}
           </span>
+          {p.badges && <NameBadge badge={p.badges[me]} side="me" />}
         </RoughBox>
         <span className="battle-me__stars">
           {tr.battle.ko} {stars(me)}
@@ -428,4 +434,16 @@ function boardState(phase: string, canAct: boolean, busy: boolean): 'over' | 'bu
   if (phase === 'over') return 'over';
   if (busy) return 'busy';
   return canAct ? 'mine' : 'wait';
+}
+
+/** 名前の横の、レートとトロフィあげの数（v2.2。レート対戦だけ） */
+function NameBadge({ badge, side }: { badge: PlayerBadge | undefined; side: 'me' | 'opp' }) {
+  const tr = useT();
+  if (!badge) return null;
+  return (
+    <span className="battle-name__badge" data-testid={`name-badge-${side}`}>
+      <span className="battle-name__rate num">{tr.battle.nameRate(badge.rate)}</span>
+      <TrophyRow count={badge.trophies} />
+    </span>
+  );
 }

@@ -13,7 +13,7 @@ import type { NetTransport } from './transport';
  * 次に同じ相手と部屋に入った時に、相手がその交換を済ませていれば仕上げる・どちらも済ませていなければ取り消す（resume）。
  */
 
-/** self：相手が同じセーブ（同じ playerId。引き継ぎコードで2台にした・2つのタブ）なので交換できない */
+/** self：相手が自分と同じユーザーID（v2.2）か同じセーブ（同じ playerId）なので交換できない（画面には理由を書かない） */
 export type TradeStatus = 'idle' | 'waiting' | 'trading' | 'full' | 'version' | 'left' | 'error' | 'self';
 
 /** とちゅうの交換（commit を送ったが、まだ保存していない） */
@@ -369,8 +369,8 @@ export class TradeSession {
     if (two.length < 2) return;
     const opp = two.find((p) => p.id !== this.selfId)!;
     const info = this.peers.get(opp.id)!;
-    if (info.playerId === this.opts.playerId) {
-      // 同じセーブどうし：交換できない（内容のハッシュの並べ方も決まらない）
+    if (info.playerId === this.opts.playerId || (!!this.opts.userId && info.userId === this.opts.userId)) {
+      // 同じユーザーID（v2.2）・同じセーブどうし：交換できない（内容のハッシュの並べ方も決まらない）
       this.setStatus('self');
       this.close();
       return;

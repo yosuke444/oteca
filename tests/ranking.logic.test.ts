@@ -3,7 +3,8 @@ import { canPair, cleanJoin, pickPairs, waitingCounts, type Waiter } from '../wo
 import { acceptReport, cleanReport, decide, MATCH_EXPIRE_MS, SINGLE_REPORT_MS, type MatchInfo, type Report } from '../worker/src/logic/results';
 import { HIDE_AFTER_MS, isVisible, jstDay, lastBatchAt, nextBatchAt, pairKey, PAIR_DAILY_LIMIT, runBatch, type Player } from '../worker/src/logic/batch';
 import { nextRate } from '../src/online/rateMath';
-import { RATING } from '../src/config/rating';
+import { RANKING, RATING } from '../src/config/rating';
+import { readFileSync } from 'node:fs';
 
 /** 16桁の16進数の playerId を作る */
 /** ユーザーID（15桁。v2.0-J） */
@@ -12,7 +13,7 @@ const pid = (n: number) => String(100000000000000 + n);
 const mid = (n: number) => n.toString(16).padStart(16, '0');
 
 function waiter(n: number, over: Partial<Waiter> = {}): Waiter {
-  return { id: `w${n}`, playerId: pid(n), protocol: 6, lastOpponentId: '', name: '', rate: 100, joinedAt: n * 10, seq: n, ...over };
+  return { id: `w${n}`, playerId: pid(n), protocol: 6, lastOpponentId: '', name: '', rate: 100, trophies: 0, tab: '', joinedAt: n * 10, seq: n, ...over };
 }
 
 describe('I01 受付係の待ち行列', () => {
@@ -85,6 +86,7 @@ describe('I01 受付係の待ち行列', () => {
       lastOpponentId: pid(2),
       name: 'あいうえおかきく',
       rate: 124,
+      tab: '',
     });
     expect(cleanJoin({ userId: 'xyz', protocol: 6 })).toBeNull();
     expect(cleanJoin({ userId: pid(1), protocol: 0 })).toBeNull();
@@ -163,18 +165,19 @@ describe('I03 まとめ処理', () => {
   let seq = 0;
   const res = (a: string, b: string, winner: string, at: number) => ({ id: ++seq, matchId: mid(1000 + seq), a, b, winner, at });
 
-  it('次のまとめ処理は日本時間 4:00 と 14:00 の近い方', () => {
+  it('K07 次のまとめ処理は日本時間 4:00 と 16:00 の近い方', () => {
     // 2026-10-04 3:59 JST → 同じ日の 4:00
     expect(nextBatchAt(Date.UTC(2026, 9, 3, 18, 59))).toBe(Date.UTC(2026, 9, 3, 19, 0));
-    // ちょうど 4:00 → 同じ日の 14:00（UTC 5:00）
-    expect(nextBatchAt(Date.UTC(2026, 9, 3, 19, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0));
-    // 13:59 → 14:00、14:00 → 次の日の 4:00
-    expect(nextBatchAt(Date.UTC(2026, 9, 4, 4, 59))).toBe(Date.UTC(2026, 9, 4, 5, 0));
-    expect(nextBatchAt(Date.UTC(2026, 9, 4, 5, 0))).toBe(Date.UTC(2026, 9, 4, 19, 0));
-    // 12:00 JST の前の更新は 4:00、20:00 JST の前は 14:00、3:00 JST の前は前の日の 14:00
+    // ちょうど 4:00 → 同じ日の 16:00（UTC 7:00）
+    expect(nextBatchAt(Date.UTC(2026, 9, 3, 19, 0))).toBe(Date.UTC(2026, 9, 4, 7, 0));
+    // 15:59 → 16:00、16:00 → 次の日の 4:00
+    expect(nextBatchAt(Date.UTC(2026, 9, 4, 6, 59))).toBe(Date.UTC(2026, 9, 4, 7, 0));
+    expect(nextBatchAt(Date.UTC(2026, 9, 4, 7, 0))).toBe(Date.UTC(2026, 9, 4, 19, 0));
+    // 12:00 JST の前の更新は 4:00、20:00 JST の前は 16:00、3:00 JST の前は前の日の 16:00、15:00 JST の前は 4:00
     expect(lastBatchAt(Date.UTC(2026, 9, 4, 3, 0))).toBe(Date.UTC(2026, 9, 3, 19, 0));
-    expect(lastBatchAt(Date.UTC(2026, 9, 4, 11, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0));
-    expect(lastBatchAt(Date.UTC(2026, 9, 4, 18, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0));
+    expect(lastBatchAt(Date.UTC(2026, 9, 4, 11, 0))).toBe(Date.UTC(2026, 9, 4, 7, 0));
+    expect(lastBatchAt(Date.UTC(2026, 9, 4, 18, 0))).toBe(Date.UTC(2026, 9, 4, 7, 0));
+    expect(lastBatchAt(Date.UTC(2026, 9, 4, 6, 0))).toBe(Date.UTC(2026, 9, 3, 19, 0));
     expect(jstDay(Date.UTC(2026, 9, 3, 15, 0))).toBe(20261004);
     expect(jstDay(Date.UTC(2026, 9, 3, 14, 59))).toBe(20261003);
   });
@@ -326,7 +329,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
   it('1日2回の まとめ処理：それぞれ前回より後の結果を時刻順に計算する（1回で全部計算した時と同じ）', async () => {
     const { runBatchJob } = await import('../worker/src/ranking');
     const C = pid(3);
-    // 午前（4:00 の更新の後）の試合と、午後（14:00 の更新の後）の試合。順番でレートが変わる並び（A が B に勝つ → C が A に勝つ…）
+    // 午前（4:00 の更新の後）の試合と、午後（16:00 の更新の後）の試合。順番でレートが変わる並び（A が B に勝つ → C が A に勝つ…）
     const am = [row(1, A, B, A), row(2, C, A, C), row(3, B, C, C)];
     const pm = [row(4, A, C, A), row(5, A, B, B), row(6, C, B, C)];
     const db = fakeDb();
@@ -347,7 +350,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
 
   it('同じ2人の「1日3試合」は、2回の まとめ処理をまたいでも数える（日本時間 0:00〜24:00）', async () => {
     const { runBatchJob } = await import('../worker/src/ranking');
-    // 2026-10-04（日本時間）の 1:00・3:00（4:00 の更新で数える）と 10:00・12:00・13:00（14:00 の更新で数える）
+    // 2026-10-04（日本時間）の 1:00・3:00（4:00 の更新で数える）と 10:00・12:00・13:00（16:00 の更新で数える）
     const at = (h: number) => Date.UTC(2026, 9, 3, 15 + h, 0);
     const mk = (n: number, h: number) => ({ matchId: mid(7000 + n), a: A, b: B, winner: A, at: at(h), known: true });
     const db = fakeDb();
@@ -356,7 +359,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     expect(r1.counted).toBe(2);
     expect(lobby.day.get(pairKey(20261004, A, B))).toBe(2);
     for (const x of [mk(3, 10), mk(4, 12), mk(5, 13)]) (lobby.rows as unknown[]).push(x);
-    const r2 = await runBatchJob(db as never, lobby, at(14));
+    const r2 = await runBatchJob(db as never, lobby, at(16));
     // 午前の2試合と合わせて3試合まで：午後は1試合だけ
     expect(r2.counted).toBe(1);
     expect(r2.skipped).toBe(2);
@@ -392,5 +395,15 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     // 日本時間 23:59 と 0:00 は別の日。4:00 では区切らない
     expect(jstDay(Date.UTC(2026, 9, 4, 14, 59))).not.toBe(jstDay(Date.UTC(2026, 9, 4, 15, 0)));
     expect(jstDay(Date.UTC(2026, 9, 4, 18, 59))).toBe(jstDay(Date.UTC(2026, 9, 4, 19, 0)));
+  });
+});
+
+describe('K07 Cron（UTC）と更新の時刻（日本時間）', () => {
+  it('worker/wrangler.toml の crons は、RANKING.batchHoursJst（4:00・16:00）を UTC に直したもの（19:00・7:00）', () => {
+    const toml = readFileSync('worker/wrangler.toml', 'utf8');
+    const crons = [...(toml.match(/crons\s*=\s*\[([^\]]*)\]/)?.[1] ?? '').matchAll(/"0 ([0-9]+) \* \* \*"/g)].map((m) => Number(m[1]));
+    expect(RANKING.batchHoursJst).toEqual([4, 16]);
+    expect(crons.sort((a, b) => a - b)).toEqual(RANKING.batchHoursJst.map((h) => (h - 9 + 24) % 24).sort((a, b) => a - b));
+    expect(crons.sort((a, b) => a - b)).toEqual([7, 19]);
   });
 });

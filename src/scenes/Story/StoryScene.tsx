@@ -158,7 +158,7 @@ function StageConfirm({ stage, onClose, onStart, onPickDeck }: { stage: StageDef
             <dt>{tr.story.theme}</dt>
             <dd>{local(stage.theme, lang)}</dd>
             <dt>{tr.story.strength}</dt>
-            <dd className={stage.kind === 'boss' ? 'red-pen' : ''}>{tr.story.level[stageLevel(stage) === 'strong' ? 'strong' : 'normal']}</dd>
+            <dd className={stage.kind === 'boss' ? 'red-pen' : ''}>{tr.story.level[stageLevel(stage)]}</dd>
             {stage.bossRule && (
               <>
                 <dt>{tr.story.rule}</dt>

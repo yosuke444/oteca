@@ -12,7 +12,7 @@ import { TUTORIAL_PACK } from '../Tutorial/PostGuide';
 import { useIsSandbox } from '../../state/SaveContext';
 import { useFx } from '../../fx/fxSettings';
 import { setFxSpeed } from '../../fx/timing';
-import { DRAW, type Bag, type Offer, type PullResult, applyPull, canAfford, coinsRoomFor, cardRate, convertSuper, cryptoRand, drawBags, superRate } from '../../gacha/gacha';
+import { DRAW, type Bag, type Offer, type PullResult, applyPull, canAfford, coinsRoomFor, cardRate, convertSuper, cryptoRand, drawOffer, superRate } from '../../gacha/gacha';
 import { useT } from '../../i18n/useT';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
@@ -90,7 +90,8 @@ export function GachaScene() {
       noCoins();
       return;
     }
-    const bags = drawBags(packs[packIndex], offer.bags, sample ? sampleRand() : cryptoRand);
+    // 15まいは最後の袋がスーパーレア確定（v2.2。packs.json の lastBagSuper）
+    const bags = drawOffer(packs[packIndex], offer, sample ? sampleRand() : cryptoRand);
     // チュートリアル：スーパーおてあげを2種類以上引いたら、#24 で「1まいまで。どれを つかうか えらんでね」
     // デイリーミッション「パックガチャを 1かい ひく」も同じ保存で数える（その日が変わっていたら入れ替え、前の日の報酬の知らせを置く）
     const now = Date.now();
@@ -249,7 +250,18 @@ export function GachaScene() {
             {tr.common.close}
           </RoughButton>
         }>
-          <p className="gacha-contents__note">{tr.gacha.rateNote(pct(superRate(pack)), pct(DRAW.doubleRate))}</p>
+          <p className="gacha-contents__note">{tr.gacha.rateNote(pct(superRate(pack)))}</p>
+          {/* 15まいの確定と、光る袋（v2.2） */}
+          {DRAW.offers
+            .filter((o) => o.lastBagSuper)
+            .map((o) => (
+              <p key={o.id} className="gacha-contents__note gacha-contents__note--big red-pen" data-testid="gacha-guarantee-note">
+                {tr.gacha.guaranteeNote(o.bags)}
+              </p>
+            ))}
+          <p className="gacha-contents__note gacha-contents__note--glow" data-testid="gacha-glow-note">
+            {tr.gacha.glowNote}
+          </p>
           {(['super', 'normal'] as const).map((kind) => (
             <div key={kind} className={`gacha-contents__group gacha-contents__group--${kind}`}>
               <h3 className="gacha-contents__head">{kind === 'super' ? tr.gacha.super : tr.gacha.normal}</h3>

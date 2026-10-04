@@ -197,7 +197,7 @@ for (const lang of ['hira', 'kanji']) {
   await snap(lang, '13_debug');
   await btn(L.back).click();
 
-  // ---- データ引き継ぎ：まえの たんまつでは もう つかわないでね
+  // ---- データ引き継ぎ：コードを つくる
   await page.locator('.menu-scene__gear').click();
   await btn(L.make).click();
   await page.waitForTimeout(800);

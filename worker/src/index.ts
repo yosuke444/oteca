@@ -6,13 +6,14 @@ const LATE_RETRY_MS = 5 * 60 * 1000;
 import { Db, type PlayerRow, rerank, writeSnapshot } from './ranking';
 import { sameText, sha256Hex } from './util';
 import { isUserId } from '../../src/save/userId';
+import { RATING } from '../../src/config/rating';
 import { ADMIN_MENU_PATHS, ackMailbox, adminLogin, adminRoute, checkAdmin, mailbox, suspendedUntil } from './admin';
 
 export { Matchmaker } from './matchmaker';
 
 /**
  * oteca-api（UPDATE_v2 §10・SPEC §11-9）：レート対戦の受付係（Durable Object）とランキング（D1）。
- * Cloudflare の無料プランで動かす。毎日 UTC 19:00（日本時間 4:00）と UTC 5:00（日本時間 14:00）に まとめ処理（Cron）。
+ * Cloudflare の無料プランで動かす。毎日 UTC 19:00（日本時間 4:00）と UTC 7:00（日本時間 16:00）に まとめ処理（Cron）。
  */
 
 /** 公開サイト（GitHub Pages） */
@@ -119,6 +120,10 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     if (userId! in sus) return json({ error: 'suspended', until: sus[userId!] }, 403);
     const fwd = new Request(req, { headers: new Headers(req.headers) });
     fwd.headers.set('x-user-id', userId!);
+    // 正式なレートと、配ったトロフィあげの数（v2.2。受付係が組んだ時に両者へ送る）
+    const rec = (await c.all<{ rate: number; trophies: number }>(`SELECT rate, (SELECT COUNT(*) FROM trophies WHERE user_id = players.id) AS trophies FROM players WHERE id = ?`, userId))[0];
+    fwd.headers.set('x-rate', String(rec?.rate ?? RATING.initial));
+    fwd.headers.set('x-trophies', String(rec?.trophies ?? 0));
     return c.lobby('/lobby', fwd);
   }
 
@@ -181,7 +186,15 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     const b = await body(req);
     if (b.userId === undefined && isLegacyId(b.playerId)) return json({ error: 'upgrade' }, 426);
     if (!(await authed(c, b.userId, b.token))) return json({ error: 'auth' }, 401);
-    await c.run(`UPDATE players SET name = ?, opt_in = ? WHERE id = ?`, cleanName(b.name), b.optIn === false ? 0 : 1, b.userId);
+    const optIn = b.optIn === false ? 0 : 1;
+    const before = (await c.all<{ opt_in: number; rank: number | null }>(`SELECT opt_in, rank FROM players WHERE id = ?`, b.userId))[0];
+    await c.run(`UPDATE players SET name = ?, opt_in = ?${optIn ? '' : ', rank = NULL'} WHERE id = ?`, cleanName(b.name), optIn, b.userId);
+    // 「ランキングに のる」をオフにした（v2.2）：すぐ公開の一覧から外す。順位を付け直して（抜けが出ないように）写しを作り直す
+    // （オンに戻した時は次の更新から載る）
+    if (!optIn && before && before.rank !== null) {
+      await rerank(c, now);
+      await writeSnapshot(c, null);
+    }
     return json({ ok: true });
   }
 
@@ -193,7 +206,7 @@ async function route(req: Request, c: Ctx): Promise<Response> {
       const row = (await c.all<PlayerRow>(`SELECT * FROM players WHERE id = ?`, userId))[0];
       me = meOf(row, now);
     }
-    // 更新の時刻（4:00・14:00）を過ぎたのに まとめ処理がまだ終わっていない：5分後に聞き直してもらう（古い一覧を次の更新まで覚えさせない）
+    // 更新の時刻（4:00・16:00）を過ぎたのに まとめ処理がまだ終わっていない：5分後に聞き直してもらう（古い一覧を次の更新まで覚えさせない）
     const updated = Number((await c.all<{ u: number | null }>(`SELECT json_extract(value, '$.updatedAt') AS u FROM meta WHERE key = 'ranking'`))[0]?.u ?? 0);
     const next = updated < lastBatchAt(now) && updated > 0 ? now + LATE_RETRY_MS : nextBatchAt(now);
     // 最後に まとめ処理が終わった時刻（予定の 4:00 ではなく、本当に写しを作った時刻。遅れた時に古いデータを正式としないように）

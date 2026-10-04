@@ -187,7 +187,7 @@ describe('M03 確定のミッション（ほかを ぜんぶ クリア）', () =
     expect(bags).toHaveLength(3);
     expect(res.coins).toBe(50);
     expect(s.coins).toBe(coins + 50);
-    const pulled = bags.flatMap((b) => b.cards);
+    const pulled = bags.map((b) => b.card);
     expect(res.results).toHaveLength(pulled.length);
     const added = new Map<number, number>();
     for (const c of pulled) added.set(c.no, (added.get(c.no) ?? 0) + 1);

@@ -37,18 +37,20 @@
   ],
   "limited": ["oteage_ningen", "oteage_zamurai", "oteage_dragon", "oteage_usagi"],
   "draw": {
-    "weights": { "normal": 2, "super": 1 },
-    "doubleRate": 0.05,
+    "superRate": 0.05,
+    "glowRate": 0.8,
     "offers": [
       {
         "id": "three",
         "bags": 3,
-        "price": 50
+        "price": 50,
+        "lastBagSuper": false
       },
       {
         "id": "fifteen",
         "bags": 15,
-        "price": 200
+        "price": 200,
+        "lastBagSuper": true
       }
     ],
     "superToCoins": 50

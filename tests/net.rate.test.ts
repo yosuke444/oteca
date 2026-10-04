@@ -150,3 +150,29 @@ describe('R05 レートの待合所（UPDATE_v2 §8-4）', () => {
     expect(b.paired).toHaveLength(0);
   });
 });
+
+describe('K05 予備の待合所：同じユーザーIDどうしは組まない（v2.2）', () => {
+  it('同じユーザーID の人は一覧（人数）に入れず、組まない。ちがう人が来れば組む', async () => {
+    const hub = new MemoryHub();
+    const clock = new FakeClock();
+    const a = player(hub, clock, 1);
+    const b = player(hub, clock, 2);
+    // b を a と同じユーザーID にする
+    (b.lobby as unknown as { opts: { playerId: string } }).opts.playerId = a.playerId;
+    const counts: number[] = [];
+    a.lobby.onWaiting = (n) => counts.push(n);
+    a.lobby.join();
+    clock.advance(10);
+    b.lobby.join();
+    await run(hub, clock, 6000);
+    expect(a.paired).toHaveLength(0);
+    expect(b.paired).toHaveLength(0);
+    expect(a.lobby.waiting).toBe(1);
+    expect(counts.every((n) => n === 1)).toBe(true);
+    const c = player(hub, clock, 3);
+    c.lobby.join();
+    await run(hub, clock, 6000);
+    expect(c.paired).toHaveLength(1);
+    expect([a.paired.length, b.paired.length].sort()).toEqual([0, 1]);
+  });
+});

@@ -9,7 +9,7 @@ import { CARD_DB, cardById } from '../src/data/cards';
 import { starterCollection, starterDeckNos } from '../src/data/starterDeck';
 import { validateDeck } from '../src/engine';
 import type { CardDef, Side } from '../src/engine/types';
-import { drawBags, packById } from '../src/gacha/gacha';
+import { drawOffer, offerById, packById } from '../src/gacha/gacha';
 import { ENEMY, PLAYER, STORY, stageDeckNos, stageLevel, stageRules } from '../src/story/story';
 
 const GAMES = 50;
@@ -38,7 +38,8 @@ const ITEM_ORDER = ['kusuri', 'himitsu_yaiba', 'supodori', 'kimyou_drink', 'hiki
  */
 function packDeck(): { deck: number[]; got: number[] } {
   const own: Record<number, number> = { ...starterCollection() };
-  const got = drawBags(packById('ganso')!, 15, seededRand(20261003)).flatMap((b) => b.cards.map((c) => c.no));
+  // 15まい（v2.2：最後の袋はスーパー確定）
+  const got = drawOffer(packById('ganso')!, offerById('fifteen')!, seededRand(20261003)).map((b) => b.card.no);
   for (const n of got) own[n] = (own[n] ?? 0) + 1;
   const defs = Object.keys(own).map((n) => CARD_DB[Number(n)]);
   const otege = defs.filter((d) => d.kind === 'otege').sort((a, b) => otegeScore(b) - otegeScore(a));

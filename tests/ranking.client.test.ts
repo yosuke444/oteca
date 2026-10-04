@@ -201,8 +201,9 @@ describe('I01 受付係につなぐ（端末の側）', () => {
     expect(sock.sent[0]).toEqual({ t: 'join', body: { userId: ID(1), protocol: 6, lastOpponentId: ID(9), name: 'あ', rate: 120 } });
     sock.recv({ t: 'waiting', body: { count: 3 } });
     expect(got.waiting).toEqual([3]);
-    sock.recv({ t: 'paired', body: { matchId: ID(77), roomId: ID(88), opponent: { userId: UID(2), name: 'い', rate: 130 } } });
-    expect(got.paired).toEqual([{ roomId: ID(88), matchId: ID(77), viaLobby: true, opponentId: UID(2), opponentName: 'い', opponentRate: 130 }]);
+    // K09（v2.2）：両者の正式なレートとトロフィあげの数も届く
+    sock.recv({ t: 'paired', body: { matchId: ID(77), roomId: ID(88), me: { rate: 111, trophies: 7 }, opponent: { userId: UID(2), name: 'い', rate: 130, trophies: 2 } } });
+    expect(got.paired).toEqual([{ roomId: ID(88), matchId: ID(77), viaLobby: true, opponentId: UID(2), opponentName: 'い', opponentRate: 130, opponentTrophies: 2, me: { rate: 111, trophies: 7 } }]);
     expect(sock.closed).toBe(true);
     // 組めた後に切れても、予備へは行かない
     sock.drop();
@@ -269,7 +270,7 @@ describe('I01 受付係につなぐ（端末の側）', () => {
     const { s, got, lobbies, fire } = make();
     s.join();
     fire();
-    const p: RatePaired = { roomId: ID(5), matchId: ID(5), viaLobby: false, opponentId: ID(3), opponentName: 'う', opponentRate: 90 };
+    const p: RatePaired = { roomId: ID(5), matchId: ID(5), viaLobby: false, opponentId: ID(3), opponentName: 'う', opponentRate: 90, opponentTrophies: 2, me: { rate: 100, trophies: 0 } };
     lobbies[0].l.onPaired(p);
     expect(got.paired).toEqual([p]);
     expect(lobbies[0].left).toBe(true);
@@ -356,11 +357,12 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
     expect(cacheFresh(null, 'a', 0)).toBe(false);
   });
 
-  it('次の まとめ処理の時刻は、日本時間 4:00 と 14:00 の近い方（端末とサーバーで同じ関数）', () => {
+  it('K07 次の まとめ処理の時刻は、日本時間 4:00 と 16:00 の近い方（端末とサーバーで同じ関数）', () => {
     expect(nextBatchAfter(Date.UTC(2026, 9, 3, 18, 59))).toBe(Date.UTC(2026, 9, 3, 19, 0)); // 3:59 → 4:00
-    expect(nextBatchAfter(Date.UTC(2026, 9, 3, 19, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0)); // 4:00 → 14:00
-    expect(nextBatchAfter(Date.UTC(2026, 9, 4, 4, 59))).toBe(Date.UTC(2026, 9, 4, 5, 0)); // 13:59 → 14:00
-    expect(nextBatchAfter(Date.UTC(2026, 9, 4, 5, 0))).toBe(Date.UTC(2026, 9, 4, 19, 0)); // 14:00 → 次の日の 4:00
+    expect(nextBatchAfter(Date.UTC(2026, 9, 3, 19, 0))).toBe(Date.UTC(2026, 9, 4, 7, 0)); // 4:00 → 16:00
+    expect(nextBatchAfter(Date.UTC(2026, 9, 4, 5, 0))).toBe(Date.UTC(2026, 9, 4, 7, 0)); // 14:00 は もう更新ではない
+    expect(nextBatchAfter(Date.UTC(2026, 9, 4, 6, 59))).toBe(Date.UTC(2026, 9, 4, 7, 0)); // 15:59 → 16:00
+    expect(nextBatchAfter(Date.UTC(2026, 9, 4, 7, 0))).toBe(Date.UTC(2026, 9, 4, 19, 0)); // 16:00 → 次の日の 4:00
     expect(nextBatchAfter(Date.UTC(2026, 11, 31, 10, 0))).toBe(Date.UTC(2026, 11, 31, 19, 0)); // 年をまたぐ
     expect(nextBatchAfter).toBeTypeOf('function');
     expect(nextBatchAt(1)).toBe(nextBatchAfter(1));
@@ -368,12 +370,12 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
 
   it('更新の直前（10分＋1分以内）に終わった試合は、まだ数えられていないかもしれないので上書きしない', () => {
     const s = base();
-    const updatedAt = Date.UTC(2026, 9, 4, 5, 0); // 14:00
+    const updatedAt = Date.UTC(2026, 9, 4, 7, 0); // 16:00
     s.rate = 140;
-    markProvisional(s, updatedAt - 5 * 60 * 1000); // 13:55 に終わった（相手が切れて片方だけの報告かもしれない）
+    markProvisional(s, updatedAt - 5 * 60 * 1000); // 15:55 に終わった（相手が切れて片方だけの報告かもしれない）
     expect(applyServerRate(s, me(), updatedAt, updatedAt + 1000)).toBe(false);
     expect(s.ranking.provisional).toBe(true);
-    markProvisional(s, updatedAt - 12 * 60 * 1000); // 13:48：数えられている
+    markProvisional(s, updatedAt - 12 * 60 * 1000); // 15:48：数えられている
     expect(applyServerRate(s, me(), updatedAt, updatedAt + 1000)).toBe(true);
   });
 

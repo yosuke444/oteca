@@ -113,6 +113,9 @@ function PostGuideBody({ st }: { st: PostState }) {
     bags: offer?.bags ?? 0,
     price: offer?.price ?? 0,
     note: st.review ? postText('noteSample', lang) : '',
+    // 15まいの最後の1袋はスーパーレア確定（v2.2。packs.json の lastBagSuper）
+    guarantee: offer?.lastBagSuper ? postText('noteGuarantee', lang) : '',
+    guaranteeOpen: offer?.lastBagSuper ? postText('noteGuaranteeOpen', lang) : '',
     deck: save.decks[0]?.name ?? '',
     n: save.decks[save.selectedDeck]?.cards.length ?? 0,
     size: DEFAULT_RULES.deckSize,

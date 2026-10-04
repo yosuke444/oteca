@@ -18,7 +18,7 @@ describe('P01 延長の手順（#16〜#25）', () => {
       }
     }
     // 文の id はすべて手順か補足（使われない文が無い）
-    const ids = new Set([...POST_STEPS.map((s) => s.id), 'noteSample', 'noteSuper']);
+    const ids = new Set([...POST_STEPS.map((s) => s.id), 'noteSample', 'noteSuper', 'noteGuarantee', 'noteGuaranteeOpen']);
     for (const p of (raw as unknown as { post: { id: string }[] }).post) expect(ids.has(p.id), p.id).toBe(true);
   });
 

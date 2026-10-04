@@ -13,8 +13,11 @@ export type Rand = () => number;
 
 /** 1枚：カードNo と、スーパーレアか */
 export type Pull = { no: number; super: boolean };
-/** 1袋：基本1枚、ダブルなら2枚 */
-export type Bag = { cards: Pull[]; double: boolean };
+/**
+ * 1袋（v2.2：1袋に1枚）。
+ * glow：袋が光る（中身を決めた後で決める。スーパーとは限らない）。guaranteed：15まいの最後の、スーパーレア確定の袋（いつも光る）
+ */
+export type Bag = { card: Pull; glow: boolean; guaranteed: boolean };
 
 export type Offer = DrawRules['offers'][number];
 
@@ -35,52 +38,74 @@ export function offerById(id: string): Offer | undefined {
   return DRAW.offers.find((o) => o.id === id);
 }
 
-/** パックの全カードの重みの合計（ノーマル1種類 weights.normal・スーパー1種類 weights.super。v2.1-K） */
-function totalWeight(pack: PackDef, rules: DrawRules): number {
-  return pack.normal.length * rules.weights.normal + pack.super.length * rules.weights.super;
+/** ふだんの袋がスーパーおてあげの確率（そのパックにスーパーが無ければ 0。デイリーパック） */
+export function superRate(pack: PackDef, rules: DrawRules = DRAW): number {
+  return pack.super.length > 0 ? rules.superRate : 0;
 }
 
-/** パックの中のカード1枚が、1枚引いた時に出る確率（「なかみ」パネル用。SPEC §7 S09）＝重み ÷ 合計 */
+/** 中身がノーマルの袋が光る確率（光った袋のスーパー率が 50% になる値：glowRate × superRate ÷ (1 − superRate)） */
+export function normalGlowRate(rules: DrawRules = DRAW): number {
+  return (rules.glowRate * rules.superRate) / (1 - rules.superRate);
+}
+
+/** パックの中のカード1枚が、ふだんの袋1つで出る確率（「なかみ」パネル用。SPEC §7 S09）。スーパー・ノーマルそれぞれの中では同じ確率 */
 export function cardRate(pack: PackDef, id: string, rules: DrawRules = DRAW): number {
+  const sr = superRate(pack, rules);
   const inNormal = pack.normal.filter((x) => x === id).length;
   const inSuper = pack.super.filter((x) => x === id).length;
-  return (inNormal * rules.weights.normal + inSuper * rules.weights.super) / totalWeight(pack, rules);
+  return (inNormal * (1 - sr)) / pack.normal.length + (pack.super.length ? (inSuper * sr) / pack.super.length : 0);
 }
 
-/** 1枚引いた時に、スーパーおてあげのどれかが出る確率（「なかみ」パネル用） */
-export function superRate(pack: PackDef, rules: DrawRules = DRAW): number {
-  return (pack.super.length * rules.weights.super) / totalWeight(pack, rules);
-}
-
-/** 1枚引く：重みの割合で1枚を選ぶ（SPEC §7 S09。v2.1-K） */
-function pickOne(pack: PackDef, rand: Rand, rules: DrawRules): Pull {
-  let r = rand() * totalWeight(pack, rules);
-  const nN = pack.normal.length * rules.weights.normal;
-  let id: string;
-  let sr: boolean;
-  if (r < nN) {
-    sr = false;
-    id = pack.normal[Math.min(pack.normal.length - 1, Math.floor(r / rules.weights.normal))];
-  } else {
-    sr = true;
-    r -= nN;
-    id = pack.super[Math.min(pack.super.length - 1, Math.floor(r / rules.weights.super))];
-  }
+/** 並びの中から同じ確率で1枚 */
+function pickFrom(ids: string[], rand: Rand, sr: boolean): Pull {
+  const id = ids[Math.min(ids.length - 1, Math.floor(rand() * ids.length))];
   const def = cardById(id);
   if (!def) throw new Error(`カード ${id} は cards.json にありません`);
   return { no: def.no, super: sr };
 }
 
-/** bags 袋を引く（1袋ごとに doubleRate で2枚入り） */
-export function drawBags(pack: PackDef, bags: number, rand: Rand, rules: DrawRules = DRAW): Bag[] {
+/**
+ * 1袋を引く（SPEC §7 S09。v2.2）：中身を決めてから、光らせるかを決める。
+ * guaranteed：スーパーおてあげ確定（同じ確率で選ぶ。いつも光る）。glows：光らせてよい袋か（デイリーパックは光らせない）
+ */
+export function drawBag(pack: PackDef, rand: Rand, rules: DrawRules = DRAW, opts: { guaranteed?: boolean; glows?: boolean } = {}): Bag {
+  if (opts.guaranteed && pack.super.length > 0) return { card: pickFrom(pack.super, rand, true), glow: true, guaranteed: true };
+  const isSuper = rand() < superRate(pack, rules);
+  const card = isSuper ? pickFrom(pack.super, rand, true) : pickFrom(pack.normal, rand, false);
+  const glow = opts.glows !== false && rand() < (isSuper ? rules.glowRate : normalGlowRate(rules));
+  return { card, glow, guaranteed: false };
+}
+
+/**
+ * bags 袋を引く。lastBagSuper：最後の袋をスーパーおてあげ確定にする（15まい）。
+ * 売らないパック（デイリーパック）の袋は光らせない
+ */
+export function drawBags(pack: PackDef, bags: number, rand: Rand, rules: DrawRules = DRAW, lastBagSuper = false): Bag[] {
+  const glows = pack.purchasable !== false;
   const out: Bag[] = [];
-  for (let i = 0; i < bags; i++) {
-    const double = rand() < rules.doubleRate;
-    const cards = [pickOne(pack, rand, rules)];
-    if (double) cards.push(pickOne(pack, rand, rules));
-    out.push({ cards, double });
-  }
+  for (let i = 0; i < bags; i++) out.push(drawBag(pack, rand, rules, { guaranteed: lastBagSuper && i === bags - 1, glows }));
   return out;
+}
+
+/**
+ * めくり方（v2.2。演出を選ぶ）：
+ * - guaranteed：確定の袋。スーパーレアの演出を さらに3倍豪華に
+ * - super：光った袋からスーパー（今までのスーパーレアの演出）
+ * - letdown：光ったのにノーマル。期待させてから「…ぺらっ」と普通にめくれる（少しコミカルに）
+ * - surprise：光らなかったのにスーパー。めくった瞬間に光があふれ出る（3倍豪華に）
+ * - normal：ノーマル（集中線＋「ぺらっ」）
+ */
+export type RevealKind = 'guaranteed' | 'super' | 'letdown' | 'surprise' | 'normal';
+
+export function revealKind(bag: Pick<Bag, 'glow' | 'guaranteed'>, isSuper: boolean): RevealKind {
+  if (bag.guaranteed) return 'guaranteed';
+  if (bag.glow) return isSuper ? 'super' : 'letdown';
+  return isSuper ? 'surprise' : 'normal';
+}
+
+/** 買い方（3まい・15まい）で引く。15まいは最後の袋がスーパーレア確定（packs.json の lastBagSuper） */
+export function drawOffer(pack: PackDef, offer: Offer, rand: Rand, rules: DrawRules = DRAW): Bag[] {
+  return drawBags(pack, offer.bags, rand, rules, offer.lastBagSuper);
 }
 
 /** 引いた1枚の結果（まとめ画面用） */
@@ -111,12 +136,10 @@ export function applyPull(draft: Pick<SaveData, 'coins' | 'collection'>, offer: 
 /** 引いた袋のカードを所持数に足す（コインは変えない。デイリーパックの報酬でも使う。v2.1-M） */
 export function applyBags(draft: Pick<SaveData, 'collection'>, bags: Bag[]): PullResult[] {
   const results: PullResult[] = [];
-  for (const bag of bags) {
-    for (const c of bag.cards) {
-      const before = draft.collection[c.no] ?? 0;
-      draft.collection[c.no] = Math.min(OWN_MAX, before + 1);
-      results.push({ ...c, isNew: before === 0, convertible: c.super && before >= 1, ownedAfter: draft.collection[c.no] });
-    }
+  for (const { card: c } of bags) {
+    const before = draft.collection[c.no] ?? 0;
+    draft.collection[c.no] = Math.min(OWN_MAX, before + 1);
+    results.push({ ...c, isNew: before === 0, convertible: c.super && before >= 1, ownedAfter: draft.collection[c.no] });
   }
   return results;
 }

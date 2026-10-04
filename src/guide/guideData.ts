@@ -1,9 +1,8 @@
 import { CPU_LEVELS, type CpuLevel } from '../cpu/brains';
 import { DAILY } from '../daily/daily';
-import { SHOP_PACKS } from '../data/packs';
 import { ECONOMY } from '../economy/rewards';
 import { DEFAULT_RULES } from '../engine/rules';
-import { DRAW, superRate } from '../gacha/gacha';
+import { DRAW } from '../gacha/gacha';
 import { DECK_SLOTS } from '../save/saveData';
 import { STORY } from '../story/story';
 import { TRADE_MAX_CARDS, TRADE_MAX_KINDS } from '../trade/trade';
@@ -56,9 +55,9 @@ export function guideNumbers() {
       bossAgain: STORY.rewards.boss.again,
     },
     gacha: {
-      offers: offers.map((o) => ({ bags: o.bags, price: o.price })),
-      double: pct(DRAW.doubleRate),
-      supers: SHOP_PACKS.map((p) => ({ name: p.name, rate: pct(superRate(p)) })),
+      offers: offers.map((o) => ({ bags: o.bags, price: o.price, guarantee: o.lastBagSuper })),
+      superRate: pct(DRAW.superRate),
+      guaranteeBags: DRAW.offers.filter((o) => o.lastBagSuper).map((o) => o.bags),
       superToCoins: DRAW.superToCoins,
     },
     deck: {

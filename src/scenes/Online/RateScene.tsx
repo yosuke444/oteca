@@ -13,6 +13,8 @@ import { safeName, startRateMatch } from '../../online/rate';
 import { type Identity, ensureIdentity, syncRanking } from '../../online/rankingApi';
 import { queueReport } from '../../online/ranking';
 import { RateValue } from '../../ui/common/RateValue';
+import { TrophyRow } from '../../ui/common/TrophyRow';
+import type { PlayerBadge } from '../../ui/common/trophyBadge';
 import { isDebugMode, useNav } from '../../router';
 import { usableDecks } from '../../save/collection';
 import { useSave } from '../../state/SaveContext';
@@ -83,10 +85,13 @@ export function RateScene() {
     // 試合ID は、組んだ相手と同じ人と始まった時だけ使う（違う人なら報告しない）
     const p = pairedRef.current;
     const matchId = p && p.opponentId === g.oppPlayerId ? p.matchId : undefined;
+    // 両者のレートとトロフィあげの数（v2.2。名前の欄に出す。組んだ相手と同じ人と始まった時だけ）
+    const oppSide = g.me === 'p1' ? 'p2' : 'p1';
+    const badges = p && p.opponentId === g.oppPlayerId ? ({ [g.me]: p.me, [oppSide]: { rate: p.opponentRate, trophies: p.opponentTrophies } } as Record<'p1' | 'p2', PlayerBadge>) : undefined;
     // 相手のアカウントが停止中なら始めない（v2.0-J。予備の待合所で組んだ時など）
     void opponentAllowed(g.oppPlayerId).then((ok) => {
       if (ok) {
-        go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId, ...(matchId ? { matchId } : {}) }));
+        go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId, ...(matchId ? { matchId } : {}), ...(badges ? { badges } : {}) }));
         return;
       }
       update((d) => void (d.pendingRateMatch = null));
@@ -123,11 +128,16 @@ export function RateScene() {
       const cur = saveRef.current;
       // 相手の判別はユーザーID（v2.0-J）
       const userId = id?.userId ?? cur.userId;
-      const lobby = createRateSearch({ userId, name: cur.playerName, rate: cur.rate, lastOpponentId: cur.lastRateOpponentId, token: id?.token ?? '' });
+      const lobby = createRateSearch({ userId, name: cur.playerName, rate: cur.rate, trophies: cur.trophies.length, lastOpponentId: cur.lastRateOpponentId, token: id?.token ?? '' });
       lobbyRef.current = lobby;
       lobby.onWaiting = setCount;
       lobby.onFallback = () => setFallback(true);
       lobby.onReplaced = () => stopRef.current();
+      // 同じユーザーID がもう待っている（v2.2）：理由は書かずに「この あいてとは あそべないよ」
+      lobby.onSameUser = () => {
+        stopRef.current();
+        setPhase({ kind: 'error', text: t().common.cannotPlay });
+      };
       lobby.onPaired = onPaired;
       lobby.join();
     };
@@ -241,15 +251,20 @@ export function RateScene() {
         <div className="lobby-vs__side lobby-vs__side--me">
           <span className="lobby-vs__who pencil">{tr.common.me}</span>
           <span className="lobby-vs__name blue-pen">{save.playerName}</span>
-          <span className="rate-vs__rate num">
-            <RateValue value={save.rate} provisional={save.ranking.provisional} format={tr.rate.vsRate} />
+          {/* レートとトロフィあげの数はサーバーの記録（v2.2） */}
+          <span className="rate-vs__rate num" data-testid="vs-my-rate">
+            {tr.rate.vsRate(opp.me.rate)}
           </span>
+          <TrophyRow count={opp.me.trophies} className="rate-vs__trophies" />
         </div>
         <div className="lobby-vs__vs">VS</div>
         <div className="lobby-vs__side lobby-vs__side--opp">
           <span className="lobby-vs__who pencil">{tr.common.opp}</span>
           <span className="lobby-vs__name red-pen">{safeName(opp.opponentName, tr.lobby.nameless)}</span>
-          <span className="rate-vs__rate num">{tr.rate.vsRate(opp.opponentRate)}</span>
+          <span className="rate-vs__rate num" data-testid="vs-opp-rate">
+            {tr.rate.vsRate(opp.opponentRate)}
+          </span>
+          <TrophyRow count={opp.opponentTrophies} className="rate-vs__trophies" />
         </div>
         <p className="rate-vs__warn red-pen">{tr.rate.leaveWarn}</p>
       </div>

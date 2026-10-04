@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Action } from '../src/engine/types';
 import { INVITE_MS, PICK_AFTER_MS, ROOM_MAX, type InviteState } from '../src/net/session';
+import { makeMsg } from '../src/net/protocol';
 import { MemoryHub } from '../src/net/transport';
 import { FakeClock, type Peer, makePeer, matchUp, settle } from './net.helpers';
 
@@ -251,5 +252,62 @@ describe('R03 部屋の まちあい と申し込み（v2.0-G。UPDATE_v2 §8-2�
     expect(a.backs).toBe(1);
     expect(a.s.members.map((m) => m.name)).toEqual(['人1', '人3']);
     void c;
+  });
+});
+
+describe('K05 同じユーザーIDどうしは対戦しない（フレンド。v2.2）', () => {
+  const U = '123456789012345';
+  async function sameRoom(people: { name: string; userId?: string; playerId?: string }[]) {
+    const hub = new MemoryHub();
+    const clock = new FakeClock();
+    const peers = people.map((x, i) => {
+      const p = makePeer(hub, clock, `peer-${String.fromCharCode(97 + i)}`, { name: x.name, seed: i + 31, ...(x.userId ? { userId: x.userId } : {}), ...(x.playerId ? { playerId: x.playerId } : {}) });
+      const q = Object.assign(p, { invites: [] as InviteState[] });
+      q.s.onInvite = (s) => q.invites.push(s);
+      return q;
+    });
+    for (const p of peers) {
+      p.s.join('777777');
+      clock.advance(5);
+    }
+    await matchUp(hub, clock);
+    return { hub, clock, peers };
+  }
+
+  it('2人だけの部屋でも、同じユーザーID なら自動で始めない（一覧では「あそべない」の印）', async () => {
+    const { hub, clock, peers } = await sameRoom([{ name: 'あ', userId: U }, { name: 'い', userId: U }]);
+    clock.advance(PICK_AFTER_MS * 3);
+    await settle(hub);
+    for (const p of peers) {
+      expect(p.starts).toHaveLength(0);
+      expect(p.s.members.find((m) => !m.me)?.sameUser).toBe(true);
+      expect(p.s.onlySameUser).toBe(true);
+    }
+  });
+
+  it('同じデータ（ユーザーID の無い古い版でも、同じプレイヤーID）なら始めない', async () => {
+    const { hub, clock, peers } = await sameRoom([{ name: 'あ', playerId: 'same-save' }, { name: 'い', playerId: 'same-save' }]);
+    clock.advance(PICK_AFTER_MS * 3);
+    await settle(hub);
+    for (const p of peers) expect(p.starts).toHaveLength(0);
+  });
+
+  it('同じユーザーID の人には申し込めない。届いた申し込みは断る。ほかの人とは遊べる', async () => {
+    const { hub, peers } = await sameRoom([{ name: 'あ', userId: U }, { name: 'い', userId: U }, { name: 'う', userId: '223456789012345' }]);
+    const [a, b, c] = peers;
+    expect(a.s.onlySameUser).toBe(false);
+    expect(a.s.inviteTo(idOf(b))).toBe(false);
+    // 書き換えた端末から申し込みが届いても断る
+    b.t.send(makeMsg('invite', 1, { to: idOf(a), id: 'abcdef' }), idOf(a));
+    await settle(hub);
+    expect(a.invites.some((i) => i.kind === 'received')).toBe(false);
+    // ちがうユーザーID の人とは遊べる
+    expect(a.s.inviteTo(idOf(c))).toBe(true);
+    await settle(hub);
+    c.s.answerInvite(true);
+    await settle(hub);
+    expect(a.starts).toHaveLength(1);
+    expect(c.starts).toHaveLength(1);
+    expect(b.starts).toHaveLength(0);
   });
 });

@@ -10,7 +10,6 @@ import { useT } from '../../i18n/useT';
  * 「コードを つくる」：コードを全選択できる欄に出す＋コピーボタン。
  *   クリップボードが使えない時は、欄を全選択して「ながおしで コピーしてね」と案内する。
  * 「コードを いれる」：貼り付け欄 → 確認「いまの データは うわがき されるよ」→ 復元。
- * どちらにも「まえの たんまつでは もう つかわないでね」を出す（同じデータを2台で使うと、カードやコインが2倍になるため。v2.0-B）。
  */
 
 /** コードを見せて「つくった」と数える時間（書き写すのに使ったとみなす） */
@@ -96,7 +95,6 @@ export function MakeCodeDialog({ save, onClose, onCreated }: { save: SaveData; o
         {tr.transfer.codeText}
         {code && <span className="pencil">{tr.transfer.digits(digits)}</span>}
       </p>
-      <p className="settings-dialog__note red-pen">{tr.transfer.oldDevice}</p>
       <textarea
         ref={field}
         className="pen-textarea settings-dialog__code"
@@ -132,8 +130,6 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
         }
       >
         {tr.transfer.restoredText}
-        <br />
-        <span className="red-pen">{tr.transfer.oldDevice}</span>
       </Dialog>
     );
   }
@@ -164,8 +160,6 @@ export function EnterCodeDialog({ onRestore, onClose }: { onRestore: (data: Save
         <span className="red-pen">{tr.transfer.overwriteWarn}</span>
         <br />
         {tr.transfer.codeData(pending.playerName, pending.decks.filter((d) => d.cards.length > 0).length)}
-        <br />
-        <span className="red-pen">{tr.transfer.oldDevice}</span>
       </Dialog>
     );
   }

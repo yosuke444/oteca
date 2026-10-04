@@ -43,7 +43,7 @@ export type Peer = {
   desync: number[];
 };
 
-export function makePeer(hub: MemoryHub, clock: FakeClock, id: string, opts: { name?: string; deck?: number[]; protocol?: number; seed?: number; playerId?: string } = {}): Peer {
+export function makePeer(hub: MemoryHub, clock: FakeClock, id: string, opts: { name?: string; deck?: number[]; protocol?: number; seed?: number; playerId?: string; userId?: string } = {}): Peer {
   const t = hub.create(id);
   const r = makeRandom(opts.seed ?? id.charCodeAt(id.length - 1));
   const s = new OnlineSession(t, {
@@ -52,6 +52,7 @@ export function makePeer(hub: MemoryHub, clock: FakeClock, id: string, opts: { n
     protocol: opts.protocol ?? 1,
     appVersion: '0.0.0',
     playerId: opts.playerId ?? `player-${id}`,
+    ...(opts.userId ? { userId: opts.userId } : {}),
     clock,
     randomBytes: (n) => new Uint8Array(n).map(() => r.int(0, 255)),
   });

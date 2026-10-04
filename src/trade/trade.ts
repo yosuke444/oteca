@@ -1,4 +1,5 @@
 import { CARD_DB, isTrophyNo } from '../data/cards';
+import { PACK_DATA } from '../data/packs';
 import { validateDeck } from '../engine';
 import { OWN_MAX, type SaveData } from '../save/saveData';
 import { checkSavedDeck } from '../save/collection';
@@ -30,14 +31,26 @@ export function canonical(o: Offer): [number, number][] {
     .sort((a, b) => a[0] - b[0]);
 }
 
-/** 受け取った offer を確かめる（壊れたデータ・存在しないカード・上限越えは null） */
+/** ストーリーの限定カード（packs.json の limited）のカードNo */
+const LIMITED_NOS = new Set(
+  Object.values(CARD_DB)
+    .filter((c) => PACK_DATA.limited.includes(c.id))
+    .map((c) => c.no),
+);
+
+/** トレードに出せるカードか（v2.2：ストーリーの限定カードとトロフィあげは出せない） */
+export function isTradable(no: number): boolean {
+  return !!CARD_DB[no] && !isTrophyNo(no) && !LIMITED_NOS.has(no);
+}
+
+/** 受け取った offer を確かめる（壊れたデータ・存在しないカード・トレードに出せないカード・上限越えは null） */
 export function cleanOffer(x: unknown): Offer | null {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
   const out: Offer = {};
   for (const [k, v] of Object.entries(x as Record<string, unknown>)) {
     const no = Number(k);
-    // トロフィーのカードはトレードに出せない（v2.0-J）
-    if (!Number.isInteger(no) || !CARD_DB[no] || isTrophyNo(no) || typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > TRADE_MAX_CARDS) return null;
+    // トロフィーのカード（v2.0-J）とストーリーの限定カード（v2.2）はトレードに出せない
+    if (!Number.isInteger(no) || !isTradable(no) || typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > TRADE_MAX_CARDS) return null;
     if (v > 0) out[no] = v;
   }
   const s = offerSize(out);
@@ -49,6 +62,7 @@ export function cleanOffer(x: unknown): Offer | null {
 export function canAdd(save: Pick<SaveData, 'collection'>, offer: Offer, no: number): boolean {
   const s = offerSize(offer);
   const now = offer[no] ?? 0;
+  if (!isTradable(no)) return false;
   if (now >= (save.collection[no] ?? 0)) return false;
   if (s.cards >= TRADE_MAX_CARDS) return false;
   if (now === 0 && s.kinds >= TRADE_MAX_KINDS) return false;

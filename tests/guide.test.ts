@@ -18,9 +18,10 @@ describe('O01 説明の数はデータの値、行とページの数', () => {
   it('説明に入る数が、各データの値と一致する', () => {
     expect(n.cpu.levels.map((l) => l.coins)).toEqual([ECONOMY.cpuWinReward.weak, ECONOMY.cpuWinReward.normal, ECONOMY.cpuWinReward.strong, ECONOMY.cpuWinReward.strongest]);
     expect(n.online).toEqual({ friend: ECONOMY.onlineReward.friend, rate: ECONOMY.onlineReward.rate, dailyLimit: ECONOMY.dailyRewardLimit, minTurns: ECONOMY.minTurnsEach, rateStart: RATING.initial, roomMax: ROOM_MAX });
-    expect(n.gacha.offers).toEqual(DRAW.offers.map((o) => ({ bags: o.bags, price: o.price })));
-    expect(n.gacha.double).toBe('5');
-    expect(n.gacha.supers.map((s) => s.rate)).toEqual(['11.1', '9.7', '4.3']);
+    expect(n.gacha.offers).toEqual(DRAW.offers.map((o) => ({ bags: o.bags, price: o.price, guarantee: o.lastBagSuper })));
+    // v2.2：スーパー 5%・光る 80%・15まいの確定
+    expect(n.gacha.superRate).toBe('5');
+    expect(n.gacha.guaranteeBags).toEqual([15]);
     expect(n.deck).toEqual({ size: 15, superMax: 1, slots: 20 });
     expect(n.trade).toEqual({ kinds: 99, cards: 99 });
     expect(n.daily.resetHour).toBe(DAILY.resetHour);
@@ -51,7 +52,7 @@ describe('O01 説明の数はデータの値、行とページの数', () => {
       has('online', RATING.initial, ROOM_MAX, ECONOMY.onlineReward.friend, ECONOMY.minTurnsEach, ECONOMY.dailyRewardLimit);
       has('cpu', CPU_COUNT, ...n.cpu.levels.map((l) => l.coins));
       has('story', STORY.stages.length, STORY.rewards.normal.first, STORY.rewards.normal.again, STORY.rewards.boss.first, STORY.rewards.boss.again);
-      has('gacha', ...DRAW.offers.map((o) => o.price), DRAW.superToCoins, '11\.1', '9\.7', '4\.3');
+      has('gacha', ...DRAW.offers.map((o) => o.price), DRAW.superToCoins, '5', '15');
       has('deck', 15, 20);
       has('trade', 99);
       has('daily', DAILY.resetHour, DAILY.pick, DAILY.missions.length, DAILY.allClear.bags, DAILY.allClear.coins, ...DAILY.missions.map((m) => m.target));

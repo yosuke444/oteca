@@ -673,6 +673,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
         view={view}
         me={me}
         names={setup.names}
+        badges={setup.rated?.badges}
         mode={setup.mode}
         canAct={canAct}
         busy={busy}

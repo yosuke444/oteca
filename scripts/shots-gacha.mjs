@@ -1,6 +1,6 @@
 // パックガチャ（UPDATE_v2 E・SPEC §7 S09）の確認：にほんご／日本語 で画面を撮る。
-// 店 → なかみ → 3まい（1袋目を開けて「つぎへ」で最後まで）→ ダブル＋スーパーレア（乱数を決めて）→ 換金
-// → 15まい（「つぎへ」で15袋を最後まで。v2.1-K）→ 15まい（ぜんぶ スキップ）、コインが足りない時。
+// 店 → なかみ → 3まい（1袋目を開けて「つぎへ」で最後まで）→ 光る袋・光ったのにノーマル・サプライズ（乱数を決めて。v2.2）→ 換金
+// → 15まい（「つぎへ」で15袋を最後まで。最後の金色の確定の袋。v2.2）→ 15まい（ぜんぶ スキップ）、コインが足りない時。
 // 引いた直後に読み込み直しても「コインだけ減ってカードが増えない」ことが無いかも確かめる。
 // 使い方：npm run dev を動かしたまま node scripts/shots-gacha.mjs 0（1280×720）／1（844×390）
 import { SIZES, launch, openPage, shot } from './pw.mjs';
@@ -124,24 +124,43 @@ for (const lang of ['hira', 'kanji']) {
   await snap(lang, '07_summary3');
   await page.getByRole('button', { name: L.shop }).click();
 
-  // ダブル＋スーパーレア（乱数を決める）：1袋目がダブルで、2枚ともスーパーレア（かみ。重み 24〜25 / 27）
-  await forceLuck([0.01, 0.9, 0.9]);
+  // 光る袋（v2.2。乱数を決める。1袋に [スーパーか・どれか・光るか] の3つ）：
+  // 1袋目 光ってスーパー（かみ）、2袋目 光ったのにノーマル（…ぺらっ）、3袋目 光らずスーパー（サプライズ）
+  await forceLuck([0.01, 0.0, 0.1, 0.5, 0.0, 0.01, 0.01, 0.0, 0.95]);
   await page.getByTestId('gacha-buy-three').click();
   await page.waitForTimeout(1200);
-  await snap(lang, '08_bags_super');
-  // 震えている袋（スーパーレア）は止まらないので force で押す
+  await snap(lang, '08_bags_glow');
+  const glows = await page.locator('[data-testid^="gacha-bag-"][data-glow="1"]').count();
+  if (glows !== 2) problems.push(`${lang} 光る袋の数 ${glows}（2のはず）`);
+  // 震えている袋（光る袋）は止まらないので force で押す
   await page.getByTestId('gacha-bag-0').click({ force: true });
   await page.waitForTimeout(1300);
-  await snap(lang, '09_reveal_double_super');
+  await snap(lang, '09_reveal_glow_super');
   await page.waitForTimeout(1800);
-  await snap(lang, '10_reveal_double_super_done');
+  await snap(lang, '10_reveal_glow_super_done');
+  if ((await page.getByTestId('gacha-reveal').getAttribute('data-kind')) !== 'super') problems.push(`${lang} 1袋目が super の演出でない`);
   await page.getByTestId('gacha-next').waitFor({ timeout: 15000 });
   await page.getByTestId('gacha-next').click();
-  // 2袋目（真ん中）でも、キラキラは降り続ける
+  // 2袋目（真ん中）：光っているのでスーパーかと思わせて、ノーマル（…ぺらっ）。キラキラは降り続ける
   await page.waitForTimeout(400);
-  await snap(lang, '10b_rain_next_bag');
+  await snap(lang, '10b_center_glow_bag');
   if (!(await page.locator('.spark').count())) problems.push(`${lang} スーパーレアのあと キラキラが 降っていない`);
-  await page.getByTestId('gacha-skip-all').click();
+  await page.getByTestId('gacha-reveal').waitFor({ timeout: 15000 });
+  await page.waitForTimeout(1500);
+  await snap(lang, '10c_reveal_letdown');
+  if ((await page.getByTestId('gacha-reveal').getAttribute('data-kind')) !== 'letdown') problems.push(`${lang} 2袋目が letdown の演出でない`);
+  await page.getByTestId('gacha-next').waitFor({ timeout: 15000 });
+  await page.getByTestId('gacha-next').click();
+  // 3袋目：光らない袋から、めくった瞬間に光があふれる（サプライズ）
+  await page.getByTestId('gacha-reveal').waitFor({ timeout: 15000 });
+  await page.waitForTimeout(1300);
+  await snap(lang, '10d_reveal_surprise');
+  await page.waitForTimeout(1500);
+  await snap(lang, '10e_reveal_surprise_done');
+  if ((await page.getByTestId('gacha-reveal').getAttribute('data-kind')) !== 'surprise') problems.push(`${lang} 3袋目が surprise の演出でない`);
+  await page.getByTestId('gacha-next').waitFor({ timeout: 15000 });
+  await page.getByTestId('gacha-next').click();
+  await page.getByTestId('gacha-summary').waitFor();
   await snap(lang, '11_summary_convert');
   // 換金：すでに持っていた かみ → 50コイン
   const c0 = await readSave();
@@ -160,8 +179,31 @@ for (const lang of ['hira', 'kanji']) {
   await page.getByTestId('gacha-buy-fifteen').click();
   await page.waitForTimeout(1200);
   await snap(lang, '13_bags15');
-  await page.getByTestId('gacha-bag-7').click({ force: true });
-  const n15 = await nextToSummary(lang);
+  // 最後（15袋目）は金色の確定の袋（v2.2）
+  if ((await page.getByTestId('gacha-bag-14').getAttribute('data-guaranteed')) !== '1') problems.push(`${lang} 15袋目が確定の袋でない`);
+  if (!(await page.getByTestId('gacha-bag-14').getByTestId('gacha-guarantee-tag').count())) problems.push(`${lang} 確定の袋に「かくてい！」が無い`);
+  await page.getByTestId('gacha-bag-0').click({ force: true });
+  // 15袋目（確定の袋）が真ん中に来た所と、開いた所を撮る
+  let n15 = 0;
+  for (;;) {
+    await page.getByTestId('gacha-next').waitFor({ timeout: 25000 });
+    await page.getByTestId('gacha-next').click();
+    n15 += 1;
+    if (await page.getByTestId('gacha-summary').count()) break;
+    if (n15 === 14) {
+      await page.getByTestId('gacha-center-14').waitFor();
+      await page.waitForTimeout(250);
+      await snap(lang, '13b_center_guaranteed');
+      await page.getByTestId('gacha-reveal').waitFor({ timeout: 15000 });
+      await page.waitForTimeout(1500);
+      await snap(lang, '13c_reveal_guaranteed');
+      await page.waitForTimeout(1800);
+      await snap(lang, '13d_reveal_guaranteed_done');
+      if ((await page.getByTestId('gacha-reveal').getAttribute('data-kind')) !== 'guaranteed') problems.push(`${lang} 15袋目が guaranteed の演出でない`);
+    }
+    await page.waitForTimeout(50);
+    if (await page.getByTestId('gacha-summary').count()) break;
+  }
   if (n15 !== 15) problems.push(`${lang} 15まい：つぎへ の回数 ${n15}`);
   await snap(lang, '14_summary15');
   const got15 = await page.locator('.gacha-summary .card-mini').count();

@@ -216,8 +216,8 @@
       ], "image": "cards/sarashiage.png", "flavor": "" },
 
     {"no":38,"id":"moyasu","name":"もやす","kind":"otege","rarity":"normal","hp":70, "moves": [
-        {"faces":[1,2,3],"effects":[{"type":"damage","amount":80},{"type":"discard","count":1,"deckIfNoHand":true}]},
-        {"faces":[4,5,6],"effects":[{"type":"damage","amount":120},{"type":"discard","count":1,"deckIfNoHand":true}]}
+        {"faces":[1,2,3],"effects":[{"type":"damage","amount":60},{"type":"discard","count":1,"deckIfNoHand":true}]},
+        {"faces":[4,5,6],"effects":[{"type":"damage","amount":100},{"type":"discard","count":1,"deckIfNoHand":true}]}
       ], "image": "cards/moyasu.png", "flavor": "" },
 
     {"no":39,"id":"dokusage","name":"どくさげ","kind":"otege","rarity":"normal","hp":80, "moves": [

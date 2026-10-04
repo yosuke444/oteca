@@ -23,13 +23,17 @@ export type PackDef = {
 };
 
 /**
- * 引き方（SPEC §7 S09）：1枚ごとの重み（ノーマル1種類・スーパー1種類。v2.1-K）・1袋ごとのダブルの確率・買い方・換金の枚数。
- * 1枚の確率＝そのカードの重み ÷ パックの全カードの重みの合計
+ * 引き方（SPEC §7 S09。v2.2）：1袋に1枚。
+ * - superRate：ふだんの袋がスーパーおてあげの確率（どのパックも同じ。スーパーの中・ノーマルの中では、どのカードも同じ確率）
+ * - glowRate：中身がスーパーの袋が光る確率。中身がノーマルの袋は glowRate × superRate ÷ (1 − superRate) で光る
+ *   （光った袋のスーパー率が 50% になる）。確定の袋とデイリーパックは除く
+ * - offers：買い方。lastBagSuper：最後の袋をスーパーおてあげ確定にする（15まい）
+ * - superToCoins：スーパーレアの換金の枚数
  */
 export type DrawRules = {
-  weights: { normal: number; super: number };
-  doubleRate: number;
-  offers: { id: string; bags: number; price: number }[];
+  superRate: number;
+  glowRate: number;
+  offers: { id: string; bags: number; price: number; lastBagSuper: boolean }[];
   superToCoins: number;
 };
 
@@ -63,9 +67,15 @@ export function parsePackData(data: unknown): PackData {
   }
   const dr = d.draw;
   const rate = (v: unknown) => typeof v === 'number' && v >= 0 && v <= 1;
-  const weight = (v: unknown) => typeof v === 'number' && v > 0 && Number.isFinite(v);
-  check(!!dr && !!dr.weights && weight(dr.weights.normal) && weight(dr.weights.super) && rate(dr.doubleRate), 'draw の重み・確率が不正です');
-  check(Array.isArray(dr.offers) && dr.offers.length > 0 && dr.offers.every((o) => typeof o.id === 'string' && Number.isInteger(o.bags) && o.bags > 0 && Number.isInteger(o.price) && o.price > 0), 'draw.offers が不正です');
+  // superRate は 1 未満（ノーマルの光る確率の割り算のため）
+  check(!!dr && rate(dr.superRate) && dr.superRate < 1 && rate(dr.glowRate), 'draw.superRate・glowRate が不正です');
+  check(dr.glowRate * dr.superRate <= 1 - dr.superRate, 'draw：ノーマルの袋の光る確率が 1 を超えます');
+  check(
+    Array.isArray(dr.offers) &&
+      dr.offers.length > 0 &&
+      dr.offers.every((o) => typeof o.id === 'string' && Number.isInteger(o.bags) && o.bags > 0 && Number.isInteger(o.price) && o.price > 0 && typeof o.lastBagSuper === 'boolean'),
+    'draw.offers が不正です',
+  );
   check(Number.isInteger(dr.superToCoins) && dr.superToCoins >= 0, 'draw.superToCoins が不正です');
   return d;
 }

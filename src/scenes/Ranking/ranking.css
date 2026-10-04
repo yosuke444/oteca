@@ -189,7 +189,7 @@
   .ranking-table__record {
     font-size: 22px;
   }
-  /* 「まいにち 4じ と 14じ に こうしん」と残り時間が「もどる」に重ならない大きさ */
+  /* 「まいにち 4じ と 16じ に こうしん」と残り時間が「もどる」に重ならない大きさ */
   .ranking-scene__daily {
     font-size: 22px;
     gap: 16px;

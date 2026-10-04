@@ -5,6 +5,7 @@ import type { RuleSet, Side } from '../engine/types';
 import type { CpuLevel } from '../cpu/brains';
 import { safeName } from '../online/rate';
 import { t } from '../i18n';
+import type { PlayerBadge } from '../ui/common/trophyBadge';
 
 /**
  * 対戦画面に渡す設定。
@@ -51,9 +52,10 @@ export type BattleSetup = {
   story?: { stage: number };
   /**
    * レート対戦（v2.0-G）：相手のレートとプレイヤーID（結果はリザルトでレートに書く）。
-   * matchId：結果の報告に使う試合ID（v2.0-I。受付係の試合ID、予備の待合所では部屋ID）
+   * matchId：結果の報告に使う試合ID（v2.0-I。受付係の試合ID、予備の待合所では部屋ID）。
+   * badges：両者のレートとトロフィあげの数（v2.2。名前の欄に出す。サーバーの記録）
    */
-  rated?: { oppRate: number; oppId: string; matchId?: string };
+  rated?: { oppRate: number; oppId: string; matchId?: string; badges?: Record<Side, PlayerBadge> };
   /** 観戦（v2.0-J）：部屋番号と、見ている試合（2人のピアID） */
   spectate?: { room: string; key: string };
 };

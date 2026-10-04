@@ -103,7 +103,6 @@ export function DailyPanel({
               <li className={`daily-row daily-row--all ${allDone ? 'is-done' : ''} ${daily.allClearClaimed ? 'is-claimed' : ''}`} data-testid="daily-allClear">
                 <CheckMark done={allDone} />
                 <span className="daily-row__text">
-                  <span className="daily-row__fixed red-pen">{D.fixed}</span>
                   {D.allClear}
                 </span>
                 <span className="daily-row__pack" aria-hidden>
