@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
+import { SuspensionGate } from '../../ui/common/SuspensionGate';
+import { opponentAllowed } from '../../online/status';
 import { badOnlineStart, onlineSetup } from '../../battle/setup';
 import { t } from '../../i18n';
 import { useT } from '../../i18n/useT';
@@ -81,7 +83,16 @@ export function RateScene() {
     // 試合ID は、組んだ相手と同じ人と始まった時だけ使う（違う人なら報告しない）
     const p = pairedRef.current;
     const matchId = p && p.opponentId === g.oppPlayerId ? p.matchId : undefined;
-    go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId, ...(matchId ? { matchId } : {}) }));
+    // 相手のアカウントが停止中なら始めない（v2.0-J。予備の待合所で組んだ時など）
+    void opponentAllowed(g.oppPlayerId).then((ok) => {
+      if (ok) {
+        go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId, ...(matchId ? { matchId } : {}) }));
+        return;
+      }
+      update((d) => void (d.pendingRateMatch = null));
+      endOnline();
+      setPhase({ kind: 'error', text: t().suspension.opponent });
+    });
   };
 
   /**
@@ -247,6 +258,8 @@ export function RateScene() {
 
   return (
     <div className="rate-scene" data-testid="rate-scene">
+      {/* アカウント停止の確かめ（v2.0-J） */}
+      <SuspensionGate />
       <h1 className="online-scene__title">{tr.rate.title}</h1>
       <RoughButton seed="rate-back" className="online-scene__back" onClick={() => (phase.kind === 'searching' ? stop() : go('online'))}>
         {tr.common.back}

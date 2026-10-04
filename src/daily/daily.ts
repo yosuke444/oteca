@@ -199,7 +199,7 @@ export type DailyMatchKind = 'cpu' | 'story' | 'friend' | 'rate';
 
 /** 対戦の結果（リザルトに来たもの）から、デイリーミッションに数える種類を決める。数えない時は null */
 export type DailyMatchInput = {
-  mode: 'online' | 'cpu' | 'local';
+  mode: 'online' | 'cpu' | 'local' | 'spectate';
   /** 勝敗を記録する対戦か（チュートリアル・カードを ためす・ストーリーは false） */
   record: boolean;
   debug?: boolean;

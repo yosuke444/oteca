@@ -62,8 +62,8 @@ export async function startWorker(port = 8788) {
 }
 
 /** API を呼ぶ（Origin を付ける）。答えと、数えたもの（x-* の見出し）を返す */
-export async function api(base, path, { method = 'GET', body, admin, origin = ORIGIN } = {}) {
-  const headers = { 'content-type': 'application/json' };
+export async function api(base, path, { method = 'GET', body, admin, origin = ORIGIN, headers: extra = {} } = {}) {
+  const headers = { 'content-type': 'application/json', ...extra };
   if (origin) headers.Origin = origin;
   if (admin) headers['x-admin-key'] = admin;
   const r = await fetch(`${base}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });

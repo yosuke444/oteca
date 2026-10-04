@@ -263,6 +263,115 @@ try {
   const ok2 = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
   const busy = await Promise.all([api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null }), api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null })]);
   check('まとめ処理は同時に1つだけ（重なったら busy）', ok2.json?.ok && busy.some((x) => x.json?.ok), JSON.stringify(busy.map((x) => x.json)));
+  console.log('管理者メニュー（v2.0-J）');
+  {
+    const ip = (n) => ({ 'CF-Connecting-IP': `10.0.0.${n}` });
+    const login = (pw, n) => api(B, '/admin-login', { method: 'POST', body: { password: pw }, headers: ip(n) });
+    // パスワード（管理キー）でログイン → 管理の合言葉で管理の道が使える
+    const ok = await login(ADMIN, 1);
+    const session = ok.json?.session;
+    check('J04 パスワード（管理キー）が合えば、管理の合言葉（12時間）がもらえる', ok.status === 200 && /^[0-9a-f]{64}$/.test(session ?? '') && ok.json.expires - Date.now() > 11 * 3600e3);
+    const sess = (path, body = {}, n = 1) => api(B, path, { method: 'POST', body, headers: { ...ip(n), 'x-admin-session': session } });
+    check('管理の合言葉で管理の道が使える。違う合言葉は 401', (await sess('/admin/log')).status === 200 && (await api(B, '/admin/log', { method: 'POST', headers: { ...ip(1), 'x-admin-session': 'ab'.repeat(32) } })).status === 401);
+    // 5回まちがえたら1時間入れない（正しいパスワードでも）
+    const fails = [];
+    for (let i = 0; i < 5; i++) fails.push(await login('wrong-password', 2));
+    check('J04 4回までは「あと○回」、5回目で入れなくなる（423）', fails.slice(0, 4).map((r) => r.json?.left).join(',') === '4,3,2,1' && fails[4].status === 423 && fails[4].json?.until > Date.now() + 59 * 60e3, JSON.stringify(fails.map((r) => [r.status, r.json])));
+    check('入れない間は、正しいパスワードでも 423（ほかの接続元は入れる）', (await login(ADMIN, 2)).status === 423 && (await login(ADMIN, 3)).status === 200);
+    check('管理キー（curl）のまちがいも数える', (await api(B, '/admin/stats', { method: 'POST', admin: 'nope', origin: null, headers: ip(2) })).status === 423);
+    // 同時にまちがえても数えもらさない（1つの SQL で数える）
+    const burst = await Promise.all(Array.from({ length: 8 }, () => login('wrong-password', 5)));
+    check('同時に8回まちがえても、5回目からは入れない（数えもらさない）', burst.filter((r) => r.status === 401).length <= 4 && burst.some((r) => r.status === 423) && (await login(ADMIN, 5)).status === 423, JSON.stringify(burst.map((r) => r.status)));
+    // IPv6 は /64 で数える（アドレスを変えながら試せない）
+    for (let i = 0; i < 5; i++) await api(B, '/admin-login', { method: 'POST', body: { password: 'x' }, headers: { 'CF-Connecting-IP': `2001:db8:5:6::${i + 1}` } });
+    check('IPv6 は /64 ごとに数える', (await api(B, '/admin-login', { method: 'POST', body: { password: ADMIN }, headers: { 'CF-Connecting-IP': '2001:db8:5:6:ffff::9' } })).status === 423);
+    // 管理の合言葉で使えるのは管理者メニューの道だけ（前からある強い道は管理キーだけ）
+    check('管理の合言葉では、まとめ処理・プレイヤーを消す などは使えない（401）', (await sess('/admin/run-batch')).status === 401 && (await sess('/admin/delete-players', { userIds: [] })).status === 401 && (await sess('/admin/stats')).status === 401);
+    // メニューから出たら、サーバーの合言葉も消える
+    const tmp = (await login(ADMIN, 6)).json?.session;
+    const asTmp = (path, body = {}) => api(B, path, { method: 'POST', body, headers: { ...ip(6), 'x-admin-session': tmp } });
+    const before = (await asTmp('/admin/log')).status;
+    await asTmp('/admin/logout', { session: tmp });
+    check('でる（ログアウト）で合言葉がサーバーからも消える', before === 200 && (await asTmp('/admin/log')).status === 401);
+
+    // トロフィー
+    const T = await register(B, pid(500), 'もらう');
+    const tr1 = await sess('/admin/trophy', { userId: T.id, number: 77 });
+    check('J05 トロフィーを送れる（郵便受けに預ける）', tr1.status === 200);
+    check('J05 同じ番号は 409（その ばんごうは もう つかわれているよ）', (await sess('/admin/trophy', { userId: P[0].id, number: 77 })).status === 409);
+    check('番号の範囲外・登録の無いユーザーID は送れない', (await sess('/admin/trophy', { userId: T.id, number: 10000 })).status === 400 && (await sess('/admin/trophy', { userId: pid(999999), number: 78 })).status === 404);
+    const mb = await api(B, `/mailbox?userId=${T.id}&token=${T.token}`);
+    check('相手の郵便受けに届いている', mb.json?.trophies?.length === 1 && mb.json.trophies[0].number === 77, JSON.stringify(mb.json));
+    check('郵便受けは token が要る', (await api(B, `/mailbox?userId=${T.id}&token=${'0'.repeat(32)}`)).status === 401);
+    await api(B, '/mailbox/ack', { method: 'POST', body: { userId: T.id, token: T.token, numbers: [77] } });
+    check('受け取ったら郵便受けから出る', (await api(B, `/mailbox?userId=${T.id}&token=${T.token}`)).json?.trophies?.length === 0);
+    const user = await sess('/admin/user', { userId: T.id });
+    check('確認に出す相手の名前とレート', user.json?.user?.name === 'もらう' && user.json?.user?.rate === 100);
+
+    // 停止
+    const S = await register(B, pid(501), 'ていし');
+    const s1 = await sess('/admin/suspend', { userId: S.id, days: 7, reason: 'テスト' });
+    check('J06 停止できる（1週間）', s1.status === 200 && Math.abs(s1.json.until - (Date.now() + 7 * 864e5)) < 60e3);
+    check('期間は決まったものだけ', (await sess('/admin/suspend', { userId: S.id, days: 8 })).status === 400);
+    const st = await api(B, `/status?ids=${S.id},${T.id}`);
+    check('J06 停止中か確かめられる（停止していない人は出ない）', st.json?.suspended?.[S.id] === s1.json.until && !(T.id in (st.json?.suspended ?? {})));
+    const sl = connectLobby(B, S);
+    await sleep(800);
+    check('J06 停止中は待合所につながらない', !sl.opened);
+    check('J06 停止中は結果の報告を受け付けない', (await api(B, '/result', { method: 'POST', body: { matchId: 'cd'.repeat(8), userId: S.id, token: S.token, winner: 'void' } })).status === 403);
+    // 停止中の人の試合は数えない・ランキングに載らない
+    await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, headers: ip(4), body: { results: [{ a: S.id, b: T.id, winner: S.id, at: Date.now() }] } });
+    const bs = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null, headers: ip(4) });
+    const rkS = await api(B, '/ranking');
+    check('J06 停止中の人の試合は数えず、ランキングに載らない', bs.json?.counted === 0 && bs.json?.skipped >= 1 && !rkS.json.top.some((r) => r.key === key(S.id)), JSON.stringify(bs.json));
+    // ランキングに載っている人を止めたら、まとめ処理を待たずに公開の一覧から消える（解除したら次の更新で戻る）
+    const top0 = (await api(B, '/ranking')).json.top;
+    const ranked = P.find((x) => top0.some((r) => r.key === key(x.id)));
+    if (ranked) {
+      await sess('/admin/suspend', { userId: ranked.id, days: 7, reason: '' });
+      const rkNow = (await api(B, '/ranking')).json.top;
+      check('J06 停止したら、すぐ公開のランキングから消える', !rkNow.some((r) => r.key === key(ranked.id)) && rkNow.length === top0.length - 1);
+      await sess('/admin/unsuspend', { userId: ranked.id });
+      await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null, headers: ip(4) });
+      check('停止解除の後、次の更新でランキングに戻る', (await api(B, '/ranking')).json.top.some((r) => r.key === key(ranked.id)));
+    } else check('（ランキングに載っている人がいる）', false);
+    const forever = await sess('/admin/suspend', { userId: T.id, days: 0, reason: '' });
+    check('ずっと の停止（終わりは 0）', forever.json?.until === 0 && (await api(B, `/status?ids=${T.id}`)).json?.suspended?.[T.id] === 0);
+    const un = await sess('/admin/unsuspend', { userId: S.id });
+    check('J06 停止解除で戻る（待合所につながる）', un.status === 200 && !(S.id in ((await api(B, `/status?ids=${S.id}`)).json?.suspended ?? {})));
+    const sl2 = connectLobby(B, S);
+    await sl2.waitOpen();
+    check('（停止解除の後は待合所につながる）', sl2.opened);
+    sl2.ws.close();
+
+    // 検索
+    const find = (q) => sess('/admin/search', q).then((r) => r.json);
+    const byName = await find({ name: 'ていし' });
+    check('J07 名前の部分一致', byName.rows.length === 1 && byName.rows[0].id === S.id, JSON.stringify(byName));
+    const byId = await find({ id: S.id.slice(3, 10) });
+    check('J07 ユーザーID の部分一致', byId.rows.some((r) => r.id === S.id));
+    check('J07 トロフィーの有無', (await find({ trophy: 'yes' })).rows.map((r) => r.id).join() === T.id && (await find({ trophy: 'no' })).rows.every((r) => r.id !== T.id));
+    check('J07 停止中かどうか', (await find({ suspended: 'yes' })).rows.map((r) => r.id).join() === T.id && (await find({ suspended: 'no' })).rows.every((r) => r.id !== T.id));
+    const rated = await find({ rateMin: 109, rateMax: 111 });
+    check('J07 レートの範囲', rated.rows.length >= 1 && rated.rows.every((r) => r.rate >= 109 && r.rate <= 111));
+    const seen = await find({ seenFrom: Date.now() - 3600e3 });
+    check('J07 最後に遊んだ日の範囲（登録した日・郵便受けを見た日）', seen.rows.some((r) => r.id === T.id) && (await find({ seenTo: Date.now() - 864e5 })).rows.every((r) => r.id !== T.id));
+    const many = [];
+    for (let i = 0; i < 55; i++) many.push(register(B, pid(600 + i), `たくさん${i}`));
+    await Promise.all(many);
+    const p0 = await find({ name: 'たくさん' });
+    const p1 = await find({ name: 'たくさん', page: 1 });
+    check('J07 1ページ50件', p0.rows.length === 50 && p0.hasNext === true && p1.rows.length === 5 && p1.hasNext === false);
+    check('今までの playerId のままの行は出さない', (await find({})).rows.every((r) => /^[1-9][0-9]{14}$/.test(r.id)));
+
+    // かんりログ
+    const log = await sess('/admin/log');
+    const actions = log.json.rows.map((r) => r.action);
+    check('かんりログ：新しい順に、いつ・何を・誰に', actions[0] === 'search' && ['login', 'trophy', 'suspend', 'unsuspend', 'lock'].every((a) => actions.includes(a)) && log.json.rows[0].id > log.json.rows[1].id, JSON.stringify(actions.slice(0, 12)));
+    check('ログインの記録に接続元。検索のページ送りは記録しない', log.json.rows.find((r) => r.action === 'login')?.target?.startsWith('10.0.0.') && log.json.rows.filter((r) => r.action === 'search' && JSON.parse(r.detail).page === 1).length === 0);
+    const tLog = log.json.rows.find((r) => r.action === 'trophy');
+    check('トロフィーの記録に、相手と番号', tLog?.target === T.id && JSON.parse(tLog.detail).number === 77);
+  }
 } catch (e) {
   check('とちゅうでエラー', false, e?.stack ?? String(e));
 } finally {

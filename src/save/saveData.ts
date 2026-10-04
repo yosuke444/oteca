@@ -2,6 +2,7 @@
  * セーブデータの型と初期値（SPEC §12-2。形式版数5・v2.1-L）
  */
 
+import cardsJson from '../data/cards.json';
 import economy from '../data/economy.json';
 import { STARTER_COINS, STARTER_DECK_NAME, starterDeckNos } from '../data/starterDeck';
 import type { Lang } from '../i18n';
@@ -58,6 +59,8 @@ export type SaveData = {
   userId: string;
   /** ユーザーID をサーバーに登録できたか（登録前に重複していた時だけ作り直す。登録後は変えない） */
   userIdRegistered: boolean;
+  /** 受け取ったトロフィー（v2.0-J。番号 1〜9999 と受け取った時刻）。カードは collection には入れない */
+  trophies: Trophy[];
   /** 必ず20個。cards はカードNoの配列 */
   decks: SavedDeck[];
   /** いまのデッキ 0〜19 */
@@ -101,6 +104,16 @@ export type SaveData = {
   /** デイリーミッション（v2.1-M） */
   daily: DailyState;
 };
+
+/** 受け取ったトロフィー（v2.0-J。形式版数9） */
+export type Trophy = { number: number; receivedAt: number };
+
+/** トロフィーの数の上限（バイト列で読む時の上限） */
+export const TROPHIES_MAX = 100;
+/** トロフィーの番号の上限（cards.json の trophy.numberMax） */
+export const TROPHY_NUMBER_MAX: number = cardsJson.trophy.numberMax;
+/** トロフィーのカードNo の始まり（cards.json の trophy.noBase） */
+export const TROPHY_CARD_NO_BASE: number = cardsJson.trophy.noBase;
 
 /** ランキングの項目（v2.0-I。形式版数7） */
 export type Ranking = { token: string; optIn: boolean; unsent: string[]; provisional: boolean; syncedAt: number; playedAt: number; lastMatchId: string };
@@ -167,7 +180,8 @@ export function normalizeCollection(c: Record<number, number>): Record<number, n
   for (const [k, v] of Object.entries(c ?? {})) {
     const no = Number(k);
     const qty = clampInt(v, OWN_MAX);
-    if (Number.isInteger(no) && no > 0 && no <= CARD_NO_MAX && qty > 0) out[no] = qty;
+    // トロフィーのカード（v2.0-J。カードNo 50000＋番号）は collection に入れない（trophies で持つ）
+    if (Number.isInteger(no) && no > 0 && no < TROPHY_CARD_NO_BASE && no <= CARD_NO_MAX && qty > 0) out[no] = qty;
   }
   return out;
 }
@@ -194,6 +208,7 @@ export function normalizeSave(data: SaveData): SaveData {
     playerId: normalizeId(data.playerId),
     userId: normalizeUserId(data.userId),
     userIdRegistered: !!data.userIdRegistered && isUserId(data.userId),
+    trophies: normalizeTrophies(data.trophies),
     decks: Array.from({ length: DECK_SLOTS }, (_, i) => {
       const deck = data.decks[i] ?? { name: '', cards: [] };
       const deckName = clampText(deck.name.trim(), DECK_NAME_MAX);
@@ -229,6 +244,16 @@ export function normalizeSave(data: SaveData): SaveData {
   };
 }
 
+/** トロフィーの一覧を整える（番号 1〜9999、同じ番号は1つ、番号の順、100まで） */
+export function normalizeTrophies(list: Trophy[] | undefined): Trophy[] {
+  const m = new Map<number, Trophy>();
+  for (const t of list ?? []) {
+    if (!Number.isInteger(t?.number) || t.number < 1 || t.number > TROPHY_NUMBER_MAX || m.has(t.number)) continue;
+    m.set(t.number, { number: t.number, receivedAt: clampInt(t.receivedAt) });
+  }
+  return [...m.values()].sort((a, b) => a.number - b.number).slice(0, TROPHIES_MAX);
+}
+
 /** デイリーミッションの記録を整える（知らない種類・同じ種類の2つ目は消す。7つまで。その日に出すのは3つ） */
 export function normalizeDaily(d: Partial<DailyState> | undefined): DailyState {
   const seen = new Set<string>();
@@ -249,12 +274,13 @@ export function emptyDaily(): DailyState {
 /** 後の項目（D〜I）の枠の初期値。新しいセーブと、古いセーブからの移行で共通 */
 export function laterFieldsDefault(): Pick<
   SaveData,
-  'playerId' | 'userId' | 'userIdRegistered' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
+  'playerId' | 'userId' | 'userIdRegistered' | 'trophies' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
 > {
   return {
     playerId: '',
     userId: '',
     userIdRegistered: false,
+    trophies: [],
     loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     rate: RATE_START,

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
 import { STARTER_COINS, classicDeckNos, starterCollection } from '../src/data/starterDeck';
 import { validateDeck } from '../src/engine';
-import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, type SaveDataV6, type SaveDataV7, encodeBody, encodeSave } from '../src/save/binary';
+import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, type SaveDataV6, type SaveDataV7, type SaveDataV8, encodeBody, encodeSave } from '../src/save/binary';
 import { applyRateResult } from '../src/online/rate';
 import { isUserId } from '../src/save/userId';
 import { checkSavedDeck } from '../src/save/collection';
@@ -102,6 +102,8 @@ describe('形式の移行（固定の見本）', () => {
     // 形式版数8 への移行でユーザーID を作る（ランダム。まだ登録していない）
     userId: ANY_USER_ID,
     userIdRegistered: false,
+    // 形式版数9 への移行でトロフィーの一覧（空）
+    trophies: [],
     loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     rate: 100,
@@ -190,10 +192,10 @@ describe('形式の移行（固定の見本）', () => {
   const toV8 = (d: SaveDataV7): SaveData => {
     const x = structuredClone(d);
     if (x.pendingRateMatch) applyRateResult(x, x.pendingRateMatch.opponentRate, 'lose');
-    return { ...x, userId: ANY_USER_ID, userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, ranking: { ...x.ranking, unsent: [], lastMatchId: '' } };
+    return { ...x, userId: ANY_USER_ID, userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, ranking: { ...x.ranking, unsent: [], lastMatchId: '' }, trophies: [] };
   };
   /** 今の形式で書ける形（テスト用：ユーザーID を決まった値に） */
-  const asLatest = (d: SaveDataV7): SaveData => ({ ...d, userId: '123456789012345', userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, ranking: { ...d.ranking, lastMatchId: '' } });
+  const asLatest = (d: SaveDataV7): SaveData => ({ ...d, userId: '123456789012345', userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, ranking: { ...d.ranking, lastMatchId: '' }, trophies: [] });
   const V4_AS_LATEST = toV8(toV7(renumbered(V4_AS_V5)));
   /** 形式版数5（v2.1-L）：すべての項目に初期値でない値を入れた見本 */
   const V5_EXPECTED: SaveDataV6 = {
@@ -221,8 +223,8 @@ describe('形式の移行（固定の見本）', () => {
     ranking: { token: 'tok-xyz', optIn: false, unsent: ['r1', '報告'], provisional: true, syncedAt: 1791012345678, playedAt: 1791099999999 },
   };
   const V7_AS_LATEST = toV8(V7_EXPECTED);
-  /** 形式版数8（v2.0-J。今の形式）：ユーザーID・登録の印・相手のユーザーID・最後の試合ID にも値を入れた見本 */
-  const V8_EXPECTED: SaveData = {
+  /** 形式版数8（v2.0-J）：ユーザーID・登録の印・相手のユーザーID・最後の試合ID にも値を入れた見本 */
+  const V8_EXPECTED: SaveDataV8 = {
     ...V7_EXPECTED,
     userId: '123456789012345',
     userIdRegistered: true,
@@ -230,6 +232,19 @@ describe('形式の移行（固定の見本）', () => {
     pendingRateMatch: { opponentId: '111112222233333', opponentRate: 98 },
     ranking: { ...V7_EXPECTED.ranking, lastMatchId: 'abcdef0123456789' },
   };
+  /** 形式版数9（v2.0-J。今の形式）：トロフィーも入れた見本 */
+  const V9_EXPECTED: SaveData = {
+    ...V8_EXPECTED,
+    trophies: [
+      { number: 7, receivedAt: 1791100000000 },
+      { number: 9999, receivedAt: 1791100000001 },
+    ],
+  };
+  const V9_FIXTURE_HEX =
+    '0901d20909e382aae38386e382aba009016b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a0000014201' +
+    '0c000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ce' +
+    'ae9e85903489d1d4091403010304010a008701090296010003824430f8500d010000650e548952f56202aaaaaaaaaaaaaaaa000000000000000107746f6b2d7879' +
+    '7a0202723106e5a0b1e5918a108bd1d4090306010100ac020004000001ceae9e859034ffad84af9034f9beb7b088891cabcdef0123456789020780ae84af90348f4e81ae84af9034';
   const V8_FIXTURE_HEX =
     '0801d20909e382aae38386e382aba009016b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a0000014201' +
     '0c000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ce' +
@@ -334,10 +349,20 @@ describe('形式の移行（固定の見本）', () => {
     expect(upgradeToV8(V7_EXPECTED, (n) => new Uint8Array(n).fill(255)).userId).toMatch(/^[1-9]\d{14}$/);
   });
 
-  it('V05 今の形式（形式版数8）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    expect(toHex(encodeSave(V8_EXPECTED))).toBe(V8_FIXTURE_HEX);
-    expect(decodeSave(hexToBytes(V8_FIXTURE_HEX))).toEqual(V8_EXPECTED);
-    expect(migrate(8, V8_EXPECTED)).toEqual(V8_EXPECTED);
+  it('V05 今の形式（形式版数9）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
+    expect(toHex(encodeSave(V9_EXPECTED))).toBe(V9_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V9_FIXTURE_HEX))).toEqual(V9_EXPECTED);
+    expect(migrate(9, V9_EXPECTED)).toEqual(V9_EXPECTED);
+    // 並びは形式版数8 と同じ ＋ 末尾にトロフィー（先頭の版数だけ違う）
+    expect(V9_FIXTURE_HEX.slice(2).startsWith(V8_FIXTURE_HEX.slice(2))).toBe(true);
+    // トロフィーの番号が範囲外ならエラー
+    expect(() => encodeSave({ ...V9_EXPECTED, trophies: [{ number: 10000, receivedAt: 0 }] })).toThrow('トロフィー');
+  });
+
+  it('V05 形式版数8（v2.0-J）→ 最新：トロフィーの一覧は空', () => {
+    expect(toHex(encodeBody(V8_EXPECTED, 8))).toBe(V8_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V8_FIXTURE_HEX))).toEqual({ ...V8_EXPECTED, trophies: [] });
+    expect(migrate(8, V8_EXPECTED)).toEqual({ ...V8_EXPECTED, trophies: [] });
     // 印の1バイトに登録の印（64）
     expect(hexToBytes(V8_FIXTURE_HEX)[17] & 64).toBe(64);
     // 形式版数7 までは、印の 64 は読めない
@@ -358,7 +383,7 @@ describe('形式の移行（固定の見本）', () => {
   });
 
   it('V05 読めない形式版数・余分なバイト・壊れた値はエラーになる', () => {
-    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX, V6_FIXTURE_HEX, V7_FIXTURE_HEX, V8_FIXTURE_HEX]) {
+    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX, V6_FIXTURE_HEX, V7_FIXTURE_HEX, V8_FIXTURE_HEX, V9_FIXTURE_HEX]) {
       const bytes = hexToBytes(hex);
       const future = bytes.slice();
       future[0] = 99;

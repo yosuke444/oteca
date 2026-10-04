@@ -30,6 +30,9 @@ export function createControllers(
       });
       return setup.me === 'p1' ? { p1: human, p2: cpu } : { p1: cpu, p2: human };
     }
+    case 'spectate':
+      // 観戦（v2.0-J）：両者の操作は通信で届く（届け役は useSpectateBattle）
+      return { p1: new RemoteController('p1'), p2: new RemoteController('p2') };
     case 'online': {
       // フレンド対戦：相手の操作は通信で届く（届け役は useOnlineBattle）
       const remote = new RemoteController(other);

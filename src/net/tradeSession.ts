@@ -24,6 +24,8 @@ export type TradeView = {
   oppName: string;
   /** 相手のプレイヤーID（とちゅうの交換が別の相手のものか見るため） */
   oppPlayerId: string;
+  /** 相手のユーザーID（v2.0-J。停止中か確かめる。古い版の相手は ''） */
+  oppUserId: string;
   myOffer: Offer;
   oppOffer: Offer;
   /** 自分・相手が「これで OK」（いまの内容に対して） */
@@ -37,6 +39,8 @@ export type TradeView = {
 export type TradeOptions = {
   name: string;
   playerId: string;
+  /** 自分のユーザーID（v2.0-J。相手が停止中か確かめるために送る） */
+  userId?: string;
   protocol: number;
   appVersion: string;
   /** 処理済みの交換ID（セーブの trade.doneIds） */
@@ -139,6 +143,7 @@ export class TradeSession {
     return {
       status: this.status,
       oppName: this.oppInfo?.name ?? '',
+      oppUserId: this.oppInfo?.userId ?? '',
       oppPlayerId: this.oppInfo?.playerId ?? '',
       myOffer: { ...this.myOffer },
       oppOffer: { ...this.oppOffer },
@@ -314,6 +319,7 @@ export class TradeSession {
         playerId: this.opts.playerId,
         pending: p ? p.tradeId : '',
         done: this.opts.doneIds().slice(-TRADE_DONE_KEEP),
+        ...(this.opts.userId ? { userId: this.opts.userId } : {}),
       }),
       to,
     );
@@ -434,5 +440,6 @@ function cleanHello(h: MsgBody['tradeHello']): MsgBody['tradeHello'] | null {
     playerId: h.playerId.slice(0, 64),
     pending: typeof h.pending === 'string' ? h.pending.slice(0, 32) : '',
     done: Array.isArray(h.done) ? h.done.filter((x): x is string => typeof x === 'string').slice(-TRADE_DONE_KEEP) : [],
+    ...(typeof h.userId === 'string' && /^[1-9][0-9]{14}$/.test(h.userId) ? { userId: h.userId } : {}),
   };
 }

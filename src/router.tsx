@@ -24,6 +24,10 @@ export type RouteId =
   | 'trade'
   | 'ranking'
   | 'rate'
+  /** 管理者メニュー（v2.0-J。S20） */
+  | 'admin'
+  /** 観戦（v2.0-J。管理者メニューの「大会閲覧」） */
+  | 'spectate'
   | 'debug'
   | 'fxtest'
   | 'soundtest'

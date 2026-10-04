@@ -4,7 +4,7 @@ import { PACK_DATA, SHOP_PACKS, inPack } from '../../data/packs';
 import { DEFAULT_RULES } from '../../engine';
 import type { CardDef } from '../../engine/types';
 import { useNav } from '../../router';
-import { checkSavedDeck, getOwnedCount } from '../../save/collection';
+import { checkSavedDeck, getOwnedCount, ownedTrophyDefs } from '../../save/collection';
 import { DECK_NAME_MAX, clampText } from '../../save/saveData';
 import { useSave } from '../../state/SaveContext';
 import { CardDetail } from '../../ui/card/CardDetail';
@@ -87,7 +87,8 @@ export function DeckEditScene() {
 
   const list = useMemo(() => {
     const own = (c: CardDef) => getOwnedCount(save, c.no);
-    const filtered = CARD_LIST.filter((c) => {
+    // 持っているトロフィーのカード（v2.0-J）も一覧に出す（パックで絞った時は出さない）
+    const filtered = [...CARD_LIST, ...(pack ? [] : ownedTrophyDefs(save))].filter((c) => {
       if (pack && !inPack(c.id, pack)) return false;
       if (filter === 'owned') return own(c) > 0;
       if (filter === 'otege') return c.kind === 'otege';

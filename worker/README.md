@@ -38,6 +38,18 @@ D1 の表を変えた時（`migrations/` に新しいファイルを足した時
 
 - 値は `worker/.admin-key.txt` にあります（64文字。この PC の中だけ。git には入りません）。
 - サーバーには `wrangler secret` で設定してあります。変える時は、`worker` フォルダで `npx wrangler secret put ADMIN_KEY` を打ち、聞かれたら新しい値を貼り付けます（`.admin-key.txt` も同じ値に書き換える）。
+- 管理者メニューのパスワードも、この管理キーです。変えた後は、新しい値で管理者メニューに入り直します（前の値でもらった「管理の合言葉」は12時間で切れます）。
+
+## 管理者メニュー（v2.0-J）
+
+ゲームの中から、トロフィーを贈る・アカウントを止める・探す・観戦する、ができます（パスワードは上の管理キー。Worker が確かめます）。
+
+1. ゲームの「せってい」を開き、画面の左上のすみ（何も無い所）を10秒押し続けます（押している間は何も出ません）。
+2. 左上にうすい「かんりしゃ」ボタンが出るので押します。
+3. 「パスワード」欄に `worker/.admin-key.txt` の中身（64文字）を貼り付けて「はいる」。ページを閉じるまで、もう聞かれません。5回まちがえると、その接続元は1時間入れません。
+4. 「コードを いれてね」欄に、次のどれかを打って「けってい」：`大会閲覧`・`ギフトトロフィあげ`・`アカウント停止`・`停止解除`・`検索`・`かんりログ`。
+
+管理の操作はすべて D1 の `admin_log` に残り、「かんりログ」で見られます。
 
 ## 不適切な名前を消す（「ななし」にする）
 
@@ -49,15 +61,15 @@ D1 の表を変えた時（`migrations/` に新しいファイルを足した時
    curl -X POST -H "x-admin-key: $(cat worker/.admin-key.txt)" -H "content-type: application/json" -d '{"name":"みどり"}' https://oteca-api.oteca-api.workers.dev/admin/lookup
    ```
 
-2. 出てきた `"id":"…"`（16文字）を使って消します。
+2. 出てきた `"id":"…"`（15桁のユーザーID。管理者メニューの「検索」でも調べられます）を使って消します。
 
    ```
-   curl -X POST -H "x-admin-key: $(cat worker/.admin-key.txt)" -H "content-type: application/json" -d '{"playerId":"ここに id"}' https://oteca-api.oteca-api.workers.dev/admin/hide-name
+   curl -X POST -H "x-admin-key: $(cat worker/.admin-key.txt)" -H "content-type: application/json" -d '{"userId":"ここに id"}' https://oteca-api.oteca-api.workers.dev/admin/hide-name
    ```
 
    `{"ok":true,"changed":1}` と出れば成功です。ランキングの一覧からもすぐ消えます（ただし、ゲームの画面は次の更新（4:00 か 14:00）まで前の一覧を覚えているので、そこではその時刻に消えます）。
 
-3. 元に戻す時は、`"playerId"` の後に `,"hidden":false` を足して同じように打ちます。
+3. 元に戻す時は、`"userId"` の後に `,"hidden":false` を足して同じように打ちます。
 
 ## まとめ処理を手で動かす（確かめる時用）
 
@@ -73,9 +85,10 @@ curl -X POST -H "x-admin-key: $(cat worker/.admin-key.txt)" https://oteca-api.ot
 | 道 | 中身 |
 |---|---|
 | `POST /admin/stats` | 受付係の様子（報告待ちの試合・記録した結果・待っている人）とプレイヤーの人数 |
-| `POST /admin/delete-players` | `{"playerIds":[…]}` のプレイヤーを消す（テストの後片づけ） |
-| `POST /admin/clear-games` | `{"playerIds":[…]}` の人の試合（報告待ち・まだ処理していない結果）を消す（テストの後片づけ） |
+| `POST /admin/delete-players` | `{"userIds":[…]}` のプレイヤーを消す（テストの後片づけ） |
+| `POST /admin/clear-games` | `{"userIds":[…]}` の人の試合（報告待ち・まだ処理していない結果）を消す（テストの後片づけ） |
 | `POST /admin/seed` | 試合結果を直接入れる（負荷の見積もり用。公開した所では使わない） |
+| `POST /admin/user`・`trophy`・`suspend`・`unsuspend`・`search`・`log`・`watch` | 管理者メニューが使う道（v2.0-J。SPEC §11-9）。管理キーか「管理の合言葉」（`x-admin-session`）が要る |
 
 ## 手元で動かす・テスト
 

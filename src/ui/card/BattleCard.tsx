@@ -107,9 +107,11 @@ function OtegeFace({
 }) {
   const tr = useT();
   const isSuper = def.rarity === 'super';
+  /** 金の縁：スーパーとトロフィー（v2.0-J） */
+  const gold = isSuper || def.trophy !== undefined;
   const { w } = CARD_SIZE[size];
   // 使えない時もスーパーの金の縁と星は残す（§6-6）。えんぴつ色は透明度で表す
-  const stroke = isSuper ? 'var(--super-gold)' : dim ? 'var(--pencil)' : selected ? 'var(--pen-blue)' : 'var(--ink)';
+  const stroke = gold ? 'var(--super-gold)' : dim ? 'var(--pencil)' : selected ? 'var(--pen-blue)' : 'var(--ink)';
   return (
     <>
       {isSuper && (
@@ -122,9 +124,9 @@ function OtegeFace({
         seed={`card-${card.uid}-${size}`}
         className="battle-card__frame"
         paper
-        double={isSuper}
+        double={gold}
         stroke={stroke}
-        innerStroke={isSuper ? 'var(--ink)' : undefined}
+        innerStroke={gold ? 'var(--ink)' : undefined}
         strokeWidth={selected ? 3.2 : 2.4}
         radius={6}
         fill={highlight ? 'var(--marker-yellow)' : undefined}

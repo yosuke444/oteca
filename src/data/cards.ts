@@ -6,7 +6,13 @@ import type { CardDb, CardDef, Effect, Move, NoteColor, Rarity, Timing, Zone } f
  * カードの数値は cards.json にだけ書く。ここでは形が正しいかだけを調べる。
  */
 
-export type CardData = { version: number; cards: CardDef[] };
+/**
+ * トロフィーのカード（v2.0-J。SPEC §7 S20）：管理者が送る1枚だけのカード。性能は copyOf のカードと同じ。
+ * カードNo は noBase＋番号（1〜numberMax）。名前・id の {n} に番号が入る
+ */
+export type TrophySpec = { copyOf: string; noBase: number; numberMax: number; name: string; id: string; image: string };
+
+export type CardData = { version: number; cards: CardDef[]; trophy: TrophySpec };
 
 const EFFECT_TYPES = [
   'damage',
@@ -77,6 +83,13 @@ export function parseCardData(data: unknown): CardData {
       check(all.some((x) => x.id === id && x.kind === 'item'), `カード ${String(c.no)}: blockedIfUsedThisTurn の ${id} は アイテムの id ではありません`);
     }
   }
+  const tr = (d as { trophy?: Record<string, unknown> }).trophy;
+  check(!!tr && typeof tr === 'object', 'trophy がありません');
+  check(all.some((c) => c.id === tr!.copyOf && c.kind === 'otege'), 'trophy.copyOf は おてあげ の id にしてください');
+  check(Number.isInteger(tr!.noBase) && Number.isInteger(tr!.numberMax), 'trophy の noBase・numberMax が不正です');
+  check((tr!.noBase as number) + (tr!.numberMax as number) <= 65535, 'trophy のカードNo がセーブに入る範囲（65535 まで）を超えます');
+  check(all.every((c) => (c.no as number) <= (tr!.noBase as number)), 'trophy の noBase より大きい No のカードがあります');
+  check(typeof tr!.name === 'string' && (tr!.name as string).includes('{n}') && typeof tr!.id === 'string' && typeof tr!.image === 'string', 'trophy の name・id・image が不正です');
   return d as CardData;
 }
 
@@ -128,8 +141,57 @@ export const CARD_DATA: CardData = parseCardData(raw);
 /** No 順のカード一覧 */
 export const CARD_LIST: readonly CardDef[] = [...CARD_DATA.cards].sort((a, b) => a.no - b.no);
 
-/** カードNo → 定義 */
-export const CARD_DB: CardDb = Object.fromEntries(CARD_LIST.map((c) => [c.no, c]));
+const BASE_DB: CardDb = Object.fromEntries(CARD_LIST.map((c) => [c.no, c]));
+
+/** トロフィーのカードの決まり */
+export const TROPHY = CARD_DATA.trophy;
+
+/** トロフィーの番号 → カードNo */
+export function trophyCardNo(n: number): number {
+  return TROPHY.noBase + n;
+}
+
+/** カードNo → トロフィーの番号（トロフィーでなければ null） */
+export function trophyNumberOf(no: number): number | null {
+  const n = no - TROPHY.noBase;
+  return Number.isInteger(no) && n >= 1 && n <= TROPHY.numberMax ? n : null;
+}
+
+export function isTrophyNo(no: number): boolean {
+  return trophyNumberOf(no) !== null;
+}
+
+const trophyCache = new Map<number, CardDef>();
+
+/** トロフィーのカードの定義（性能は copyOf と同じ。名前は「トロフィあげ（番号）」） */
+export function trophyDef(n: number): CardDef {
+  let d = trophyCache.get(n);
+  if (!d) {
+    const base = CARD_LIST.find((c) => c.id === TROPHY.copyOf)!;
+    d = { ...structuredClone(base), no: trophyCardNo(n), id: TROPHY.id.replace('{n}', String(n)), name: TROPHY.name.replace('{n}', String(n)), image: TROPHY.image, trophy: n } as CardDef;
+    trophyCache.set(n, d);
+  }
+  return d;
+}
+
+/**
+ * カードNo → 定義。トロフィーのカード（noBase＋番号）は、聞かれた時に作る（エンジン・デッキの確かめでもふつうのカードと同じに使える）
+ */
+export const CARD_DB: CardDb = new Proxy(BASE_DB, {
+  get(target, key) {
+    if (typeof key === 'string' && /^[0-9]+$/.test(key)) {
+      const no = Number(key);
+      if (target[no]) return target[no];
+      const n = trophyNumberOf(no);
+      return n === null ? undefined : trophyDef(n);
+    }
+    return Reflect.get(target, key);
+  },
+  has(target, key) {
+    if (typeof key === 'string' && /^[0-9]+$/.test(key) && trophyNumberOf(Number(key)) !== null) return true;
+    return Reflect.has(target, key);
+  },
+});
 
 const BY_ID = new Map(CARD_LIST.map((c) => [c.id, c]));
 

@@ -767,3 +767,57 @@
   transform: rotate(-12deg);
   pointer-events: none;
 }
+
+/* トロフィーのカード（v2.0-J）：金色の手描きのトロフィーと、大きな番号 */
+.card-art--trophy {
+  position: relative;
+}
+.card-art__placeholder--trophy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.trophy-doodle {
+  width: 78%;
+  height: 78%;
+}
+.trophy-doodle path {
+  stroke: var(--ink);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.trophy-doodle .trophy-doodle__cup,
+.trophy-doodle .trophy-doodle__base {
+  fill: var(--medal-gold);
+  fill-opacity: 0.9;
+}
+.trophy-doodle .trophy-doodle__shine {
+  stroke: var(--paper);
+  stroke-width: 2.4;
+}
+.card-art__trophy-no {
+  position: absolute;
+  right: 4%;
+  bottom: 2%;
+  font-size: 2.2em;
+  line-height: 1;
+  color: var(--pen-red);
+  text-shadow: 0 0 3px var(--paper), 0 0 3px var(--paper);
+  transform: rotate(-6deg);
+  pointer-events: none;
+}
+
+/* 一覧の小さいカードのトロフィーの番号 */
+.card-mini__trophy-no {
+  position: absolute;
+  right: 6px;
+  top: 30%;
+  z-index: 2;
+  font-size: 30px;
+  color: var(--pen-red);
+  text-shadow: 0 0 3px var(--paper), 0 0 3px var(--paper);
+  transform: rotate(-8deg);
+  pointer-events: none;
+}

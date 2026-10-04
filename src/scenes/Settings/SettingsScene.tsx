@@ -3,6 +3,7 @@ import { features } from '../../config/features';
 import { sendProfile } from '../../online/rankingApi';
 import { formatUserId } from '../../save/userId';
 import { copyText } from '../../ui/common/copyText';
+import { AdminCorner } from '../Admin/AdminLogin';
 import { useNav } from '../../router';
 import { NAME_MAX, VOLUME_MAX, clampText } from '../../save/saveData';
 import { useSave } from '../../state/SaveContext';
@@ -53,6 +54,8 @@ export function SettingsScene() {
 
   return (
     <div className="settings-scene">
+      {/* 左上の目に見えない場所を10秒押すと「かんりしゃ」（v2.0-J。SPEC §7 S20） */}
+      <AdminCorner />
       <h1 className="settings-scene__title">
         <span className="tilt" style={tiltStyle('settings-title')}>
           {tr.settings.title}

@@ -41,7 +41,7 @@ function sample(v: unknown, key = ''): string[] {
 }
 
 describe('I01 画面のコードに日本語の直書きが無い', () => {
-  it('src/scenes・src/ui・src/fx・App・src/battle・src/state・soundMap（コメントは除く）', () => {
+  it('src/scenes・src/ui・src/fx・App・src/battle・src/state・src/admin・soundMap（コメントは除く）', () => {
     const files = listFiles();
     expect(files.length).toBeGreaterThan(40);
     const hits = findJapanese(files) as { file: string; line: number; text: string }[];

@@ -194,20 +194,21 @@ export async function fetchMe(save: SaveData): Promise<{ me: ServerMe | null; up
  * 起動した時：ユーザーID を登録し（初めての時）、送れなかった報告を送り、次の更新の後なら正式なレートで上書きする（SPEC §7 S15）。
  * 名前・載せる設定がサーバーと違えば知らせる
  */
-export async function syncRanking(getSave: () => SaveData, update: Update): Promise<void> {
+export async function syncRanking(getSave: () => SaveData, update: Update): Promise<Identity | null> {
   const id = await ensureIdentity(getSave(), update);
-  if (!id) return;
+  if (!id) return null;
   await flushReports(getSave, update, id);
   // 登録した直後は、画面の描き直しの前なのでセーブがまだ古い
   const save = { ...getSave(), userId: id.userId, userIdRegistered: true, ranking: { ...getSave().ranking, token: id.token } };
   // 開くたびに聞く（1回 D1 の数行）。同じ更新で2回上書きしないのは applyServerRate が受け取った時刻で決める
   // （次の更新の時刻まで聞かない、にすると、まとめ処理を手で動かした時に受け取れなくなる）
   const got = await fetchMe(save);
-  if (!got?.me) return;
+  if (!got?.me) return id;
   const me = got.me;
   update((d) => void applyServerRate(d, me, got.updatedAt, Date.now()));
   const cur = getSave();
   if (me.optIn !== cur.ranking.optIn || me.name !== profileName(cur)) void sendProfile(cur);
+  return id;
 }
 
 /** その時刻の次の まとめ処理（日本時間 4:00 か 14:00 の近い方）の時刻 */

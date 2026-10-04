@@ -6,6 +6,7 @@ const LATE_RETRY_MS = 5 * 60 * 1000;
 import { Db, type PlayerRow, rerank, writeSnapshot } from './ranking';
 import { sameText, sha256Hex } from './util';
 import { isUserId } from '../../src/save/userId';
+import { ADMIN_MENU_PATHS, ackMailbox, adminLogin, adminRoute, checkAdmin, mailbox, suspendedUntil } from './admin';
 
 export { Matchmaker } from './matchmaker';
 
@@ -29,7 +30,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin!,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'content-type, x-admin-key',
+    'Access-Control-Allow-Headers': 'content-type, x-admin-key, x-admin-session',
     'Access-Control-Expose-Headers': 'x-d1-rows-read, x-d1-rows-written, x-do-rows-read, x-do-rows-written, x-do-requests',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -113,6 +114,9 @@ async function route(req: Request, c: Ctx): Promise<Response> {
   if (p === '/lobby') {
     const userId = url.searchParams.get('userId');
     if (!(await authed(c, userId, url.searchParams.get('token')))) return json({ error: 'auth' }, 401);
+    // 停止中のユーザーID は待合所につながせない（v2.0-J）
+    const sus = await suspendedUntil(c, [userId!], now);
+    if (userId! in sus) return json({ error: 'suspended', until: sus[userId!] }, 403);
     const fwd = new Request(req, { headers: new Headers(req.headers) });
     fwd.headers.set('x-user-id', userId!);
     return c.lobby('/lobby', fwd);
@@ -149,11 +153,12 @@ async function route(req: Request, c: Ctx): Promise<Response> {
       }
     }
     const r = await c.run(
-      `INSERT INTO players (id, token_hash, name, opt_in, created) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+      `INSERT INTO players (id, token_hash, name, opt_in, created, last_seen) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
       b.userId,
       hash,
       cleanName(b.name),
       b.optIn === false ? 0 : 1,
+      now,
       now,
     );
     if (r.meta.changes) return json({ ok: true });
@@ -166,6 +171,8 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     // 古い版（v2.0-I）の端末：401 だと token を消してしまうので、版を上げてもらう（426）
     if (b.userId === undefined && isLegacyId(b.playerId)) return json({ error: 'upgrade' }, 426);
     if (!(await authed(c, b.userId, b.token))) return json({ error: 'auth' }, 401);
+    // 停止中は報告を受け付けない（v2.0-J）
+    if ((b.userId as string) in (await suspendedUntil(c, [b.userId as string], now))) return json({ error: 'suspended' }, 403);
     const res = await c.lobby('/report', { method: 'POST', body: JSON.stringify({ matchId: b.matchId, playerId: b.userId, winner: b.winner }) });
     return json(await res.json(), res.status);
   }
@@ -196,10 +203,31 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     return json({ ...ranking, me, nextAt: next });
   }
 
+  // 郵便受け（v2.0-J。届いたトロフィー）
+  if (p === '/mailbox' && req.method === 'GET') {
+    const userId = url.searchParams.get('userId');
+    if (!(await authed(c, userId, url.searchParams.get('token')))) return json({ error: 'auth' }, 401);
+    return json({ trophies: await mailbox(c, userId!, now) });
+  }
+  if (p === '/mailbox/ack' && req.method === 'POST') {
+    const b = await body(req);
+    if (!(await authed(c, b.userId, b.token))) return json({ error: 'auth' }, 401);
+    return json({ ok: true, changed: await ackMailbox(c, b.userId as string, b.numbers) });
+  }
+  // 停止中か（v2.0-J。自分・対戦相手・トレード相手。ユーザーID をカンマ区切りで10件まで）
+  if (p === '/status' && req.method === 'GET') {
+    const ids = (url.searchParams.get('ids') ?? '').split(',').filter(Boolean);
+    return json({ suspended: await suspendedUntil(c, ids, now) });
+  }
+  // 管理者メニューに入る（v2.0-J。パスワード＝管理キー。同じ接続元から5回まちがえたら1時間入れない）
+  if (p === '/admin-login' && req.method === 'POST') return adminLogin(req, c, c.env.ADMIN_KEY, now, json);
+
   if (p.startsWith('/admin/')) {
-    const key = req.headers.get('x-admin-key') ?? '';
-    if (!c.env.ADMIN_KEY || !sameText(key, c.env.ADMIN_KEY)) return json({ error: 'auth' }, 401);
+    const denied = await checkAdmin(req, c, c.env.ADMIN_KEY, now, json, ADMIN_MENU_PATHS.has(p));
+    if (denied) return denied;
     const b = req.method === 'POST' ? await body(req) : {};
+    const done = await adminRoute(p, b, c, now, json);
+    if (done) return done;
     switch (p) {
       case '/admin/hide-name': {
         // 不適切な名前を「ななし」にする（hidden: false で戻す）。次の まとめ処理で一覧にも反映。すぐ一覧を作り直す

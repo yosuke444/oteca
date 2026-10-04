@@ -70,7 +70,7 @@ export function stripComments(src) {
 }
 
 /** 調べる場所：画面に出る文字を作るコード（scenes・ui・fx・App・音の名前の表） */
-export const SCREEN_DIRS = ['src/scenes', 'src/ui', 'src/fx', 'src/App.tsx', 'src/audio/soundMap.ts', 'src/battle', 'src/state'];
+export const SCREEN_DIRS = ['src/scenes', 'src/ui', 'src/fx', 'src/App.tsx', 'src/audio/soundMap.ts', 'src/battle', 'src/state', 'src/admin'];
 
 export function listFiles(entries = SCREEN_DIRS) {
   const out = [];

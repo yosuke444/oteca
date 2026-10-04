@@ -30,9 +30,9 @@ export function cardName(view: GameState, uid: string): string {
 /**
  * ログの1行（ノートの余白メモ風。SPEC §8-1）
  * @param view イベントが起きる前の表示状態
- * @param viewer ログを見る人（相手が山札から選んだカードは見せない）。null なら全部見せる（ひとりで両方あやつる時）
+ * @param viewer ログを見る人（相手が山札から選んだカードは見せない）。null なら全部見せる（ひとりで両方あやつる時）。'none' はどちらの分も見せない（観戦）
  */
-export function logLine(e: GameEvent, view: GameState, names: Record<Side, string>, viewer: Side | null = null): string | null {
+export function logLine(e: GameEvent, view: GameState, names: Record<Side, string>, viewer: Side | 'none' | null = null): string | null {
   const L = t().battle.log;
   const nm = (uid: string) => cardName(view, uid);
   switch (e.type) {

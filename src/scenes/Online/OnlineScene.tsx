@@ -1,5 +1,6 @@
 import { features } from '../../config/features';
 import { RateValue } from '../../ui/common/RateValue';
+import { SuspensionGate } from '../../ui/common/SuspensionGate';
 import { ECONOMY, rewardedToday, todayKey } from '../../economy/rewards';
 import { useT } from '../../i18n/useT';
 import { useNav } from '../../router';
@@ -22,6 +23,8 @@ export function OnlineScene() {
   const left = Math.max(0, ECONOMY.dailyRewardLimit - rewardedToday(save, todayKey(new Date())));
   return (
     <div className="online-scene" data-testid="online-scene">
+      {/* アカウント停止の確かめ（v2.0-J） */}
+      <SuspensionGate />
       <h1 className="online-scene__title">{tr.online.title}</h1>
       <CoinCounter value={save.coins} className="online-scene__coins" />
       <RoughButton seed="online-back" className="online-scene__back" onClick={() => go('menu')}>

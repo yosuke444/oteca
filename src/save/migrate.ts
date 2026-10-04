@@ -15,6 +15,8 @@ import {
   readSaveV5,
   readSaveV7,
   readSaveV8,
+  readSaveV9,
+  type SaveDataV8,
 } from './binary';
 import { applyRateResult } from '../online/rate';
 import { newUserId } from './userId';
@@ -41,6 +43,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   6: readSaveV5,
   7: readSaveV7,
   8: readSaveV8,
+  9: readSaveV9,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -62,6 +65,8 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   6: (old) => upgradeToV7(old as SaveDataV6),
   /** 7 → 8（v2.0-J）：ユーザーID を作る。相手の判別をユーザーID に変えた（SPEC §12-3f） */
   7: (old) => upgradeToV8(old as SaveDataV7),
+  /** 8 → 9（v2.0-J）：トロフィーの一覧（空）を足す（SPEC §12-3g） */
+  8: (old) => ({ ...(old as SaveDataV8), trophies: [] }) satisfies SaveData,
 };
 
 /**
@@ -72,7 +77,7 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
  * - 送れなかった報告は前の playerId で書いてあるので消す
  * @param randomBytes 乱数（テストで差し替える）
  */
-export function upgradeToV8(d: SaveDataV7, randomBytes?: (n: number) => Uint8Array): SaveData {
+export function upgradeToV8(d: SaveDataV7, randomBytes?: (n: number) => Uint8Array): SaveDataV8 {
   const draft = structuredClone(d);
   if (draft.pendingRateMatch) applyRateResult(draft, draft.pendingRateMatch.opponentRate, 'lose');
   return {

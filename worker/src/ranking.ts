@@ -127,7 +127,12 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
     }
     lobby.setPending(null);
   }
-  const results = lobby.exportResults(now);
+  const all = lobby.exportResults(now);
+  // 停止中の人（v2.0-J）の試合は数えない（結果は消す）
+  const suspended = new Set(
+    (await c.all<{ user_id: string }>(`SELECT user_id FROM suspensions WHERE until = 0 OR until > ?`, now)).map((r) => r.user_id),
+  );
+  const results = all.filter((r) => !suspended.has(r.a) && !suspended.has(r.b));
   const batchId = randomHex(8);
   const stmts: { q: string; binds: unknown[] }[] = [];
   let changed = 0;
@@ -163,7 +168,7 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
   // プレイヤー表・順位・「どの まとめ処理まで書いたか」を1つの取引で書く
   stmts.push(...rerankStmts(now));
   stmts.push({ q: `INSERT INTO meta (key, value) VALUES ('batch', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, binds: [batchId] });
-  const ids = results.map((r) => r.matchId);
+  const ids = all.map((r) => r.matchId);
   if (ids.length) lobby.setPending({ id: batchId, matchIds: ids });
   await c.batch(stmts);
   // D1 に書けたので、受付係の結果を消し、その日に数えた数を書く（同じ時に）
@@ -173,7 +178,8 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
   }
   lobby.setPending(null);
   const top = await writeSnapshot(c, now);
-  return { ok: true, results: results.length, counted, skipped, changed, top };
+  // skipped：1日3試合を超えた試合 ＋ 停止中の人の試合
+  return { ok: true, results: all.length, counted, skipped: skipped + (all.length - results.length), changed, top };
 }
 
 /** 全員の順位：7日以上遊んでいない人は外す（データは残す）。変わった人の行だけ書く */
@@ -183,12 +189,14 @@ export async function rerank(c: Db, now: number): Promise<void> {
 
 function rerankStmts(now: number): { q: string; binds: unknown[] }[] {
   const cutoff = now - HIDE_AFTER_MS;
+  /** 停止中の人（v2.0-J。ランキングに載せない） */
+  const suspended = `SELECT user_id FROM suspensions WHERE until = 0 OR until > ?`;
   return [
-    { q: `UPDATE players SET rank = NULL WHERE rank IS NOT NULL AND last_played <= ?`, binds: [cutoff] },
+    { q: `UPDATE players SET rank = NULL WHERE rank IS NOT NULL AND (last_played <= ? OR id IN (${suspended}))`, binds: [cutoff, now] },
     {
-      q: `UPDATE players SET rank = t.r FROM (SELECT id, RANK() OVER (ORDER BY rate DESC) AS r FROM players WHERE last_played > ?) AS t
+      q: `UPDATE players SET rank = t.r FROM (SELECT id, RANK() OVER (ORDER BY rate DESC) AS r FROM players WHERE last_played > ? AND id NOT IN (${suspended})) AS t
      WHERE players.id = t.id AND (players.rank IS NULL OR players.rank != t.r)`,
-      binds: [cutoff],
+      binds: [cutoff, now],
     },
   ];
 }

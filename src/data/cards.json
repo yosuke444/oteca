@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "trophy": { "copyOf": "oteage", "noBase": 50000, "numberMax": 9999, "name": "トロフィあげ（{n}）", "id": "trophy_{n}", "image": "cards/trophy.png" },
   "cards": [
     { "no": 1, "id": "oteage", "name": "おてあげ", "kind": "otege", "rarity": "normal", "hp": 90,
       "moves": [

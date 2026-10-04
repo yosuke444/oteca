@@ -26,6 +26,8 @@ export function CardDetail({ def, seed }: { def: CardDef; seed: string }) {
 
 function OtegeDetail({ def, seed }: { def: OtegeCardDef; seed: string }) {
   const isSuper = def.rarity === 'super';
+  /** 金の縁：スーパーとトロフィー（v2.0-J） */
+  const gold = isSuper || def.trophy !== undefined;
   return (
     <div className="card-detail-wrap">
       {isSuper && (
@@ -38,12 +40,12 @@ function OtegeDetail({ def, seed }: { def: OtegeCardDef; seed: string }) {
         seed={seed}
         className="card-detail"
         paper
-        double={isSuper}
-        stroke={isSuper ? 'var(--super-gold)' : 'var(--ink)'}
-        innerStroke={isSuper ? 'var(--ink)' : undefined}
+        double={gold}
+        stroke={gold ? 'var(--super-gold)' : 'var(--ink)'}
+        innerStroke={gold ? 'var(--ink)' : undefined}
         strokeWidth={2.8}
         radius={8}
-        boil={isSuper}
+        boil={gold}
       >
         <span className="card-tape card-tape--big" aria-hidden />
         {isSuper && <span className="card-stamp card-stamp--big">S</span>}

@@ -1,0 +1,331 @@
+/* S20 管理者メニュー（v2.0-J）。舞台は 1280×720。色は theme.css の変数だけ */
+
+/* 設定の左上の、目に見えない長押しの場所 */
+.admin-corner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 140px;
+  height: 90px;
+  z-index: 5;
+  touch-action: none;
+}
+/* ほぼ透明の「かんりしゃ」ボタン */
+.admin-corner__button {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 6;
+  padding: 6px 12px;
+  border: 1px dashed var(--pencil);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 16px;
+  opacity: 0.08;
+  cursor: pointer;
+}
+.admin-corner__button:hover,
+.admin-corner__button:focus-visible {
+  opacity: 0.35;
+}
+
+.admin-scene {
+  position: absolute;
+  inset: 0;
+}
+.admin-scene__title {
+  position: absolute;
+  left: 40px;
+  top: 12px;
+  margin: 0;
+  font-size: 34px;
+  font-weight: normal;
+  background: linear-gradient(transparent 60%, var(--marker-pink) 60%);
+}
+.admin-scene__expired {
+  position: absolute;
+  left: 40px;
+  top: 90px;
+  font-size: 24px;
+}
+.admin-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 14px;
+  width: 150px;
+  height: 56px;
+  font-size: 22px;
+}
+.admin-scene__top {
+  position: absolute;
+  right: 30px;
+  top: 14px;
+  display: flex;
+  gap: 10px;
+}
+.admin-scene__small {
+  min-width: 110px;
+  height: 48px;
+  font-size: 18px;
+}
+.admin-code {
+  position: absolute;
+  left: 40px;
+  top: 70px;
+  right: 40px;
+}
+.admin-code__go {
+  width: 110px;
+  height: 46px;
+  font-size: 20px;
+}
+.admin-code__list {
+  margin: 4px 0 0;
+  font-size: 16px;
+}
+.admin-panel {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 160px;
+  bottom: 20px;
+}
+.admin-panel__inner {
+  height: 100%;
+  padding: 14px 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.admin-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 18px;
+  flex-wrap: wrap;
+}
+.admin-field--row {
+  margin: 0;
+}
+.admin-field__input {
+  width: 280px;
+  font-size: 22px;
+}
+.admin-field__input--wide {
+  width: 560px;
+}
+.admin-field__input--short {
+  width: 160px;
+}
+.admin-field__num {
+  width: 70px;
+  font-size: 20px;
+}
+.admin-field__date {
+  width: 170px;
+  font-size: 18px;
+}
+.admin-note {
+  margin: 6px 0;
+  font-size: 18px;
+}
+.admin-done {
+  font-size: 24px;
+}
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.admin-form__go {
+  min-width: 120px;
+  height: 48px;
+  font-size: 20px;
+}
+.admin-form__who {
+  margin: 0;
+  font-size: 22px;
+}
+.admin-form__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+}
+.admin-form__buttons {
+  display: flex;
+  gap: 12px;
+}
+.admin-choice {
+  min-width: 100px;
+  height: 44px;
+  font-size: 18px;
+}
+.admin-choice--small {
+  min-width: 70px;
+  height: 36px;
+  font-size: 15px;
+}
+.admin-tri {
+  display: inline-flex;
+  gap: 4px;
+}
+.admin-confirm {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+.admin-confirm__card {
+  width: 300px;
+  font-size: 14px;
+}
+.admin-confirm__side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 20px;
+}
+
+.admin-search__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 18px;
+}
+.admin-search__go {
+  min-width: 110px;
+  height: 44px;
+  font-size: 20px;
+}
+.admin-search__note {
+  margin: 4px 0;
+  font-size: 15px;
+}
+.admin-table {
+  font-size: 16px;
+}
+.admin-table__head,
+.admin-table__row {
+  display: grid;
+  grid-template-columns: 190px 110px 60px 80px 60px 70px 130px 1fr;
+  align-items: center;
+  column-gap: 6px;
+  padding: 3px 4px;
+  border-bottom: 1px dashed var(--grid-minor);
+}
+.admin-table--log .admin-table__head,
+.admin-table--log .admin-table__row {
+  grid-template-columns: 110px 140px 190px 1fr;
+}
+.admin-table__detail {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+.admin-table__actions {
+  display: flex;
+  gap: 4px;
+}
+.admin-row-btn {
+  min-width: 60px;
+  height: 32px;
+  font-size: 13px;
+}
+.admin-table__pages {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* 小さい画面（844×390 など。舞台ごと小さくなるので、細かい字を大きめに） */
+@media (max-height: 500px) {
+  .admin-code__list,
+  .admin-search__note {
+    font-size: 20px;
+  }
+  .admin-table {
+    font-size: 19px;
+  }
+}
+
+/* 大会閲覧（観戦の待ち・選ぶ画面） */
+.spectate-scene {
+  position: absolute;
+  inset: 0;
+}
+.spectate-panel {
+  position: absolute;
+  left: 240px;
+  top: 120px;
+  width: 800px;
+  height: 480px;
+}
+.spectate-panel__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 40px;
+}
+.spectate-panel__msg {
+  margin: 0;
+  font-size: 30px;
+  text-align: center;
+}
+.spectate-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.spectate-panel__match {
+  min-width: 420px;
+  height: 64px;
+  font-size: 24px;
+}
+/* 対戦の画面：観戦中の札・対戦者の画面の「かんせんちゅう」 */
+.battle-spectate {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  z-index: 30;
+  transform: translateX(-50%) rotate(-2deg);
+  padding: 2px 14px;
+  border: 2px solid var(--pen-red);
+  border-radius: 999px;
+  color: var(--pen-red);
+  background: var(--paper);
+  font-size: 18px;
+  pointer-events: none;
+}
+.battle-spectated {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  z-index: 30;
+  padding: 0 8px;
+  border: 1.5px solid var(--pen-red);
+  border-radius: 999px;
+  color: var(--pen-red);
+  background: var(--paper);
+  font-size: 13px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.battle-spectate-winner {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  z-index: 40;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  padding: 10px 30px;
+  border: 3px solid var(--super-gold);
+  border-radius: 12px;
+  background: var(--paper);
+  font-size: 40px;
+}

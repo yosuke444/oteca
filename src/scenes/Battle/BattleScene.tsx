@@ -21,6 +21,11 @@ import { RoughButton } from '../../ui/rough/RoughButton';
 import { BattleBoard, type BoardSel } from './BattleBoard';
 import { logLine, rejectText, useItemReason } from './battleText';
 import { createControllers } from './controllersFor';
+import { useSpectateBattle } from './useSpectateBattle';
+import { endSpectator } from '../../net/online';
+import type { AdminPayload } from '../Admin/AdminScene';
+import { type SpectatePayload, finishedGames } from '../Admin/SpectateScene';
+import '../Admin/admin.css';
 import { useOnlineBattle } from './useOnlineBattle';
 import { ChoosePanel } from './ChoosePanel';
 import { STAMP_COOLDOWN_MS, StampBalloon, StampPicker, isStampId } from './Stamps';
@@ -107,6 +112,8 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
   const queueRef = useRef<FxQueue | null>(null);
   const statsRef = useRef(new StatsCollector());
   const stepsRef = useRef<MatchStep[]>([]);
+  /** 観戦で途中から入った時、それまでの操作は演出なしで通す（v2.0-J） */
+  const quietRef = useRef(false);
 
   const [view, setViewState] = useState<GameState | null>(null);
   const viewRef = useRef<GameState | null>(null);
@@ -219,7 +226,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
             ? { text: t().battle.myTurn, mine: true }
             : { text: t().battle.oppTurn, mine: false },
       log: (e, before) => {
-        const line = logLine(e, before, setup.names, setup.mode === 'local' ? null : setup.me);
+        const line = logLine(e, before, setup.names, setup.mode === 'local' ? null : setup.mode === 'spectate' ? 'none' : setup.me);
         if (line) setLogLines((l) => [line, ...l].slice(0, 60));
       },
     };
@@ -253,7 +260,9 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
       stepsRef.current.push(step);
       statsRef.current.add(step.events, step.state);
       const actor = step.action?.player ?? null;
-      queue.enqueue({ actor, gap: actorGap(actor), events: step.events, state: step.state });
+      // 観戦の早送り：演出なしで場面だけ進める
+      if (quietRef.current) queue.enqueue({ actor: null, gap: false, events: [], state: step.state });
+      else queue.enqueue({ actor, gap: actorGap(actor), events: step.events, state: step.state });
     });
     return () => {
       unsub();
@@ -268,6 +277,31 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
 
   // ---------------------------------------------------------------- フレンド対戦（SPEC §11）
   const online = useOnlineBattle(setup, matchRef, matchId);
+  // ---------------------------------------------------------------- 観戦（v2.0-J。SPEC §11-10）
+  const spectating = setup.mode === 'spectate';
+  const spectate = useSpectateBattle(setup, matchRef, matchId, quietRef);
+  /** 自分の試合を観戦している人の数（フレンド対戦。画面の隅に「かんせんちゅう」） */
+  const [watchers, setWatchers] = useState(0);
+  useEffect(() => {
+    if (setup.mode !== 'online') return;
+    const link = currentOnline();
+    if (!link) return;
+    setWatchers(link.spectators);
+    return link.on('spectators', setWatchers);
+  }, [setup.mode]);
+  /** 観戦をやめて、管理者メニューの大会閲覧へ */
+  const leaveSpectate = useCallback(() => {
+    endSpectator();
+    go('admin', { fn: 'watch' } satisfies AdminPayload);
+  }, [go]);
+  // 観戦：決着したら勝ち負けを出して、観戦の画面で次の試合を待つ。見ていた試合が終わった時も戻る
+  useEffect(() => {
+    if (!spectating || !view) return;
+    if (view.phase !== 'over' && !spectate.gone) return;
+    if (view.phase === 'over' && setup.spectate) finishedGames.add(`${setup.spectate.key}:${setup.game ?? 0}`);
+    const id = window.setTimeout(() => go('spectate', { room: setup.spectate?.room ?? '' } satisfies SpectatePayload), view.phase === 'over' ? 4000 : 1500);
+    return () => window.clearTimeout(id);
+  }, [spectating, view?.phase, spectate.gone]);
   /** 対戦をやめてメニューへ（中断なので勝敗は記録しない） */
   const quitToMenu = useCallback(() => {
     if (setup.mode === 'online') endOnline();
@@ -307,6 +341,8 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     // 通信のずれ・相手の退室で止めた試合は、決着してもリザルトへ進まない（記録しない）
     // ずれ・ごまかしの時だけ止める（決着の後に相手がリザルトで部屋を出ても、自分もリザルトへ進む）
     if (!view || view.phase !== 'over' || busy || online.problem === 'desync' || online.problem === 'cheat') return;
+    // 観戦はリザルトへ進まない（上の観戦の effect）
+    if (setup.mode === 'spectate') return;
     if (guide) {
       const id = window.setTimeout(() => guide.onOver(view.winner!), fxRef.current.dur(400));
       return () => window.clearTimeout(id);
@@ -687,7 +723,22 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
       )}
 
       {/* チュートリアルでは スタンプの場所に「スキップ」を置く */}
-      {!guide && <StampPicker onSend={sendStamp} cooldownUntil={stampCooldown} />}
+      {!guide && !spectating && <StampPicker onSend={sendStamp} cooldownUntil={stampCooldown} />}
+      {spectating && (
+        <div className="battle-spectate" data-testid="spectate-badge">
+          {tr.admin.watch.title(setup.spectate?.room ?? '')}
+        </div>
+      )}
+      {spectating && view.phase === 'over' && view.winner && (
+        <div className="battle-spectate-winner" data-testid="spectate-winner">
+          {tr.admin.watch.winner(setup.names[view.winner])}
+        </div>
+      )}
+      {setup.mode === 'online' && watchers > 0 && (
+        <div className="battle-spectated" data-testid="spectated-badge">
+          {tr.admin.badge}
+        </div>
+      )}
       <StampBalloon stamp={myStamp} side="me" />
       <StampBalloon stamp={oppStamp} side="opp" />
       {/* チュートリアルで案内を読んでいる間は、相手は待っているだけなので出さない */}
@@ -799,6 +850,11 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
           }
         >
           <div className="battle-menu">
+            {spectating ? (
+              <RoughButton seed="battle-spectate-leave" stroke="var(--pen-red)" className="battle-menu__surrender" onClick={leaveSpectate} data-testid="spectate-leave-battle">
+                <span className="red-pen">{tr.admin.watch.leave}</span>
+              </RoughButton>
+            ) : (
             <RoughButton
               seed="battle-surrender"
               stroke="var(--pen-red)"
@@ -820,6 +876,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
             >
               <span className="red-pen">{tr.battle.surrenderButton}</span>
             </RoughButton>
+            )}
             {setup.debug && (
               <RoughButton seed="battle-savelog" className="battle-menu__surrender" onClick={saveLog}>
                 {tr.battle.saveLogJson}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { isHandHidden } from '../../battle/spectate';
 import type { BattleMode } from '../../battle/setup';
 import type { Action, GameState, Side } from '../../engine/types';
 import { BattleCard, CARD_SIZE } from '../../ui/card/BattleCard';
@@ -312,7 +313,7 @@ export function BattleBoard(p: Props) {
               className={`battle-hand__slot ${p.selected?.uid === uid ? 'is-lifted' : ''}`}
               style={{ left: 640 + off * spread - 55, rotate: `${off * 4}deg`, top: Math.abs(off) * Math.abs(off) * 1.4, zIndex: i + 1 }}
             >
-              {renderCard(uid, 'hand', false)}
+              {renderCard(uid, 'hand', false, isHandHidden(p.mode, me, me) ? { faceDown: true } : undefined)}
             </div>
           );
         })}
@@ -357,7 +358,7 @@ export function BattleBoard(p: Props) {
       {view.phase === 'setup' && myPs.setupChoice === null && p.legal.some((a) => a.type === 'SETUP_ACTIVE') && (
         <div className="battle-prompt">{tr.battle.promptSetup}</div>
       )}
-      {view.phase === 'setup' && myPs.setupChoice !== null && oppPs.setupChoice === null && (
+      {view.phase === 'setup' && p.mode !== 'spectate' && myPs.setupChoice !== null && oppPs.setupChoice === null && (
         <div className="battle-prompt battle-prompt--wait">{tr.battle.promptWait}</div>
       )}
 

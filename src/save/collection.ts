@@ -1,7 +1,7 @@
 import { features } from '../config/features';
-import { CARD_DB } from '../data/cards';
+import { CARD_DB, trophyDef, trophyNumberOf } from '../data/cards';
 import { type DeckProblem, DEFAULT_RULES, validateDeck } from '../engine';
-import type { RuleSet } from '../engine/types';
+import type { CardDef, RuleSet } from '../engine/types';
 import type { SaveData } from './saveData';
 
 /**
@@ -11,9 +11,17 @@ import type { SaveData } from './saveData';
  */
 
 /** そのカードの所持数。features.collection が false か unlockAll の時は無制限（Infinity） */
-export function getOwnedCount(save: Pick<SaveData, 'collection' | 'unlockAll'>, no: number): number {
+export function getOwnedCount(save: Pick<SaveData, 'collection' | 'unlockAll'> & Partial<Pick<SaveData, 'trophies'>>, no: number): number {
+  // トロフィーのカード（v2.0-J）：その番号を受け取っていれば1枚（無制限の時も、持っていない番号は使えない）
+  const n = trophyNumberOf(no);
+  if (n !== null) return save.trophies?.some((t) => t.number === n) ? 1 : 0;
   if (!features.collection || save.unlockAll) return Infinity;
   return save.collection[no] ?? 0;
+}
+
+/** 持っているトロフィーのカードの定義（デッキ編集の一覧に出す） */
+export function ownedTrophyDefs(save: Partial<Pick<SaveData, 'trophies'>>): CardDef[] {
+  return (save.trophies ?? []).map((t) => trophyDef(t.number));
 }
 
 /** 足りないカード（デッキに入っている枚数が所持数より多い分） */
@@ -30,7 +38,7 @@ export type DeckCheck = {
 
 /** デッキのカード（No の配列）を、所持数とルールで調べる */
 export function checkDeckCards(
-  save: Pick<SaveData, 'collection' | 'unlockAll'>,
+  save: Pick<SaveData, 'collection' | 'unlockAll'> & Partial<Pick<SaveData, 'trophies'>>,
   cards: number[],
   rules: RuleSet = DEFAULT_RULES,
 ): DeckCheck {

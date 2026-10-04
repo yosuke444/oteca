@@ -1,5 +1,7 @@
 import { gsap } from 'gsap';
 import { useEffect, useRef, useState } from 'react';
+import { SuspensionGate } from '../../ui/common/SuspensionGate';
+import { opponentAllowed } from '../../online/status';
 import { flushSync } from 'react-dom';
 import { audio } from '../../audio/audioManager';
 import { CARD_DB } from '../../data/cards';
@@ -72,12 +74,32 @@ export function TradeScene() {
     setView(null);
   };
 
+  // 相手のアカウントが停止中なら交換しない（v2.0-J。相手が来た時に確かめる。結果は10分覚えておく）
+  const oppUserId = view?.oppUserId ?? '';
+  // 相手の停止を確かめ終わるまでは「これで OK」・最終確認を通さない
+  const [oppChecked, setOppChecked] = useState('');
+  useEffect(() => {
+    if (!oppUserId) return;
+    let alive = true;
+    void opponentAllowed(oppUserId).then((ok) => {
+      if (alive && ok) setOppChecked(oppUserId);
+      if (!alive || ok) return;
+      leave();
+      setError(tr.suspension.opponent);
+      setPhase('error');
+    });
+    return () => {
+      alive = false;
+    };
+  }, [oppUserId]);
+
   const join = () => {
     if (!isValidRoomNumber(room)) return;
     leave();
     const s = createTradeSession({
       name: save.playerName,
       playerId: save.playerId,
+      userId: save.userId,
       doneIds: () => saveRef.current.trade.doneIds,
       pending: () => loadPendingTrade(),
       canGive: (o) => offerFits(saveRef.current, o),
@@ -265,6 +287,8 @@ export function TradeScene() {
 
   return (
     <div className="trade-scene" data-testid="trade-scene" ref={tableRef}>
+      {/* アカウント停止の確かめ（v2.0-J） */}
+      <SuspensionGate />
       <h1 className="trade-scene__title">{tr.trade.title}</h1>
       <p className="trade-scene__room num">{tr.trade.room(room)}</p>
       {trading && (
@@ -324,6 +348,7 @@ export function TradeScene() {
                   className="trade-panel__ok"
                   highlight={!v!.myLock}
                   onClick={() => {
+                    if (oppUserId && oppChecked !== oppUserId) return say(tr.suspension.checking);
                     if (!s?.setLock(!v!.myLock)) say(mySize.cards + oppSize.cards === 0 ? tr.trade.empty : tr.trade.notEnough);
                   }}
                   data-testid="trade-ok"
@@ -412,6 +437,7 @@ export function TradeScene() {
                 highlight
                 onClick={() => {
                   setConfirm(false);
+                  if (oppUserId && oppChecked !== oppUserId) return say(tr.suspension.checking);
                   if (!s?.commit()) say(tr.trade.changed);
                 }}
                 data-testid="trade-confirm-yes"

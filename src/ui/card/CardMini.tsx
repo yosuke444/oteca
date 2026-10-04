@@ -65,18 +65,25 @@ export function CardMini({ def, seed, variant, count, owned, left, unowned = fal
 
 function OtegeMini({ def, seed, variant, dim }: { def: OtegeCardDef; seed: string; variant: 'tile' | 'slot'; dim: boolean }) {
   const isSuper = def.rarity === 'super';
+  /** 金の縁：スーパーとトロフィー（v2.0-J） */
+  const gold = isSuper || def.trophy !== undefined;
   return (
     <RoughBox
       seed={seed}
-      className="card-mini__frame"
+      className={`card-mini__frame ${def.trophy !== undefined ? 'is-trophy' : ''}`}
       paper
-      double={isSuper}
-      stroke={dim ? 'var(--pencil)' : isSuper ? 'var(--super-gold)' : 'var(--ink)'}
-      innerStroke={isSuper ? 'var(--ink)' : undefined}
+      double={gold}
+      stroke={dim ? 'var(--pencil)' : gold ? 'var(--super-gold)' : 'var(--ink)'}
+      innerStroke={gold ? 'var(--ink)' : undefined}
       strokeWidth={2.2}
       radius={6}
-      boil={isSuper && !dim}
+      boil={gold && !dim}
     >
+      {def.trophy !== undefined && (
+        <span className="card-mini__trophy-no num" aria-hidden>
+          {def.trophy}
+        </span>
+      )}
       <span className="card-tape" aria-hidden />
       {isSuper && <span className="card-stamp">S</span>}
       <div className="card-mini__head">

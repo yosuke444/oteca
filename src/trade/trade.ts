@@ -1,4 +1,4 @@
-import { CARD_DB } from '../data/cards';
+import { CARD_DB, isTrophyNo } from '../data/cards';
 import { validateDeck } from '../engine';
 import { OWN_MAX, type SaveData } from '../save/saveData';
 import { checkSavedDeck } from '../save/collection';
@@ -36,7 +36,8 @@ export function cleanOffer(x: unknown): Offer | null {
   const out: Offer = {};
   for (const [k, v] of Object.entries(x as Record<string, unknown>)) {
     const no = Number(k);
-    if (!Number.isInteger(no) || !CARD_DB[no] || typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > TRADE_MAX_CARDS) return null;
+    // トロフィーのカードはトレードに出せない（v2.0-J）
+    if (!Number.isInteger(no) || !CARD_DB[no] || isTrophyNo(no) || typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > TRADE_MAX_CARDS) return null;
     if (v > 0) out[no] = v;
   }
   const s = offerSize(out);

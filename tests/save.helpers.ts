@@ -44,6 +44,7 @@ export function randomSave(seed: number): SaveData {
     playerId: id(),
     userId: uid(),
     userIdRegistered: r.next() < 0.5,
+    trophies: Array.from({ length: r.int(0, 3) }, (_, i) => ({ number: i * 1000 + r.int(1, 999), receivedAt: r.int(0, 2 ** 42) })),
     decks: Array.from({ length: DECK_SLOTS }, (_, i) => ({
       name: r.next() < 0.5 ? defaultDeckName(i) : text(1, 8),
       cards: Array.from({ length: r.pick([0, 3, 15, 15]) }, () => r.pick([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 48, 200, 9999])),

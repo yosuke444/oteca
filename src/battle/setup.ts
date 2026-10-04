@@ -11,8 +11,9 @@ import { t } from '../i18n';
  * - local：ひとりで両方あやつる（1台で2人ぶん）
  * - cpu：CPU と対戦（CPU対戦 S10。デバッグの「かんたんCPU」は強さ ふつう）
  * - online：フレンド対戦（通信）
+ * - spectate：観戦（v2.0-J。両者の操作は通信で届く。何も操作できない）
  */
-export type BattleMode = 'local' | 'cpu' | 'online';
+export type BattleMode = 'local' | 'cpu' | 'online' | 'spectate';
 
 export type BattleSetup = {
   mode: BattleMode;
@@ -53,6 +54,8 @@ export type BattleSetup = {
    * matchId：結果の報告に使う試合ID（v2.0-I。受付係の試合ID、予備の待合所では部屋ID）
    */
   rated?: { oppRate: number; oppId: string; matchId?: string };
+  /** 観戦（v2.0-J）：部屋番号と、見ている試合（2人のピアID） */
+  spectate?: { room: string; key: string };
 };
 
 /** 乱数の種を作る（ローカル対戦用。オンラインはコミット・リビールで作る） */

@@ -13,6 +13,8 @@ import {
   RANKING_UNSENT_MAX,
   SAVE_VERSION,
   TRADE_IDS_MAX,
+  TROPHIES_MAX,
+  TROPHY_NUMBER_MAX,
   TUTORIAL_STEP_MAX,
   VOLUME_MAX,
   type Ranking,
@@ -35,15 +37,19 @@ import {
  * 5＝v2.1-L（ログボは受け取った時刻 claimedAt、末尾に tutorial.step と daily）／
  * 6＝v2.1-N（並びは5と同じ。ストーリーのステージ番号を新しいマップの番号に付け替えた印）／
  * 7＝v2.0-I（印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt）／
- * 8＝v2.0-J（印に userIdRegistered、末尾に userId と ranking.lastMatchId。直前の相手・レート対戦中の相手はユーザーID）
+ * 8＝v2.0-J（印に userIdRegistered、末尾に userId と ranking.lastMatchId。直前の相手・レート対戦中の相手はユーザーID）／
+ * 9＝v2.0-J（末尾にトロフィーの一覧）
  */
-export const FORMAT_VERSION = 8;
+export const FORMAT_VERSION = 9;
+
+/** 形式版数8の形（トロフィーが無い） */
+export type SaveDataV8 = Omit<SaveData, 'trophies'>;
 
 /** 形式版数7のランキングの項目（lastMatchId が無い） */
 export type RankingV7 = Omit<Ranking, 'lastMatchId'>;
 
 /** 形式版数7の形（v2.0-I。ユーザーID が無い。直前の相手などは playerId） */
-export type SaveDataV7 = Omit<SaveData, 'userId' | 'userIdRegistered' | 'ranking'> & { ranking: RankingV7 };
+export type SaveDataV7 = Omit<SaveDataV8, 'userId' | 'userIdRegistered' | 'ranking'> & { ranking: RankingV7 };
 
 /** 形式版数6までのランキングの項目（token・optIn・unsent だけ） */
 export type RankingV6 = { token: string; optIn: boolean; unsent: string[] };
@@ -184,9 +190,9 @@ export class ByteReader {
 /** 印のビット（形式版数4） */
 const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16, rankingProvisional: 32, userIdRegistered: 64 } as const;
 
-/** 最新の形式（形式版数8）でバイト列にする */
+/** 最新の形式（形式版数9）でバイト列にする */
 export function encodeSave(data: SaveData): Uint8Array {
-  return encodeBody(data, FORMAT_VERSION as 8);
+  return encodeBody(data, FORMAT_VERSION as 9);
 }
 
 /**
@@ -194,7 +200,7 @@ export function encodeSave(data: SaveData): Uint8Array {
  * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く。6 は 5 と同じ並び（ステージ番号の付け替えの印）。
  * 7 は 6 と同じ並びで、印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt が付く
  */
-export function encodeBody(data: SaveData | SaveDataV7 | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7 | 8): Uint8Array {
+export function encodeBody(data: SaveData | SaveDataV8 | SaveDataV7 | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7 | 8 | 9): Uint8Array {
   /** 形式版数8から、相手の ID はユーザーID（数を16進数にして8バイトの場所に入れる） */
   const oppId = (id: string) => (version >= 8 ? userIdToHex(id) : id);
   const w = new ByteWriter();
@@ -288,11 +294,33 @@ export function encodeBody(data: SaveData | SaveDataV7 | SaveDataV6 | SaveDataV4
     w.uint(isUserId(d.userId) ? Number(d.userId) : 0);
     w.id(d.ranking.lastMatchId);
   }
+  if (version >= 9) {
+    const list = (data as SaveData).trophies;
+    if (list.length > TROPHIES_MAX) throw new Error('トロフィーが多すぎます');
+    w.uint(list.length);
+    for (const t of list) {
+      if (!Number.isInteger(t.number) || t.number < 1 || t.number > TROPHY_NUMBER_MAX) throw new Error(`トロフィーの番号が範囲外です: ${t.number}`);
+      w.uint(t.number);
+      w.uint(t.receivedAt);
+    }
+  }
   return w.toBytes();
 }
 
+/** 形式版数9の本体を読む（形式版数8 の並び ＋ 末尾のトロフィーの一覧） */
+export function readSaveV9(r: ByteReader): SaveData {
+  const v8 = readSaveV8(r);
+  const n = r.uintMax(TROPHIES_MAX);
+  const trophies = Array.from({ length: n }, () => {
+    const number = r.uint();
+    if (number < 1 || number > TROPHY_NUMBER_MAX) throw new Error('トロフィーの番号が範囲外です');
+    return { number, receivedAt: r.uint() };
+  });
+  return { ...v8, trophies };
+}
+
 /** 形式版数8の本体を読む（形式版数7 の並び ＋ 印の userIdRegistered ＋ 末尾の userId・ranking.lastMatchId。相手の ID はユーザーID） */
-export function readSaveV8(r: ByteReader): SaveData {
+export function readSaveV8(r: ByteReader): SaveDataV8 {
   const { data, flags } = readV7Body(r, 127);
   const n = r.uint();
   const userId = n === 0 ? '' : String(n);

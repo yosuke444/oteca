@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { t } from '../../i18n';
+import { SuspensionGate } from '../../ui/common/SuspensionGate';
+import { opponentAllowed } from '../../online/status';
 import { useT } from '../../i18n/useT';
 import { badOnlineStart, onlineSetup } from '../../battle/setup';
 import { usableDecks } from '../../save/collection';
@@ -101,14 +103,18 @@ export function LobbyScene() {
       return;
     }
     toBattle.current = true;
-    go('battle', onlineSetup(g, isDebugMode()));
+    // 相手のアカウントが停止中なら始めない（v2.0-J。結果は10分覚えておく）
+    void opponentAllowed(g.oppUserId).then((ok) => {
+      if (ok) go('battle', onlineSetup(g, isDebugMode()));
+      else fail(t().suspension.opponent);
+    });
   };
 
   const join = () => {
     if (!canJoin) return;
     vsDone.current = false;
     setWaitedMs(0);
-    const l = startOnline({ kind: 'friend', roomNumber: room }, { name: save.playerName, deck: save.decks[deck].cards, deckName: save.decks[deck].name });
+    const l = startOnline({ kind: 'friend', roomNumber: room }, { name: save.playerName, deck: save.decks[deck].cards, deckName: save.decks[deck].name, userId: save.userId });
     linkRef.current = l;
     setLink(l);
     setPhase({ kind: 'waiting' });
@@ -381,6 +387,8 @@ export function LobbyScene() {
 
   return (
     <div className="lobby">
+      {/* アカウント停止の確かめ（v2.0-J） */}
+      <SuspensionGate />
       <h1 className="lobby__title">{tr.lobby.title}</h1>
       <RoughButton seed="lobby-back" className="lobby__back" onClick={() => go('online')}>
         {tr.common.back}

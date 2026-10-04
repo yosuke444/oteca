@@ -6,6 +6,7 @@ import { type Connection, type GameStart, type InviteState, OnlineSession, type 
 import { rateRoomName, roomName } from './protocol';
 import { RateLobby } from './rateLobby';
 import { RateSearch, type SocketLike } from './matchmaker';
+import { SpectatorSession } from './spectator';
 import { lobbyUrl } from '../config/api';
 import { TradeSession, type TradeOptions } from './tradeSession';
 import type { NetTransport } from './transport';
@@ -204,6 +205,28 @@ export function endOnline(): void {
   if (!current) return;
   current.session.leave();
   current = null;
+}
+
+/** 観戦（v2.0-J。管理者メニューの「大会閲覧」）：画面を移っても（観戦の一覧 ⇄ 対戦の画面）つながったまま */
+let spectator: { room: string; session: SpectatorSession } | null = null;
+
+/** 部屋番号の部屋を観戦する（前の観戦があれば やめてから） */
+export function startSpectator(room: string): SpectatorSession {
+  endSpectator();
+  const session = new SpectatorSession(createTransport(), protocolVersion);
+  spectator = { room, session };
+  session.join(room);
+  return session;
+}
+
+export function currentSpectator(): { room: string; session: SpectatorSession } | null {
+  return spectator;
+}
+
+export function endSpectator(): void {
+  if (!spectator) return;
+  spectator.session.leave();
+  spectator = null;
 }
 
 /** カードトレードの通信（v2.0-H）。画面が閉じる時に leave する */

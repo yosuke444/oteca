@@ -36,8 +36,11 @@ import { RateScene } from './scenes/Online/RateScene';
 import { StoryScene } from './scenes/Story/StoryScene';
 import { TradeScene } from './scenes/Trade/TradeScene';
 import { RankingScene } from './scenes/Ranking/RankingScene';
+import { AdminScene } from './scenes/Admin/AdminScene';
+import { SpectateScene } from './scenes/Admin/SpectateScene';
 import { features } from './config/features';
 import { flushReports, syncRanking } from './online/rankingApi';
+import { checkMailbox } from './online/mailbox';
 
 /**
  * ルーター：行き先 → 画面 の対応表（SPEC §3、§13-5）
@@ -66,6 +69,8 @@ const ROUTES: Record<RouteId, ComponentType> = {
   trade: TradeScene,
   ranking: RankingScene,
   rate: RateScene,
+  admin: AdminScene,
+  spectate: SpectateScene,
 };
 
 /**
@@ -84,6 +89,8 @@ const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
   trade: 'bgm_trade',
   ranking: 'bgm_title',
   rate: 'bgm_lobby',
+  admin: 'bgm_deck',
+  spectate: 'bgm_lobby',
   debug: 'bgm_title',
   deck: 'bgm_deck',
   settings: 'bgm_deck',
@@ -143,7 +150,16 @@ export function App() {
   useEffect(() => {
     if (!features.ranking) return;
     // playerId は起動した時に作るので、少し待ってから
-    const id = window.setTimeout(() => void syncRanking(() => saveRef.current, update), 1500);
+    // 登録できたら、トロフィーの郵便受けも確かめる（v2.0-J。届いていればメニューで演出）
+    const id = window.setTimeout(
+      () =>
+        void syncRanking(() => saveRef.current, update).then((who) => {
+          if (!who) return;
+          const cur = saveRef.current;
+          void checkMailbox({ ...cur, userId: who.userId, userIdRegistered: true, ranking: { ...cur.ranking, token: who.token } }, update);
+        }),
+      1500,
+    );
     return () => window.clearTimeout(id);
   }, []);
   // 送れなかった報告が増えた（レート対戦が終わった）：すぐ送る。送れなければ次に開いた時・次の試合の後

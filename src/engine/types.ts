@@ -85,6 +85,8 @@ export type OtegeCardDef = {
   moves: Move[];
   image: string;
   flavor: string;
+  /** トロフィーのカード（v2.0-J。番号。性能は おてあげ と同じ。画面の見た目だけに使う） */
+  trophy?: number;
 };
 
 /** アイテムの使用条件：HP満タンには使えない／山札0枚では使えない */
