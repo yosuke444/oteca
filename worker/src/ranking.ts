@@ -58,9 +58,15 @@ export type LobbyStore = {
   /** D1 に書けた結果を消す */
   ack(matchIds: string[]): void;
   /** D1 に書く途中の印（まとめ処理の番号と、処理する試合ID）。null で消す */
-  pending(): { id: string; matchIds: string[] } | null;
-  setPending(p: { id: string; matchIds: string[] } | null): void;
+  pending(): Pending | null;
+  setPending(p: Pending | null): void;
+  /** その日に数えた数（同じ2人・予備の試合。1日2回の まとめ処理をまたいで数えるため） */
+  dayCounts(): Map<string, number>;
+  /** 数えた数を書く（変わった分だけ）。古い日の分は消す */
+  saveDayCounts(changed: [string, number][], now: number): void;
 };
+
+export type Pending = { id: string; matchIds: string[] };
 
 /**
  * 上位100人の写しを作る（名前を載せない人・禁止語・消された名前は ''。画面が「ななし」と出す）
@@ -89,7 +95,7 @@ export async function writeSnapshot(c: Db, updatedAt: number | null): Promise<nu
 }
 
 /**
- * まとめ処理（毎日 日本時間 4:00。UPDATE_v2 §10）：
+ * まとめ処理（毎日 日本時間 4:00 と 14:00。UPDATE_v2 §10）：前回の まとめ処理より後に記録した
  * 受付係の結果を時刻順に読む → レートを計算（同じ2人は1日3試合まで）→ プレイヤー表を1人1行で更新 →
  * 全員の順位（7日以上遊んでいない人は外す）→ 上位100人の写し → 処理した結果を消す
  */
@@ -98,7 +104,14 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
   const prev = lobby.pending();
   if (prev) {
     const done = (await c.all<{ value: string }>(`SELECT value FROM meta WHERE key = 'batch'`))[0]?.value === prev.id;
-    if (done) lobby.ack(prev.matchIds);
+    if (done) {
+      // D1 には書けていた：その結果の「その日に数えた数」を計算し直して、結果を消すのと一緒に書く
+      const ids = new Set(prev.matchIds);
+      const before = lobby.dayCounts();
+      const again = runBatch(new Map(), lobby.exportResults(now).filter((r) => ids.has(r.matchId)), now, before).counts;
+      lobby.ack(prev.matchIds);
+      lobby.saveDayCounts([...again].filter(([k, v]) => before.get(k) !== v), now);
+    }
     lobby.setPending(null);
   }
   const results = lobby.exportResults(now);
@@ -107,6 +120,7 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
   let changed = 0;
   let counted = 0;
   let skipped = 0;
+  let countChanges: [string, number][] = [];
   if (results.length) {
     const ids = [...new Set(results.flatMap((r) => [r.a, r.b]))];
     const rows = await c.all<PlayerRow>(
@@ -114,7 +128,9 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
       JSON.stringify(ids),
     );
     const map = new Map<string, Player>(rows.map((r) => [r.id, { id: r.id, rate: r.rate, wins: r.wins, losses: r.losses, best: r.best, lastPlayed: r.last_played }]));
-    const out = runBatch(map, results, now);
+    const before = lobby.dayCounts();
+    const out = runBatch(map, results, now, before);
+    countChanges = [...out.counts].filter(([k, v]) => before.get(k) !== v);
     counted = out.counted;
     skipped = out.skipped;
     changed = out.changed.length;
@@ -137,8 +153,11 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
   const ids = results.map((r) => r.matchId);
   if (ids.length) lobby.setPending({ id: batchId, matchIds: ids });
   await c.batch(stmts);
-  // D1 に書けたので、受付係の結果を消す
-  if (ids.length) lobby.ack(ids);
+  // D1 に書けたので、受付係の結果を消し、その日に数えた数を書く（同じ時に）
+  if (ids.length) {
+    lobby.ack(ids);
+    lobby.saveDayCounts(countChanges, now);
+  }
   lobby.setPending(null);
   const top = await writeSnapshot(c, now);
   return { ok: true, results: results.length, counted, skipped, changed, top };

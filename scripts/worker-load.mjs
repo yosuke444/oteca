@@ -61,12 +61,12 @@ try {
   const me = await api(B, `/me?playerId=${P[0].id}&token=${P[0].token}`);
   measured.view = { workerReq: 1, d1Read: rk.count.d1Read, d1Write: rk.count.d1Written };
   measured.me = { workerReq: 1, d1Read: me.count.d1Read, d1Write: me.count.d1Written };
-  log('## ランキング表示（GET /ranking。次の更新までは端末に保存した一覧を使うので、1人1日1回まで）');
+  log('## ランキング表示（GET /ranking。次の更新までは端末に保存した一覧を使うので、1人 更新1回につき1回まで＝1日2回まで）');
   log('');
   log(`- Worker へのリクエスト：1回、Durable Object：0回`);
   log(`- D1 の行：読み ${measured.view.d1Read}・書き ${measured.view.d1Write}`);
   log('');
-  log('## 起動した時の正式なレートの受け取り（GET /me。1日1回まで）');
+  log('## 起動した時の正式なレートの受け取り（GET /me。起動するたび）');
   log('');
   log(`- Worker へのリクエスト：1回、D1 の行：読み ${measured.me.d1Read}・書き ${measured.me.d1Write}`);
   log('');
@@ -74,7 +74,9 @@ try {
   // ---------------------------------------------------------------- まとめ処理（1,000人）
   const N = 1000;
   const ids = Array.from({ length: N }, (_, i) => pid(10000 + i, 'c'));
-  const day = Date.now() - 60 * 60 * 1000;
+  const DAY = 24 * 60 * 60 * 1000;
+  /** 「その日」の試合の時刻（日ごとにずらす。同じ2人の1日3試合は日本時間の日付で数えるので） */
+  const dayAt = (d) => Date.now() - (20 - d) * DAY;
   /** 1人あたり k 試合（相手はずらして選ぶ。同じ2人は1日3試合まで） */
   const seedResults = (k, at) => {
     const rs = [];
@@ -87,25 +89,50 @@ try {
   };
   await admin(B, '/admin/seed', { players: ids });
   const batches = [];
-  for (const [label, k, first] of [
-    ['1日目（1,000人が はじめて のる。1人3試合）', 3, true],
-    ['2日目（同じ1,000人。1人3試合）', 3, false],
-    ['3日目（同じ1,000人。1人10試合）', 10, false],
-    ['4日目（同じ1,000人。1人30試合）', 30, false],
-  ]) {
-    const rs = seedResults(k, day);
-    for (let i = 0; i < rs.length; i += 2000) await admin(B, '/admin/seed', { results: rs.slice(i, i + 2000) });
-    const t0 = Date.now();
-    const b = await admin(B, '/admin/run-batch');
-    const ms = Date.now() - t0;
-    batches.push({ label, k, first, results: rs.length, ms, ...b.count, json: b.json });
+  // 1日1回（前の作り）と1日2回（v2.0-J）：同じ試合の数を、1回でまとめて／午前と午後の2回に分けて計算する
+  const total = (xs, key) => xs.reduce((a, x) => a + x[key], 0);
+  const scenarios = [
+    ['1日目（1,000人が はじめて のる。1人3試合）', 3, 1],
+    ['2日目（同じ1,000人。1人3試合）', 3, 1],
+    ['3日目（同じ1,000人。1人10試合）', 10, 1],
+    ['4日目（同じ1,000人。1人30試合）', 30, 1],
+    ['5日目（1人3試合。1日2回）', 3, 2],
+    ['6日目（1人10試合。1日2回）', 10, 2],
+    ['7日目（1人30試合。1日2回）', 30, 2],
+  ];
+  for (let d = 0; d < scenarios.length; d++) {
+    const [label, k, times] = scenarios[d];
+    const rs = seedResults(k, times === 2 ? Date.now() - 2 * 60 * 60 * 1000 + d * 60 * 1000 : dayAt(d));
+    const parts = times === 1 ? [rs] : [rs.slice(0, Math.ceil(rs.length / 2)), rs.slice(Math.ceil(rs.length / 2))];
+    const runs = [];
+    let ms = 0;
+    for (const part of parts) {
+      for (let i = 0; i < part.length; i += 2000) await admin(B, '/admin/seed', { results: part.slice(i, i + 2000) });
+      const t0 = Date.now();
+      const b = await admin(B, '/admin/run-batch');
+      ms += Date.now() - t0;
+      runs.push({ ...b.count, counted: b.json.counted });
+    }
+    batches.push({
+      label,
+      k,
+      times,
+      results: rs.length,
+      ms,
+      doRequests: total(runs, 'doRequests'),
+      doRead: total(runs, 'doRead'),
+      doWritten: total(runs, 'doWritten'),
+      d1Read: total(runs, 'd1Read'),
+      d1Written: total(runs, 'd1Written'),
+      json: { counted: total(runs, 'counted') },
+    });
   }
   log(`## まとめ処理（参加者 ${N.toLocaleString()}人）`);
   log('');
-  log('| 日 | 試合 | 数えた | Worker | DO へのリクエスト | DO の行（読み／書き） | D1 の行（読み／書き） | かかった時間（手元） |');
+  log('| 日 | 試合 | 数えた | Worker（まとめ処理の回数） |  DO へのリクエスト | DO の行（読み／書き） | D1 の行（読み／書き） | かかった時間（手元） |');
   log('|---|---|---|---|---|---|---|---|');
   for (const b of batches)
-    log(`| ${b.label} | ${b.results.toLocaleString()} | ${b.json.counted.toLocaleString()} | 1 | ${b.doRequests} | ${b.doRead.toLocaleString()}／${b.doWritten.toLocaleString()} | ${b.d1Read.toLocaleString()}／${b.d1Written.toLocaleString()} | ${b.ms}ms |`);
+    log(`| ${b.label} | ${b.results.toLocaleString()} | ${b.json.counted.toLocaleString()} | ${b.times} | ${b.doRequests} | ${b.doRead.toLocaleString()}／${b.doWritten.toLocaleString()} | ${b.d1Read.toLocaleString()}／${b.d1Written.toLocaleString()} | ${b.ms}ms |`);
   log('');
   measured.batch = batches;
 
@@ -195,22 +222,26 @@ try {
 // ---------------------------------------------------------------- 無料枠で耐えられる人数
 if (measured.match && measured.batch) {
   const m = measured.match;
-  const b1 = measured.batch[1]; // 2日目（ふつうの日）
+  const once = measured.batch.filter((x) => x.times === 1);
+  const twice = measured.batch.filter((x) => x.times === 2);
+  const b1 = once[1]; // 2日目（ふつうの日）
   // まとめ処理の受付係の書き込み・読み込みは、試合の多い日の値を試合数で割る（1回ごとの決まった分を1試合に乗せない）
   const perMatch = { doWrite: m.doWrite + b1.doWritten / b1.results, doRead: m.doRead + b1.doRead / b1.results };
   /** 1人あたりの まとめ処理の D1（2日目の値 ÷ 1,000人） */
   // 書き込みは、いちばん多かった日（はじめて のる日・順位が大きく動く日）で見積もる
-  const d1WritePerPlayer = Math.max(...measured.batch.map((x) => x.d1Written)) / 1000;
-  const d1ReadPerPlayer = b1.d1Read / 1000;
   const rows = [];
+  for (const [times, list, opens] of [[1, once, 1], [2, twice, 1], [2, twice, 2]])
   for (const k of [3, 10, 30]) {
+    const same = list.filter((x) => x.k === k);
+    const d1WritePerPlayer = Math.max(...(same.length ? same : list).map((x) => x.d1Written)) / 1000;
+    const d1ReadPerPlayer = (same[same.length - 1] ?? list[0]).d1Read / 1000;
     // 1人1日：起動 1回（/me）・ランキング 1回・k 試合（試合は2人なので1人あたり半分）
     const per = {
-      workerReq: measured.me.workerReq + measured.view.workerReq + (k * m.workerReq) / 2,
+      workerReq: opens * (measured.me.workerReq + measured.view.workerReq) + (k * m.workerReq) / 2,
       doReq: (k * m.doReq) / 2,
       doWrite: (k * perMatch.doWrite) / 2,
       doRead: (k * perMatch.doRead) / 2,
-      d1Read: measured.me.d1Read + measured.view.d1Read + (k * m.d1Read) / 2 + d1ReadPerPlayer,
+      d1Read: opens * (measured.me.d1Read + measured.view.d1Read) + (k * m.d1Read) / 2 + d1ReadPerPlayer,
       d1Write: d1WritePerPlayer,
     };
     const lim = {
@@ -230,24 +261,25 @@ if (measured.match && measured.batch) {
       d1Write2: (k * 20) / 2,
     };
     const origLim = { workerReq: FREE.workerReq / orig.workerReq, d1Write: FREE.d1Write / orig.d1Write, d1Write2: FREE.d1Write / orig.d1Write2 };
-    rows.push({ k, per, lim, minKey, origLim });
+    rows.push({ times, opens, k, per, lim, minKey, origLim });
   }
   const label = { workerReq: 'Worker のリクエスト', doReq: 'DO のリクエスト', doWrite: 'DO の書き込み行', doRead: 'DO の読み込み行', d1Read: 'D1 の読み込み行', d1Write: 'D1 の書き込み行' };
   const f = (n) => Math.floor(n).toLocaleString();
   log('## 無料枠で、毎日 何人まで耐えられるか');
   log('');
-  log('1人が1日に「起動1回・ランキング表示1回・k 試合」する場合。いちばん先に尽きる枠で決まる（DO＝Durable Object）。');
+  log('1人が1日に「起動 n回・ランキング表示 n回・k 試合」する場合（n＝表の「開く」）。いちばん先に尽きる枠で決まる（DO＝Durable Object）。');
   log('');
-  log('| 1人の試合数 | Worker のリクエスト | DO のリクエスト | DO の書き込み行 | D1 の書き込み行 | D1 の読み込み行 | **耐えられる人数（新）** | 先に尽きる枠 | §10 の元の作り（見積もり） |');
-  log('|---|---|---|---|---|---|---|---|---|');
+  log('| 更新 | 開く | 1人の試合数 | Worker のリクエスト | DO のリクエスト | DO の書き込み行 | D1 の書き込み行 | D1 の読み込み行 | **耐えられる人数** | 先に尽きる枠 | §10 の元の作り（見積もり） |');
+  log('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of rows)
     log(
-      `| ${r.k}試合 | ${f(r.lim.workerReq)} | ${f(r.lim.doReq)} | ${f(r.lim.doWrite)} | ${f(r.lim.d1Write)} | ${f(r.lim.d1Read)} | **${f(r.lim[r.minKey])}人** | ${label[r.minKey]} | ${f(Math.min(r.origLim.d1Write2, r.origLim.workerReq))}〜${f(Math.min(r.origLim.d1Write, r.origLim.workerReq))}人（D1 の書き込み行） |`,
+      `| 1日${r.times}回 | ${r.opens}回 | ${r.k}試合 | ${f(r.lim.workerReq)} | ${f(r.lim.doReq)} | ${f(r.lim.doWrite)} | ${f(r.lim.d1Write)} | ${f(r.lim.d1Read)} | **${f(r.lim[r.minKey])}人** | ${label[r.minKey]} | ${f(Math.min(r.origLim.d1Write2, r.origLim.workerReq))}〜${f(Math.min(r.origLim.d1Write, r.origLim.workerReq))}人（D1 の書き込み行） |`,
     );
   log('');
   log('- 表の数は、それぞれの枠だけで考えた時の人数。DO の読み込み行（1試合 約9行・500万行）はどの場合も大きく余るので省いた。');
   log('- 元の作り：報告のたびに D1 でレートを計算して書く（1試合 約10行、索引をふくめると約20行）。待合所はサーバーを使わない P2P（中継網が混むと組めない）。');
-  log('- 新しい作り：D1 に書くのは1日1回の まとめ処理だけ（1人1行 ＋ 順位の変わった人）。1日に何試合しても D1 の書き込みは増えない。');
+  log('- 新しい作り：D1 に書くのは まとめ処理だけ（1人1行 ＋ 順位の変わった人）。1日に何試合しても D1 の書き込みは増えない。');
+  log('- 1日2回（v2.0-J）：午前と午後の両方に遊んだ人は、1日に2回 D1 の行を書く。全員の順位の計算（D1 の読み込み）も2回になる。Worker・DO のリクエストは まとめ処理の分（1日2回）しか増えないので、1日1回開く人なら耐えられる人数は変わらない。ただし、更新ごとに開いてランキングも見る人（1日2回）は Worker のリクエストが1人2回ふえ、人数は少し減る（表の「開く 2回」）。');
   log('- まとめ処理は受付係（Durable Object）の中で動かす。Worker の CPU 時間は1回10ミリ秒まで（Cron も同じ）だが、Durable Object は1回30秒まで（無料プランも同じ）。計算の部分を手元の Node で測ると、1,000人・1,500試合で約5ミリ秒、1,000人・15,000試合で約17ミリ秒、1万人・15,000試合で約32ミリ秒（Worker の中では10ミリ秒を超えて止まるおそれがあった）。');
   log(`- Durable Object の時間：受付係は1つだけ。1日中ずっと起きていても 128MB × 86,400秒 ＝ 10,800 GB秒 で、無料枠（13,000 GB秒）に収まる。待っている人がいない時は休止して数えない。`);
   log('');

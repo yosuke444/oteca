@@ -1,3 +1,5 @@
+import { RANKING } from '../../../src/config/rating';
+
 /**
  * 試合の結果の突き合わせ（UPDATE_v2 §10・SPEC §11-9）。ふつうの処理だけ。
  * - 2人の報告が一致した試合だけを記録する。食い違ったら記録しない。
@@ -6,7 +8,7 @@
  */
 
 /** 片方だけの報告を記録するまでの時間 */
-export const SINGLE_REPORT_MS = 10 * 60 * 1000;
+export const SINGLE_REPORT_MS = RANKING.singleReportMinutes * 60 * 1000;
 /** 受付係の知らない試合・報告の来ない試合を あきらめるまでの時間 */
 export const MATCH_EXPIRE_MS = 24 * 60 * 60 * 1000;
 

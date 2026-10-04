@@ -10,7 +10,7 @@ export { Matchmaker } from './matchmaker';
 
 /**
  * oteca-api（UPDATE_v2 §10・SPEC §11-9）：レート対戦の受付係（Durable Object）とランキング（D1）。
- * Cloudflare の無料プランで動かす。毎日 UTC 19:00（日本時間 4:00）に まとめ処理（Cron）。
+ * Cloudflare の無料プランで動かす。毎日 UTC 19:00（日本時間 4:00）と UTC 5:00（日本時間 14:00）に まとめ処理（Cron）。
  */
 
 /** 公開サイト（GitHub Pages） */
@@ -151,7 +151,7 @@ async function route(req: Request, c: Ctx): Promise<Response> {
       const row = (await c.all<PlayerRow>(`SELECT * FROM players WHERE id = ?`, playerId))[0];
       me = meOf(row, now);
     }
-    // 4:00 を過ぎたのに まとめ処理がまだ終わっていない：5分後に聞き直してもらう（古い一覧を1日 覚えさせない）
+    // 更新の時刻（4:00・14:00）を過ぎたのに まとめ処理がまだ終わっていない：5分後に聞き直してもらう（古い一覧を次の更新まで覚えさせない）
     const updated = Number((await c.all<{ u: number | null }>(`SELECT json_extract(value, '$.updatedAt') AS u FROM meta WHERE key = 'ranking'`))[0]?.u ?? 0);
     const next = updated < lastBatchAt(now) && updated > 0 ? now + LATE_RETRY_MS : nextBatchAt(now);
     // 最後に まとめ処理が終わった時刻（予定の 4:00 ではなく、本当に写しを作った時刻。遅れた時に古いデータを正式としないように）

@@ -100,7 +100,7 @@ export function connectLobby(base, player, origin = ORIGIN) {
   c.paired = () => c.msgs.find((m) => m.t === 'paired')?.body ?? null;
   c.lastCount = () => [...c.msgs].reverse().find((m) => m.t === 'waiting')?.body.count;
   c.waitOpen = async () => {
-    for (let i = 0; i < 100 && !c.opened && !c.closed; i++) await sleep(50);
+    for (let i = 0; i < 600 && !c.opened && !c.closed; i++) await sleep(50);
     return c.opened;
   };
   return c;

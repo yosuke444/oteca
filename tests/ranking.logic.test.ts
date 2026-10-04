@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canPair, cleanJoin, pickPairs, waitingCounts, type Waiter } from '../worker/src/logic/queue';
 import { acceptReport, cleanReport, decide, MATCH_EXPIRE_MS, SINGLE_REPORT_MS, type MatchInfo, type Report } from '../worker/src/logic/results';
-import { HIDE_AFTER_MS, batchDay, isVisible, jstDay, lastBatchAt, nextBatchAt, PAIR_DAILY_LIMIT, runBatch, type Player } from '../worker/src/logic/batch';
+import { HIDE_AFTER_MS, isVisible, jstDay, lastBatchAt, nextBatchAt, pairKey, PAIR_DAILY_LIMIT, runBatch, type Player } from '../worker/src/logic/batch';
 import { nextRate } from '../src/online/rateMath';
 import { RATING } from '../src/config/rating';
 
@@ -160,12 +160,18 @@ describe('I03 まとめ処理', () => {
   let seq = 0;
   const res = (a: string, b: string, winner: string, at: number) => ({ id: ++seq, matchId: pid(1000 + seq), a, b, winner, at });
 
-  it('次のまとめ処理は日本時間 4:00', () => {
+  it('次のまとめ処理は日本時間 4:00 と 14:00 の近い方', () => {
     // 2026-10-04 3:59 JST → 同じ日の 4:00
     expect(nextBatchAt(Date.UTC(2026, 9, 3, 18, 59))).toBe(Date.UTC(2026, 9, 3, 19, 0));
-    // ちょうど 4:00 → 次の日
-    expect(nextBatchAt(Date.UTC(2026, 9, 3, 19, 0))).toBe(Date.UTC(2026, 9, 4, 19, 0));
+    // ちょうど 4:00 → 同じ日の 14:00（UTC 5:00）
+    expect(nextBatchAt(Date.UTC(2026, 9, 3, 19, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0));
+    // 13:59 → 14:00、14:00 → 次の日の 4:00
+    expect(nextBatchAt(Date.UTC(2026, 9, 4, 4, 59))).toBe(Date.UTC(2026, 9, 4, 5, 0));
+    expect(nextBatchAt(Date.UTC(2026, 9, 4, 5, 0))).toBe(Date.UTC(2026, 9, 4, 19, 0));
+    // 12:00 JST の前の更新は 4:00、20:00 JST の前は 14:00、3:00 JST の前は前の日の 14:00
     expect(lastBatchAt(Date.UTC(2026, 9, 4, 3, 0))).toBe(Date.UTC(2026, 9, 3, 19, 0));
+    expect(lastBatchAt(Date.UTC(2026, 9, 4, 11, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0));
+    expect(lastBatchAt(Date.UTC(2026, 9, 4, 18, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0));
     expect(jstDay(Date.UTC(2026, 9, 3, 15, 0))).toBe(20261004);
     expect(jstDay(Date.UTC(2026, 9, 3, 14, 59))).toBe(20261003);
   });
@@ -225,7 +231,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
   type Stmt = { q: string; binds: unknown[] };
   /** D1 の代わり：プレイヤー表の更新（JSON）と「どの まとめ処理まで書いたか」だけを覚える */
   function fakeDb() {
-    const players = new Map<string, { wins: number; losses: number }>();
+    const players = new Map<string, { wins: number; losses: number; rate?: number; best?: number }>();
     let batchMark = '';
     let failNext = false;
     const db = {
@@ -235,7 +241,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
       players,
       async all<T>(q: string): Promise<T[]> {
         if (q.includes("key = 'batch'")) return (batchMark ? [{ value: batchMark }] : []) as T[];
-        if (q.includes('FROM players WHERE id IN')) return [...players].map(([id, p]) => ({ id, rate: 100, wins: p.wins, losses: p.losses, best: 100, last_played: 0 })) as T[];
+        if (q.includes('FROM players WHERE id IN')) return [...players].map(([id, p]) => ({ id, rate: p.rate ?? 100, wins: p.wins, losses: p.losses, best: p.best ?? 100, last_played: 0 })) as T[];
         return [] as T[];
       },
       async run() {
@@ -247,7 +253,8 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
           throw new Error('D1 が失敗した');
         }
         for (const s of stmts) {
-          if (s.q.startsWith('INSERT INTO players')) for (const [id, , wins, losses] of JSON.parse(String(s.binds[1])) as [string, number, number, number][]) players.set(id, { wins, losses });
+          if (s.q.startsWith('INSERT INTO players'))
+            for (const [id, rate, wins, losses, best] of JSON.parse(String(s.binds[1])) as [string, number, number, number, number][]) players.set(id, { wins, losses, rate, best });
           if (s.q.includes("VALUES ('batch'")) batchMark = String(s.binds[0]);
         }
       },
@@ -274,6 +281,13 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
       },
       pending: () => pend,
       setPending: (p: { id: string; matchIds: string[] } | null) => void (pend = p),
+      day: new Map<string, number>(),
+      dayCounts(): Map<string, number> {
+        return new Map(this.day);
+      },
+      saveDayCounts(changed: [string, number][]) {
+        for (const [k, v] of changed) this.day.set(k, v);
+      },
     };
   }
   const row = (n: number, a: string, b: string, winner: string) => ({ matchId: pid(5000 + n), a, b, winner, at: 1_800_000_000_000 + n, known: true });
@@ -288,7 +302,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     await expect(runBatchJob(db as never, lobby, 1_800_000_100_000)).rejects.toThrow();
     expect(lobby.rows).toHaveLength(2);
     await runBatchJob(db as never, lobby, 1_800_000_200_000);
-    expect(db.players.get(A)).toEqual({ wins: 1, losses: 1 });
+    expect(db.players.get(A)).toMatchObject({ wins: 1, losses: 1 });
     expect(lobby.rows).toHaveLength(0);
   });
 
@@ -298,15 +312,70 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     const lobby = fakeLobby([row(1, A, B, A)]);
     lobby.ackFailsOnce();
     await expect(runBatchJob(db as never, lobby, 1_800_000_100_000)).rejects.toThrow();
-    expect(db.players.get(A)).toEqual({ wins: 1, losses: 0 });
+    expect(db.players.get(A)).toMatchObject({ wins: 1, losses: 0 });
     expect(lobby.rows).toHaveLength(1);
     // 次の まとめ処理：前の印が D1 にもあるので、その結果は消すだけ
     await runBatchJob(db as never, lobby, 1_800_000_200_000);
-    expect(db.players.get(A)).toEqual({ wins: 1, losses: 0 });
+    expect(db.players.get(A)).toMatchObject({ wins: 1, losses: 0 });
     expect(lobby.rows).toHaveLength(0);
   });
 
-  it('予備の待合所の試合は、1人1日10試合まで（日の区切りは日本時間 4:00）', () => {
+  it('1日2回の まとめ処理：それぞれ前回より後の結果を時刻順に計算する（1回で全部計算した時と同じ）', async () => {
+    const { runBatchJob } = await import('../worker/src/ranking');
+    const C = pid(3);
+    // 午前（4:00 の更新の後）の試合と、午後（14:00 の更新の後）の試合。順番でレートが変わる並び（A が B に勝つ → C が A に勝つ…）
+    const am = [row(1, A, B, A), row(2, C, A, C), row(3, B, C, C)];
+    const pm = [row(4, A, C, A), row(5, A, B, B), row(6, C, B, C)];
+    const db = fakeDb();
+    const lobby = fakeLobby(am);
+    await runBatchJob(db as never, lobby, 1_800_000_100_000);
+    const afterAm = new Map(db.players);
+    expect(afterAm.get(A)).toMatchObject({ wins: 1, losses: 1 });
+    for (const x of pm) (lobby.rows as unknown[]).push(x);
+    await runBatchJob(db as never, lobby, 1_800_000_200_000);
+    expect(lobby.rows).toHaveLength(0);
+    // 1回でまとめて（時刻順に）計算した時と、レート・勝敗・最高レートまで同じ
+    const one = runBatch(new Map(), [...pm, ...am], 0);
+    for (const p of one.changed) expect(db.players.get(p.id)).toEqual({ wins: p.wins, losses: p.losses, rate: p.rate, best: p.best });
+    // 順番を入れ替えて計算すると違う結果になる（順番を確かめられている）
+    const swapped = runBatch(new Map(), [...pm, ...am].map((x, i) => ({ ...x, at: -i })), 0);
+    expect(swapped.changed.map((p) => p.rate)).not.toEqual(one.changed.map((p) => p.rate));
+  });
+
+  it('同じ2人の「1日3試合」は、2回の まとめ処理をまたいでも数える（日本時間 0:00〜24:00）', async () => {
+    const { runBatchJob } = await import('../worker/src/ranking');
+    // 2026-10-04（日本時間）の 1:00・3:00（4:00 の更新で数える）と 10:00・12:00・13:00（14:00 の更新で数える）
+    const at = (h: number) => Date.UTC(2026, 9, 3, 15 + h, 0);
+    const mk = (n: number, h: number) => ({ matchId: pid(7000 + n), a: A, b: B, winner: A, at: at(h), known: true });
+    const db = fakeDb();
+    const lobby = fakeLobby([mk(1, 1), mk(2, 3)]);
+    const r1 = await runBatchJob(db as never, lobby, at(4));
+    expect(r1.counted).toBe(2);
+    expect(lobby.day.get(pairKey(20261004, A, B))).toBe(2);
+    for (const x of [mk(3, 10), mk(4, 12), mk(5, 13)]) (lobby.rows as unknown[]).push(x);
+    const r2 = await runBatchJob(db as never, lobby, at(14));
+    // 午前の2試合と合わせて3試合まで：午後は1試合だけ
+    expect(r2.counted).toBe(1);
+    expect(r2.skipped).toBe(2);
+    expect(db.players.get(A)).toMatchObject({ wins: 3, losses: 0 });
+    // 次の日（日本時間 0:00 を過ぎた試合）は また数える
+    (lobby.rows as unknown[]).push(mk(6, 24 + 1));
+    const r3 = await runBatchJob(db as never, lobby, at(24 + 4));
+    expect(r3.counted).toBe(1);
+  });
+
+  it('D1 に書いた後に止まっても、その日に数えた数は次の まとめ処理で書かれる', async () => {
+    const { runBatchJob } = await import('../worker/src/ranking');
+    const db = fakeDb();
+    const lobby = fakeLobby([row(1, A, B, A)]);
+    lobby.ackFailsOnce();
+    await expect(runBatchJob(db as never, lobby, 1_800_000_100_000)).rejects.toThrow();
+    expect(lobby.day.size).toBe(0);
+    await runBatchJob(db as never, lobby, 1_800_000_200_000);
+    expect(lobby.day.get(pairKey(jstDay(1_800_000_000_001), A, B))).toBe(1);
+  });
+
+  it('予備の待合所の試合は、1人1日10試合まで（日の区切りは日本時間 0:00）', () => {
     const C = pid(3);
     const rs = [];
     for (let i = 0; i < 12; i++) rs.push({ id: i, matchId: pid(9000 + i), a: A, b: i % 2 ? B : C, winner: A, at: Date.UTC(2026, 9, 4, 3, 0) + i, known: false });
@@ -317,8 +386,8 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     expect(runBatch(new Map(), many, 0).counted).toBe(10);
     // 受付係が組んだ試合には この制限は無い
     expect(runBatch(new Map(), many.map((r) => ({ ...r, known: true })), 0).counted).toBe(15);
-    // 日本時間 3:59 と 4:00 は別の日
-    expect(batchDay(Date.UTC(2026, 9, 4, 18, 59))).not.toBe(batchDay(Date.UTC(2026, 9, 4, 19, 0)));
-    expect(batchDay(Date.UTC(2026, 9, 4, 19, 0))).toBe(batchDay(Date.UTC(2026, 9, 5, 18, 59)));
+    // 日本時間 23:59 と 0:00 は別の日。4:00 では区切らない
+    expect(jstDay(Date.UTC(2026, 9, 4, 14, 59))).not.toBe(jstDay(Date.UTC(2026, 9, 4, 15, 0)));
+    expect(jstDay(Date.UTC(2026, 9, 4, 18, 59))).toBe(jstDay(Date.UTC(2026, 9, 4, 19, 0)));
   });
 });

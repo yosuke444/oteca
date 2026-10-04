@@ -185,7 +185,7 @@ try {
   check('禁止語の名前は ""（画面で「ななし」）', row(P[1].id)?.name === '');
   check('ふつうの名前は載る', row(P[0].id)?.name === 'あお');
   check('自分の順位と正式なレート', rk.json.me?.rank === 1 && rk.json.me?.rate === aRate && rk.json.me?.visible === true);
-  check('次の更新の時刻（日本時間 4:00）', new Date(rk.json.nextAt + 9 * 3600e3).getUTCHours() === 4 && rk.json.updatedAt > 0);
+  check('次の更新の時刻（日本時間 4:00 か 14:00）', [4, 14].includes(new Date(rk.json.nextAt + 9 * 3600e3).getUTCHours()) && new Date(rk.json.nextAt).getUTCMinutes() === 0 && rk.json.nextAt > Date.now() && rk.json.nextAt - Date.now() <= 14 * 3600e3 && rk.json.updatedAt > 0);
   const meU = await api(B, `/me?playerId=${P[0].id}&token=${P[0].token}`);
   check('/me の updatedAt は、本当に まとめ処理をした時刻（一覧と同じ）', meU.json?.updatedAt === rk.json.updatedAt && meU.json?.me?.rate === aRate);
   // 名前を載せない設定（/profile）
@@ -216,6 +216,14 @@ try {
   check('同じ2人は1日3試合まで（5試合のうち3試合）', sd.json?.lobby?.inserted === 5 && b5.json.counted === 3 && b5.json.skipped === 2, JSON.stringify(b5.json));
   const m300 = (await api(B, '/ranking')).json.top.find((r) => r.key === key(pid(300)));
   check('（3勝が数えられた）', m300?.wins === 3);
+  // 1日2回の更新をまたいでも、同じ2人は1日3試合まで（日本時間の同じ日の試合）
+  const S2 = [0, 1].map((i) => ({ a: pid(310), b: pid(311), winner: pid(310), at: now + 100 + i }));
+  await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, body: { players: [pid(310), pid(311)], results: S2 } });
+  const am = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
+  const S3 = [2, 3, 4].map((i) => ({ a: pid(311), b: pid(310), winner: pid(310), at: now + 100 + i }));
+  await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, body: { results: S3 } });
+  const pm = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
+  check('1日2回の更新をまたいでも、同じ2人は1日3試合まで（2試合 ＋ 1試合）', am.json.counted === 2 && pm.json.counted === 1 && pm.json.skipped === 2, JSON.stringify([am.json, pm.json]));
 
   // 7日以上レートが変わっていない人は表示から外す（データは残す）。次に遊べば戻る
   const later = now + 8 * 24 * 3600e3;

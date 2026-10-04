@@ -17,8 +17,10 @@ export const RATING = {
  * ランキングの決まり（v2.0-I。UPDATE_v2 §10・SPEC §11-9）。ゲームと Worker（worker/）の両方で使う
  */
 export const RANKING = {
-  /** まとめ処理の時刻（日本時間の時）。1日の区切りもこの時刻 */
-  batchHourJst: 4,
+  /** まとめ処理の時刻（日本時間の時。v2.0-J で1日2回）。「1日3試合」の1日は日本時間の 0:00〜24:00 */
+  batchHoursJst: [4, 14],
+  /** 片方だけの報告（相手の切断）を記録するまでの分 */
+  singleReportMinutes: 10,
   /** 同じ2人が1日に数えられる試合の数 */
   pairDailyLimit: 3,
   /** 予備の待合所の試合を、1人が1日に数えられる数 */

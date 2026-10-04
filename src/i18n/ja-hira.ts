@@ -363,12 +363,12 @@ export const hira = {
     leaveWarn: 'とちゅうで やめると まけに なるよ',
     busy: 'いまは こみあっているので、すこし じかんが かかるよ',
     provisional: 'かり',
-    provisionalHint: 'まいにち 4じの こうしんで、ただしい レートに なるよ',
+    provisionalHint: (hours: readonly number[]) => `まいにち ${hours.map((h) => `${h}じ`).join(' と ')} の こうしんで、ただしい レートに なるよ`,
   },
 
   ranking: {
     title: 'ランキング',
-    daily: 'まいにち 4じ こうしん',
+    daily: (hours: readonly number[]) => `まいにち ${hours.map((h) => `${h}じ`).join(' と ')} に こうしん`,
     next: (s: string) => `つぎの こうしんまで ${s}`,
     hidden: '7にちいじょう レートたいせんを していない ひとは のらないよ',
     myRank: (n: number) => `あなたは ${n}い`,
@@ -664,14 +664,14 @@ export const hira = {
     modes: {
       ranking: (n: GuideNumbers, _w: GuideWords) => ({
         title: 'ランキングの せつめい',
-        short: ['レートたいせんの ランキング', `まいにち ${n.ranking.hour}じに こうしん`],
+        short: ['レートたいせんの ランキング', `まいにち ${n.ranking.hours.map((h) => `${h}じ`).join(' と ')} に こうしん`],
         pages: [
           {
             title: 'レートの けいさん',
             lines: [
               `はじめの レートは ${n.ranking.rateStart}。つよい あいてに かつほど たくさん あがるよ`,
               `おなじ あいてとは 1にち ${n.ranking.pair}しあい まで かぞえるよ`,
-              `たいせんの すぐあとは「かり」の レート。${n.ranking.hour}じの こうしんで ただしい レートに なるよ`,
+              `たいせんの すぐあとは「かり」の レート。つぎの こうしん（${n.ranking.hours.map((h) => `${h}じ`).join('・')}）で ただしい レートに なるよ`,
             ],
           },
           {

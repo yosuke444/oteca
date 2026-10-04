@@ -4,6 +4,7 @@ import { type MatchInfo, type Report, type ResultRow, acceptReport, cleanReport,
 import type { Env } from './env';
 import { randomHex } from './util';
 import { Db, runBatchJob } from './ranking';
+import { jstDay } from './logic/batch';
 
 /**
  * 受付係（Durable Object。SQLite 保存・休止機能。UPDATE_v2 §8-4・§10、SPEC §11-9）。
@@ -42,6 +43,18 @@ type GameRow = {
 
 type Conn = { ws: WebSocket; att: Attachment };
 
+/** その日に数えた数の行を散らす数（1行を大きくしないため） */
+const DAY_COUNT_BUCKETS = 16;
+/** その日に数えた数を残す日数 */
+const DAY_COUNTS_KEEP_DAYS = 3;
+
+/** キー → 散らし先（0〜15） */
+function bucketOf(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h % DAY_COUNT_BUCKETS;
+}
+
 export class Matchmaker extends DurableObject<Env> {
   private sql: SqlStorage;
   private seq = 0;
@@ -61,6 +74,11 @@ export class Matchmaker extends DurableObject<Env> {
     this.exec(`DROP TABLE IF EXISTS results`);
     // まとめ処理の途中の印（D1 に書く直前に、処理する試合ID を1行で覚える。失敗した時に二重に数えないように）
     this.exec(`CREATE TABLE IF NOT EXISTS batch_state (id TEXT PRIMARY KEY, match_ids TEXT NOT NULL) WITHOUT ROWID`);
+    // その日に数えた数（v2.0-J。1日2回の まとめ処理をまたいで「同じ2人は1日3試合まで」を数える）。
+    // 1日16行（キーの散らし先ごとに JSON。キーは 日付:p:2人 か 日付:f:人）。書き込み行を試合の数で増やさず、1行も大きくしない
+    this.exec(`DROP TABLE IF EXISTS day_counts`);
+    this.exec(`DROP TABLE IF EXISTS day_counts2`);
+    this.exec(`CREATE TABLE IF NOT EXISTS day_counts3 (day INTEGER NOT NULL, bucket INTEGER NOT NULL, counts TEXT NOT NULL, PRIMARY KEY (day, bucket)) WITHOUT ROWID`);
     this.exec(
       `CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, a TEXT NOT NULL, b TEXT NOT NULL, known INTEGER NOT NULL, created INTEGER NOT NULL,
        rep_a TEXT, at_a INTEGER, rep_b TEXT, at_b INTEGER, winner TEXT, at INTEGER) WITHOUT ROWID`,
@@ -91,7 +109,7 @@ export class Matchmaker extends DurableObject<Env> {
         res = await this.report(req);
         break;
       case '/batch': {
-        // まとめ処理（毎日 日本時間 4:00。Worker の Cron・管理キーから）。D1 も受付係の中から書く。同時に1つだけ
+        // まとめ処理（毎日 日本時間 4:00 と 14:00。Worker の Cron・管理キーから）。D1 も受付係の中から書く。同時に1つだけ
         if (this.batching) {
           res = Response.json({ ok: false, error: 'busy' }, { status: 409 });
           break;
@@ -107,11 +125,42 @@ export class Matchmaker extends DurableObject<Env> {
               ack: (ids) => this.ack(ids),
               pending: () => {
                 const r = this.exec<{ id: string; match_ids: string }>(`SELECT id, match_ids FROM batch_state`)[0];
-                return r ? { id: r.id, matchIds: JSON.parse(r.match_ids) as string[] } : null;
+                if (!r) return null;
+                const v = JSON.parse(r.match_ids) as string[] | { matchIds: string[] };
+                return { id: r.id, matchIds: Array.isArray(v) ? v : v.matchIds };
               },
               setPending: (p) => {
                 this.exec(`DELETE FROM batch_state`);
-                if (p) this.exec(`INSERT INTO batch_state (id, match_ids) VALUES (?, ?)`, p.id, JSON.stringify(p.matchIds));
+                if (p) this.exec(`INSERT INTO batch_state (id, match_ids) VALUES (?, ?)`, p.id, JSON.stringify({ matchIds: p.matchIds }));
+              },
+              dayCounts: () => {
+                const m = new Map<string, number>();
+                for (const r of this.exec<{ counts: string }>(`SELECT counts FROM day_counts3`)) for (const [k, v] of JSON.parse(r.counts) as [string, number][]) m.set(k, v);
+                return m;
+              },
+              saveDayCounts: (changed, at) => {
+                // 日と散らし先ごとにまとめて、その行だけを書き直す
+                const groups = new Map<string, { day: number; bucket: number; list: [string, number][] }>();
+                for (const [k, v] of changed) {
+                  const day = Number(k.slice(0, k.indexOf(':')));
+                  const bucket = bucketOf(k);
+                  const g = groups.get(`${day}:${bucket}`) ?? { day, bucket, list: [] };
+                  g.list.push([k, v]);
+                  groups.set(`${day}:${bucket}`, g);
+                }
+                for (const { day, bucket, list } of groups.values()) {
+                  const row = this.exec<{ counts: string }>(`SELECT counts FROM day_counts3 WHERE day = ? AND bucket = ?`, day, bucket)[0];
+                  const m = new Map<string, number>(row ? (JSON.parse(row.counts) as [string, number][]) : []);
+                  for (const [k, v] of list) m.set(k, v);
+                  this.exec(
+                    `INSERT INTO day_counts3 (day, bucket, counts) VALUES (?, ?, ?) ON CONFLICT(day, bucket) DO UPDATE SET counts = excluded.counts`,
+                    day,
+                    bucket,
+                    JSON.stringify([...m]),
+                  );
+                }
+                // 3日より古い日は消す（まとめ処理が止まっていて、遅れて届いた試合のために、3日分は残す）
+                this.exec(`DELETE FROM day_counts3 WHERE day < ?`, jstDay(at - DAY_COUNTS_KEEP_DAYS * 24 * 60 * 60 * 1000));
               },
             }, now),
           );

@@ -1,4 +1,8 @@
+import { RANKING } from '../config/rating';
 import { RANKING_UNSENT_MAX, type SaveData } from '../save/saveData';
+
+/** 更新の時刻のこれだけ前より後の試合は、まだ数えられていないかもしれない（片方だけの報告の10分 ＋ 1分の余裕） */
+const UNCOUNTED_MARGIN_MS = (RANKING.singleReportMinutes + 1) * 60 * 1000;
 
 /**
  * ランキングと正式なレート（v2.0-I。UPDATE_v2 §10・SPEC §7 S15・S19・§11-9）。画面にも通信にも関係しない、ふつうの処理だけ。
@@ -54,14 +58,15 @@ export type ServerMe = { rate: number; wins: number; losses: number; best: numbe
  * - updatedAt（最後の まとめ処理の時刻）より前に受け取っていた時だけ上書きする（1回の更新で1回）。
  * - サーバーで1試合も数えていない人は上書きしない（端末の「かり」のまま。数えられたら上書きされる）。
  * - まだ送れていない報告があれば、上書きした後も「かり」のまま。
- * - まとめ処理の後にレート対戦をしていたら上書きしない（その試合が消えて見えないように）。
+ * - まとめ処理の少し前より後にレート対戦をしていたら上書きしない（その試合がまだ数えられていないかもしれないので。
+ *   片方だけの報告は10分たってから記録されるので、更新の時刻の10分前（＋1分の余裕）より後の試合は、次の更新まで「かり」のまま）。
  * @returns 上書きした時 true
  */
 export function applyServerRate(draft: RankingSave, me: ServerMe | null, updatedAt: number, now: number): boolean {
   if (!me || me.wins + me.losses === 0) return false;
   if (draft.ranking.syncedAt >= updatedAt) return false;
-  // まとめ処理の後にも遊んでいる：サーバーの値にはその試合が入っていないので、上書きせず「かり」のまま（次の更新で上書き）
-  if (draft.ranking.playedAt > updatedAt) return false;
+  // まとめ処理の少し前より後にも遊んでいる：サーバーの値にその試合が入っていないかもしれないので、上書きせず「かり」のまま
+  if (draft.ranking.playedAt > 0 && draft.ranking.playedAt > updatedAt - UNCOUNTED_MARGIN_MS) return false;
   draft.rate = me.rate;
   draft.rateStats = { wins: me.wins, losses: me.losses, best: me.best };
   draft.ranking.provisional = draft.ranking.unsent.length > 0;

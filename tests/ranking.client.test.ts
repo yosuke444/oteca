@@ -348,10 +348,25 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
     expect(cacheFresh(null, 'a', 0)).toBe(false);
   });
 
-  it('次の まとめ処理の時刻は、サーバーと同じ（日本時間 4:00）', () => {
-    for (const t of [Date.UTC(2026, 9, 3, 18, 59), Date.UTC(2026, 9, 3, 19, 0), Date.UTC(2026, 9, 4, 12, 0), Date.UTC(2026, 11, 31, 19, 30)]) {
-      expect(nextBatchAfter(t)).toBe(nextBatchAt(t));
-    }
+  it('次の まとめ処理の時刻は、日本時間 4:00 と 14:00 の近い方（端末とサーバーで同じ関数）', () => {
+    expect(nextBatchAfter(Date.UTC(2026, 9, 3, 18, 59))).toBe(Date.UTC(2026, 9, 3, 19, 0)); // 3:59 → 4:00
+    expect(nextBatchAfter(Date.UTC(2026, 9, 3, 19, 0))).toBe(Date.UTC(2026, 9, 4, 5, 0)); // 4:00 → 14:00
+    expect(nextBatchAfter(Date.UTC(2026, 9, 4, 4, 59))).toBe(Date.UTC(2026, 9, 4, 5, 0)); // 13:59 → 14:00
+    expect(nextBatchAfter(Date.UTC(2026, 9, 4, 5, 0))).toBe(Date.UTC(2026, 9, 4, 19, 0)); // 14:00 → 次の日の 4:00
+    expect(nextBatchAfter(Date.UTC(2026, 11, 31, 10, 0))).toBe(Date.UTC(2026, 11, 31, 19, 0)); // 年をまたぐ
+    expect(nextBatchAfter).toBeTypeOf('function');
+    expect(nextBatchAt(1)).toBe(nextBatchAfter(1));
+  });
+
+  it('更新の直前（10分＋1分以内）に終わった試合は、まだ数えられていないかもしれないので上書きしない', () => {
+    const s = base();
+    const updatedAt = Date.UTC(2026, 9, 4, 5, 0); // 14:00
+    s.rate = 140;
+    markProvisional(s, updatedAt - 5 * 60 * 1000); // 13:55 に終わった（相手が切れて片方だけの報告かもしれない）
+    expect(applyServerRate(s, me(), updatedAt, updatedAt + 1000)).toBe(false);
+    expect(s.ranking.provisional).toBe(true);
+    markProvisional(s, updatedAt - 12 * 60 * 1000); // 13:48：数えられている
+    expect(applyServerRate(s, me(), updatedAt, updatedAt + 1000)).toBe(true);
   });
 
   it('送れなかった報告を送り直す：送れたものは消し、つながらなければ残す（token の誤りは捨てる）', async () => {
@@ -405,11 +420,14 @@ describe('I05 端末のランキング（かりのレート・報告・上書き
   it('まとめ処理の後にも遊んでいたら、正式なレートで上書きしない（「かり」のまま）', () => {
     const s = base();
     s.rate = 130;
-    markProvisional(s, 2000);
-    expect(s.ranking.playedAt).toBe(2000);
-    expect(applyServerRate(s, me(), 1000, 3000)).toBe(false);
+    const MIN = 60 * 1000;
+    markProvisional(s, 100 * MIN);
+    expect(s.ranking.playedAt).toBe(100 * MIN);
+    // 更新（90分）の後に遊んだ：上書きしない
+    expect(applyServerRate(s, me(), 90 * MIN, 120 * MIN)).toBe(false);
     expect(s.rate).toBe(130);
-    expect(applyServerRate(s, me(), 2500, 3000)).toBe(true);
+    // 遊んだ20分後の更新：上書きする
+    expect(applyServerRate(s, me(), 120 * MIN, 121 * MIN)).toBe(true);
     expect(s.rate).toBe(150);
   });
 });

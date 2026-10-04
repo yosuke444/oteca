@@ -1,10 +1,11 @@
+import { RANKING } from '../../config/rating';
 import { useT } from '../../i18n/useT';
 
 /** 「かり」の印（v2.0-I。端末で計算したレート。赤ペンの小さな丸） */
 export function KariMark() {
   const tr = useT();
   return (
-    <span className="rate-kari" title={tr.rate.provisionalHint} data-testid="rate-kari">
+    <span className="rate-kari" title={tr.rate.provisionalHint(RANKING.batchHoursJst)} data-testid="rate-kari">
       {tr.rate.provisional}
     </span>
   );

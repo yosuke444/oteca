@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { RANKING } from '../../config/rating';
 import { useT } from '../../i18n/useT';
 import { safeName } from '../../online/names';
 import { applyServerRate, cacheFresh, countdown, type RankingRow } from '../../online/ranking';
@@ -18,7 +19,7 @@ type View = { kind: 'loading' } | { kind: 'ok'; data: RankingCache; stale: boole
 
 /**
  * S19 ランキング（v2.0-I。UPDATE_v2 §10・SPEC §7 S19）
- * 上位100人と自分の順位。毎日 4:00 更新。一覧は次の更新まで端末に保存しておき、サーバーに聞かない
+ * 上位100人と自分の順位。毎日 4:00 と 14:00 に更新。一覧は次の更新まで端末に保存しておき、サーバーに聞かない
  */
 export function RankingScene() {
   const { go } = useNav();
@@ -60,7 +61,7 @@ export function RankingScene() {
     };
   }, []);
 
-  // 保存した一覧の「次の更新」が過ぎていたら（つながらない時）、次の 4:00 までを数える
+  // 保存した一覧の「次の更新」が過ぎていたら（つながらない時）、次の更新（4:00 か 14:00）までを数える
   const nextAt = view.kind === 'ok' && view.data.nextAt > now ? view.data.nextAt : nextBatchAfter(now);
   // 画面を開いたまま更新の時刻を過ぎた：少し待ってから聞き直す（1回だけ）
   const refetched = useRef(0);
@@ -85,7 +86,7 @@ export function RankingScene() {
     <div className="ranking-scene" data-testid="ranking-scene">
       <h1 className="ranking-scene__title">{tr.ranking.title}</h1>
       <p className="ranking-scene__daily">
-        <span className="blue-pen">{tr.ranking.daily}</span>
+        <span className="blue-pen">{tr.ranking.daily(RANKING.batchHoursJst)}</span>
         <span className="ranking-scene__countdown num" data-testid="ranking-countdown">
           {tr.ranking.next(countdown(nextAt, now))}
         </span>

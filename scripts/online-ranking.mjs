@@ -48,7 +48,9 @@ async function player(name, query) {
   await p.page.getByTestId('online-rate').click();
   const s = await save(p);
   allIds.push(s.id);
-  return { name, query, ...p };
+  const rec = { name, query, ...p };
+  (globalThis.__pages ??= []).push(rec);
+  return rec;
 }
 
 async function surrender(p) {
@@ -63,6 +65,12 @@ const snap = async (p, n) => {
   await p.page.waitForTimeout(400);
   await shot(p.page, `iranking_${size.name}_${n}_${p.name}`);
 };
+/** 公開した Worker のランキング（名前 → 試合数とレート） */
+async function serverRanking() {
+  const rk = await (await fetch(`${API}/ranking`, { headers: { Origin: 'http://localhost:5175' } })).json();
+  return new Map(rk.top.map((r) => [r.name, { games: r.wins + r.losses, rate: r.rate }]));
+}
+
 /** 報告が送れるまで待つ（セーブの unsent が空になる） */
 async function waitSent(p, ms = 30000) {
   const end = Date.now() + ms;
@@ -117,14 +125,27 @@ try {
   for (const n of NAMES) ps.push(await player(n, ''));
   const first = await round(ps, 1, NAMES);
   for (const p of ps) if (await p.page.getByTestId('rate-fallback').isVisible().catch(() => false)) problems.push(`${p.name} が予備の待合所になった`);
+  // 1回目の まとめ処理（4:00 の分のつもり）：1回目の2試合だけがランキングに出る
+  const b0 = await admin('/admin/run-batch');
+  console.log('まとめ処理 1回目:', JSON.stringify(b0));
+  if (!b0.ok || b0.counted !== 2) problems.push(`1回目の まとめ処理（2試合）：${JSON.stringify(b0)}`);
+  const rk0 = await serverRanking();
+  for (const n of NAMES) if (rk0.get(n)?.games !== 1) problems.push(`1回目の更新の後、${n} の試合数：${JSON.stringify(rk0.get(n))}`);
   const second = await round(ps, 2, NAMES);
   for (const p of ps) if (second[p.name] === first[p.name]) problems.push(`${p.name} が直前の相手と また組まれた：${JSON.stringify({ first, second })}`);
   const local = {};
   for (const p of ps) local[p.name] = await save(p);
 
-  const b1 = await admin('/admin/run-batch');
-  if (!b1.ok || b1.counted < 4) problems.push(`まとめ処理（受付係の4試合）：${JSON.stringify(b1)}`);
-  console.log('まとめ処理 1:', JSON.stringify(b1));
+  // 2回目の まとめ処理（14:00 の分のつもり）：前回より後の2試合を足す。
+  // 更新の11分前より後に終わった試合は端末が上書きしないので、まとめ処理の時刻を12分後にして動かす
+  const b1 = await admin('/admin/run-batch', { now: Date.now() + 12 * 60 * 1000 });
+  if (!b1.ok || b1.counted !== 2) problems.push(`2回目の まとめ処理（2試合）：${JSON.stringify(b1)}`);
+  console.log('まとめ処理 2回目:', JSON.stringify(b1));
+  const rk1 = await serverRanking();
+  for (const p of ps) {
+    const x = rk1.get(p.name);
+    if (x?.games !== 2 || x.rate !== local[p.name].rate) problems.push(`2回目の更新の後、${p.name}：${JSON.stringify(x)}（端末は ${local[p.name].rate}）`);
+  }
   // 開き直す → 正式なレートで上書き（「かり」が消える）
   for (const p of ps) {
     await p.page.goto(`http://localhost:5175/?debug=1&net=dev`);
@@ -164,7 +185,7 @@ try {
   await Promise.all(qs.map((q) => q.page.getByTestId('rate-change').waitFor({ timeout: 60000 })));
   for (const q of qs) await waitSent(q);
   const b2 = await admin('/admin/run-batch');
-  console.log('まとめ処理 2:', JSON.stringify(b2));
+  console.log('まとめ処理 3回目:', JSON.stringify(b2));
   if (!b2.ok || b2.counted !== 1) problems.push(`まとめ処理（予備の1試合）：${JSON.stringify(b2)}`);
   const rk = await (await fetch(`${API}/ranking`, { headers: { Origin: 'http://localhost:5175' } })).json();
   const rkNames = rk.top.map((r) => r.name);
@@ -176,7 +197,9 @@ try {
   problems.push(String(e?.stack ?? e));
 } finally {
   // ---------------- 5：後片づけ
-  const ids = allIds.filter((x) => /^[0-9a-f]{16}$/.test(x));
+  // 途中で作り直された ID もふくめて、今のセーブの ID も足す
+  for (const p of [...(globalThis.__pages ?? [])]) allIds.push(await save(p).then((x) => x.id).catch(() => ''));
+  const ids = [...new Set(allIds)].filter((x) => /^[0-9a-f]{16}$/.test(x));
   if (ids.length) console.log('テストのプレイヤーを消す:', JSON.stringify(await admin('/admin/delete-players', { playerIds: ids })));
   // 報告待ちの試合が残っていると、次の まとめ処理でテストの人がまた出てくるので、受付係の試合も消す
   if (ids.length) console.log('テストの人の試合を消す:', JSON.stringify(await admin('/admin/clear-games', { playerIds: ids })));

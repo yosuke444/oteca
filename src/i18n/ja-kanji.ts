@@ -362,12 +362,12 @@ export const kanji: Dict = {
     leaveWarn: '途中でやめると負けになるよ',
     busy: '今は混み合っているので、少し時間がかかるよ',
     provisional: '仮',
-    provisionalHint: '毎日4時の更新で、正しいレートになるよ',
+    provisionalHint: (hours) => `毎日${hours.map((h) => `${h}時`).join('と')}の更新で、正しいレートになるよ`,
   },
 
   ranking: {
     title: 'ランキング',
-    daily: '毎日4時更新',
+    daily: (hours) => `毎日${hours.map((h) => `${h}時`).join('と')}に更新`,
     next: (s) => `次の更新まで ${s}`,
     hidden: '7日以上レート対戦をしていない人は載らないよ',
     myRank: (n) => `あなたは ${n}位`,
@@ -655,14 +655,14 @@ export const kanji: Dict = {
     modes: {
       ranking: (n, _w) => ({
         title: 'ランキングの説明',
-        short: ['レート対戦のランキング', `毎日${n.ranking.hour}時に更新`],
+        short: ['レート対戦のランキング', `毎日${n.ranking.hours.map((h) => `${h}時`).join('と')}に更新`],
         pages: [
           {
             title: 'レートの計算',
             lines: [
               `初めのレートは ${n.ranking.rateStart}。強い相手に勝つほどたくさん上がるよ`,
               `同じ相手とは1日${n.ranking.pair}試合まで数えるよ`,
-              `対戦のすぐ後は「仮」のレート。${n.ranking.hour}時の更新で正しいレートになるよ`,
+              `対戦のすぐ後は「仮」のレート。次の更新（${n.ranking.hours.map((h) => `${h}時`).join('・')}）で正しいレートになるよ`,
             ],
           },
           {

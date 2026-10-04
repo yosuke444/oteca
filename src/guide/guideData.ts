@@ -67,7 +67,7 @@ export function guideNumbers() {
       slots: DECK_SLOTS,
     },
     trade: { kinds: TRADE_MAX_KINDS, cards: TRADE_MAX_CARDS },
-    ranking: { rateStart: RATING.initial, hour: RANKING.batchHourJst, pair: RANKING.pairDailyLimit, hideDays: RANKING.hideAfterDays, top: RANKING.top },
+    ranking: { rateStart: RATING.initial, hours: RANKING.batchHoursJst, pair: RANKING.pairDailyLimit, hideDays: RANKING.hideAfterDays, top: RANKING.top },
     daily: {
       resetHour: DAILY.resetHour,
       pick: DAILY.pick,

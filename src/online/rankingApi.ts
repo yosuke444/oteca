@@ -1,4 +1,5 @@
 import { apiBase } from '../config/api';
+import { nextBatchAt } from './batchTime';
 import { sha256, toHex } from '../net/sha256';
 import type { SaveData } from '../save/saveData';
 import { type RankingData, type ServerMe, type UnsentReport, applyServerRate, decodeUnsent, removeReport } from './ranking';
@@ -159,9 +160,8 @@ export async function syncRanking(getSave: () => SaveData, update: Update): Prom
   await flushReports(getSave, update);
   const save = getSave();
   if (!save.ranking.token) return;
-  // もう今の更新の正式なレートを受け取った後（次の 4:00 がまだ来ていない）なら聞かない。
-  // 受け取っていない人（まだ数えられていない・まとめ処理を手で動かした）は、開くたびに聞く（1回 D1 の2行）
-  if (save.ranking.syncedAt && Date.now() < nextBatchAfter(save.ranking.syncedAt)) return;
+  // 開くたびに聞く（1回 D1 の数行）。同じ更新で2回上書きしないのは applyServerRate が受け取った時刻で決める
+  // （次の更新の時刻まで聞かない、にすると、まとめ処理を手で動かした時に受け取れなくなる）
   const got = await fetchMe(save);
   if (!got?.me) return;
   const me = got.me;
@@ -170,13 +170,9 @@ export async function syncRanking(getSave: () => SaveData, update: Update): Prom
   if (me.optIn !== cur.ranking.optIn || me.name !== profileName(cur)) void sendProfile(cur);
 }
 
-/** その時刻の次の まとめ処理（日本時間 4:00）の時刻 */
+/** その時刻の次の まとめ処理（日本時間 4:00 か 14:00 の近い方）の時刻 */
 export function nextBatchAfter(ms: number): number {
-  const JST = 9 * 60 * 60 * 1000;
-  const d = new Date(ms + JST);
-  let t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 4) - JST;
-  if (t <= ms) t += 24 * 60 * 60 * 1000;
-  return t;
+  return nextBatchAt(ms);
 }
 
 /** ランキングの一覧を保存しておく所（端末ごと。セーブには入れない） */
