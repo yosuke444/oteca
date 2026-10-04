@@ -82,16 +82,16 @@
 .rate-scene__panel {
   position: absolute;
   left: 240px;
-  top: 110px;
+  top: 96px;
   width: 800px;
-  height: 560px;
+  height: 600px;
 }
 .rate-scene__panel > .rough-box__content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 26px 40px;
+  gap: 14px;
+  padding: 22px 40px 18px;
 }
 .rate-scene__rate {
   margin: 0;
@@ -115,7 +115,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+/* 予備の待合所の時（v2.0-I）：「いまは こみあっているので…」 */
+.rate-scene__busy {
+  margin: 0;
+  font-size: 22px;
 }
 .rate-scene__search-text,
 .rate-scene__count {
@@ -146,6 +151,9 @@
   .online-scene__coins-left,
   .rate-scene__note {
     font-size: 26px;
+  }
+  .rate-scene__busy {
+    font-size: 28px;
   }
 }
 .rate-vs__warn {

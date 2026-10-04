@@ -360,6 +360,30 @@ export const kanji: Dict = {
     voided: 'この試合は無効だよ（レートもコインも変わらないよ）',
     found: '相手が見つかった！',
     leaveWarn: '途中でやめると負けになるよ',
+    busy: '今は混み合っているので、少し時間がかかるよ',
+    provisional: '仮',
+    provisionalHint: '毎日4時の更新で、正しいレートになるよ',
+  },
+
+  ranking: {
+    title: 'ランキング',
+    daily: '毎日4時更新',
+    next: (s) => `次の更新まで ${s}`,
+    hidden: '7日以上レート対戦をしていない人は載らないよ',
+    myRank: (n) => `あなたは ${n}位`,
+    notYet: 'まだ載っていないよ。レート対戦をすると次の更新で載るよ',
+    offline: '今ランキングを見られないよ',
+    lastSeen: (time) => `最後に見た時間：${time}`,
+    loading: '読み込み中…',
+    empty: 'まだ誰も載っていないよ',
+    colRank: '順位',
+    colName: '名前',
+    colRate: 'レート',
+    colRecord: '勝敗',
+    rank: (n) => `${n}位`,
+    record: (w, l) => `${w}勝 ${l}敗`,
+    time: (m, d, h, min) => `${m}月${d}日 ${h}:${String(min).padStart(2, '0')}`,
+    medal: (n) => `${n}位のメダル`,
   },
 
   lobby: {
@@ -629,6 +653,28 @@ export const kanji: Dict = {
     next: '次へ',
     page: (n, t) => `${n} / ${t}`,
     modes: {
+      ranking: (n, _w) => ({
+        title: 'ランキングの説明',
+        short: ['レート対戦のランキング', `毎日${n.ranking.hour}時に更新`],
+        pages: [
+          {
+            title: 'レートの計算',
+            lines: [
+              `初めのレートは ${n.ranking.rateStart}。強い相手に勝つほどたくさん上がるよ`,
+              `同じ相手とは1日${n.ranking.pair}試合まで数えるよ`,
+              `対戦のすぐ後は「仮」のレート。${n.ranking.hour}時の更新で正しいレートになるよ`,
+            ],
+          },
+          {
+            title: 'ランキングに載る',
+            lines: [
+              `上から${n.ranking.top}人が載るよ`,
+              `${n.ranking.hideDays}日以上レート対戦をしないと載らないよ（また遊べば戻るよ）`,
+              '「設定」で名前を載せないようにできるよ。載せないと「ななし」になるよ',
+            ],
+          },
+        ],
+      }),
       online: (n, _w) => ({
         title: 'オンライン対戦の説明',
         short: ['レート対戦：知らない人と対戦', 'フレンド対戦：部屋番号で友達と'],
@@ -714,6 +760,8 @@ export const kanji: Dict = {
     nameNote: (n) => `${n}文字まで。相手に見えます`,
     nameWarn: '本当の名前は入れないでね',
     nameNoteWarn: (n) => `${n}文字まで。相手に見えます。本当の名前は入れないでね`,
+    rankingName: 'ランキングに名前を載せる',
+    rankingNameNote: '載せないと「ななし」になるよ。次の更新から変わるよ',
     bgm: 'BGM',
     se: '効果音',
     fxSpeed: '演出スピード',

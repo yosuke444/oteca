@@ -29,6 +29,9 @@ import type { StoryPayload } from '../Story/StoryScene';
 import '../Story/story.css';
 import { DeckPickerDialog } from '../../ui/deck/DeckPicker';
 import { type RateChange, applyRateResult, rateOutcome } from '../../online/rate';
+import { markProvisional, queueReport, reportWinner } from '../../online/ranking';
+import { features } from '../../config/features';
+import { KariMark } from '../../ui/common/RateValue';
 import { type DailyMatchKind, addDailyProgress, dailyMatchKind, matchProgress } from '../../daily/daily';
 import { addDailyNotice } from '../../daily/noticeStore';
 import type { SaveData } from '../../save/saveData';
@@ -224,6 +227,11 @@ export function ResultScene() {
       if (applyRateResult(d, rated.oppRate, outcome, rated.oppId)) {
         applyMatchReward(d, info, today);
         daily?.(d);
+        if (features.ranking) {
+          // ランキング（v2.0-I）：端末で計算したレートは「かり」。結果をサーバーへ送る（送れるまで セーブに残す）
+          if (outcome !== 'void') markProvisional(d);
+          if (rated.matchId) queueReport(d, { matchId: rated.matchId, winner: reportWinner(outcome, d.playerId, rated.oppId) });
+        }
       }
     });
     setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
@@ -467,6 +475,7 @@ export function ResultScene() {
                 {rateChange.after >= rateChange.before ? '+' : ''}
                 {rateChange.after - rateChange.before}
               </span>
+              {features.ranking && <KariMark />}
             </>
           )}
         </p>

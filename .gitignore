@@ -8,3 +8,9 @@ assets-original/
 .claude/
 tests-slow/results/
 *.tsbuildinfo
+# Worker（worker/）の手元のもの：管理キー（秘密）・wrangler の作業フォルダ・ローカル用の変数
+worker/.admin-key.txt
+worker/.wrangler/
+worker/.dev.vars
+worker/node_modules/
+worker/worker-configuration.d.ts

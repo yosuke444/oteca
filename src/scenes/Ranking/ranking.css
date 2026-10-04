@@ -1,0 +1,200 @@
+/* S19 ランキング（v2.0-I）。舞台は 1280×720 */
+.ranking-scene {
+  position: absolute;
+  inset: 0;
+}
+.ranking-scene__title {
+  position: absolute;
+  left: 48px;
+  top: 14px;
+  margin: 0;
+  font-size: 40px;
+  font-weight: normal;
+  background: linear-gradient(transparent 60%, var(--marker-yellow) 60%);
+}
+.ranking-scene__daily {
+  position: absolute;
+  left: 290px;
+  top: 26px;
+  margin: 0;
+  display: flex;
+  gap: 24px;
+  align-items: baseline;
+  font-size: 22px;
+}
+.ranking-scene__countdown {
+  font-size: 30px;
+}
+.ranking-scene__back {
+  position: absolute;
+  right: 36px;
+  top: 14px;
+  width: 150px;
+  height: 60px;
+  font-size: 24px;
+}
+.ranking-scene__list {
+  position: absolute;
+  left: 40px;
+  top: 96px;
+  width: 800px;
+  height: 560px;
+}
+.ranking-scene__me {
+  position: absolute;
+  left: 870px;
+  top: 96px;
+  width: 370px;
+  height: 330px;
+}
+.ranking-scene__note {
+  position: absolute;
+  left: 870px;
+  top: 600px;
+  width: 370px;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+/* 一覧 */
+.ranking-table {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px 14px;
+  box-sizing: border-box;
+}
+.ranking-table__head,
+.ranking-table__row {
+  display: grid;
+  grid-template-columns: 130px 1fr 110px 170px;
+  align-items: center;
+  column-gap: 8px;
+}
+.ranking-table__head {
+  padding: 0 10px 6px;
+  font-size: 18px;
+  border-bottom: 2px solid var(--grid-major);
+}
+.ranking-table__body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ranking-table__row {
+  height: 46px;
+  padding: 0 10px;
+  font-size: 22px;
+  border-bottom: 1px dashed var(--grid-minor);
+}
+.ranking-table__row.is-mine {
+  background: var(--marker-yellow);
+}
+.ranking-table__rank {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 26px;
+}
+.ranking-table__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ranking-table__rate {
+  font-size: 28px;
+  color: var(--pen-blue);
+}
+.ranking-table__record {
+  font-size: 18px;
+}
+.ranking-table__msg {
+  margin: 40px 0;
+  text-align: center;
+  font-size: 24px;
+  white-space: pre-line;
+}
+
+/* メダルの落書き */
+.ranking-medal {
+  width: 30px;
+  height: 34px;
+  flex: none;
+}
+.ranking-medal path {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ranking-medal__ribbon {
+  stroke: var(--pen-red);
+}
+.ranking-medal__star {
+  stroke: var(--ink);
+  stroke-width: 1.4;
+}
+.ranking-medal--gold .ranking-medal__disc {
+  stroke: var(--ink);
+  fill: var(--medal-gold);
+}
+.ranking-medal--silver .ranking-medal__disc {
+  stroke: var(--ink);
+  fill: var(--medal-silver);
+}
+.ranking-medal--bronze .ranking-medal__disc {
+  stroke: var(--ink);
+  fill: var(--medal-bronze);
+}
+.ranking-medal .ranking-medal__disc {
+  fill-opacity: 0.85;
+}
+
+/* 自分 */
+.ranking-me {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 22px;
+  box-sizing: border-box;
+  height: 100%;
+}
+.ranking-me p {
+  margin: 0;
+}
+.ranking-me__name {
+  font-size: 26px;
+}
+.ranking-me__rank {
+  font-size: 40px;
+}
+.ranking-me__not-yet {
+  font-size: 20px;
+  line-height: 1.5;
+}
+.ranking-me__rate {
+  font-size: 30px;
+}
+.ranking-me__stale {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+/* 小さい画面（844×390 など。舞台ごと小さくなるので、細かい字を大きめに） */
+@media (max-height: 500px) {
+  .ranking-table__head {
+    font-size: 22px;
+  }
+  .ranking-table__record {
+    font-size: 22px;
+  }
+  .ranking-scene__daily {
+    font-size: 26px;
+  }
+  .ranking-scene__note,
+  .ranking-me__not-yet,
+  .ranking-me__stale {
+    font-size: 24px;
+  }
+}

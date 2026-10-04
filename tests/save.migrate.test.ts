@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
 import { STARTER_COINS, classicDeckNos, starterCollection } from '../src/data/starterDeck';
 import { validateDeck } from '../src/engine';
-import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, encodeBody, encodeSave } from '../src/save/binary';
+import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, type SaveDataV6, encodeBody, encodeSave } from '../src/save/binary';
 import { checkSavedDeck } from '../src/save/collection';
 import { openSave, sealBytes } from '../src/save/cookieStore';
-import { OLD_STAGE_NAMES, dayStartMs, decodeSave, migrate, newStageNo, upgradeToV6 } from '../src/save/migrate';
+import { OLD_STAGE_NAMES, dayStartMs, decodeSave, migrate, newStageNo, upgradeToV6, upgradeToV7 } from '../src/save/migrate';
 import { STORY, stageByNo } from '../src/story/story';
 import { DECK_SLOTS, type SaveData, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from '../src/save/saveData';
 import { decodeTransferCode, encodeTransferBytes } from '../src/save/transferCode';
@@ -101,7 +101,8 @@ describe('形式の移行（固定の見本）', () => {
     lastRateOpponentId: '',
     pendingRateMatch: null,
     trade: { doneIds: [] },
-    ranking: { token: '', optIn: false, unsent: [] },
+    // 形式版数7 への移行で、名前を載せる設定はオン。レートは初期値なので「かり」ではない
+    ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0 },
     tutorial: { done: false, gachaInviteShown: false, step: 0 },
     daily: emptyDaily(),
   });
@@ -150,7 +151,7 @@ describe('形式の移行（固定の見本）', () => {
     tutorial: { done: true, gachaInviteShown: true },
   };
   /** 形式版数4 を形式版数5 にした時：ログボは受け取った日の0時、tutorial.step 0、daily は空 */
-  const V4_AS_V5: SaveData = {
+  const V4_AS_V5: SaveDataV6 = {
     ...V4_EXPECTED,
     loginBonus: { claimedAt: new Date(2026, 9, 2).getTime() },
     tutorial: { done: true, gachaInviteShown: true, step: 0 },
@@ -160,7 +161,7 @@ describe('形式の移行（固定の見本）', () => {
    * 形式版数5 → 6（v2.1-N）：ステージ番号を敵の名前で付け替える。
    * 見本のステージ 1（らくがき こぞう）・4（おしゃべり ペン）・9（あかペン せんせい）→ 1・4・10
    */
-  const renumbered = (d: SaveData): SaveData => ({
+  const renumbered = (d: SaveDataV6): SaveDataV6 => ({
     ...d,
     story: {
       stages: [
@@ -170,9 +171,13 @@ describe('形式の移行（固定の見本）', () => {
       ],
     },
   });
-  const V4_AS_LATEST = renumbered(V4_AS_V5);
+  /**
+   * 形式版数6 → 7（v2.0-I）：見本のレートは 135（初期値でない）ので「かり」。名前を載せる設定はオン、受け取った時刻は 0
+   */
+  const toV7 = (d: SaveDataV6): SaveData => ({ ...d, ranking: { ...d.ranking, optIn: true, provisional: d.rate !== 100, syncedAt: 0, playedAt: 0 } });
+  const V4_AS_LATEST = toV7(renumbered(V4_AS_V5));
   /** 形式版数5（v2.1-L）：すべての項目に初期値でない値を入れた見本 */
-  const V5_EXPECTED: SaveData = {
+  const V5_EXPECTED: SaveDataV6 = {
     ...V4_AS_V5,
     loginBonus: { claimedAt: 1791012345678 },
     tutorial: { done: false, gachaInviteShown: true, step: 16 },
@@ -186,9 +191,20 @@ describe('形式の移行（固定の見本）', () => {
       allClearClaimed: true,
     },
   };
-  const V5_AS_LATEST = renumbered(V5_EXPECTED);
-  /** 形式版数6（v2.1-N。今の形式）：並びは5と同じ。ステージは新しい番号 */
-  const V6_EXPECTED: SaveData = V5_AS_LATEST;
+  /** 形式版数6（v2.1-N）：並びは5と同じ。ステージは新しい番号 */
+  const V6_EXPECTED: SaveDataV6 = renumbered(V5_EXPECTED);
+  const V5_AS_LATEST = toV7(V6_EXPECTED);
+  const V6_AS_LATEST = toV7(V6_EXPECTED);
+  /** 形式版数7（v2.0-I。今の形式）：ランキングの項目にも初期値でない値を入れた見本 */
+  const V7_EXPECTED: SaveData = {
+    ...V6_AS_LATEST,
+    ranking: { token: 'tok-xyz', optIn: false, unsent: ['r1', '報告'], provisional: true, syncedAt: 1791012345678, playedAt: 1791099999999 },
+  };
+  const V7_FIXTURE_HEX =
+    '0701d20909e382aae38386e382aba009012b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a0000014201' +
+    '0c000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ce' +
+    'ae9e85903489d1d4091403010304010a00870109029601ffeeddccbbaa99880111112222333344446202aaaaaaaaaaaaaaaa000000000000000107746f6b2d7879' +
+    '7a0202723106e5a0b1e5918a108bd1d4090306010100ac020004000001ceae9e859034ffad84af9034';
   const V6_FIXTURE_HEX =
     '0601d20909e382aae38386e382aba009011b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a00000142010c' +
     '000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ceae9e' +
@@ -259,16 +275,32 @@ describe('形式の移行（固定の見本）', () => {
     expect(migrate(5, V5_EXPECTED)).toEqual(V5_AS_LATEST);
   });
 
-  it('V05 今の形式（形式版数6）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    expect(toHex(encodeSave(V6_EXPECTED))).toBe(V6_FIXTURE_HEX);
+  it('V05 形式版数6（v2.1-N）→ 最新：レートが初期値でなければ「かり」、名前を載せる設定はオン', () => {
+    expect(toHex(encodeBody(V6_EXPECTED, 6))).toBe(V6_FIXTURE_HEX);
     // 並びは形式版数5と同じ（先頭の版数とステージの番号だけ違う）
     expect(V6_FIXTURE_HEX.slice(2).length).toBe(V5_FIXTURE_HEX.slice(2).length);
-    expect(decodeSave(hexToBytes(V6_FIXTURE_HEX))).toEqual(V6_EXPECTED);
-    expect(migrate(6, V6_EXPECTED)).toEqual(V6_EXPECTED);
+    expect(decodeSave(hexToBytes(V6_FIXTURE_HEX))).toEqual(V6_AS_LATEST);
+    expect(migrate(6, V6_EXPECTED)).toEqual(V6_AS_LATEST);
+    expect(V6_AS_LATEST.ranking).toEqual({ token: 'tok-xyz', optIn: true, unsent: ['r1', '報告'], provisional: true, syncedAt: 0, playedAt: 0 });
+    // レートが初期値（100）なら「かり」にしない
+    expect(upgradeToV7({ ...V6_EXPECTED, rate: 100 }).ranking.provisional).toBe(false);
+  });
+
+  it('V05 今の形式（形式版数7）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
+    expect(toHex(encodeSave(V7_EXPECTED))).toBe(V7_FIXTURE_HEX);
+    // 並びは形式版数6と同じ ＋ 末尾に syncedAt・playedAt（先頭の版数と印の1バイトだけ違う）
+    const v6 = toHex(encodeBody({ ...V7_EXPECTED, ranking: { token: 'tok-xyz', optIn: false, unsent: ['r1', '報告'] } }, 6));
+    expect(V7_FIXTURE_HEX.startsWith('07' + v6.slice(2, 34) + '2b' + v6.slice(36))).toBe(true);
+    expect(decodeSave(hexToBytes(V7_FIXTURE_HEX))).toEqual(V7_EXPECTED);
+    expect(migrate(7, V7_EXPECTED)).toEqual(V7_EXPECTED);
+    // 形式版数6 までは、印の 32 は読めない
+    const bad = hexToBytes(V6_FIXTURE_HEX);
+    bad[17] |= 32;
+    expect(() => decodeSave(bad)).toThrow('印');
   });
 
   it('V05 読めない形式版数・余分なバイト・壊れた値はエラーになる', () => {
-    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX, V6_FIXTURE_HEX]) {
+    for (const hex of [V1_FIXTURE_HEX, V2_FIXTURE_HEX, V3_FIXTURE_HEX, V4_FIXTURE_HEX, V5_FIXTURE_HEX, V6_FIXTURE_HEX, V7_FIXTURE_HEX]) {
       const bytes = hexToBytes(hex);
       const future = bytes.slice();
       future[0] = 99;
@@ -296,9 +328,9 @@ describe('形式の移行（固定の見本）', () => {
     const step = [...base.slice(0, n - 17), 0x80, 0x02, ...base.slice(n - 16)];
     expect(() => decodeSave(new Uint8Array(step))).toThrow('範囲外');
     // 書く時も同じ範囲で止める
-    expect(() => encodeSave({ ...V5_EXPECTED, tutorial: { ...V5_EXPECTED.tutorial, step: 256 } })).toThrow('tutorial.step');
+    expect(() => encodeSave(toV7({ ...V5_EXPECTED, tutorial: { ...V5_EXPECTED.tutorial, step: 256 } }))).toThrow('tutorial.step');
     const m = V5_EXPECTED.daily.missions[0];
-    expect(() => encodeSave({ ...V5_EXPECTED, daily: { ...V5_EXPECTED.daily, missions: [m, m] } })).toThrow('2つ');
+    expect(() => encodeSave(toV7({ ...V5_EXPECTED, daily: { ...V5_EXPECTED.daily, missions: [m, m] } }))).toThrow('2つ');
   });
 
   it('V06 形式版数4（v2.0）の Cookie の中身と引き継ぎコードが、v2.1 でも読める', async () => {

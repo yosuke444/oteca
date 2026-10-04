@@ -5,6 +5,8 @@ import { LocalTransport, devRelayBus } from './localTransport';
 import { type Connection, type GameStart, type InviteState, OnlineSession, type RoomMember, type SessionStatus } from './session';
 import { rateRoomName, roomName } from './protocol';
 import { RateLobby } from './rateLobby';
+import { RateSearch, type SocketLike } from './matchmaker';
+import { lobbyUrl } from '../config/api';
 import { TradeSession, type TradeOptions } from './tradeSession';
 import type { NetTransport } from './transport';
 import { TrysteroTransport } from './trysteroTransport';
@@ -200,9 +202,19 @@ export function createTradeSession(opts: Omit<TradeOptions, 'protocol' | 'appVer
   return new TradeSession(createTransport(), { ...opts, protocol: protocolVersion, appVersion });
 }
 
-/** レート対戦の待合所（v2.0-G）。画面が閉じる時に leave する */
-export function createRateLobby(opts: { playerId: string; name: string; rate: number; lastOpponentId: string }): RateLobby {
-  return new RateLobby(createTransport(), { ...opts, protocol: protocolVersion });
+/**
+ * レート対戦の「さがす」（v2.0-I）：受付係（WebSocket）につなぎ、つながらなければ予備の P2P の待合所（8つの小部屋）。
+ * 画面が閉じる時に leave する
+ */
+export function createRateSearch(opts: { playerId: string; name: string; rate: number; lastOpponentId: string; token: string }): RateSearch {
+  // 受付係は token で本人を確かめる（token が無ければ予備の待合所）
+  const base = opts.token ? lobbyUrl() : null;
+  const url = base ? `${base}?playerId=${opts.playerId}&token=${opts.token}` : null;
+  const full = { ...opts, protocol: protocolVersion };
+  return new RateSearch(full, {
+    openSocket: url ? () => new WebSocket(url) as unknown as SocketLike : null,
+    createLobby: () => new RateLobby(createTransport(), full),
+  });
 }
 
 /**

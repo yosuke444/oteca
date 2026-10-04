@@ -48,8 +48,11 @@ export type BattleSetup = {
   rules?: Partial<Record<Side, Partial<RuleSet>>>;
   /** ストーリーの対戦（ステージ番号。報酬はリザルトで） */
   story?: { stage: number };
-  /** レート対戦（v2.0-G）：相手のレートとプレイヤーID（結果はリザルトでレートに書く） */
-  rated?: { oppRate: number; oppId: string };
+  /**
+   * レート対戦（v2.0-G）：相手のレートとプレイヤーID（結果はリザルトでレートに書く）。
+   * matchId：結果の報告に使う試合ID（v2.0-I。受付係の試合ID、予備の待合所では部屋ID）
+   */
+  rated?: { oppRate: number; oppId: string; matchId?: string };
 };
 
 /** 乱数の種を作る（ローカル対戦用。オンラインはコミット・リビールで作る） */

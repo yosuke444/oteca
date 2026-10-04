@@ -58,7 +58,7 @@ export function randomSave(seed: number): SaveData {
     lastRateOpponentId: id(),
     pendingRateMatch: r.next() < 0.5 ? null : { opponentId: id() || 'abcdefabcdefabcd', opponentRate: bigOrSmall() },
     trade: { doneIds: Array.from({ length: r.int(0, 20) }, () => id() || '00000000000000ff') },
-    ranking: { token: text(0, 40), optIn: r.next() < 0.5, unsent: Array.from({ length: r.int(0, 3) }, () => text(1, 30)) },
+    ranking: { token: text(0, 40), optIn: r.next() < 0.5, unsent: Array.from({ length: r.int(0, 3) }, () => text(1, 30)), provisional: r.next() < 0.5, syncedAt: r.int(0, 2 ** 42), playedAt: r.int(0, 2 ** 42) },
     updateNoticeSeen: r.next() < 0.5,
     tutorial: { done: r.next() < 0.5, gachaInviteShown: r.next() < 0.5, step: r.pick([0, 16, r.int(0, 255)]) },
     daily: {

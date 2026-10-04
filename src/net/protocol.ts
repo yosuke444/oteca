@@ -13,9 +13,15 @@ export function roomName(roomNumber: string): string {
   return `oteca-room-${roomNumber}`;
 }
 
-/** レート対戦の待合所（v2.0-G。版数を入れて、古いページの人と混ざらないように） */
-export function rateLobbyName(protocol: number): string {
-  return `oteca-rate-p${protocol}`;
+/** 予備の待合所の小部屋の数（v2.0-I。受付係につながらない時） */
+export const RATE_SUBROOMS = 8;
+
+/**
+ * レート対戦の予備の待合所（v2.0-G。版数を入れて、古いページの人と混ざらないように）。
+ * v2.0-I から8つの小部屋 oteca-rate-p<版数>-0〜7 に分ける
+ */
+export function rateLobbyName(protocol: number, room: number): string {
+  return `oteca-rate-p${protocol}-${room}`;
 }
 
 /** レート対戦で組んだ2人だけの部屋 */

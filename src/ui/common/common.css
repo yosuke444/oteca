@@ -287,3 +287,18 @@
   background: var(--fx-shadow);
   filter: blur(8px);
 }
+
+/* 「かり」の印（v2.0-I。端末で計算したレート）：赤ペンの小さな丸 */
+.rate-kari {
+  display: inline-block;
+  margin-left: 0.4em;
+  padding: 0 0.35em;
+  border: 1.5px solid var(--pen-red);
+  border-radius: 999px;
+  color: var(--pen-red);
+  font-family: var(--font-hand);
+  font-size: 0.7em;
+  line-height: 1.4;
+  vertical-align: middle;
+  transform: rotate(-4deg);
+}

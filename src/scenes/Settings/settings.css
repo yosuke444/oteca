@@ -190,3 +190,25 @@
   font-size: 22px;
   white-space: nowrap;
 }
+
+/* ランキングに なまえを のせる（v2.0-I） */
+.settings-ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settings-ranking__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.settings-ranking__label {
+  font-size: 20px;
+}
+.settings-ranking .settings-choice__btn {
+  min-width: 72px;
+  width: 72px;
+  height: 46px;
+  font-size: 18px;
+}

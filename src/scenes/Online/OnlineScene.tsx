@@ -1,3 +1,5 @@
+import { features } from '../../config/features';
+import { RateValue } from '../../ui/common/RateValue';
 import { ECONOMY, rewardedToday, todayKey } from '../../economy/rewards';
 import { useT } from '../../i18n/useT';
 import { useNav } from '../../router';
@@ -43,7 +45,9 @@ export function OnlineScene() {
 
       <RoughBox seed="online-info" className="online-scene__info" paper radius={10}>
         <p className="online-scene__rate">
-          <span className="num">{tr.online.myRate(save.rate)}</span>
+          <span className="num">
+            <RateValue value={save.rate} provisional={features.ranking && save.ranking.provisional} format={tr.online.myRate} />
+          </span>
         </p>
         <p className="online-scene__rec pencil">{tr.online.record(save.rateStats.wins, save.rateStats.losses, save.rateStats.best)}</p>
         <p className="online-scene__coins-left blue-pen">{tr.online.coinsLeft(left)}</p>

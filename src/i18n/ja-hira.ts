@@ -361,6 +361,30 @@ export const hira = {
     voided: 'この しあいは むこう だよ（レートも コインも かわらないよ）',
     found: 'あいてが みつかった！',
     leaveWarn: 'とちゅうで やめると まけに なるよ',
+    busy: 'いまは こみあっているので、すこし じかんが かかるよ',
+    provisional: 'かり',
+    provisionalHint: 'まいにち 4じの こうしんで、ただしい レートに なるよ',
+  },
+
+  ranking: {
+    title: 'ランキング',
+    daily: 'まいにち 4じ こうしん',
+    next: (s: string) => `つぎの こうしんまで ${s}`,
+    hidden: '7にちいじょう レートたいせんを していない ひとは のらないよ',
+    myRank: (n: number) => `あなたは ${n}い`,
+    notYet: 'まだ のっていないよ。レートたいせんを すると つぎの こうしんで のるよ',
+    offline: 'いま ランキングを みられないよ',
+    lastSeen: (time: string) => `さいごに みた じかん：${time}`,
+    loading: 'よみこみちゅう…',
+    empty: 'まだ だれも のっていないよ',
+    colRank: 'じゅんい',
+    colName: 'なまえ',
+    colRate: 'レート',
+    colRecord: 'かち・まけ',
+    rank: (n: number) => `${n}い`,
+    record: (w: number, l: number) => `${w}かち ${l}まけ`,
+    time: (m: number, d: number, h: number, min: number) => `${m}がつ${d}にち ${h}:${String(min).padStart(2, '0')}`,
+    medal: (n: number) => `${n}いの メダル`,
   },
 
   lobby: {
@@ -638,6 +662,28 @@ export const hira = {
      * n：数（src/guide/guideData.ts でデータから）。w：ほかの辞書の言葉（CPU の強さの名前・ミッションの文）
      */
     modes: {
+      ranking: (n: GuideNumbers, _w: GuideWords) => ({
+        title: 'ランキングの せつめい',
+        short: ['レートたいせんの ランキング', `まいにち ${n.ranking.hour}じに こうしん`],
+        pages: [
+          {
+            title: 'レートの けいさん',
+            lines: [
+              `はじめの レートは ${n.ranking.rateStart}。つよい あいてに かつほど たくさん あがるよ`,
+              `おなじ あいてとは 1にち ${n.ranking.pair}しあい まで かぞえるよ`,
+              `たいせんの すぐあとは「かり」の レート。${n.ranking.hour}じの こうしんで ただしい レートに なるよ`,
+            ],
+          },
+          {
+            title: 'ランキングに のる',
+            lines: [
+              `うえから ${n.ranking.top}にんが のるよ`,
+              `${n.ranking.hideDays}にちいじょう レートたいせんを しないと のらないよ（また あそべば もどるよ）`,
+              '「せってい」で なまえを のせないように できるよ。のせないと「ななし」に なるよ',
+            ],
+          },
+        ],
+      }),
       online: (n: GuideNumbers, _w: GuideWords) => ({
         title: 'オンラインたいせんの せつめい',
         short: ['レートたいせん：しらない ひとと たいせん', 'フレンドたいせん：へやばんごうで ともだちと'],
@@ -766,6 +812,8 @@ export const hira = {
     nameNote: (n: number) => `${n}もじ まで。あいてに みえるよ`,
     nameWarn: 'ほんとうの なまえは いれないでね',
     nameNoteWarn: (n: number) => `${n}もじ まで。あいてに みえるよ。ほんとうの なまえは いれないでね`,
+    rankingName: 'ランキングに なまえを のせる',
+    rankingNameNote: 'のせないと「ななし」に なるよ。つぎの こうしんから かわるよ',
     bgm: 'BGM',
     se: 'こうかおん',
     fxSpeed: 'えんしゅつ スピード',

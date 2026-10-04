@@ -82,8 +82,12 @@ export type SaveData = {
   pendingRateMatch: { opponentId: string; opponentRate: number } | null;
   /** 処理済みの交換ID（16桁の16進数）の直近20件 */
   trade: { doneIds: string[] };
-  /** ランキングの合言葉・参加するか・未送信の報告（中身は UPDATE_v2 I で決める） */
-  ranking: { token: string; optIn: boolean; unsent: string[] };
+  /**
+   * ランキング（v2.0-I。SPEC §11-9）：token＝サーバーの合言葉（'' ＝まだ登録していない）、optIn＝名前を載せる（初期値オン）、
+   * unsent＝送れなかった結果の報告（「試合ID:勝った人の playerId か void」）、provisional＝レートが「かり」、
+   * syncedAt＝正式なレートを最後に受け取った時刻（ミリ秒。0＝まだ）、playedAt＝最後にレート対戦の結果が出た時刻（0＝まだ）
+   */
+  ranking: Ranking;
   /** アップデートの おしらせ を見たか（古いセーブから移行した人だけ false） */
   updateNoticeSeen: boolean;
   /** step：途中まで進んだ時の再開位置（0＝はじめから。v2.1-P） */
@@ -91,6 +95,9 @@ export type SaveData = {
   /** デイリーミッション（v2.1-M） */
   daily: DailyState;
 };
+
+/** ランキングの項目（v2.0-I。形式版数7） */
+export type Ranking = { token: string; optIn: boolean; unsent: string[]; provisional: boolean; syncedAt: number; playedAt: number };
 
 export const SAVE_VERSION = 1;
 export const DECK_SLOTS = 20;
@@ -202,8 +209,11 @@ export function normalizeSave(data: SaveData): SaveData {
     trade: { doneIds: (data.trade?.doneIds ?? []).map(normalizeId).filter((id) => id !== '').slice(-TRADE_IDS_MAX) },
     ranking: {
       token: clampText(data.ranking?.token ?? '', RANKING_TEXT_MAX),
-      optIn: !!data.ranking?.optIn,
+      optIn: data.ranking?.optIn ?? true,
       unsent: (data.ranking?.unsent ?? []).map((u) => clampText(u, RANKING_TEXT_MAX)).slice(-RANKING_UNSENT_MAX),
+      provisional: !!data.ranking?.provisional,
+      syncedAt: clampInt(data.ranking?.syncedAt),
+      playedAt: clampInt(data.ranking?.playedAt),
     },
     tutorial: { done: !!data.tutorial?.done, gachaInviteShown: !!data.tutorial?.gachaInviteShown, step: clampInt(data.tutorial?.step, TUTORIAL_STEP_MAX) },
     daily: normalizeDaily(data.daily),
@@ -241,7 +251,8 @@ export function laterFieldsDefault(): Pick<
     lastRateOpponentId: '',
     pendingRateMatch: null,
     trade: { doneIds: [] },
-    ranking: { token: '', optIn: false, unsent: [] },
+    // 名前を載せる設定は初期値オン（v2.0-I）
+    ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0 },
     tutorial: { done: false, gachaInviteShown: false, step: 0 },
     daily: emptyDaily(),
   };

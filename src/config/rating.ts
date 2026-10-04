@@ -12,3 +12,19 @@ export const RATING = {
   /** これより下にはしない */
   min: 0,
 } as const;
+
+/**
+ * ランキングの決まり（v2.0-I。UPDATE_v2 §10・SPEC §11-9）。ゲームと Worker（worker/）の両方で使う
+ */
+export const RANKING = {
+  /** まとめ処理の時刻（日本時間の時）。1日の区切りもこの時刻 */
+  batchHourJst: 4,
+  /** 同じ2人が1日に数えられる試合の数 */
+  pairDailyLimit: 3,
+  /** 予備の待合所の試合を、1人が1日に数えられる数 */
+  fallbackDailyLimit: 10,
+  /** これだけの日数レートが変わっていない人は、表示から外す */
+  hideAfterDays: 7,
+  /** 一覧に載せる人数 */
+  top: 100,
+} as const;

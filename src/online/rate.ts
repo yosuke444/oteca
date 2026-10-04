@@ -1,21 +1,12 @@
-import { RATING } from '../config/rating';
-import { NG_WORDS } from '../config/ngwords';
+import { nextRate } from './rateMath';
 import type { SaveData } from '../save/saveData';
 
 /**
  * レート対戦の決まり（UPDATE_v2 §8-4・SPEC §7 S15）。画面にも通信にも関係しない、ふつうの処理だけ。
  */
 
-/** 期待勝率 */
-export function expectedScore(mine: number, theirs: number): number {
-  return 1 / (1 + Math.pow(10, (theirs - mine) / RATING.scale));
-}
-
-/** 新しいレート（小数は四捨五入、0 未満にしない） */
-export function nextRate(mine: number, theirs: number, win: boolean): number {
-  const v = mine + RATING.k * ((win ? 1 : 0) - expectedScore(mine, theirs));
-  return Math.max(RATING.min, Math.round(v));
-}
+export { expectedScore, nextRate } from './rateMath';
+export { safeName } from './names';
 
 /** レート対戦の結果：勝ち・負け・無効（ずれ・食い違い） */
 export type RateOutcome = 'win' | 'lose' | 'void';
@@ -57,21 +48,6 @@ export function resolvePendingRate(draft: RateSave): RateChange | null {
   const p = draft.pendingRateMatch;
   if (!p) return null;
   return applyRateResult(draft, p.opponentRate, 'lose', p.opponentId);
-}
-
-/** ひらがな・小文字・空白なしにそろえる（禁止語を比べるため） */
-function fold(s: string): string {
-  return s
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
-    .replace(/[\s・ー\-_.]/g, '');
-}
-
-/** ほかの人の名前を画面に出す時：禁止語がふくまれていたら「ななし」（言語ごとの文字は画面が渡す） */
-export function safeName(name: string, nameless: string): string {
-  const f = fold(name);
-  return NG_WORDS.some((w) => f.includes(fold(w))) ? nameless : name;
 }
 
 /** 起動した時に とちゅうのレート対戦を負けにしたか（メニューで1回だけ知らせる） */

@@ -16,6 +16,10 @@
   --marker-yellow: rgba(255, 226, 80, 0.55);
   --marker-pink: rgba(255, 120, 170, 0.4);
   --super-gold: #e0a800;
+  /* ランキングのメダル（v2.0-I） */
+  --medal-gold: #e0a800;
+  --medal-silver: #9aa3b2;
+  --medal-bronze: #b8743a;
 
   /* ふせんの色（§6-6 アイテムカード・じゅんびちゅう） */
   --note-yellow: #fff3a8;

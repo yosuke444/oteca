@@ -1,0 +1,15 @@
+{
+  "name": "oteca-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "db:local": "wrangler d1 migrations apply oteca-ranking --local",
+    "db:remote": "wrangler d1 migrations apply oteca-ranking --remote"
+  },
+  "devDependencies": {
+    "wrangler": "4.147.0"
+  }
+}

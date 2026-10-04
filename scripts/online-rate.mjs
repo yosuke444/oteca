@@ -22,7 +22,8 @@ async function save(p) {
 }
 
 async function player(name) {
-  const p = await openPage(browser, size, '?debug=1&net=dev');
+  // サーバー（受付係・ランキング）を使わない：予備の待合所の小部屋で組む（公開した Worker にテストの人を作らないように。受付係は scripts/online-ranking.mjs で確かめる）
+  const p = await openPage(browser, size, '?debug=1&net=dev&api=off');
   await p.page.evaluate(
     async ({ name, lang }) => {
       const cs = await import('/src/save/cookieStore.ts');
@@ -75,8 +76,11 @@ for (const p of ps) {
 }
 await snap(ps[3], '02_searching');
 const first = {};
-await Promise.all(ps.map((p) => p.page.getByTestId('vs').waitFor({ timeout: 60000 })));
-for (const p of ps) first[p.name] = await vsOpp(p);
+// 予備の待合所では組める時刻がばらばらなので、VS が出たらすぐ相手を読む（2秒で対戦へ進むため）
+await Promise.all(ps.map(async (p) => {
+  await p.page.getByTestId('vs').waitFor({ timeout: 180000 });
+  first[p.name] = await vsOpp(p);
+}));
 await snap(ps[0], '03_vs');
 for (const p of ps) if (first[first[p.name]] !== p.name) problems.push(`1回目の組み合わせが合わない：${JSON.stringify(first)}`);
 await Promise.all(ps.map((p) => p.page.locator('.battle-board').waitFor({ timeout: 60000 })));
@@ -100,9 +104,11 @@ for (const p of ps) {
   await p.page.getByTestId('rate-next').click();
   await p.page.waitForTimeout(300);
 }
-await Promise.all(ps.map((p) => p.page.getByTestId('vs').waitFor({ timeout: 60000 })));
 const second = {};
-for (const p of ps) second[p.name] = await vsOpp(p);
+await Promise.all(ps.map(async (p) => {
+  await p.page.getByTestId('vs').waitFor({ timeout: 180000 });
+  second[p.name] = await vsOpp(p);
+}));
 await snap(ps[1], '05_vs2');
 for (const p of ps) if (second[p.name] === first[p.name]) problems.push(`${p.name} が直前の相手と また組まれた：${JSON.stringify(second)}`);
 await Promise.all(ps.map((p) => p.page.locator('.battle-board').waitFor({ timeout: 60000 })));

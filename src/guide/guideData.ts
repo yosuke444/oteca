@@ -7,7 +7,7 @@ import { DRAW, superRate } from '../gacha/gacha';
 import { DECK_SLOTS } from '../save/saveData';
 import { STORY } from '../story/story';
 import { TRADE_MAX_CARDS, TRADE_MAX_KINDS } from '../trade/trade';
-import { RATING } from '../config/rating';
+import { RANKING, RATING } from '../config/rating';
 import { ROOM_MAX } from '../net/session';
 
 /**
@@ -16,8 +16,8 @@ import { ROOM_MAX } from '../net/session';
  * 数値を変えても、説明の文が自動でそろう。
  */
 
-/** 説明を付けるモード（ランキングは I で作る） */
-export const GUIDE_MODES = ['online', 'cpu', 'story', 'gacha', 'deck', 'trade', 'daily'] as const;
+/** 説明を付けるモード */
+export const GUIDE_MODES = ['online', 'cpu', 'story', 'gacha', 'deck', 'trade', 'daily', 'ranking'] as const;
 export type GuideMode = (typeof GUIDE_MODES)[number];
 
 /** % の文字（小数1けたまで） */
@@ -67,6 +67,7 @@ export function guideNumbers() {
       slots: DECK_SLOTS,
     },
     trade: { kinds: TRADE_MAX_KINDS, cards: TRADE_MAX_CARDS },
+    ranking: { rateStart: RATING.initial, hour: RANKING.batchHourJst, pair: RANKING.pairDailyLimit, hideDays: RANKING.hideAfterDays, top: RANKING.top },
     daily: {
       resetHour: DAILY.resetHour,
       pick: DAILY.pick,

@@ -6,13 +6,15 @@ import {
   type SaveDataV2,
   type SaveDataV3,
   type SaveDataV4,
+  type SaveDataV6,
   readSaveV1,
   readSaveV2,
   readSaveV3,
   readSaveV4,
   readSaveV5,
+  readSaveV7,
 } from './binary';
-import { COINS_MAX, DECK_SLOTS, OWN_MAX, type SaveData, type StoryStage, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from './saveData';
+import { COINS_MAX, DECK_SLOTS, OWN_MAX, RATE_START, type SaveData, type StoryStage, defaultDeckName, emptyCpuStats, emptyDaily, laterFieldsDefault } from './saveData';
 
 /**
  * 形式版数を見て、古い形式なら最新の SaveData へ変換する（SPEC §12-3）
@@ -33,6 +35,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   5: readSaveV5,
   // 形式版数6 は 5 と同じ並び
   6: readSaveV5,
+  7: readSaveV7,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -49,8 +52,20 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   /** 4 → 5（v2.1-L）：ログボの日付を、その日の0時の時刻に（SPEC §12-3c）。tutorial.step と daily を足す */
   4: (old) => upgradeToV5(old as SaveDataV4),
   /** 5 → 6（v2.1-N）：ストーリーのステージ番号を、新しいマップの番号へ（敵の名前を手がかりに。SPEC §12-3d） */
-  5: (old) => upgradeToV6(old as SaveData),
+  5: (old) => upgradeToV6(old as SaveDataV6),
+  /** 6 → 7（v2.0-I）：ランキングの「かり」と、正式なレートを受け取った時刻を足す（SPEC §12-3e） */
+  6: (old) => upgradeToV7(old as SaveDataV6),
 };
+
+/**
+ * 形式版数6 → 7（UPDATE_v2 §10）：
+ * - provisional：レートが初期値と違えば立てる（サーバーにまだ無い、端末で計算したレートなので「かり」）
+ * - syncedAt・playedAt：0（まだ受け取っていない・まだ数えていない）
+ * - optIn：今まで使っていなかった値なので、初期値のオンにする
+ */
+export function upgradeToV7(d: SaveDataV6): SaveData {
+  return { ...d, ranking: { ...d.ranking, optIn: true, provisional: d.rate !== RATE_START, syncedAt: 0, playedAt: 0 } };
+}
 
 /**
  * v2.0（形式版数5まで）のステージ番号と敵の名前（UPDATE_v2 §7-3。変えない。移行のための記録。
@@ -90,7 +105,7 @@ export function newStageNo(oldNo: number): number | undefined {
  * 移した結果、前のステージが未クリアなのにクリア済みのステージができても、クリア済みのまま（行けるかは関係ない）。
  * 知らない番号は消す
  */
-export function upgradeToV6(d: SaveData): SaveData {
+export function upgradeToV6(d: SaveDataV6): SaveDataV6 {
   const stages = new Map<number, StoryStage>();
   for (const s of d.story.stages) {
     const no = newStageNo(s.no);
@@ -116,7 +131,7 @@ export function dayStartMs(key: number): number {
 }
 
 /** 形式版数4 → 5（UPDATE_v2_1 §2-2・§7） */
-export function upgradeToV5(d: SaveDataV4): SaveData {
+export function upgradeToV5(d: SaveDataV4): SaveDataV6 {
   const { loginBonus, tutorial, ...rest } = d;
   return {
     ...rest,
@@ -169,8 +184,9 @@ export function upgradeToV4(d: SaveDataV3): SaveDataV4 {
 
 /** 形式版数4の時の「後の項目」の初期値（3 → 4 の変換用） */
 function laterFieldsV4(): Pick<SaveDataV4, 'playerId' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial'> {
-  const { daily: _daily, loginBonus: _lb, tutorial: _t, ...rest } = laterFieldsDefault();
-  return { ...rest, loginBonus: { lastDate: 0 }, tutorial: { done: false, gachaInviteShown: false } };
+  const { daily: _daily, loginBonus: _lb, tutorial: _t, ranking: _r, ...rest } = laterFieldsDefault();
+  // 形式版数4 の時の初期値（名前を載せる設定はオフ。形式版数7 への移行でオンにする）
+  return { ...rest, ranking: { token: '', optIn: false, unsent: [] }, loginBonus: { lastDate: 0 }, tutorial: { done: false, gachaInviteShown: false } };
 }
 
 /** バイト列 → 最新の SaveData。読めなければエラー */

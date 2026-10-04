@@ -31,12 +31,19 @@ import {
  * 形式版数（バイト列の先頭1バイト）。
  * 1＝v1.3 まで／2＝v1.4（末尾に cpuStats）／3＝v2.0-A（末尾に lang）／4＝v2.0-B（デッキ20個・所持カードなど。並びを作り直した）／
  * 5＝v2.1-L（ログボは受け取った時刻 claimedAt、末尾に tutorial.step と daily）／
- * 6＝v2.1-N（並びは5と同じ。ストーリーのステージ番号を新しいマップの番号に付け替えた印）
+ * 6＝v2.1-N（並びは5と同じ。ストーリーのステージ番号を新しいマップの番号に付け替えた印）／
+ * 7＝v2.0-I（印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt）
  */
-export const FORMAT_VERSION = 6;
+export const FORMAT_VERSION = 7;
+
+/** 形式版数6までのランキングの項目（token・optIn・unsent だけ） */
+export type RankingV6 = { token: string; optIn: boolean; unsent: string[] };
+
+/** 形式版数5・6の形（v2.1-L〜N。ランキングの「かり」と受け取った時刻が無い） */
+export type SaveDataV6 = Omit<SaveData, 'ranking'> & { ranking: RankingV6 };
 
 /** 形式版数4の形（v2.0-B。ログボは日付、tutorial.step・daily が無い） */
-export type SaveDataV4 = Omit<SaveData, 'loginBonus' | 'tutorial' | 'daily'> & {
+export type SaveDataV4 = Omit<SaveDataV6, 'loginBonus' | 'tutorial' | 'daily'> & {
   loginBonus: { lastDate: number };
   tutorial: { done: boolean; gachaInviteShown: boolean };
 };
@@ -166,18 +173,19 @@ export class ByteReader {
 }
 
 /** 印のビット（形式版数4） */
-const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16 } as const;
+const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16, rankingProvisional: 32 } as const;
 
-/** 最新の形式（形式版数6）でバイト列にする */
+/** 最新の形式（形式版数7）でバイト列にする */
 export function encodeSave(data: SaveData): Uint8Array {
-  return encodeBody(data, FORMAT_VERSION as 6);
+  return encodeBody(data, FORMAT_VERSION as 7);
 }
 
 /**
- * 形式版数4〜6の並び（SPEC §12-3）。version 4・5 はテストで「古い形式の固定のバイト列」を作るためだけに使う。
- * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く。6 は 5 と同じ並び（ステージ番号の付け替えの印）
+ * 形式版数4〜7の並び（SPEC §12-3）。version 4〜6 はテストで「古い形式の固定のバイト列」を作るためだけに使う。
+ * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く。6 は 5 と同じ並び（ステージ番号の付け替えの印）。
+ * 7 は 6 と同じ並びで、印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt が付く
  */
-export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5 | 6): Uint8Array {
+export function encodeBody(data: SaveData | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7): Uint8Array {
   const w = new ByteWriter();
   w.byte(version);
   w.uint(data.saveVersion);
@@ -192,7 +200,8 @@ export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5 | 6): Uin
       (data.updateNoticeSeen ? FLAG.updateNoticeSeen : 0) |
       (data.tutorial.done ? FLAG.tutorialDone : 0) |
       (data.tutorial.gachaInviteShown ? FLAG.gachaInviteShown : 0) |
-      (data.ranking.optIn ? FLAG.rankingOptIn : 0),
+      (data.ranking.optIn ? FLAG.rankingOptIn : 0) |
+      (version >= 7 && (data as SaveData).ranking.provisional ? FLAG.rankingProvisional : 0),
   );
   w.id(data.playerId);
   w.uint(data.selectedDeck);
@@ -215,7 +224,7 @@ export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5 | 6): Uin
     w.uint(data.cpuStats[i]?.wins ?? 0);
     w.uint(data.cpuStats[i]?.losses ?? 0);
   }
-  w.uint(version >= 5 ? (data as SaveData).loginBonus.claimedAt : (data as SaveDataV4).loginBonus.lastDate);
+  w.uint(version >= 5 ? (data as SaveDataV6).loginBonus.claimedAt : (data as SaveDataV4).loginBonus.lastDate);
   w.uint(data.dailyReward.date);
   w.uint(data.dailyReward.count);
   w.uint(data.story.stages.length);
@@ -241,7 +250,7 @@ export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5 | 6): Uin
   w.uint(data.ranking.unsent.length);
   for (const u of data.ranking.unsent) w.text(u);
   if (version >= 5) {
-    const d = data as SaveData;
+    const d = data as SaveDataV6;
     // 読む時と同じ範囲（超えていたら、読めないセーブを書かないようにエラー）
     if (d.tutorial.step > TUTORIAL_STEP_MAX) throw new Error(`tutorial.step が範囲外です: ${d.tutorial.step}`);
     if (d.daily.missions.length > DAILY_MISSIONS_MAX) throw new Error('デイリーミッションが多すぎます');
@@ -258,12 +267,28 @@ export function encodeBody(data: SaveData | SaveDataV4, version: 4 | 5 | 6): Uin
     }
     w.byte(d.daily.allClearClaimed ? 1 : 0);
   }
+  if (version >= 7) {
+    w.uint((data as SaveData).ranking.syncedAt);
+    w.uint((data as SaveData).ranking.playedAt);
+  }
   return w.toBytes();
 }
 
-/** 形式版数5の本体を読む（先頭の形式版数1バイトは読み終わっている前提） */
-export function readSaveV5(r: ByteReader): SaveData {
-  const v4 = readSaveV4(r);
+/** 形式版数7の本体を読む（形式版数6 の並び ＋ 印の ranking.provisional ＋ 末尾の ranking.syncedAt・playedAt） */
+export function readSaveV7(r: ByteReader): SaveData {
+  const { data, flags } = readV5Body(r, 63);
+  const syncedAt = r.uint();
+  const playedAt = r.uint();
+  return { ...data, ranking: { ...data.ranking, provisional: (flags & FLAG.rankingProvisional) !== 0, syncedAt, playedAt } };
+}
+
+/** 形式版数5（と6）の本体を読む（先頭の形式版数1バイトは読み終わっている前提） */
+export function readSaveV5(r: ByteReader): SaveDataV6 {
+  return readV5Body(r, 31).data;
+}
+
+function readV5Body(r: ByteReader, flagMax: number): { data: SaveDataV6; flags: number } {
+  const { data: v4, flags } = readV4Body(r, flagMax);
   const step = r.uintMax(TUTORIAL_STEP_MAX);
   const cycleKey = r.uint();
   const seen = new Set<number>();
@@ -279,17 +304,23 @@ export function readSaveV5(r: ByteReader): SaveData {
   const allClear = r.byte();
   if (allClear > 1) throw new Error('デイリーミッションの印が不正です');
   const { loginBonus, tutorial, ...rest } = v4;
-  return {
+  const data: SaveDataV6 = {
     ...rest,
     // 形式版数5では、この場所に受け取った時刻が入っている
     loginBonus: { claimedAt: loginBonus.lastDate },
     tutorial: { ...tutorial, step },
     daily: { cycleKey, missions, allClearClaimed: allClear === 1 },
   };
+  return { data, flags };
 }
 
-/** 形式版数4の本体を読む（先頭の形式版数1バイトは読み終わっている前提。形式版数5もここまでは同じ並び） */
+/** 形式版数4の本体を読む（先頭の形式版数1バイトは読み終わっている前提。形式版数5〜7もここまでは同じ並び） */
 export function readSaveV4(r: ByteReader): SaveDataV4 {
+  return readV4Body(r, 31).data;
+}
+
+/** @param flagMax 印の1バイトの上限（形式版数7 で ranking.provisional（32）が増えた） */
+function readV4Body(r: ByteReader, flagMax: number): { data: SaveDataV4; flags: number } {
   const saveVersion = r.uint();
   if (saveVersion !== SAVE_VERSION) throw new Error(`saveVersion ${saveVersion} は読めません`);
   const saveCounter = r.uint();
@@ -298,7 +329,7 @@ export function readSaveV4(r: ByteReader): SaveDataV4 {
   const lang = r.byte();
   if (lang > 1) throw new Error('ことば の値が不正です');
   const flags = r.byte();
-  if (flags > 31) throw new Error('印の値が不正です');
+  if (flags > flagMax) throw new Error('印の値が不正です');
   const playerId = r.id();
   const selectedDeck = r.uintMax(DECK_SLOTS - 1);
   const decks = readDecks(r, DECK_SLOTS);
@@ -328,7 +359,7 @@ export function readSaveV4(r: ByteReader): SaveDataV4 {
   const doneIds = Array.from({ length: r.uintMax(TRADE_IDS_MAX) }, () => r.id());
   const token = r.text(RANKING_TEXT_MAX);
   const unsent = Array.from({ length: r.uintMax(RANKING_UNSENT_MAX) }, () => r.text(RANKING_TEXT_MAX));
-  return {
+  const data: SaveDataV4 = {
     saveVersion: SAVE_VERSION,
     saveCounter,
     playerName,
@@ -353,6 +384,7 @@ export function readSaveV4(r: ByteReader): SaveDataV4 {
     updateNoticeSeen: (flags & FLAG.updateNoticeSeen) !== 0,
     tutorial: { done: (flags & FLAG.tutorialDone) !== 0, gachaInviteShown: (flags & FLAG.gachaInviteShown) !== 0 },
   };
+  return { data, flags };
 }
 
 /** 音量・演出の2バイト（形式版数1〜4で共通） */

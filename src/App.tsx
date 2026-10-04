@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { audio } from './audio/audioManager';
 import type { BgmKey, LoopBgmKey } from './audio/soundMap';
 import type { BattleSetup } from './battle/setup';
@@ -35,7 +35,9 @@ import { OnlineScene } from './scenes/Online/OnlineScene';
 import { RateScene } from './scenes/Online/RateScene';
 import { StoryScene } from './scenes/Story/StoryScene';
 import { TradeScene } from './scenes/Trade/TradeScene';
-import { ComingSoonScene } from './scenes/Placeholder/PlaceholderScene';
+import { RankingScene } from './scenes/Ranking/RankingScene';
+import { features } from './config/features';
+import { flushReports, syncRanking } from './online/rankingApi';
 
 /**
  * ルーター：行き先 → 画面 の対応表（SPEC §3、§13-5）
@@ -61,9 +63,8 @@ const ROUTES: Record<RouteId, ComponentType> = {
   name: NameScene,
   lang: LangScene,
   online: OnlineScene,
-  // 🔒 ランキングは今回作らない（メニューでは「じゅんびちゅう」）
   trade: TradeScene,
-  ranking: ComingSoonScene,
+  ranking: RankingScene,
   rate: RateScene,
 };
 
@@ -134,6 +135,21 @@ export function App() {
     setPendingNotice(resolvePendingRate(structuredClone(save)));
     update((d) => void resolvePendingRate(d));
   }, []);
+
+  // ランキング（v2.0-I。SPEC §7 S15）：起動した時に、送れなかった結果の報告を送り直し、
+  // 次の更新（毎日 4:00）の後なら正式なレートで上書きする。名前・載せる設定がサーバーと違えば知らせる
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => {
+    if (!features.ranking) return;
+    // playerId は起動した時に作るので、少し待ってから
+    const id = window.setTimeout(() => void syncRanking(() => saveRef.current, update), 1500);
+    return () => window.clearTimeout(id);
+  }, []);
+  // 送れなかった報告が増えた（レート対戦が終わった）：すぐ送る。送れなければ次に開いた時・次の試合の後
+  useEffect(() => {
+    if (features.ranking && save.ranking.unsent.length) void flushReports(() => saveRef.current, update);
+  }, [save.ranking.unsent.length]);
 
   // 画面に触ったら、いつでも音を有効にし直す（スマホで裏に回して戻った時など）
   useEffect(() => {

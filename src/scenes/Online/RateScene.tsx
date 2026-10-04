@@ -3,9 +3,14 @@ import { audio } from '../../audio/audioManager';
 import { badOnlineStart, onlineSetup } from '../../battle/setup';
 import { t } from '../../i18n';
 import { useT } from '../../i18n/useT';
-import { type OnlineLink, createRateLobby, currentOnline, endOnline, startOnline } from '../../net/online';
-import type { RateLobby, RatePaired } from '../../net/rateLobby';
+import { features } from '../../config/features';
+import type { RateSearch } from '../../net/matchmaker';
+import { type OnlineLink, createRateSearch, currentOnline, endOnline, startOnline } from '../../net/online';
+import type { RatePaired } from '../../net/rateLobby';
 import { safeName, startRateMatch } from '../../online/rate';
+import { ensureIdentity, syncRanking } from '../../online/rankingApi';
+import { queueReport } from '../../online/ranking';
+import { RateValue } from '../../ui/common/RateValue';
 import { isDebugMode, useNav } from '../../router';
 import { usableDecks } from '../../save/collection';
 import { useSave } from '../../state/SaveContext';
@@ -26,7 +31,7 @@ const START_TIMEOUT_MS = 20000;
 
 /**
  * S15 レートたいせん（v2.0-G。UPDATE_v2 §8-4・SPEC §7 S15）
- * デッキ → 「さがす」（待合所）→ 相手が決まったら2人だけの部屋へ移って VS → 対戦。
+ * デッキ → 「さがす」（受付係。つながらなければ予備の待合所）→ 相手が決まったら2人だけの部屋へ移って VS → 対戦。
  */
 export function RateScene() {
   const { go, payload } = useNav();
@@ -36,7 +41,11 @@ export function RateScene() {
   const [count, setCount] = useState(1);
   const [dots, setDots] = useState(0);
   const [picking, setPicking] = useState(false);
-  const lobbyRef = useRef<RateLobby | null>(null);
+  /** 予備の待合所で さがしている（「いまは こみあっているので…」） */
+  const [fallback, setFallback] = useState(false);
+  const lobbyRef = useRef<RateSearch | null>(null);
+  /** 決まった相手（試合ID を報告に使う） */
+  const pairedRef = useRef<RatePaired | null>(null);
   const linkRef = useRef<OnlineLink | null>(null);
   const toBattle = useRef(false);
   const vsDone = useRef(false);
@@ -69,17 +78,54 @@ export function RateScene() {
     update((d) => startRateMatch(d, g.oppPlayerId, oppRate));
     toBattle.current = true;
     offLink();
-    go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId }));
+    // 試合ID は、組んだ相手と同じ人と始まった時だけ使う（違う人なら報告しない）
+    const p = pairedRef.current;
+    const matchId = p && p.opponentId === g.oppPlayerId ? p.matchId : undefined;
+    go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId, ...(matchId ? { matchId } : {}) }));
   };
 
+  /**
+   * 組んだのに対戦が始まらなかった（部屋につながらない・相手が来ない）：その試合は「無効」と報告しておく
+   * （来なかった相手が1人で「勝ち」を報告しても、食い違いで記録されないように）
+   */
+  const abandonPair = () => {
+    const p = pairedRef.current;
+    pairedRef.current = null;
+    if (!p || toBattle.current || !features.ranking) return;
+    update((d) => queueReport(d, { matchId: p.matchId, winner: 'void' }));
+  };
+  const abandonRef = useRef(abandonPair);
+  abandonRef.current = abandonPair;
+  /** 「さがす」を押している（token をもらう間に「やめる」を押したら、さがさない） */
+  const wantSearch = useRef(false);
+
   const search = () => {
-    if (!deckOk || lobbyRef.current) return;
+    if (!deckOk || lobbyRef.current || wantSearch.current) return;
     endOnline();
-    const lobby = createRateLobby({ playerId: save.playerId, name: save.playerName, rate: save.rate, lastOpponentId: save.lastRateOpponentId });
-    lobbyRef.current = lobby;
-    lobby.onWaiting = setCount;
-    lobby.onPaired = (p) => {
+    setFallback(false);
+    setPhase({ kind: 'searching' });
+    wantSearch.current = true;
+    // 初めてのレート対戦：受付係に並ぶ・結果を報告するための token をもらう（もらえなければ予備の待合所で遊べる）
+    const start = (id: { token: string; playerId: string } | null) => {
+      if (!wantSearch.current || lobbyRef.current) return;
+      wantSearch.current = false;
+      const cur = saveRef.current;
+      const playerId = id?.playerId ?? cur.playerId;
+      const lobby = createRateSearch({ playerId, name: cur.playerName, rate: cur.rate, lastOpponentId: cur.lastRateOpponentId, token: id?.token ?? '' });
+      lobbyRef.current = lobby;
+      lobby.onWaiting = setCount;
+      lobby.onFallback = () => setFallback(true);
+      lobby.onReplaced = () => stopRef.current();
+      lobby.onPaired = onPaired;
+      lobby.join();
+    };
+    if (features.ranking) void ensureIdentity(saveRef.current, update).then(start);
+    else start(null);
+  };
+  const onPaired = (p: RatePaired) => {
+    {
       stopLobby();
+      pairedRef.current = p;
       audio.play('se_match_found');
       vsDone.current = false;
       // 2人だけの部屋へ移る（2人の部屋と同じ流れで、自動で始まる）
@@ -94,6 +140,7 @@ export function RateScene() {
         link.on('status', (s) => {
           if (toBattle.current || mounted.current === 0) return;
           if (s.kind === 'version' || s.kind === 'error' || s.kind === 'aborted' || s.kind === 'full') {
+            abandonRef.current();
             offLink();
             endOnline();
             linkRef.current = null;
@@ -103,21 +150,28 @@ export function RateScene() {
         }),
       ];
       setPhase({ kind: 'vs', opp: p });
-    };
-    lobby.join();
-    setPhase({ kind: 'searching' });
+    }
   };
   const tryGoRef = useRef(tryGo);
   tryGoRef.current = tryGo;
   const searchRef = useRef(search);
   searchRef.current = search;
+  const stopRef = useRef<() => void>(() => {});
 
   const stop = () => {
+    wantSearch.current = false;
     stopLobby();
+    setFallback(false);
     endOnline();
     linkRef.current = null;
     setPhase({ kind: 'idle' });
   };
+  stopRef.current = stop;
+
+  // 次の更新の後なら、正式なレートで上書きしておく（送れなかった報告も送る）
+  useEffect(() => {
+    if (features.ranking) void syncRanking(() => saveRef.current, update);
+  }, []);
 
   // つぎの しあいへ：すぐ さがす（StrictMode で2回呼ばれても、待合所には1回だけ入る）
   useEffect(() => {
@@ -133,6 +187,7 @@ export function RateScene() {
     }, VS_MS);
     const giveUp = window.setTimeout(() => {
       if (toBattle.current) return;
+      abandonRef.current();
       endOnline();
       linkRef.current = null;
       searchRef.current();
@@ -157,6 +212,9 @@ export function RateScene() {
       mounted.current -= 1;
       window.setTimeout(() => {
         if (mounted.current !== 0) return;
+        wantSearch.current = false;
+        // VS のまま画面を出た（対戦が始まらなかった）
+        if (!toBattle.current) abandonRef.current();
         offLink();
         stopLobby();
         if (!toBattle.current && linkRef.current && currentOnline() === linkRef.current) endOnline();
@@ -171,7 +229,9 @@ export function RateScene() {
         <div className="lobby-vs__side lobby-vs__side--me">
           <span className="lobby-vs__who pencil">{tr.common.me}</span>
           <span className="lobby-vs__name blue-pen">{save.playerName}</span>
-          <span className="rate-vs__rate num">{tr.rate.vsRate(save.rate)}</span>
+          <span className="rate-vs__rate num">
+            <RateValue value={save.rate} provisional={save.ranking.provisional} format={tr.rate.vsRate} />
+          </span>
         </div>
         <div className="lobby-vs__vs">VS</div>
         <div className="lobby-vs__side lobby-vs__side--opp">
@@ -191,7 +251,9 @@ export function RateScene() {
         {tr.common.back}
       </RoughButton>
       <RoughBox seed="rate-panel" className="rate-scene__panel" paper radius={12}>
-        <p className="rate-scene__rate num">{tr.online.myRate(save.rate)}</p>
+        <p className="rate-scene__rate num">
+          <RateValue value={save.rate} provisional={save.ranking.provisional} format={tr.online.myRate} />
+        </p>
         <p className={`rate-scene__deck ${deckOk ? '' : 'red-pen'}`}>{deckOk ? tr.result.myDeck(deck.name) : tr.story.badDeck}</p>
         <RoughButton seed="rate-deck" className="rate-scene__deck-btn" onClick={() => setPicking(true)} data-testid="rate-change-deck">
           {tr.lobby.changeDeck}
@@ -205,6 +267,11 @@ export function RateScene() {
             <p className="rate-scene__count blue-pen" data-testid="rate-count">
               {tr.rate.waitingCount(count)}
             </p>
+            {fallback && (
+              <p className="rate-scene__busy pencil" data-testid="rate-fallback">
+                {tr.rate.busy}
+              </p>
+            )}
             <RoughButton seed="rate-stop" className="rate-scene__go" onClick={stop}>
               {tr.rate.stop}
             </RoughButton>

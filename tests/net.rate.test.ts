@@ -17,6 +17,7 @@ function player(hub: MemoryHub, clock: FakeClock, n: number, lastOpponentId = ''
     rate: 100 + n,
     lastOpponentId,
     protocol: 9,
+    rooms: 1,
     clock,
     randomBytes: (k) => new Uint8Array(k).map(() => r.int(0, 255)),
   });

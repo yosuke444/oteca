@@ -1,11 +1,12 @@
-import { type Msg, type MsgBody, type Ticket, makeMsg, rateLobbyName } from './protocol';
+import { type Msg, type MsgBody, RATE_SUBROOMS, type Ticket, makeMsg, rateLobbyName } from './protocol';
 import { toHex } from './sha256';
 import type { Clock } from './session';
 import type { NetTransport } from './transport';
 
 /**
- * レート対戦の待合所（UPDATE_v2 §8-4・SPEC §7 S15）
- * 共通の部屋 oteca-rate-p<版数> で待っている人を集め、全員が同じ待ち行列から同じ組み合わせを計算する。
+ * レート対戦の予備の待合所（UPDATE_v2 §8-4・SPEC §7 S15。v2.0-I からは受付係につながらない時だけ使う）
+ * 小部屋 oteca-rate-p<版数>-<0〜7> で待っている人を集め、全員が同じ待ち行列から同じ組み合わせを計算する。
+ * - 入る小部屋はランダム。10秒、組める人がだれもいなければ、ほかの小部屋へ移る（今の10秒の区切りで決まる小部屋。同じころに移る人が集まる）。
  * - レートは組み合わせに使わない。待ち始めた順（入室チケット）に組む。
  * - 直前に対戦した人とは組まない（プレイヤーID で判別）。
  * - 組み合わせの早い方が申し込み（pairPropose）→ 相手が承諾（pairAccept）を1往復はさんで、取り合いを防ぐ。
@@ -20,11 +21,17 @@ export type RateLobbyOptions = {
   /** 直前のレート対戦の相手（'' ＝なし） */
   lastOpponentId: string;
   protocol: number;
+  /** 小部屋の数（テストで 1 にすると、今までの1つの部屋と同じ） */
+  rooms?: number;
   clock?: Clock;
   randomBytes?: (n: number) => Uint8Array;
 };
 
-export type RatePaired = { roomId: string; opponentName: string; opponentId: string; opponentRate: number };
+/**
+ * 相手が決まった。matchId は結果の報告に使う試合ID（受付係が組んだ時は受付係の試合ID、予備の待合所では部屋ID）。
+ * viaLobby：受付係が組んだ（false は予備の待合所）
+ */
+export type RatePaired = { roomId: string; matchId: string; viaLobby: boolean; opponentName: string; opponentId: string; opponentRate: number };
 
 type Entry = { peerId: string; playerId: string; ticket: Ticket; lastOpponentId: string; name: string; rate: number; heard: number };
 
@@ -34,6 +41,8 @@ export const QUEUE_EVERY_MS = 2000;
 export const QUEUE_STALE_MS = 7000;
 /** 申し込みの返事を待つ時間 */
 export const PROPOSE_MS = 4000;
+/** この間、組める人がだれもいなければ、ほかの小部屋へ移る */
+export const SUBROOM_HOP_MS = 10000;
 /** ことわられた組み合わせを、しばらく試さない時間 */
 const REJECT_COOLDOWN_MS = 3000;
 const TICK_MS = 250;
@@ -69,6 +78,10 @@ export class RateLobby {
   private stopTimer: (() => void) | null = null;
   private lastQueue = 0;
   private lastCount = -1;
+  /** 今いる小部屋 */
+  private room = 0;
+  /** 最後に組める人がいた時刻（小部屋に入った時刻から数える） */
+  private lastUseful = 0;
 
   constructor(
     private readonly transport: NetTransport,
@@ -94,7 +107,9 @@ export class RateLobby {
     const r = this.randomBytes(4);
     this.ticket = { time: this.clock.now(), rand: ((r[0] << 24) | (r[1] << 16) | (r[2] << 8) | r[3]) >>> 0 };
     this.state = 'queue';
-    this.transport.join(rateLobbyName(this.opts.protocol));
+    this.room = this.pickRoom(-1);
+    this.transport.join(rateLobbyName(this.opts.protocol, this.room));
+    this.lastUseful = this.clock.now();
     this.lastQueue = 0;
     this.stopTimer = this.clock.every(TICK_MS, () => this.tick());
     this.emitCount();
@@ -106,6 +121,41 @@ export class RateLobby {
     this.stopTimer?.();
     this.stopTimer = null;
     this.transport.leave();
+  }
+
+  /** 今いる小部屋の番号 */
+  get currentRoom(): number {
+    return this.room;
+  }
+
+  private get roomCount(): number {
+    return Math.max(1, Math.floor(this.opts.rooms ?? RATE_SUBROOMS));
+  }
+
+  /**
+   * 小部屋を選ぶ。最初はランダム。移る時は「今の10秒の区切り」で決まる小部屋（今と同じなら次）。
+   * 同じころに移る人どうしが同じ小部屋に集まるので、早く出会える
+   */
+  private pickRoom(except: number): number {
+    const n = this.roomCount;
+    if (n === 1) return 0;
+    if (except < 0) return this.randomBytes(1)[0] % n;
+    // 5 と 8 は互いに素なので、区切りごとに8つの小部屋を順に回る
+    const slot = Math.floor(this.clock.now() / SUBROOM_HOP_MS);
+    const room = (slot * 5) % n;
+    return room === except ? (room + 1) % n : room;
+  }
+
+  /** ほかの小部屋へ移る */
+  private hop(now: number): void {
+    this.transport.leave();
+    this.entries.clear();
+    this.rejected.clear();
+    this.room = this.pickRoom(this.room);
+    this.transport.join(rateLobbyName(this.opts.protocol, this.room));
+    this.lastUseful = now;
+    this.lastQueue = 0;
+    this.emitCount();
   }
 
   /** 待っている人数（自分もふくむ） */
@@ -157,7 +207,8 @@ export class RateLobby {
 
   private paired(roomId: string, e: Entry): void {
     this.state = 'paired';
-    this.onPaired({ roomId, opponentName: e.name, opponentId: e.playerId, opponentRate: e.rate });
+    // 予備の待合所で組んだ試合は、受付係の試合ID が無いので、部屋ID を試合ID にする（2人とも同じ）
+    this.onPaired({ roomId, matchId: roomId, viaLobby: false, opponentName: e.name, opponentId: e.playerId, opponentRate: e.rate });
   }
 
   private tick(): void {
@@ -172,6 +223,12 @@ export class RateLobby {
       this.state = 'queue';
     }
     if (this.state !== 'queue') return;
+    // 組める人がいるか（直前の相手・同じセーブだけなら、いないのと同じ）
+    for (const e of this.entries.values()) if (!this.isLastOpponent(e)) this.lastUseful = now;
+    if (this.roomCount > 1 && now - this.lastUseful >= SUBROOM_HOP_MS) {
+      this.hop(now);
+      return;
+    }
     const partner = this.partner(now);
     const entry = partner ? this.entries.get(partner.peerId) : undefined;
     if (!partner || !partner.iAmFirst || !entry) return;

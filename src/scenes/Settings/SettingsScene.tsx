@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { features } from '../../config/features';
+import { sendProfile } from '../../online/rankingApi';
 import { useNav } from '../../router';
 import { NAME_MAX, VOLUME_MAX, clampText } from '../../save/saveData';
 import { useSave } from '../../state/SaveContext';
@@ -25,6 +27,20 @@ export function SettingsScene() {
   const [dialog, setDialog] = useState<'make' | 'enter' | 'wipe1' | 'wipe2' | null>(null);
   const s = save.settings;
   const tr = useT();
+
+  // ランキング（v2.0-I）：名前・載せる設定を変えたらサーバーに知らせる（次の更新から反映。届かなければ次に開いた時）
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const firstProfile = useRef(true);
+  useEffect(() => {
+    if (firstProfile.current) {
+      firstProfile.current = false;
+      return;
+    }
+    if (!features.ranking) return;
+    const id = window.setTimeout(() => void sendProfile(saveRef.current), 800);
+    return () => window.clearTimeout(id);
+  }, [save.ranking.optIn, save.playerName]);
 
   return (
     <div className="settings-scene">
@@ -115,6 +131,15 @@ export function SettingsScene() {
             {tr.settings.enterCode}
           </RoughButton>
         </div>
+        {features.ranking && (
+          <div className="settings-ranking" data-testid="settings-ranking">
+            <div className="settings-ranking__head">
+              <span className="settings-ranking__label">{tr.settings.rankingName}</span>
+              <OnOff id="ranking-name" value={save.ranking.optIn} onChange={(v) => update((d) => void (d.ranking.optIn = v))} />
+            </div>
+            <p className="settings-panel__note pencil">{tr.settings.rankingNameNote}</p>
+          </div>
+        )}
         <p className="settings-panel__stats">
           {tr.settings.record}
           <span className="num">{save.stats.wins}</span> {tr.common.winsLosses.wins}{"  "}<span className="num">{save.stats.losses}</span> {tr.common.winsLosses.losses}
