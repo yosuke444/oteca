@@ -3,7 +3,7 @@
   "resetHour": 12,
   "pick": 3,
   "missions": [
-    { "id": "draw20", "target": 20, "coins": 30 },
+    { "id": "draw20", "target": 15, "coins": 30 },
     { "id": "item10", "target": 10, "coins": 30 },
     { "id": "ko5", "target": 5, "coins": 30 },
     { "id": "friend1", "target": 1, "coins": 30 },

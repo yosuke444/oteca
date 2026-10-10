@@ -22,6 +22,7 @@ import {
   parseDailyData,
   pickMissions,
   rollDaily,
+  countsDraws,
 } from '../src/daily/daily';
 import { type Action, applyAction, createGame } from '../src/engine';
 import { CARD_DB as DB, cardById } from '../src/data/cards';
@@ -153,7 +154,7 @@ describe('M02 7つのミッション：数え方・達成・受け取り（30コ
 
   it('数値は daily.json の値（目標・報酬30・選ぶ数3・12時・デイリーパック3袋＋50コイン）。形のおかしい daily.json はエラー', () => {
     expect(DAILY.missions.map((m) => [m.id, m.target, m.coins])).toEqual([
-      ['draw20', 20, 30],
+      ['draw20', 15, 30],
       ['item10', 10, 30],
       ['ko5', 5, 30],
       ['friend1', 1, 30],
@@ -318,15 +319,16 @@ describe('M06 対戦の数え方', () => {
     expect(stats.result(s).sides.p1.draws).toBe(1);
   });
 
-  it('1試合の進み具合：自分のドロー・アイテム・倒した数。フレンドは「あそぶ」、フレンドとレートの勝ちは「かつ」、ストーリーは「あそぶ」', () => {
+  it('1試合の進み具合：自分のアイテム・倒した数（ドローは対戦中に足すので入れない。v2.3）。フレンドは「あそぶ」、フレンドとレートの勝ちは「かつ」、ストーリーは「あそぶ」', () => {
     const mine = { draws: 4, items: 3, kos: 2 };
-    expect(matchProgress('cpu', true, mine)).toEqual({ draws: 4, items: 3, kos: 2, friend: false, onlineWin: false, story: false });
+    expect(matchProgress('cpu', true, mine)).toEqual({ items: 3, kos: 2, friend: false, onlineWin: false, story: false });
     expect(matchProgress('friend', false, mine)).toMatchObject({ friend: true, onlineWin: false });
     expect(matchProgress('friend', true, mine)).toMatchObject({ friend: true, onlineWin: true });
     expect(matchProgress('rate', true, mine)).toMatchObject({ friend: false, onlineWin: true });
     expect(matchProgress('rate', false, mine)).toMatchObject({ onlineWin: false });
     expect(matchProgress('story', false, mine)).toMatchObject({ story: true, onlineWin: false });
-    expect(matchProgress('cpu', true, { kos: 1 })).toMatchObject({ draws: 0, items: 0 });
+    expect(matchProgress('cpu', true, { kos: 1 })).toMatchObject({ items: 0 });
+    expect(matchProgress('cpu', true, mine).draws).toBeUndefined();
   });
 
   it('集計：ドロー（ターンの始めのドロー）とアイテムを、それぞれの側で数える。最初の手札は数えない', () => {
@@ -360,5 +362,86 @@ describe('M06 対戦の数え方', () => {
     );
     const r2 = t.result(s);
     expect([r2.sides.p1.items, r2.sides.p2.items, r2.sides.p1.draws, r2.sides.p2.draws]).toEqual([2, 1, 0, 1]);
+  });
+});
+
+/**
+ * 「カードを 15まい ひく」（v2.3）：対戦の画面は、引いたその時に addDailyProgress({ draws: 引いた枚数 }) を呼ぶ
+ * （最初の手札は始まった時にまとめて、そのあとは1枚ずつ）。それと同じ呼び方で確かめる
+ */
+describe('M08 カードを ひく：1日の合計で数える（v2.3）', () => {
+  /** 1試合ぶん：最初の手札 hand まい と、その後 1まいずつ rest まい */
+  const playMatch = (s: SaveData, now: number, hand: number, rest: number) => {
+    addDailyProgress(s, now, { draws: hand });
+    for (let i = 0; i < rest; i++) addDailyProgress(s, now + i * 1000, { draws: 1 });
+  };
+  const drawMission = (s: SaveData) => s.daily.missions.find((m) => m.id === 'draw20')!;
+
+  it('目標は15まい', () => {
+    expect(missionDef('draw20').target).toBe(15);
+  });
+
+  it('1試合目で8まい → 2試合目で7まい → 15まいで達成（試合ごとに0に戻さない）', () => {
+    const s = saveWith(['draw20', 'ko5', 'gacha1'], at(3, 13));
+    playMatch(s, at(3, 13), 5, 3);
+    expect(drawMission(s).progress).toBe(8);
+    expect(isDone(drawMission(s))).toBe(false);
+    // 1試合目のリザルト（ドローは足さない）を通っても、数えた枚数はそのまま
+    const mine = { draws: 8, kos: 1 }; // リザルトに来る集計（ドローも入っている）
+    addDailyProgress(s, at(3, 14), matchProgress('cpu', true, mine));
+    expect(drawMission(s).progress).toBe(8);
+    playMatch(s, at(3, 15), 5, 2);
+    expect(drawMission(s).progress).toBe(15);
+    expect(isDone(drawMission(s))).toBe(true);
+    expect(claimMission(s, 'draw20', at(3, 16))).toBe(30);
+  });
+
+  it('途中でやめた試合（リザルトに来ない）の枚数も残る', () => {
+    const s = saveWith(['draw20', 'ko5', 'gacha1'], at(3, 13));
+    // 1試合目：最初の手札5まい＋2まい引いたところでやめた（リザルトは無い）
+    playMatch(s, at(3, 13), 5, 2);
+    expect(drawMission(s).progress).toBe(7);
+    // 2試合目
+    playMatch(s, at(3, 18), 5, 3);
+    expect(drawMission(s).progress).toBe(15);
+  });
+
+  it('入れ替わりの時刻（12時）を過ぎると0に戻る。それより前は残る', () => {
+    const s = saveWith(['draw20', 'ko5', 'gacha1'], at(3, 13));
+    playMatch(s, at(3, 13), 5, 5);
+    expect(drawMission(s).progress).toBe(10);
+    // 日付が変わっても 12時より前は同じ「その日」
+    playMatch(s, at(4, 11, 59), 0, 1);
+    expect(drawMission(s).progress).toBe(11);
+    // 12時を過ぎた：新しい日。次の日のミッションに draw20 があれば 0 から（今日の分だけ数える）
+    rollDaily(s, at(4, 12));
+    s.daily.missions = [{ id: 'draw20', progress: 0, claimed: false }, ...s.daily.missions.filter((m) => m.id !== 'draw20').slice(0, 2)];
+    const before = s.daily.cycleKey;
+    playMatch(s, at(4, 13), 5, 0);
+    expect(s.daily.cycleKey).toBe(before);
+    expect(drawMission(s).progress).toBe(5);
+    // 次の日の12時に入れ替わった時は、前の日に数えた枚数を持ち越さない
+    const t = saveWith(['draw20', 'ko5', 'gacha1'], at(3, 13));
+    playMatch(t, at(3, 13), 5, 4);
+    addDailyProgress(t, at(4, 12, 0, 1), {});
+    expect(t.daily.cycleKey).toBe(20261004);
+    expect(t.daily.missions.every((m) => m.progress === 0)).toBe(true);
+  });
+
+  it('数える対戦：CPU・ストーリー・フレンド・レート。チュートリアル・デバッグ・カードを ためす・ひとりで両方・観戦は数えない', () => {
+    expect(countsDraws({ mode: 'cpu', record: true })).toBe(true);
+    expect(countsDraws({ mode: 'cpu', record: false, story: { stage: 3 } })).toBe(true);
+    expect(countsDraws({ mode: 'online', record: true })).toBe(true);
+    expect(countsDraws({ mode: 'cpu', record: false, tutorial: true })).toBe(false);
+    expect(countsDraws({ mode: 'cpu', record: true, debug: true })).toBe(false);
+    expect(countsDraws({ mode: 'local', record: false, sandbox: {} })).toBe(false);
+    expect(countsDraws({ mode: 'local', record: false })).toBe(false);
+    expect(countsDraws({ mode: 'spectate', record: false })).toBe(false);
+  });
+
+  it('最初の手札の引き直しは、ドローの知らせ（Drew）を出さない（数えるのは配り終えた手札の枚数だけ）', () => {
+    const g = createGame({ seed: 'mull', decks: { p1: deckOf([['kusuri', 10], ['mutsuashi', 5]]), p2: deckOf([['mutsuashi', 15]]) }, cardDb: DB });
+    expect(g.events.some((e) => e.type === 'Drew')).toBe(false);
+    expect(g.state.players.p1.hand.length).toBe(g.state.rules.p1.initialHand);
   });
 });

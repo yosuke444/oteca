@@ -2,7 +2,7 @@ import { gsap } from 'gsap';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { useFx } from '../../fx/fxSettings';
-import { bigText, flash, paperScraps, radialLines, shake } from '../../fx/paperFx';
+import { bigText, flash, paperScraps, shake } from '../../fx/paperFx';
 import { play, wait } from '../../fx/timing';
 import { local } from '../../i18n';
 import { useLang, useT } from '../../i18n/useT';
@@ -69,15 +69,14 @@ export function BossCutin({ stage, onDone }: { stage: StageDef; onDone: () => vo
     const reduce = fx.reduceFx;
     const L = layerRef.current!;
     const root = rootRef.current!;
-    const center = { x: 640, y: 330 };
     const run = async () => {
       stopJingle.current = audio.play('jingle_boss');
       gsap.set([artRef.current, nameRef.current, ruleRef.current], { opacity: 0 });
       await play(gsap.fromTo(root, { opacity: 0 }, { opacity: 1, duration: 0.25 }));
       if (!alive) return;
       if (!reduce) {
+        // 集中線は出さない（v2.3。企画者の指示）
         flash(L, 0.8, 0.35);
-        cleanups.push(radialLines(L, center, { colors: ['var(--pen-red)', 'var(--ink)'], lines: 44, width: 10, inner: 230, seconds: 0.4 }));
         void shake(root, 16, 6);
       }
       // ボスの絵が右から大きく入ってくる

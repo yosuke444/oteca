@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { buildActionLog, downloadActionLog } from '../../battle/actionLog';
 import { type BattleSetup, randomSeed } from '../../battle/setup';
+import { addDailyProgress, countsDraws } from '../../daily/daily';
+import { addDailyNotice } from '../../daily/noticeStore';
 import { StatsCollector } from '../../battle/stats';
 import { Match, type MatchStep } from '../../controllers/match';
 import type { Controller } from '../../controllers/types';
@@ -97,11 +99,27 @@ function targetKeyOf(a: Action, me: Side): string | null {
   }
 }
 
+/** 最初の手札を数え終えた試合（同じ setup で2回数えない。v2.3） */
+const initialCounted = new WeakSet<BattleSetup>();
+
 /** S04 対戦（SPEC §8） */
 export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; guide?: BattleGuide } = {}) {
   const { payload, go } = useNav();
   const setup = setupProp ?? (payload as BattleSetup);
-  const { update: updateSave } = useSave();
+  const { save, update: updateSave } = useSave();
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  /**
+   * デイリーミッション「カードを ひく」（v2.3）：数える対戦なら、引いたその時にセーブへ足す。
+   * 前の日の報酬を自動で受け取った時の知らせは、写しで先に計算して1回だけ出す（保存は同じ計算で）
+   */
+  const addDraws = (n: number) => {
+    if (n <= 0 || !countsDraws(setup)) return;
+    const now = Date.now();
+    const carry = addDailyProgress(structuredClone(saveRef.current), now, { draws: n });
+    if (carry) addDailyNotice(carry);
+    updateSave((d) => void addDailyProgress(d, now, { draws: n }));
+  };
   const fx = useFx();
   const tr = useT();
 
@@ -247,6 +265,11 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     stepsRef.current = [match.initial];
     statsRef.current = new StatsCollector();
     statsRef.current.add(match.initial.events, match.initial.state);
+    // 最初の手札も「ひいた」に数える（引き直しは数えない。同じ試合を2回数えない：開発時の StrictMode の2回目・観戦の入り直し）
+    if (!initialCounted.has(setup)) {
+      initialCounted.add(setup);
+      addDraws(match.initial.state.players[setup.me].hand.length);
+    }
     // チュートリアル：先攻決めのサイコロは、案内で押してもらってから振る（それまでは何も演出しない）
     const startFx = () => queue.enqueue({ actor: null, gap: false, events: match.initial.events, state: match.initial.state });
     if (guide) {
@@ -259,6 +282,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
       before = step.state;
       stepsRef.current.push(step);
       statsRef.current.add(step.events, step.state);
+      addDraws(step.events.filter((e) => e.type === 'Drew' && e.player === setup.me).length);
       const actor = step.action?.player ?? null;
       // 観戦の早送り：演出なしで場面だけ進める
       if (quietRef.current) queue.enqueue({ actor: null, gap: false, events: [], state: step.state });

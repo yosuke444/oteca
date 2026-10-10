@@ -178,7 +178,7 @@ export function rollDaily(draft: Pick<SaveData, 'daily' | 'coins' | 'collection'
 
 /** 対戦・ガチャで数えたもの（SPEC §7 S17 の「数え方」） */
 export type DailyProgress = {
-  /** ドローした枚数（効果のドローも含む。最初の手札は数えない） */
+  /** ドローした枚数（最初の手札・3ターンごとのドロー・効果のドロー。引き直しは数えない。対戦の画面で引いたその時に足す。v2.3） */
   draws?: number;
   /** 使ったアイテムの数 */
   items?: number;
@@ -237,10 +237,24 @@ export function dailyMatchKind(x: DailyMatchInput): DailyMatchKind | null {
   return x.agree === true && enough ? 'friend' : null;
 }
 
-/** 1試合の進み具合（自分の分だけ）。mine は自分の集計（src/battle/stats.ts） */
-export function matchProgress(kind: DailyMatchKind, win: boolean, mine: { draws?: number; items?: number; kos: number }): DailyProgress {
+/**
+ * 「カードを ひく」を数える対戦か（v2.3）。CPU対戦・ストーリー・フレンド対戦・レート対戦。
+ * チュートリアル・デバッグ・カードを ためす・ひとりで両方・観戦は数えない。
+ * ドローは試合の終わりを待たずに、引いたその時に足す（途中でやめた試合の分も残る。1日の中で何試合でも足し算）
+ */
+export function countsDraws(s: { mode: 'online' | 'cpu' | 'local' | 'spectate'; record: boolean; debug?: boolean; tutorial?: boolean; sandbox?: unknown; story?: unknown }): boolean {
+  if (s.tutorial || s.debug || s.sandbox) return false;
+  if (s.story) return true;
+  if (s.mode === 'cpu') return s.record;
+  return s.mode === 'online';
+}
+
+/**
+ * 1試合の進み具合（自分の分だけ）。mine は自分の集計（src/battle/stats.ts）。
+ * ドローはここでは数えない（対戦の画面で引いたその時に足してある。countsDraws。v2.3）
+ */
+export function matchProgress(kind: DailyMatchKind, win: boolean, mine: { items?: number; kos: number }): DailyProgress {
   return {
-    draws: mine.draws ?? 0,
     items: mine.items ?? 0,
     kos: mine.kos,
     friend: kind === 'friend',
