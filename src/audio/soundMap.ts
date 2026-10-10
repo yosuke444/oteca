@@ -8,19 +8,16 @@ import battleList from 'virtual:battle-bgm';
  * public/audio/se/<キー>.mp3 を置くと、合成音より優先して鳴る（今は使わない）。
  */
 
-/** ループで流す曲（タイトル・デッキ編集・ロビー・パックガチャ） */
+/** ループで流す曲（タイトル・デッキ編集・ロビー・ボス戦）。どの画面でどの曲かは routeBgm.ts */
 export type LoopBgmKey =
   | 'bgm_title'
   | 'bgm_deck'
   | 'bgm_lobby'
-  | 'bgm_gacha'
-  | 'bgm_story'
   | 'bgm_boss'
   | 'bgm_boss_ningen'
   | 'bgm_boss_usagi'
   | 'bgm_boss_zamurai'
-  | 'bgm_boss_dragon'
-  | 'bgm_trade';
+  | 'bgm_boss_dragon';
 /** 'battle' ＝ 戦闘曲（battle フォルダの曲をシャッフルで1曲ずつ流す） */
 export type BgmKey = LoopBgmKey | 'battle';
 
@@ -45,16 +42,13 @@ export const BGM_LEVEL = 0.45;
  */
 export const BGM: Record<LoopBgmKey, BgmInfo> = {
   bgm_title: { volume: 1 }, // タイトル・メニュー。-10.7 LUFS
-  bgm_deck: { volume: 0.76 }, // デッキ編集・設定・ルール。-8.3
-  bgm_lobby: { volume: 0.87 }, // ロビー待機。-9.5
-  bgm_gacha: { volume: 1 }, // パックガチャ（v2.0-E。届いたら測り直す。無ければ無音）
-  bgm_story: { volume: 1 }, // ストーリーのステージ選択（v2.0-F。無ければ無音）
+  bgm_deck: { volume: 0.76 }, // デッキ編集・設定・ルール・パックガチャ・カードトレード。-8.3
+  bgm_lobby: { volume: 0.87 }, // ロビー待機・ストーリーのステージ選択。-9.5
   bgm_boss: { volume: 1 }, // ボス戦（v2.0-F。4体共通。無ければ戦闘曲）
   bgm_boss_ningen: { volume: 1 }, // ボス別（置いた時だけ bgm_boss の代わり）
   bgm_boss_usagi: { volume: 1 },
   bgm_boss_zamurai: { volume: 1 },
   bgm_boss_dragon: { volume: 1 },
-  bgm_trade: { volume: 1 }, // カードトレード（v2.0-H。無ければ無音）
 };
 
 /** BGM を置く場所 */

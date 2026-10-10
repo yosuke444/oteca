@@ -1,4 +1,5 @@
 import type { PendingTrade } from '../net/tradeSession';
+import { mayWriteSave } from '../tabLock/tabGuard';
 
 /**
  * とちゅうの交換（最終確認で commit を送ったが、まだ交換を保存していないもの。UPDATE_v2 §9-4）を、この端末に覚えておく。
@@ -20,6 +21,7 @@ export function loadPendingTrade(store: Pick<Storage, 'getItem'> | null = safeSt
 }
 
 export function savePendingTrade(p: PendingTrade | null, store: Pick<Storage, 'setItem' | 'removeItem'> | null = safeStorage()): void {
+  if (!mayWriteSave()) return; // 止まったタブは書かない（v2.3）
   try {
     if (p) store?.setItem(KEY, JSON.stringify(p));
     else store?.removeItem(KEY);

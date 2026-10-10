@@ -6,7 +6,7 @@ import './card.css';
 /**
  * カードのイラスト。public/cards/<id>.png が無い時は、
  * ペン描きの「?」と名前を描いた仮イラストを出す（SPEC §5-3）。
- * トロフィーのカード（v2.0-J）は、絵（cards/trophy.png）が無い時は金色のトロフィーの手描き。番号を大きく重ねる
+ * トロフィーのカード（v2.0-J）は、いつも金色のトロフィーの手描き（v2.3：絵が置いてあっても読み込まない。仮の絵のまま）。番号を大きく重ねる
  */
 export function CardArt({ def, seed }: { def: CardDef; seed: string }) {
   const [failed, setFailed] = useState(false);
@@ -14,7 +14,7 @@ export function CardArt({ def, seed }: { def: CardDef; seed: string }) {
   const trophy = def.kind === 'otege' ? def.trophy : undefined;
   return (
     <RoughBox seed={`${seed}-art`} className={`card-art ${trophy ? 'card-art--trophy' : ''}`} strokeWidth={1.6} radius={4}>
-      {failed || !def.image ? (
+      {failed || !def.image || trophy ? (
         trophy ? (
           <div className="card-art__placeholder card-art__placeholder--trophy">
             <TrophyDoodle />

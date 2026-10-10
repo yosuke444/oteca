@@ -1,4 +1,5 @@
 import type { DailyCarry } from './daily';
+import { mayWriteSave } from '../tabLock/tabGuard';
 
 /**
  * 「きのうの ミッションの ほうしゅうを うけとったよ」の知らせ（SPEC §7 S17・v2.1-M）。
@@ -9,6 +10,7 @@ const KEY = 'oteca.dailyCarry';
 
 /** 知らせを足す（まだ見せていない分があれば合わせる） */
 export function addDailyNotice(c: DailyCarry): void {
+  if (!mayWriteSave()) return; // 止まったタブは書かない（v2.3）
   try {
     const old = peekDailyNotice();
     const next: DailyCarry = old ? { coins: old.coins + c.coins, cards: [...old.cards, ...c.cards] } : c;

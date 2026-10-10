@@ -4,6 +4,7 @@ import { crc16Text } from './crc16';
 import { decodeSave } from './migrate';
 import type { SaveData } from './saveData';
 import { decrypt64, encrypt64 } from './vigenere';
+import { mayWriteSave } from '../tabLock/tabGuard';
 
 /**
  * Cookie への保存（SPEC §12-5）と localStorage の控え（§12-1）
@@ -114,6 +115,8 @@ export type SaveStorage = { jar: CookieJar; local: KeyValueStore | null; secure:
 
 /** Cookie（主）と localStorage（控え）の両方に保存する */
 export function persist(storage: SaveStorage, data: SaveData): void {
+  // 止まったタブ（ほかのタブで開いた）は、セーブを書かない（v2.3。書く直前に確かめる）
+  if (!mayWriteSave()) return;
   const sealed = sealSave(data);
   writeCookies(storage.jar, sealed, storage.secure);
   try {
@@ -149,6 +152,7 @@ export function load(storage: SaveStorage): SaveData | null {
 }
 
 export function wipe(storage: SaveStorage): void {
+  if (!mayWriteSave()) return;
   clearCookies(storage.jar, storage.secure);
   try {
     storage.local?.removeItem(LOCAL_KEY);

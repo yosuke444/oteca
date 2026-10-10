@@ -728,6 +728,17 @@ export const kanji: Dict = {
     againNote: 'おてあげ先生といっしょにおさらい',
   },
 
+  tabLock: {
+    otherTitle: 'ほかのタブで開いています',
+    otherText: 'オテカは1つのタブで遊んでね。このタブは止まっているよ（セーブも通信もしないよ）',
+    stolenTitle: '別のタブで開かれました',
+    stolenText: 'このタブは止まったよ（セーブも通信もしないよ）',
+    playHere: 'このタブで遊ぶ',
+    confirmTitle: 'このタブで遊ぶ？',
+    confirmBattle: 'もう1つのタブの対戦は負けになります',
+    cancel: 'やめる',
+  },
+
   langPick: {
     title: 'ことばを えらんでね ／ 言葉を選んでね',
     options: {

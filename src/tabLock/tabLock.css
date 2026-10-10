@@ -1,0 +1,45 @@
+/* 止まったタブの画面（v2.3） */
+.tab-blocked {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab-blocked__card {
+  width: 760px;
+}
+.tab-blocked__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 36px 48px 40px;
+  text-align: center;
+}
+.tab-blocked__title {
+  margin: 0;
+  font-size: 42px;
+  font-weight: normal;
+}
+.tab-blocked__title .tilt {
+  display: inline-block;
+  padding: 0 14px;
+  background: linear-gradient(transparent 58%, var(--marker-yellow) 58%, var(--marker-yellow) 90%, transparent 90%);
+}
+.tab-blocked__text {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.6;
+  color: var(--pencil);
+}
+.tab-blocked__btn {
+  width: 340px;
+  height: 76px;
+  font-size: 28px;
+}
+.tab-blocked__warn {
+  margin: 0;
+  font-size: 24px;
+  color: var(--pen-red);
+}

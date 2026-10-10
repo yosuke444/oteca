@@ -10,6 +10,7 @@ import {
 import { type KeyValueStore, type SaveStorage, browserCookieJar, load, persist, wipe } from '../save/cookieStore';
 import { type SaveData, createDefaultSave, normalizeSave } from '../save/saveData';
 import { t } from '../i18n';
+import { mayWriteSave } from '../tabLock/tabGuard';
 
 /**
  * 画面からセーブデータを使う窓口。
@@ -132,6 +133,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   );
 
   const reset = useCallback(() => {
+    if (!mayWriteSave()) return; // 止まったタブは消さない（v2.3）
     wipe(storage);
     try {
       storage.local?.removeItem('oteca_backup');

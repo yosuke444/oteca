@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { audio } from './audio/audioManager';
 import type { BgmKey, LoopBgmKey } from './audio/soundMap';
+import { ROUTE_BGM } from './audio/routeBgm';
+import { tabGuard } from './tabLock/tabGuard';
 import type { BattleSetup } from './battle/setup';
 import { stageByNo } from './story/story';
 import { resolvePendingRate, setPendingNotice } from './online/rate';
@@ -71,37 +73,6 @@ const ROUTES: Record<RouteId, ComponentType> = {
   rate: RateScene,
   admin: AdminScene,
   spectate: SpectateScene,
-};
-
-/**
- * 画面ごとの BGM（SPEC §10-2）。undefined の画面は、その画面が自分で決める。
- * 対戦は戦闘曲（battle フォルダの曲をシャッフル）。リザルトは止める（ジングルを聞かせるため）
- */
-const ROUTE_BGM: Record<RouteId, BgmKey | null | undefined> = {
-  title: 'bgm_title',
-  menu: 'bgm_title',
-  story: 'bgm_story',
-  gacha: 'bgm_gacha',
-  tutorial: 'battle',
-  name: 'bgm_title',
-  lang: 'bgm_title',
-  online: 'bgm_lobby',
-  trade: 'bgm_trade',
-  ranking: 'bgm_title',
-  rate: 'bgm_lobby',
-  admin: 'bgm_deck',
-  spectate: 'bgm_lobby',
-  debug: 'bgm_title',
-  deck: 'bgm_deck',
-  settings: 'bgm_deck',
-  rules: 'bgm_deck',
-  lobby: 'bgm_lobby',
-  cpu: 'bgm_lobby',
-  battle: 'battle',
-  fxtest: undefined,
-  result: null,
-  soundtest: null,
-  cardlab: 'bgm_deck',
 };
 
 /** 対戦の曲：ストーリーのボス戦は ボス別の曲 → ボスの曲 → 戦闘曲（置いてある曲を使う。SPEC §7 S08） */
@@ -190,6 +161,11 @@ export function App() {
   useEffect(() => {
     const bgm = nav.route === 'battle' ? battleBgm(nav.payload as BattleSetup | null) : ROUTE_BGM[nav.route];
     if (bgm !== undefined) audio.playBgm(bgm);
+  }, [nav.route, nav.payload]);
+  // 対戦中かを「いまのタブ」の札に書く（ほかのタブで「この タブで あそぶ」を押した時の確認に使う。v2.3）
+  useEffect(() => {
+    tabGuard.setBattle(nav.route === 'battle' && (nav.payload as BattleSetup | null)?.mode !== 'spectate');
+    return () => tabGuard.setBattle(false);
   }, [nav.route, nav.payload]);
 
   // チュートリアルの延長（UPDATE_v2_1 §6-2）。見返しの時は、練習用の写しのセーブで動かす（コインは減らない・保存しない。§6-3）

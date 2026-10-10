@@ -1,4 +1,5 @@
 import type { KeyValueStore } from './cookieStore';
+import { mayWriteSave } from '../tabLock/tabGuard';
 
 /**
  * 「データを まもろう」ふせんの判定（SPEC §12-6）
@@ -36,6 +37,7 @@ export function loadBackupInfo(store: KeyValueStore | null, now: number): Backup
 }
 
 export function saveBackupInfo(store: KeyValueStore | null, info: BackupInfo): void {
+  if (!mayWriteSave()) return; // 止まったタブは書かない（v2.3）
   try {
     store?.setItem(KEY, JSON.stringify(info));
   } catch {

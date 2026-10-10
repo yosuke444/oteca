@@ -77,9 +77,28 @@ class AudioManager {
   /** 効果音の差し替えファイル（確認が済んだものだけ。null ＝ 無い） */
   private readonly seFiles = new Map<string, AudioBuffer | null>();
   private seChecked = false;
+  /** 止まったタブ（ほかのタブで開いた。v2.3）：何も鳴らさない */
+  private halted = false;
+
+  /** タブが止まった・動き出した（v2.3）。止まる時は BGM をすぐ止め、以後は効果音も BGM も鳴らさない */
+  setHalted(on: boolean): void {
+    this.halted = on;
+    if (!on) {
+      // 「この タブで あそぶ」を押した時：止めていた音を使えるようにし直す（押した操作で再開できる）
+      this.unlock();
+      return;
+    }
+    this.wanted = null;
+    const old = this.current;
+    this.current = null;
+    if (old) this.dropTrack(old, false);
+    const ctx = this.mixer?.ctx;
+    if (ctx && ctx.state === 'running') void (ctx as AudioContext).suspend().catch(() => {});
+  }
 
   /** 音を使えるようにする（タイトルのタップ・画面に触った時に呼ぶ。何度呼んでもよい） */
   unlock(): void {
+    if (this.halted) return;
     const mx = this.ensureMixer();
     // 'suspended'（まだ有効でない・止められた）も 'interrupted'（iPhone でアプリを切り替えた）も再開する
     if (mx && mx.ctx.state !== 'running' && mx.ctx.state !== 'closed') void (mx.ctx as AudioContext).resume().catch(() => {});
@@ -108,7 +127,7 @@ class AudioManager {
   play(key: string): () => void {
     let stop: () => void = () => {};
     let stopped = false;
-    if (this.seVolume <= 0) return () => {};
+    if (this.seVolume <= 0 || this.halted) return () => {};
     const mx = this.ensureMixer();
     if (!mx) return () => {};
     const go = () => {
@@ -155,6 +174,7 @@ class AudioManager {
 
   /** BGM を切り替える（null で止める）。0.8秒のクロスフェード */
   playBgm(key: BgmKey | null): void {
+    if (this.halted) return;
     this.wanted = key;
     if (this.current?.key === key) return;
     const old = this.current;

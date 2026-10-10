@@ -613,7 +613,7 @@
 - 「もういちど ちょうせん」「ステージ えらびへ」。
 
 **BGM**
-- ステージ選択は `bgm_story`。
+- ステージ選択は `bgm_story`。（v2.3 で再改訂：ステージ選択は `bgm_lobby`。SPEC §10-2）
 - 雑魚戦は戦闘曲のシャッフル。
 - ボス戦は `bgm_boss`（ボス別の曲があればそれ。§11）。
 
@@ -1021,9 +1021,9 @@ Cron（毎日 日本時間 4:00 と 16:00）──▶ Worker ──▶ 受付係
 
 | 場面 | ファイル名 | ループ |
 |---|---|---|
-| ストーリーのステージ選択 | bgm_story.mp3 | する |
-| パックガチャ | bgm_gacha.mp3 | する |
-| カードトレード | bgm_trade.mp3 | する |
+| ストーリーのステージ選択 | bgm_story.mp3（v2.3 で再改訂：bgm_lobby を使う） | する |
+| パックガチャ | bgm_gacha.mp3（v2.3 で再改訂：bgm_deck を使う） | する |
+| カードトレード | bgm_trade.mp3（v2.3 で再改訂：bgm_deck を使う） | する |
 | ボス戦（4体共通） | bgm_boss.mp3 | する |
 | ボス戦（ボス別。置いた場合だけ共通の曲の代わりに使う） | bgm_boss_ningen.mp3、bgm_boss_zamurai.mp3、bgm_boss_dragon.mp3、bgm_boss_usagi.mp3 | する |
 
