@@ -904,3 +904,12 @@
 .card-detail--item.has-art {
   gap: 12px;
 }
+
+/* 手に入れたカード（v2.3）：対戦のカード（BattleCard）を決まった幅に拡大縮小して出す */
+.prize-card {
+  position: relative;
+  flex: none;
+}
+.prize-card__inner {
+  transform-origin: 0 0;
+}

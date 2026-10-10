@@ -364,9 +364,7 @@
   gap: 6px;
   height: 100%;
 }
-.gacha-open__bags--many .gacha-bag__got .card-mini--slot {
-  transform: scale(0.9);
-}
+
 .gacha-open__hint {
   position: absolute;
   left: 0;
@@ -525,10 +523,8 @@
 .gacha-reveal__back {
   align-items: center;
 }
-.gacha-reveal__front .card-mini--tile {
-  transform: scale(1.75);
-  transform-origin: top center;
-  margin-top: 40px;
+.gacha-reveal__front {
+  align-items: center;
 }
 .gacha-reveal__card.is-super .gacha-reveal__front {
   filter: drop-shadow(0 0 16px var(--super-gold)) drop-shadow(0 0 6px var(--super-gold));
@@ -643,7 +639,7 @@
   align-items: center;
   gap: 4px;
 }
-.gacha-summary__card.is-super .card-mini {
+.gacha-summary__card.is-super .prize-card {
   filter: drop-shadow(0 0 8px var(--super-gold)) drop-shadow(0 0 3px var(--super-gold));
 }
 .gacha-summary__new {

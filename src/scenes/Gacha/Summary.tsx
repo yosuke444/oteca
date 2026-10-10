@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CARD_DB } from '../../data/cards';
 import { DRAW, type PullResult } from '../../gacha/gacha';
 import { useT } from '../../i18n/useT';
-import { CardMini } from '../../ui/card/CardMini';
+import { PrizeCard } from '../../ui/card/PrizeCard';
 import { Dialog } from '../../ui/common/Dialog';
 import { Sticky } from '../../ui/common/Sticky';
 import { RoughButton } from '../../ui/rough/RoughButton';
@@ -62,7 +62,7 @@ export function Summary({
           const def = CARD_DB[r.no];
           return (
             <div key={i} className={`gacha-summary__card ${r.super ? 'is-super' : ''}`} data-testid={`gacha-result-${i}`}>
-              <CardMini def={def} seed={`sum-${r.no}-${i}`} variant={many ? 'slot' : 'tile'} />
+              <PrizeCard def={def} seed={`sum-${r.no}-${i}`} width={many ? 128 : 150} />
               {r.isNew && (
                 <Sticky seed={`new-${i}`} color="red" angle={-10} className="gacha-summary__new">
                   {tr.gacha.newTag}

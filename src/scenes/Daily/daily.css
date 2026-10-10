@@ -215,4 +215,7 @@ html[data-reduce-fx] .daily-icon__badge {
   justify-content: center;
   gap: 8px;
   margin-top: 8px;
+  /* 何日分もたまった時は、ダイアログからあふれないようにスクロール（v2.3） */
+  max-height: 330px;
+  overflow-y: auto;
 }

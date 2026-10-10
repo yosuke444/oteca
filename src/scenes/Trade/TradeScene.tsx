@@ -16,14 +16,19 @@ import { safeName } from '../../online/rate';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { loadPendingTrade, savePendingTrade } from '../../trade/pendingStore';
-import { type Offer, isTradable, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, canonical, offerFits, offerSize } from '../../trade/trade';
+import { type Offer, giveCandidates, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, canonical, offerFits, offerSize } from '../../trade/trade';
 import { CardMini } from '../../ui/card/CardMini';
+import { PrizeCard } from '../../ui/card/PrizeCard';
+
 import { Dialog } from '../../ui/common/Dialog';
 import { NumberPad } from '../../ui/common/NumberPad';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './trade.css';
+
+/** 受け取ったカードを並べる数（それより多い時は「+3」） */
+const RECEIVED_SHOWN = 8;
 
 const MIN_DIGITS = 4;
 const MAX_DIGITS = 8;
@@ -55,11 +60,14 @@ export function TradeScene() {
   const say = (text: string) => setNote((x) => ({ text, n: (x?.n ?? 0) + 1 }));
 
   useEffect(() => setFxSpeed(fx.speed), [fx.speed]);
+  /** 相手の限定カードで不成立にした直後（「ないようを かえたよ」で理由を上書きしない。v2.3） */
+  const rejectedRef = useRef(false);
   // 確認の画面を出している間に相手が内容を変えた（ロックが外れた）：閉じて知らせる
   useEffect(() => {
     if (confirm && view && !(view.myLock && view.oppLock)) {
       setConfirm(false);
-      say(tr.trade.changed);
+      if (rejectedRef.current) rejectedRef.current = false;
+      else say(tr.trade.changed);
     }
   }, [confirm, view?.myLock, view?.oppLock]);
   useEffect(() => {
@@ -122,6 +130,13 @@ export function TradeScene() {
     };
     s.onPending = (p) => savePendingTrade(p);
     s.onLeft = () => say(tr.trade.left);
+    s.onRejected = () => {
+      rejectedRef.current = true;
+      // 確認の画面が出ていない時の分は、すぐ忘れる（あとの「ないようを かえたよ」を消さない）
+      window.setTimeout(() => (rejectedRef.current = false), 500);
+      audio.play('se_error');
+      say(tr.trade.rejectedLimited);
+    };
     s.onResume = (decision, p) => {
       if (decision === 'apply') flushSync(() => update((d) => void applyTrade(d, p.tradeId, p.give, p.get, { partial: true })));
       savePendingTrade(null);
@@ -160,6 +175,15 @@ export function TradeScene() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  /** 受け取ったカード（v2.3：対戦中と同じカードで見せる。タップか少したつと閉じる） */
+  const [received, setReceived] = useState<{ list: [number, number][]; n: number } | null>(null);
+  useEffect(() => {
+    if (!received) return;
+    // 演出スピードに合わせて短くなるが、何を受け取ったか読めるように 2.5秒は出しておく（タップで閉じる）
+    const id = window.setTimeout(() => setReceived(null), Math.max(2500, fx.dur(4200)));
+    return () => window.clearTimeout(id);
+  }, [received]);
 
   /** 交換の演出（迷ったら3倍豪華に）：あげるカードが右へ、もらうカードが左へ飛んで入れ替わる → 光・紙吹雪・はんこ・ジングル */
   const playSwap = (give: Offer, get: Offer) => {
@@ -203,6 +227,12 @@ export function TradeScene() {
       audio.play('se_stamp');
       window.setTimeout(off, fx.dur(1800));
       say(tr.trade.doneNote);
+      // 受け取ったカードを、対戦中と同じカードで見せる（v2.3）。はんこ・紙吹雪を見せ終わってから
+      const list = canonical(get);
+      if (list.length > 0)
+        window.setTimeout(() => {
+          if (L.isConnected) setReceived((r) => ({ list, n: (r?.n ?? 0) + 1 }));
+        }, fx.dur(reduce ? 300 : 1800));
     }, fx.dur(reduce ? 200 : 1000));
   };
 
@@ -278,11 +308,9 @@ export function TradeScene() {
 
   const giveList = canonical(my);
   const getList = canonical(opp);
-  const owned = Object.keys(save.collection)
-    .map(Number)
-    // 限定カード・トロフィあげはトレードに出せないので、一覧に出さない（v2.2）
-    .filter((no) => isTradable(no) && (save.collection[no] ?? 0) > 0)
-    .sort((a, b) => a - b);
+  // 限定カードは一覧に出すが、灰色で選べない（v2.3。トロフィあげは出さない）
+  const owned = giveCandidates(save);
+  const hasLimited = owned.some((c) => c.limited);
   const warnings = confirm ? brokenDecks(save, my, opp) : [];
 
 
@@ -409,15 +437,32 @@ export function TradeScene() {
           <RoughBox seed="trade-mine" className="trade-mine" paper radius={10}>
             <h2 className="trade-panel__title">{tr.trade.mine}</h2>
             <div className="trade-mine__grid">
-              {owned.map((no) => {
+              {owned.map(({ no, limited }) => {
                 const left = (save.collection[no] ?? 0) - (my[no] ?? 0);
                 return (
-                  <div key={no} className="trade-mine__item" data-testid={`trade-mine-${no}`}>
-                    <CardMini def={CARD_DB[no]} seed={`mine-${no}`} variant="slot" owned={left} dim={locked || left <= 0} onTap={() => add(no)} />
+                  <div key={no} className={`trade-mine__item ${limited ? 'is-limited' : ''}`} data-testid={`trade-mine-${no}`} data-limited={limited || undefined}>
+                    <CardMini
+                      def={CARD_DB[no]}
+                      seed={`mine-${no}`}
+                      variant="slot"
+                      owned={left}
+                      dim={limited || locked || left <= 0}
+                      onTap={() => {
+                        if (!limited) return add(no);
+                        audio.play('se_error');
+                        say(tr.trade.limitedNo);
+                      }}
+                    />
+                    {limited && <span className="trade-mine__limited red-pen">{tr.trade.limitedTag}</span>}
                   </div>
                 );
               })}
             </div>
+            {hasLimited && (
+              <p className="trade-mine__note red-pen" data-testid="trade-limited-note">
+                {tr.trade.limitedNo}
+              </p>
+            )}
           </RoughBox>
         </>
       )}
@@ -477,6 +522,22 @@ export function TradeScene() {
         </div>
       )}
       <div className="trade-scene__layer" ref={layerRef} aria-hidden />
+      {received && (
+        <div key={`received-${received.n}`} className="trade-received" onClick={() => setReceived(null)} data-testid="trade-received">
+          <RoughBox seed="trade-received" className="trade-received__box" paper strokeWidth={3} radius={14}>
+          <p className="trade-received__title">{tr.trade.received}</p>
+          <div className="trade-received__cards">
+            {received.list.slice(0, RECEIVED_SHOWN).map(([no, n]) => (
+              <div key={no} className="trade-received__card">
+                <PrizeCard def={CARD_DB[no]} seed={`recv-${received.n}-${no}`} width={received.list.length > 5 ? 104 : 140} />
+                {n > 1 && <span className="trade-received__count num">×{n}</span>}
+              </div>
+            ))}
+            {received.list.length > RECEIVED_SHOWN && <span className="trade-received__more num">+{received.list.length - RECEIVED_SHOWN}</span>}
+          </div>
+          </RoughBox>
+        </div>
+      )}
     </div>
   );
 }

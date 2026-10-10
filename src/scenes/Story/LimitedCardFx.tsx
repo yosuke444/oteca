@@ -6,7 +6,7 @@ import { useFx } from '../../fx/fxSettings';
 import { bigText, confetti, confettiRain, fireworks, flash, radialLines } from '../../fx/paperFx';
 import { play, wait } from '../../fx/timing';
 import { useT } from '../../i18n/useT';
-import { CardMini } from '../../ui/card/CardMini';
+import { PrizeCard } from '../../ui/card/PrizeCard';
 
 /**
  * 限定カードを手に入れた時の特別演出（SPEC §7 S08・UPDATE_v2 §7-2「カードがゆっくり回転して所持に入る」）。迷ったら3倍豪華に：
@@ -107,7 +107,7 @@ export function LimitedCardFx({ cardNo, onDone }: { cardNo: number; onDone: () =
     <div className="limited-fx" ref={rootRef} data-testid="limited-fx" onClick={() => canSkip && finish()}>
       <div className="limited-fx__glow" aria-hidden />
       <div className="limited-fx__card" ref={cardRef}>
-        <CardMini def={def} seed={`limited-${cardNo}`} variant="tile" />
+        <PrizeCard def={def} seed={`limited-${cardNo}`} width={230} />
       </div>
       <p className="limited-fx__note" ref={noteRef}>
         {tr.story.limitedNote(def.name)}

@@ -223,6 +223,31 @@
   gap: 10px 12px;
   overflow-y: auto;
 }
+/* 限定カード（v2.3）：灰色で選べない。「げんてい」の印と、一覧の下に理由 */
+.trade-mine__item {
+  position: relative;
+}
+.trade-mine__item.is-limited .card-mini {
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+.trade-mine__limited {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  rotate: -8deg;
+  padding: 0 6px;
+  border: 2px solid var(--pen-red);
+  border-radius: 6px;
+  background: var(--paper);
+  font-size: 15px;
+  pointer-events: none;
+}
+.trade-mine__note {
+  margin: 4px 0 0;
+  font-size: 16px;
+}
 
 /* ---------- 確認 ---------- */
 .trade-confirm {
@@ -295,4 +320,64 @@ html[data-reduce-fx] .trade-scene__go {
   .trade-scene__waitopp {
     font-size: 34px;
   }
+}
+
+/* 受け取ったカード（v2.3）：対戦中と同じカードで見せる */
+.trade-received {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  cursor: pointer;
+  animation: trade-received-in calc(0.35s / var(--fx-speed)) ease-out;
+}
+.trade-received__box > .rough-box__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 28px 22px;
+}
+.trade-received__title {
+  margin: 0;
+  padding: 0 14px;
+  font-size: 26px;
+  background: linear-gradient(transparent 58%, var(--marker-yellow) 58%, var(--marker-yellow) 90%, transparent 90%);
+}
+.trade-received__cards {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.trade-received__card {
+  position: relative;
+}
+.trade-received__count {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--paper);
+  font-size: 22px;
+}
+.trade-received__more {
+  font-size: 26px;
+}
+@keyframes trade-received-in {
+  from {
+    opacity: 0;
+    translate: 0 30px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+/* 演出をへらす：すっと出す */
+html[data-reduce-fx] .trade-received {
+  animation: none;
 }

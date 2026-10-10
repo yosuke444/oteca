@@ -10,7 +10,7 @@ import { CARD_DB } from '../../data/cards';
 import { useFx } from '../../fx/fxSettings';
 import { type PullResult, cryptoRand } from '../../gacha/gacha';
 import type { DailyMissionId } from '../../save/saveData';
-import { CardMini } from '../../ui/card/CardMini';
+import { PrizeCard } from '../../ui/card/PrizeCard';
 import { imageUrl } from '../../ui/imageFiles';
 import { DailyIcon, DailyPanel } from '../Daily/DailyPanel';
 import type { GachaPayload } from '../Gacha/GachaScene';
@@ -352,7 +352,7 @@ export function MenuScene() {
               <p>{tr.daily.carryCards(carry.cards.length)}</p>
               <div className="daily-carry__cards">
                 {carry.cards.map((no, i) => (
-                  <CardMini key={i} def={CARD_DB[no]} seed={`carry-${no}-${i}`} variant="slot" />
+                  <PrizeCard key={i} def={CARD_DB[no]} seed={`carry-${no}-${i}`} width={112} />
                 ))}
               </div>
             </>

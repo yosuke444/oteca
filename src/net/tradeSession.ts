@@ -1,4 +1,4 @@
-import { type Offer, TRADE_DONE_KEEP, canonical, cleanOffer, tradeKey } from '../trade/trade';
+import { type Offer, TRADE_DONE_KEEP, canonical, cleanOffer, hasUntradable, offerHasUntradable, tradeKey } from '../trade/trade';
 import { type Msg, type MsgBody, type Ticket, makeMsg, tradeRoomName } from './protocol';
 import type { Clock } from './session';
 import type { NetTransport } from './transport';
@@ -93,6 +93,8 @@ export class TradeSession {
   onResume: (decision: 'apply' | 'drop', p: PendingTrade) => void = () => {};
   /** 相手が出ていった（画面に「あいては でていったよ」） */
   onLeft: () => void = () => {};
+  /** 相手が出せないカード（ストーリーの限定カードなど）を出してきたので、この交換を不成立にした（v2.3） */
+  onRejected: () => void = () => {};
 
   private readonly clock: Clock;
   private readonly randomBytes: (n: number) => Uint8Array;
@@ -169,20 +171,22 @@ export class TradeSession {
     this.close();
   }
 
-  /** あげるカードを変える（両者のロック・最終確認が外れる） */
-  setOffer(o: Offer): void {
-    if (this.status !== 'trading' || this.myCommit) return;
+  /** あげるカードを変える（両者のロック・最終確認が外れる）。出せないカード（限定カードなど）入りは送らない（v2.3） */
+  setOffer(o: Offer): boolean {
+    if (this.status !== 'trading' || this.myCommit) return false;
+    if (hasUntradable(o)) return false;
     this.myOffer = Object.fromEntries(canonical(o));
     this.clearAgreement();
     this.send(makeMsg('tradeOffer', this.opts.protocol, { offer: this.myOffer }), this.opp ?? undefined);
     this.emit();
+    return true;
   }
 
   /** 「これで OK」／取り消し */
   setLock(on: boolean): boolean {
     if (this.status !== 'trading' || this.myCommit) return false;
     // どちらも何も出していない・自分の所持数が足りない時は OK にできない
-    if (on && (canonical(this.myOffer).length + canonical(this.oppOffer).length === 0 || !(this.opts.canGive?.(this.myOffer) ?? true))) return false;
+    if (on && (canonical(this.myOffer).length + canonical(this.oppOffer).length === 0 || !this.giveOk())) return false;
     this.myLock = on ? this.hash() : null;
     this.send(makeMsg('tradeLock', this.opts.protocol, { hash: this.myLock ?? '' }), this.opp ?? undefined);
     this.emit();
@@ -194,7 +198,7 @@ export class TradeSession {
     const hash = this.hash();
     if (this.status !== 'trading' || !this.oppInfo || this.myLock !== hash || this.oppLock !== hash || this.myCommit) return false;
     // 最終確認の時にも所持数を確かめる（ロックの後に別のタブなどで減っていたら、交換しない）
-    if (!(this.opts.canGive?.(this.myOffer) ?? true)) return false;
+    if (!this.giveOk() || hasUntradable(this.oppOffer)) return false;
     const tradeId = this.tradeId(hash);
     // 送る前に「とちゅうの交換」を覚えてもらう（保存の前にページが閉じられても、次に仕上げ・取り消しができるように）
     this.onPending({ tradeId, give: { ...this.myOffer }, get: { ...this.oppOffer }, oppPlayerId: this.oppInfo.playerId, room: this.room });
@@ -203,6 +207,11 @@ export class TradeSession {
     this.emit();
     this.maybeExecute();
     return true;
+  }
+
+  /** 自分の内容を送ってよいか：所持数が足りていて、出せないカード（限定カードなど）が入っていない（v2.3） */
+  private giveOk(): boolean {
+    return !hasUntradable(this.myOffer) && (this.opts.canGive?.(this.myOffer) ?? true);
   }
 
   /** 交換ID：両者の内容のハッシュ・2人の入室チケット・この部屋で何回目か から作る（2人で同じになる） */
@@ -243,6 +252,17 @@ export class TradeSession {
     }
     switch (m.t) {
       case 'tradeOffer': {
+        if (offerHasUntradable(m.body.offer)) {
+          // 相手が限定カード・トロフィあげを出してきた（古い版・書き換え）：この交換は不成立。
+          // 相手の内容を空にし、両者のロック・最終確認を外す（どちらのカードも動かさない）
+          this.oppOffer = {};
+          this.oppCommit = null;
+          if (this.myCommit) this.onPending(null);
+          this.clearAgreement();
+          this.onRejected();
+          this.emit();
+          return;
+        }
         const o = cleanOffer(m.body.offer);
         if (!o) {
           this.ignored.push('bad offer');
@@ -295,6 +315,14 @@ export class TradeSession {
     const mine = this.myCommit;
     const theirs = this.oppCommit;
     if (!mine || !theirs || mine.hash !== hash || theirs.hash !== hash || mine.tradeId !== theirs.tradeId) return;
+    // 念のため：出せないカードが入った交換は行わない（v2.3）
+    if (hasUntradable(this.myOffer) || hasUntradable(this.oppOffer)) {
+      this.onPending(null);
+      this.clearAgreement();
+      this.onRejected();
+      this.emit();
+      return;
+    }
     const t = { tradeId: mine.tradeId, give: { ...this.myOffer }, get: { ...this.oppOffer } };
     this.onExecute(t);
     this.onPending(null);

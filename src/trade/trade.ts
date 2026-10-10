@@ -43,6 +43,38 @@ export function isTradable(no: number): boolean {
   return !!CARD_DB[no] && !isTrophyNo(no) && !LIMITED_NOS.has(no);
 }
 
+/** ストーリーの限定カードか（v2.3：トレードの一覧で灰色にして理由を出す） */
+export function isLimitedNo(no: number): boolean {
+  return LIMITED_NOS.has(no);
+}
+
+/** 内容に、トレードに出せないカード（限定カード・トロフィあげ・知らないカード）が入っているか */
+export function hasUntradable(o: Offer): boolean {
+  return Object.entries(o).some(([k, v]) => Number(v) > 0 && !isTradable(Number(k)));
+}
+
+/**
+ * 相手から届いた offer が「出せないカード」入りか（v2.3）。
+ * 形は正しいのに限定カード・トロフィあげが入っている（古い版・書き換え）時は true。壊れたデータは false（今までどおり無視する）
+ */
+export function offerHasUntradable(x: unknown): boolean {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return false;
+  return Object.entries(x as Record<string, unknown>).some(([k, v]) => {
+    const no = Number(k);
+    return Number.isInteger(no) && typeof v === 'number' && v > 0 && !!CARD_DB[no] && !isTradable(no);
+  });
+}
+
+/** トレードの一覧に出す自分のカード（v2.3：限定カードも出し、灰色・選べない。トロフィあげは出さない） */
+export function giveCandidates(save: Pick<SaveData, 'collection'>): { no: number; limited: boolean }[] {
+  return Object.keys(save.collection)
+    .map(Number)
+    .filter((no) => (save.collection[no] ?? 0) > 0 && !!CARD_DB[no] && !isTrophyNo(no))
+    .filter((no) => isTradable(no) || isLimitedNo(no))
+    .sort((a, b) => a - b)
+    .map((no) => ({ no, limited: isLimitedNo(no) }));
+}
+
 /** 受け取った offer を確かめる（壊れたデータ・存在しないカード・トレードに出せないカード・上限越えは null） */
 export function cleanOffer(x: unknown): Offer | null {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
@@ -110,6 +142,8 @@ export function afterCollection(collection: Record<number, number>, give: Offer,
  */
 export function applyTrade(draft: Pick<SaveData, 'collection' | 'trade'>, tradeId: string, give: Offer, get: Offer, opts: { partial?: boolean } = {}): boolean {
   if (draft.trade.doneIds.includes(tradeId)) return false;
+  // 出せないカード（限定カード・トロフィあげ）が どちらかに入っていたら、どちらのカードも動かさない（v2.3。書き換えた とちゅうの交換 なども）
+  if (hasUntradable(give) || hasUntradable(get)) return false;
   if (!offerFits(draft, give)) {
     if (!opts.partial) return false;
     // 相手の側では交換が済んでいる（とちゅうの交換を仕上げる時・成立の時）：あげる分は持っている分だけ減らし、もらう分は受け取る

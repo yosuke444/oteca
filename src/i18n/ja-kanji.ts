@@ -320,6 +320,7 @@ export const kanji: Dict = {
     waitOpp: '相手の「交換する」を待ってるよ',
     done: '交換成立！',
     doneNote: '次の交換もできるよ',
+    received: '受け取ったカード',
     left: '相手は出ていったよ',
     full: 'この部屋は満員だよ。違う番号にしてね',
     version: 'バージョンが違うよ。二人ともページを読み込み直してね',
@@ -331,6 +332,9 @@ export const kanji: Dict = {
     minus: '減らす',
     plus: '増やす',
     cannotAdd: 'もう入れられないよ',
+    limitedNo: 'ストーリー限定は交換できません',
+    limitedTag: '限定',
+    rejectedLimited: '相手がストーリー限定のカードを出したので、交換をとりやめたよ',
     empty: 'どちらも何も出していないよ',
     notEnough: '持っている枚数が足りないよ',
     changed: '相手が内容を変えたよ。もう一度確かめてね',
@@ -706,7 +710,7 @@ export const kanji: Dict = {
     toStages: 'ステージ選びへ',
     firstClear: '初クリア！',
     limitedGet: '限定カードゲット！',
-    limitedNote: (name) => `「${name}」が仲間になった！ トレードにも出せるよ`,
+    limitedNote: (name) => `「${name}」が仲間になった！（トレードには出せないよ）`,
   },
 
   tutorial: {

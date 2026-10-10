@@ -5,7 +5,7 @@ import { trophyDef } from '../../data/cards';
 import { useFx } from '../../fx/fxSettings';
 import { useT } from '../../i18n/useT';
 import { arrivedTrophies, clearArrived, onArrived } from '../../online/mailbox';
-import { CardDetail } from '../../ui/card/CardDetail';
+import { PrizeCard } from '../../ui/card/PrizeCard';
 import { TrophyDoodle } from '../../ui/card/CardArt';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import './trophy.css';
@@ -75,7 +75,7 @@ export function TrophyArrival() {
       <div className="trophy-arrival__panel">
         <h2 className="trophy-arrival__title">{tr.trophyGet.title}</h2>
         <div className="trophy-arrival__card" ref={cardRef}>
-          <CardDetail def={trophyDef(shown)} seed={`trophy-get-${shown}`} />
+          <PrizeCard def={trophyDef(shown)} seed={`trophy-get-${shown}`} width={190} />
         </div>
         <p className="trophy-arrival__text">{tr.trophyGet.text(shown)}</p>
         <RoughButton seed="trophy-get-ok" className="trophy-arrival__ok" highlight onClick={next} data-testid="trophy-get-ok">

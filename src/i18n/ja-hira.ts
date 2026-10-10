@@ -323,6 +323,7 @@ export const hira = {
     waitOpp: 'あいての「こうかんする」を まってるよ',
     done: 'こうかん せいりつ！',
     doneNote: 'つぎの こうかんも できるよ',
+    received: 'うけとった カード',
     left: 'あいては でていったよ',
     full: 'このへやは まんいんだよ。ちがう ばんごうに してね',
     version: 'バージョンが ちがうよ。ふたりとも ページを よみこみなおしてね',
@@ -334,6 +335,9 @@ export const hira = {
     minus: 'へらす',
     plus: 'ふやす',
     cannotAdd: 'もう いれられないよ',
+    limitedNo: 'ストーリー げんてい は こうかん できません',
+    limitedTag: 'げんてい',
+    rejectedLimited: 'あいてが ストーリー げんてい の カードを だしたので、こうかんを とりやめたよ',
     empty: 'どちらも なにも だしていないよ',
     notEnough: 'もっている まいすうが たりないよ',
     changed: 'あいてが ないようを かえたよ。もういちど たしかめてね',
@@ -713,7 +717,7 @@ export const hira = {
     toStages: 'ステージ えらびへ',
     firstClear: 'はじめて クリア！',
     limitedGet: 'げんてい カード ゲット！',
-    limitedNote: (name: string) => `「${name}」が なかまに なった！ トレードにも だせるよ`,
+    limitedNote: (name: string) => `「${name}」が なかまに なった！（トレードには だせないよ）`,
   },
 
   tutorial: {

@@ -29,8 +29,8 @@ export type BattleCardProps = {
   def: CardDef;
   card: CardInstance;
   size: CardSize;
-  /** 表示中の状態（取り消し線の数値計算に使う） */
-  view: GameState;
+  /** 表示中の状態（取り消し線の数値計算・場の印に使う）。対戦の外（手に入れたカード。v2.3）では無し */
+  view?: GameState;
   /** 場に出ている（HPバーを出す） */
   onField?: boolean;
   /** 「このターン出る数値」を取り消し線方式で出す */
@@ -112,7 +112,7 @@ function OtegeFace({
   def: OtegeCardDef;
   card: CardInstance;
   size: CardSize;
-  view: GameState;
+  view?: GameState;
   onField: boolean;
   preview: boolean;
   selected: boolean;
@@ -168,7 +168,7 @@ function OtegeFace({
               <FitLine className="card-moves__effects">
               {sortedEffects(m.effects).map((e, j) => {
                 const l = effectLabel(e, true);
-                if (e.type === 'damage' && preview) {
+                if (e.type === 'damage' && preview && view) {
                   // やいば等は今すぐの分にだけ効く（SPEC §4-5 ④）。持続の分（+ の後ろ）はそのまま
                   const now = moveDamage(view, card, e.amount);
                   if (now !== e.amount) {
@@ -202,7 +202,7 @@ function OtegeFace({
         )}
       </RoughBox>
       {/* バフのバッジ（やいば・ドリンク） */}
-      {onField && (card.attackAdd > 0 || card.attackOverride !== null) && (
+      {onField && view && (card.attackAdd > 0 || card.attackOverride !== null) && (
         <div className="battle-card__badges">
           {card.attackOverride !== null && <span className="buff-badge buff-badge--drink">={card.attackOverride}</span>}
           {card.attackAdd > 0 && (
@@ -212,9 +212,9 @@ function OtegeFace({
         </div>
       )}
       {/* 持続効果の印（どく・あとから回復・ばくだん。SPEC §8-5） */}
-      {onField && <LastingMarks view={view} uid={card.uid} />}
+      {onField && view && <LastingMarks view={view} uid={card.uid} />}
       {/* 出したばかり（このターンは交代でバトル場に出せない。SPEC §8-3・v1.4） */}
-      {onField && justPlaced(view, card) && (
+      {onField && view && justPlaced(view, card) && (
         <Sticky seed={`just-${card.uid}`} color="yellow" angle={-8} className="just-placed">
           {tr.battle.justPlaced}
         </Sticky>

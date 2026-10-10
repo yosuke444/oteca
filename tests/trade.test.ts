@@ -3,7 +3,8 @@ import { cardById } from '../src/data/cards';
 import { type PendingTrade, TRADE_PICK_MS, TradeSession, type TradeView } from '../src/net/tradeSession';
 import { MemoryHub } from '../src/net/transport';
 import { createDefaultSave } from '../src/save/saveData';
-import { type Offer, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, cleanOffer, isTradable, offerFits } from '../src/trade/trade';
+import { type Offer, TRADE_MAX_CARDS, TRADE_MAX_KINDS, applyTrade, brokenDecks, canAdd, cleanOffer, giveCandidates, isTradable, offerFits } from '../src/trade/trade';
+import { makeMsg } from '../src/net/protocol';
 import { PACK_DATA } from '../src/data/packs';
 import { trophyCardNo } from '../src/data/cards';
 import { FakeClock, settle } from './net.helpers';
@@ -396,5 +397,103 @@ describe('K05 同じユーザーIDどうしはトレードしない（v2.2）', 
     clock.advance(TRADE_PICK_MS + 300);
     await settle(hub);
     expect(last(a).status).toBe('trading');
+  });
+});
+
+describe('K04b ストーリーの限定カードは、選べない・送れない・届いても受け取らない（v2.3）', () => {
+  const limitedNos = () => PACK_DATA.limited.map(no);
+
+  it('選べない：一覧には灰色で出る（limited）。足そうとしても入らない', () => {
+    const s = createDefaultSave();
+    for (const n of limitedNos()) s.collection[n] = 2;
+    const list = giveCandidates(s);
+    for (const n of limitedNos()) {
+      expect(list.find((c) => c.no === n)).toEqual({ no: n, limited: true });
+      expect(canAdd(s, {}, n)).toBe(false);
+    }
+    // ふつうのカードは選べる
+    expect(list.find((c) => c.no === no('oteage'))).toEqual({ no: no('oteage'), limited: false });
+    // トロフィあげは一覧に出さない（今までどおり）
+    expect(list.some((c) => c.no >= 50000)).toBe(false);
+  });
+
+  it('送れない：限定カード入りの内容は送らず、これで OK・最終確認もできない', async () => {
+    const { hub, a, b } = await pairUp();
+    for (const n of limitedNos()) a.save.collection[n] = 2;
+    const n = limitedNos()[0];
+    const sent = a.views.length;
+    expect(a.s.setOffer({ [n]: 1 })).toBe(false);
+    expect(a.s.setOffer({ [no('oteage')]: 1, [n]: 1 })).toBe(false);
+    await settle(hub);
+    expect(a.views.length).toBe(sent);
+    expect(last(b).oppOffer).toEqual({});
+    // 中身を直接書きかえても（書き換え）、OK・最終確認はできない
+    (a.s as unknown as { myOffer: Offer }).myOffer = { [n]: 1 };
+    expect(a.s.setLock(true)).toBe(false);
+    expect(a.s.commit()).toBe(false);
+  });
+
+  it('届いても受け取らない：古い版・書き換えで限定カードが届いたら不成立。両方のカードが変わらない', async () => {
+    const { hub, a, b } = await pairUp();
+    const n = limitedNos()[0];
+    b.save.collection[n] = 2;
+    const before = { a: structuredClone(a.save.collection), b: structuredClone(b.save.collection) };
+    let rejected = 0;
+    a.s.onRejected = () => rejected++;
+    a.s.setOffer({ [no('oteage')]: 1 });
+    await settle(hub);
+    // b は古い版のつもり：確かめずに限定カードを送り、OK・最終確認まで進める
+    const bs = b.s as unknown as { myOffer: Offer; giveOk: () => boolean; send: (m: unknown, to?: string) => void; opp: string };
+    bs.giveOk = () => true;
+    bs.myOffer = { [n]: 1 };
+    bs.send(makeMsg('tradeOffer', 5, { offer: { [n]: 1 } }), bs.opp);
+    await settle(hub);
+    expect(rejected).toBe(1);
+    expect(last(a).oppOffer).toEqual({});
+    a.s.setLock(true);
+    b.s.setLock(true);
+    await settle(hub);
+    a.s.commit();
+    b.s.commit();
+    await settle(hub);
+    expect(a.save.collection).toEqual(before.a);
+    expect(b.save.collection).toEqual(before.b);
+    expect(a.save.trade.doneIds).toEqual([]);
+    expect(b.save.trade.doneIds).toEqual([]);
+  });
+
+  it('自分が最終確認を押した後に限定カードが届いても不成立：とちゅうの交換の記録を消し、内容をまた変えられる', async () => {
+    const { hub, a, b } = await pairUp();
+    const n = limitedNos()[0];
+    b.save.collection[n] = 2;
+    const before = structuredClone(a.save.collection);
+    let rejected = 0;
+    a.s.onRejected = () => rejected++;
+    a.s.setOffer({ [no('oteage')]: 1 });
+    await settle(hub);
+    a.s.setLock(true);
+    b.s.setLock(true);
+    await settle(hub);
+    expect(a.s.commit()).toBe(true);
+    expect(a.pending).not.toBeNull();
+    const bs = b.s as unknown as { send: (m: unknown, to?: string) => void; opp: string };
+    bs.send(makeMsg('tradeOffer', 5, { offer: { [n]: 1 } }), bs.opp);
+    await settle(hub);
+    expect(rejected).toBe(1);
+    expect(a.pending).toBeNull();
+    expect(last(a)).toMatchObject({ myCommit: false, myLock: false, oppLock: false, oppOffer: {} });
+    expect(a.s.setOffer({ [no('mitsume')]: 1 })).toBe(true);
+    expect(a.save.collection).toEqual(before);
+  });
+
+  it('保存の時にも確かめる：限定カードが入った交換（とちゅうの交換の書き換え など）は、どちらのカードも動かさない', () => {
+    const s = createDefaultSave();
+    const n = limitedNos()[0];
+    s.collection[n] = 1;
+    const before = structuredClone(s.collection);
+    expect(applyTrade(s, 'x1', { [no('oteage')]: 1 }, { [n]: 1 })).toBe(false);
+    expect(applyTrade(s, 'x2', { [n]: 1 }, { [no('oteage')]: 1 }, { partial: true })).toBe(false);
+    expect(s.collection).toEqual(before);
+    expect(s.trade.doneIds).toEqual([]);
   });
 });

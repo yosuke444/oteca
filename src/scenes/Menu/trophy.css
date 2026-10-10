@@ -38,7 +38,8 @@
   background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
 }
 .trophy-arrival__card {
-  width: 300px;
+  display: flex;
+  justify-content: center;
 }
 .trophy-arrival__text {
   margin: 0;

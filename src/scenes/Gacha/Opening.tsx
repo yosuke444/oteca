@@ -10,7 +10,7 @@ import { play, wait } from '../../fx/timing';
 import { type Bag, type PullResult, revealKind } from '../../gacha/gacha';
 import { useT } from '../../i18n/useT';
 import { CardBack } from '../../ui/card/CardBack';
-import { CardMini } from '../../ui/card/CardMini';
+import { PrizeCard } from '../../ui/card/PrizeCard';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { PackArt } from './PackArt';
 
@@ -166,6 +166,7 @@ export function Opening({
           <BagButton
             key={i}
             index={i}
+            many={many}
             pack={pack}
             bag={b}
             opened={opened[i]}
@@ -283,11 +284,11 @@ function CenterBag({ pack, bag, index, left, onReady }: { pack: PackDef; bag: Ba
 }
 
 /** 1つの袋（タップでも、横になぞっても開く） */
-function BagButton({ index, pack, bag, opened, result, refCb, onOpen }: { index: number; pack: PackDef; bag: Bag; opened: boolean; result: PullResult; refCb: (e: HTMLDivElement | null) => void; onOpen: () => void }) {
+function BagButton({ index, many, pack, bag, opened, result, refCb, onOpen }: { index: number; /** 袋が多い（小さい袋） */ many: boolean; pack: PackDef; bag: Bag; opened: boolean; result: PullResult; refCb: (e: HTMLDivElement | null) => void; onOpen: () => void }) {
   const tr = useT();
   const start = useRef<number | null>(null);
   return (
-    // 開けた袋の中に CardMini（ボタン）を出すので、袋は button ではなく role="button" の div にする
+    // 開けた袋の中にカード（PrizeCard）を出すので、袋は button ではなく role="button" の div にする
     <div
       ref={refCb}
       role={opened ? undefined : 'button'}
@@ -319,7 +320,7 @@ function BagButton({ index, pack, bag, opened, result, refCb, onOpen }: { index:
       onClick={() => !opened && onOpen()}
     >
       {opened ? (
-        <span className="gacha-bag__got">{result && <CardMini def={CARD_DB[result.no]} seed={`bag-got-${index}`} variant="slot" />}</span>
+        <span className="gacha-bag__got">{result && <PrizeCard def={CARD_DB[result.no]} seed={`bag-got-${index}`} width={many ? 104 : 150} />}</span>
       ) : (
         <PackArt pack={pack} small />
       )}
@@ -505,7 +506,7 @@ function Reveal({
             <CardBack seed="reveal-back-0" width={176} height={240} />
           </div>
           <div className="gacha-reveal__front" ref={frontRef}>
-            <CardMini def={CARD_DB[result.no]} seed={`reveal-${result.no}`} variant="tile" />
+            <PrizeCard def={CARD_DB[result.no]} seed={`reveal-${result.no}`} width={220} />
             {result.isNew && <span className="gacha-new">{tr.gacha.newTag}</span>}
           </div>
         </div>
