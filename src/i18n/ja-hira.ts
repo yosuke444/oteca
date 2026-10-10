@@ -377,7 +377,6 @@ export const hira = {
 
   /** 管理者メニュー（v2.0-J。SPEC §7 S20）。コードの文字（大会閲覧など）は src/admin/codes.ts */
   admin: {
-    button: 'かんりしゃ',
     loginTitle: 'かんりしゃ',
     password: 'パスワード',
     enter: 'はいる',

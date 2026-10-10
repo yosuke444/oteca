@@ -19,6 +19,8 @@
   flex-direction: column;
   gap: 18px;
   padding: 26px 32px 24px;
+  /* 中身が多い時は、本文だけスクロールして、ボタンは いつも見える（v2.3） */
+  max-height: 680px;
 }
 
 .dialog__title {
@@ -30,9 +32,17 @@
 .dialog__body {
   font-size: 20px;
   line-height: 1.5;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* 手描きの線（枠の外に 8px はみ出して描く）が切れないように、内側に余白を取って外へ戻す */
+  padding: 10px;
+  margin: -10px;
 }
 
 .dialog__actions {
+  flex: none;
   display: flex;
   justify-content: flex-end;
   gap: 16px;

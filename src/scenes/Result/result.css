@@ -99,11 +99,18 @@
   justify-content: center;
   gap: 40px;
 }
+/* 長い文字（「もういちど ちょうせん」など）は2行に折り返す。2行でも高さに収まる大きさ（v2.3） */
 .result__btn {
   width: 260px;
   height: 80px;
-  font-size: 28px;
-  white-space: nowrap;
+  font-size: 25px;
+  line-height: 1.15;
+  white-space: normal;
+  /* 折り返すのは ことばの区切り（空白）だけ */
+  word-break: keep-all;
+}
+.result__btn .rough-btn__label {
+  padding: 0.2em 0.6em;
 }
 .result__wait {
   position: absolute;

@@ -373,7 +373,6 @@ export const kanji: Dict = {
   },
 
   admin: {
-    button: '管理者',
     loginTitle: '管理者',
     password: 'パスワード',
     enter: '入る',
