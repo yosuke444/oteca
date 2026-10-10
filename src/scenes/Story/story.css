@@ -458,11 +458,15 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 560px;
+  top: 552px;
   margin: 0;
+  padding: 8px 0;
   text-align: center;
   font-size: 32px;
   color: var(--paper);
+  /* 光の筋・紙吹雪の上でも読めるように、うしろに暗い帯（v2.3） */
+  background: color-mix(in srgb, var(--ink) 78%, transparent);
+  z-index: 2;
 }
 .limited-fx__layer {
   position: absolute;

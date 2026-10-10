@@ -102,7 +102,7 @@ describe('F06 ストーリーの勝率（各ステージ50試合）', () => {
         if (rate <= 10) low.push(`ステージ ${st.no}（${st.name}）× ${pl.label}：${rate}%`);
         cells.push(`${rate}%`);
       }
-      rows.push(`| ${st.no} | ${st.kind === 'boss' ? 'ボス' : '雑魚'} | ${st.name} | ${stageLevel(st) === 'strong' ? 'つよい' : 'ふつう'} | ${cells.join(' | ')} |`);
+      rows.push(`| ${st.no} | ${st.kind === 'boss' ? 'ボス' : '雑魚'} | ${st.name} | ${{ weak: 'よわい', normal: 'ふつう', strong: 'つよい', strongest: 'さいきょう' }[stageLevel(st)]} | ${cells.join(' | ')} |`);
     }
     const md = [
       '# ストーリー各ステージの勝率（自動対戦）',

@@ -67,10 +67,10 @@ describe('F01 story.json の15ステージと敵デッキ（v2.1-N の並び。U
     }
   });
 
-  it('K01 ステージ1・2（らくがき こぞう・けしかす）は よわい、ほかの雑魚は ふつう、ボスは つよい。ボスは限定カードとボスルールを持ち、限定カードはパックから出ない', () => {
-    expect(STORY.stages.filter((s) => s.no <= 2).map((s) => s.name)).toEqual(['らくがき こぞう', 'けしかす']);
+  it('K01 ステージ1〜3（らくがき こぞう・けしかす・おてあげニンゲン）は よわい（v2.3）、ほかの雑魚は ふつう、ほかのボスは つよい。ボスは限定カードとボスルールを持ち、限定カードはパックから出ない', () => {
+    expect(STORY.stages.filter((s) => s.no <= 3).map((s) => s.name)).toEqual(['らくがき こぞう', 'けしかす', 'おてあげニンゲン']);
     for (const s of STORY.stages) {
-      expect(stageLevel(s)).toBe(s.no <= 2 ? 'weak' : s.kind === 'boss' ? 'strong' : 'normal');
+      expect(stageLevel(s)).toBe(s.no <= 3 ? 'weak' : s.kind === 'boss' ? 'strong' : 'normal');
       if (s.kind === 'boss') {
         expect(s.bossRule?.text.hira, `${s.no}`).toBeTruthy();
         expect(s.bossRule?.text.kanji, `${s.no}`).toBeTruthy();
@@ -319,5 +319,53 @@ describe('F05 進み具合が保存・引き継ぎコードで残る', () => {
     if (!r.ok) return;
     expect(r.data.story).toEqual(normalizeSave(save).story);
     expect(stageState(r.data, 14)).toBe('open');
+  });
+});
+
+describe('F08 ストーリーの最初の3ステージは弱い（v2.3）', () => {
+  const ids = (no: number) => stageByNo(no)!.deck.map(([id]) => id);
+  const count = (no: number, id: string) => stageByNo(no)!.deck.filter(([x]) => x === id).reduce((a, [, n]) => a + n, 0);
+  const items = (no: number) => stageByNo(no)!.deck.filter(([id]) => cardById(id)!.kind === 'item').reduce((a, [, n]) => a + n, 0);
+
+  it('ステージ1〜3のデッキに スポドリが入っていない', () => {
+    for (const no of [1, 2, 3]) expect(ids(no), `ステージ ${no}`).not.toContain('supodori');
+  });
+
+  it('ステージ1はアイテム0まい、ステージ2・3は くすり1まいまで（ほかのアイテムは無し）。CPU は3つとも よわい', () => {
+    expect(items(1)).toBe(0);
+    for (const no of [2, 3]) {
+      expect(count(no, 'kusuri'), `ステージ ${no}`).toBeLessThanOrEqual(1);
+      expect(items(no), `ステージ ${no}`).toBe(count(no, 'kusuri'));
+    }
+    for (const no of [1, 2, 3]) expect(stageLevel(stageByNo(no)!)).toBe('weak');
+  });
+
+  it('スーパーおてあげは入れない（ステージ3のボスの限定カード おてあげニンゲン は残す）。デッキの決まりを守る', () => {
+    for (const no of [1, 2, 3]) {
+      const supers = stageByNo(no)!.deck.filter(([id]) => cardById(id)!.kind === 'otege' && (cardById(id) as { rarity: string }).rarity === 'super').map(([id]) => id);
+      expect(supers, `ステージ ${no}`).toEqual(no === 3 ? ['oteage_ningen'] : []);
+      expect(validateDeck(stageDeckNos(stageByNo(no)!), CARD_DB), `ステージ ${no}`).toEqual([]);
+    }
+  });
+
+  it('1 → 2 → 3 と少しずつ強くなる（おてあげの HP の合計と、技の1回あたりのダメージの見込み）', () => {
+    const otege = (no: number) => stageByNo(no)!.deck.map(([id, n]) => [cardById(id)!, n] as const).filter(([c]) => c.kind === 'otege');
+    const hp = (no: number) => otege(no).reduce((a, [c, n]) => a + (c.kind === 'otege' ? c.hp * n : 0), 0);
+    /** サイコロ1回あたりの、相手へのダメージの見込み（いまの分だけ）を、おてあげ1まいあたりで */
+    const dmg = (no: number) => {
+      let sum = 0;
+      let cnt = 0;
+      for (const [c, n] of otege(no)) {
+        if (c.kind !== 'otege') continue;
+        const per = c.moves.reduce((a, m) => a + m.faces.length * m.effects.filter((e) => e.type === 'damage').reduce((x, e) => x + (e.type === 'damage' ? e.amount : 0), 0), 0) / 6;
+        sum += per * n;
+        cnt += n;
+      }
+      return sum / cnt;
+    };
+    expect(hp(1)).toBeLessThan(hp(2));
+    expect(hp(2)).toBeLessThan(hp(3));
+    expect(dmg(1)).toBeLessThan(dmg(2));
+    expect(dmg(2)).toBeLessThan(dmg(3));
   });
 });
