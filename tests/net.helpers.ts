@@ -74,9 +74,10 @@ export async function matchUp(hub: MemoryHub, clock: FakeClock): Promise<void> {
 
 export async function settle(hub: MemoryHub): Promise<void> {
   let quiet = 0;
-  for (let i = 0; i < 50 && quiet < 3; i++) {
+  for (let i = 0; i < 80 && quiet < 4; i++) {
     const n = hub.flush();
-    await new Promise((r) => setTimeout(r, 0));
+    // 何も届かなかった時は少し長めに待つ（SHA-256 の計算は非同期。遅い機械（GitHub の公開の作業）では 0ms では終わらないことがあった）
+    await new Promise((r) => setTimeout(r, n === 0 ? 5 : 0));
     quiet = n === 0 ? quiet + 1 : 0;
   }
 }
