@@ -191,7 +191,8 @@ describe('G08 15まいガチャの最後の袋は確定（v2.2）', () => {
   });
 
   it('めくり方：確定／光ってスーパー／光ってノーマル（ぺらっ）／光らずスーパー（サプライズ）／ノーマル', () => {
-    expect(revealKind({ glow: true, guaranteed: true }, true)).toBe('guaranteed');
+    // 確定の袋も、ふつうのスーパーレアと同じ演出（v2.3）
+    expect(revealKind({ glow: true, guaranteed: true }, true)).toBe('super');
     expect(revealKind({ glow: true, guaranteed: false }, true)).toBe('super');
     expect(revealKind({ glow: true, guaranteed: false }, false)).toBe('letdown');
     expect(revealKind({ glow: false, guaranteed: false }, true)).toBe('surprise');

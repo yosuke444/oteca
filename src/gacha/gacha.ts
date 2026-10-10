@@ -89,17 +89,15 @@ export function drawBags(pack: PackDef, bags: number, rand: Rand, rules: DrawRul
 
 /**
  * めくり方（v2.2。演出を選ぶ）：
- * - guaranteed：確定の袋。スーパーレアの演出を さらに3倍豪華に
- * - super：光った袋からスーパー（今までのスーパーレアの演出）
+ * - super：光った袋からスーパー（今までのスーパーレアの演出）。確定の袋（いつも光ってスーパー）も同じ（v2.3：確定だけの演出は無くした）
  * - letdown：光ったのにノーマル。期待させてから「…ぺらっ」と普通にめくれる（少しコミカルに）
  * - surprise：光らなかったのにスーパー。めくった瞬間に光があふれ出る（3倍豪華に）
  * - normal：ノーマル（集中線＋「ぺらっ」）
  */
-export type RevealKind = 'guaranteed' | 'super' | 'letdown' | 'surprise' | 'normal';
+export type RevealKind = 'super' | 'letdown' | 'surprise' | 'normal';
 
 export function revealKind(bag: Pick<Bag, 'glow' | 'guaranteed'>, isSuper: boolean): RevealKind {
-  if (bag.guaranteed) return 'guaranteed';
-  if (bag.glow) return isSuper ? 'super' : 'letdown';
+  if (bag.guaranteed || bag.glow) return isSuper || bag.guaranteed ? 'super' : 'letdown';
   return isSuper ? 'surprise' : 'normal';
 }
 

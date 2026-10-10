@@ -199,14 +199,14 @@ for (const lang of ['hira', 'kanji']) {
       await snap(lang, '13c_reveal_guaranteed');
       await page.waitForTimeout(1800);
       await snap(lang, '13d_reveal_guaranteed_done');
-      if ((await page.getByTestId('gacha-reveal').getAttribute('data-kind')) !== 'guaranteed') problems.push(`${lang} 15袋目が guaranteed の演出でない`);
+      if ((await page.getByTestId('gacha-reveal').getAttribute('data-kind')) !== 'super') problems.push(`${lang} 15袋目が super（ふつうのスーパーレアと同じ。v2.3）の演出でない`);
     }
     await page.waitForTimeout(50);
     if (await page.getByTestId('gacha-summary').count()) break;
   }
   if (n15 !== 15) problems.push(`${lang} 15まい：つぎへ の回数 ${n15}`);
   await snap(lang, '14_summary15');
-  const got15 = await page.locator('.gacha-summary .card-mini').count();
+  const got15 = await page.locator('.gacha-summary .prize-card').count();
   if (got15 < 15) problems.push(`${lang} 15まい：まとめのカード ${got15}`);
   await page.getByRole('button', { name: L.shop }).click();
   // 15まい：ぜんぶ スキップ

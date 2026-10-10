@@ -451,6 +451,10 @@
   pointer-events: none;
   filter: drop-shadow(0 0 5px var(--fx-onom-fill));
 }
+/* まとめて大きくした粒（v2.3）：光も強く */
+.spark--big {
+  filter: drop-shadow(0 0 9px var(--fx-onom-fill)) drop-shadow(0 0 3px var(--super-gold));
+}
 .spark-beam {
   position: absolute;
   z-index: 62;

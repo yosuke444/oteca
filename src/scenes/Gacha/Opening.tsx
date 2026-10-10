@@ -86,7 +86,8 @@ export function Opening({
   const startRain = () => {
     const L = layerRef.current;
     if (reduce || rainStop.current || !L) return;
-    rainStop.current = sparkleRain(L, 16);
+    // 星くずは今の6割、粒は 3つを1つに（v2.3：16 → 約3.2個／秒。1つを大きく）
+    rainStop.current = sparkleRain(L, (16 * STAR_DUST) / MERGE, BIG);
   };
 
   /** el の袋を開ける（震える → 破る → キラキラが噴き出す → カードがめくれる） */
@@ -94,21 +95,13 @@ export function Opening({
     if (busy.current || opened[i]) return;
     busy.current = true;
     const layer = layerRef.current;
-    // 光る袋は大きく震える（中身はまだ分からない）。確定の袋はもっと
+    // 光る袋は大きく震える（中身はまだ分からない）。確定の袋も同じ（v2.3）
     const big = bags[i].glow;
-    const sure = bags[i].guaranteed;
     if (el && layer) {
       // 開ける前に、袋が小さく震えて期待をあおる
       if (!reduce) {
-        await play(gsap.fromTo(el, { rotate: -3 }, { rotate: 3, x: 2, duration: 0.05, yoyo: true, repeat: sure ? 17 : big ? 11 : 7, ease: 'none' }));
+        await play(gsap.fromTo(el, { rotate: -3 }, { rotate: 3, x: 2, duration: 0.05, yoyo: true, repeat: big ? 11 : 7, ease: 'none' }));
         gsap.set(el, { rotate: 0, x: 0 });
-        if (!alive.current) return;
-      }
-      // 確定の袋：開ける前に、袋が金色にふくらんで跳ねる
-      if (sure && !reduce) {
-        await play(gsap.to(el, { scale: 1.18, duration: 0.2, ease: 'power2.out' }));
-        if (!alive.current) return;
-        await play(gsap.to(el, { y: -36, duration: 0.16, ease: 'power2.out', yoyo: true, repeat: 1 }));
         if (!alive.current) return;
       }
       // 点線に沿って破れる：上の切れ端が飛び、紙くずが飛ぶ
@@ -124,8 +117,8 @@ export function Opening({
       el.classList.add('is-torn');
       const mouth = { x: at.x, y: at.y - (r.height / s) * 0.36 };
       if (!reduce) paperScraps(layer, mouth, 12);
-      // 袋の口から黄色いキラキラが噴き出す（光る袋は3倍、確定の袋は さらに3倍）＋ しゃらしゃら
-      sparkleFountain(layer, mouth, Math.round((sure ? 360 : big ? 120 : 40) * (reduce ? 0.25 : 1)));
+      // 袋の口から黄色いキラキラが噴き出す（光る袋は3倍）＋ しゃらしゃら。粒は 3つを1つにまとめて大きく（v2.3）
+      sparkleFountain(layer, mouth, Math.max(1, Math.round(((big ? 120 : 40) * (reduce ? 0.25 : 1)) / MERGE)), BIG);
       audio.play('se_sparkle');
       await play(gsap.to(strip, { x: 120, y: -90, rotate: 40, opacity: 0, duration: reduce ? 0.15 : 0.45, ease: 'power2.out', onComplete: () => strip.remove() }));
       gsap.to(el, { scale: 1, scaleX: 1, scaleY: 1, y: 0, duration: 0.15 });
@@ -160,7 +153,8 @@ export function Opening({
 
   return (
     <div className="gacha-open" ref={rootRef} data-testid="gacha-opening">
-      {!reduce && <SpinLines />}
+      {/* 真ん中の舞台が出ている間は、舞台の後ろに隠れて見えないので回さない（舞台の中の集中線だけ。v2.3） */}
+      {!reduce && !staged && <SpinLines />}
       <div className={`gacha-open__bags ${many ? 'gacha-open__bags--many' : ''}`} ref={bagsRef}>
         {bags.map((b, i) => (
           <BagButton
@@ -213,6 +207,19 @@ export function Opening({
   );
 }
 
+/** 粒（キラキラ・紙吹雪）は 3つを1つにまとめる（v2.3。1つを大きく・明るくして、華やかさは保つ） */
+const MERGE = 3;
+/** まとめた粒の大きさの倍率 */
+const BIG = 1.5;
+/** スーパーレアの星くずの量（v2.3：今の6割） */
+const STAR_DUST = 0.6;
+/** サプライズで、めくった瞬間にカードがふくらむ大きさ */
+const SURPRISE_POP = 1.35;
+/** めくれたカードが弾む高さ（舞台の px） */
+const BOUNCE = 34;
+/** 集中線とカードの角の間のすき間（弾む分も足す） */
+const LINE_GAP = 22 + BOUNCE;
+
 /** 背景で、方眼ノートに描いた集中線がゆっくり回る（演出をへらす の時は出さない） */
 function SpinLines() {
   const lines = [];
@@ -263,7 +270,7 @@ function CenterBag({ pack, bag, index, left, onReady }: { pack: PackDef; bag: Ba
       duration: fx.reduceFx ? 0.2 : 0.5,
       ease: 'back.out(1.3)',
       onComplete: () => {
-        if (live) window.setTimeout(() => live && onReady(el), fx.dur(fx.reduceFx ? 60 : bag.guaranteed ? 600 : 220));
+        if (live) window.setTimeout(() => live && onReady(el), fx.dur(fx.reduceFx ? 60 : 220));
       },
     });
     return () => {
@@ -375,25 +382,47 @@ function Reveal({
     let live = true;
     const L = layer.current;
     const reduce = fx.reduceFx;
-    // 豪華さの倍率（確定・サプライズは3倍）
-    const lavish = kind === 'guaranteed' || kind === 'surprise' ? 3 : 1;
-    const n = (x: number) => Math.round(x * lavish * (reduce ? 0.25 : 1));
+    // 豪華さの倍率（サプライズは3倍。確定の袋は v2.3 から ふつうのスーパーレアと同じ）
+    const lavish = kind === 'surprise' ? 3 : 1;
+    /** 粒の数：3つを1つにまとめ（1つを大きく・明るく）、演出をへらす時は さらに 1/4 */
+    const n = (x: number) => Math.max(1, Math.round((x * lavish * (reduce ? 0.25 : 1)) / MERGE));
+    /** スーパーレアの星くず（v2.3：今の6割） */
+    const dust = (x: number) => n(x * STAR_DUST);
     const center = { x: 640, y: 330 };
     const gone = () => !live;
-    /** 光った袋の、めくる前の虹色の線（光ったのにノーマルの時は、めくった後に消す） */
+    /**
+     * 集中線をカードにかぶせない（v2.3）：線の内側の空白を、カードの角までの長さ ＋ すき間（弾む分も）にして、
+     * カードの真ん中から引く。舞台の座標なので 844×390 でも同じ
+     */
+    const linesAt = () => {
+      const card = cardRef.current;
+      if (!L || !card) return { at: center, inner: 260 };
+      const lr = L.getBoundingClientRect();
+      const s = lr.width / (L.offsetWidth || 1);
+      const r = card.getBoundingClientRect();
+      const half = Math.hypot(r.width / s / 2, r.height / s / 2);
+      // サプライズは、めくった瞬間にカードが 1.35倍に ふくらむので、その分も空ける
+      return { at: centerIn(L, card), inner: half * (kind === 'surprise' ? SURPRISE_POP : 1) + LINE_GAP };
+    };
+    /** 光った袋の、めくる前の虹色の線（スーパーの線を引く時・ノーマルに戻る時に消す。二重に残さない） */
     let teaseLines: (() => void) | null = null;
-    /** スーパーレアの大きな演出（フラッシュ・虹色の線・金色の光の筋・降り続けるキラキラ）。確定・サプライズは3回 */
+    const dropTease = () => {
+      teaseLines?.();
+      teaseLines = null;
+    };
+    /** スーパーレアの大きな演出（フラッシュ・虹色の線・金色の光の筋・降り続けるキラキラ）。サプライズはフラッシュを3回 */
     const superBurst = async () => {
       if (!L) return;
+      dropTease();
       if (!reduce) {
         cleanups.current.push(goldBeams(L, center));
         onBig();
+        // 線は1回だけ引く（前は豪華さの回数だけ、同じ線を重ねて引いていた）
+        const { at, inner } = linesAt();
+        cleanups.current.push(radialLines(L, at, { colors: RAINBOW, lines: 36, width: 20, inner: inner + 10, seconds: 0.55 }));
       }
       for (let i = 0; i < (reduce ? 1 : lavish); i++) {
-        if (!reduce) {
-          flash(L, 1, 0.6);
-          cleanups.current.push(radialLines(L, center, { colors: RAINBOW, lines: 36, width: 20, inner: 150, seconds: 0.55 }));
-        }
+        if (!reduce) flash(L, 1, 0.6);
         if (lavish > 1 && !reduce) await wait(180);
         if (gone()) return;
       }
@@ -407,35 +436,28 @@ function Reveal({
       // 裏向きのカードが袋から出てくる
       await play(gsap.fromTo(card, { y: 260, scale: 0.5, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.6)' }));
       if (gone()) return;
-      if (kind === 'guaranteed') {
-        // 確定の袋：はじめから「かくてい！」とファンファーレ、花火3倍
-        audio.play('jingle_guarantee');
-        if (L) {
-          cleanups.current.push(bigText(L, { x: 640, y: 120 }, tr.gacha.guaranteeTag, 'gacha-guarantee', -8));
-          if (!reduce) fireworks(L, center, n(5));
-        }
-        await superBurst();
-        if (gone()) return;
-      } else if (kind === 'super' || kind === 'letdown') {
-        // 光った袋：めくる前は、中身がスーパーでもノーマルでも同じ演出（めくる前に分からないように。v2.2）
+      if (kind === 'super' || kind === 'letdown') {
+        // 光った袋（確定の袋も）：めくる前は、中身がスーパーでもノーマルでも同じ演出（めくる前に分からないように。v2.2）
         audio.play('se_super_shine');
         if (L && !reduce) {
           flash(L, 0.6, 0.4);
-          teaseLines = radialLines(L, center, { colors: RAINBOW, lines: 28, width: 12, inner: 170, seconds: 0.45 });
-          cleanups.current.push(teaseLines);
+          const { at, inner } = linesAt();
+          teaseLines = radialLines(L, at, { colors: RAINBOW, lines: 28, width: 12, inner: inner + 6, seconds: 0.45 });
+          cleanups.current.push(dropTease);
           await play(gsap.fromTo(card, { rotate: -2 }, { rotate: 2, duration: 0.06, yoyo: true, repeat: 7, ease: 'none' }));
           gsap.set(card, { rotate: 0 });
         }
         if (gone()) return;
       } else if (L && !reduce) {
         // ノーマル（とサプライズのめくる前）：ペンの集中線
-        cleanups.current.push(radialLines(L, center, { colors: ['var(--ink)'], lines: 30, width: 4, inner: 200, seconds: 0.25 }));
+        const { at, inner } = linesAt();
+        cleanups.current.push(radialLines(L, at, { colors: ['var(--ink)'], lines: 30, width: 4, inner, seconds: 0.25 }));
       }
       // くるっとめくれる。カードの周りから黄色いキラキラが弾ける（めくる前は、光った袋どうし・光らない袋どうしで同じ数）
       audio.play('se_card_flip');
       if (L) {
-        const glowing = kind === 'super' || kind === 'letdown' || kind === 'guaranteed';
-        sparkleBurst(L, centerIn(L, card), Math.round((glowing ? 72 : 24) * (kind === 'guaranteed' ? 3 : 1) * (reduce ? 0.25 : 1)));
+        const glowing = kind === 'super' || kind === 'letdown';
+        sparkleBurst(L, centerIn(L, card), Math.max(1, Math.round(((glowing ? 72 : 24) * (reduce ? 0.25 : 1)) / MERGE)), 230, 320, BIG);
         audio.play('se_sparkle');
       }
       await play(gsap.to(back, { scaleX: 0, duration: 0.14, ease: 'power1.in' }));
@@ -445,26 +467,25 @@ function Reveal({
         audio.play('jingle_super');
         void superBurst();
       }
-      if ((kind === 'super' || kind === 'guaranteed') && !reduce) {
+      if (kind === 'super' && !reduce) {
         // スーパーレアは、ゆっくり回転しながら大きく登場
-        await play(gsap.fromTo(front, { scaleX: 1, scale: 0.2, rotate: -720 }, { scale: 1, rotate: 0, duration: kind === 'guaranteed' ? 1.5 : 1.1, ease: 'power2.out' }));
+        await play(gsap.fromTo(front, { scaleX: 1, scale: 0.2, rotate: -720 }, { scale: 1, rotate: 0, duration: 1.1, ease: 'power2.out' }));
       } else {
         await play(gsap.to(front, { scaleX: 1, duration: 0.16, ease: 'power1.out' }));
       }
       if (gone()) return;
       if (kind === 'surprise' && L) {
-        // サプライズ：めくった瞬間に急に光があふれ出る（3倍）
+        // サプライズ：めくった瞬間に急に光があふれ出る（3倍。「サプライズ」の文字は v2.3 で出さない）
         audio.play('jingle_super');
-        cleanups.current.push(bigText(L, { x: 640, y: 120 }, tr.gacha.surprise, 'gacha-surprise', -10));
-        if (!reduce) void play(gsap.fromTo(front, { scale: 1 }, { keyframes: [{ scale: 1.35, duration: 0.18, ease: 'power2.out' }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' }] }));
+        if (!reduce) void play(gsap.fromTo(front, { scale: 1 }, { keyframes: [{ scale: SURPRISE_POP, duration: 0.18, ease: 'power2.out' }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' }] }));
         await superBurst();
         if (gone()) return;
-        sparkleBurst(L, centerIn(L, card), n(72), 420, 420);
+        sparkleBurst(L, centerIn(L, card), dust(72), 420, 420, BIG);
       }
       if (kind === 'normal' && L) cleanups.current.push(bigText(L, { x: 640, y: 120 }, tr.gacha.flip, 'gacha-flip', -10));
       if (kind === 'letdown' && L) {
         // 光ったのにノーマル：「…ぺらっ」。期待させた虹色の線は消して、普通のめくりに戻る。カードが小さくずっこけるように傾いて戻る（がっかりしすぎない）
-        teaseLines?.();
+        dropTease();
         audio.play('se_letdown');
         cleanups.current.push(bigText(L, { x: 640, y: 120 }, tr.gacha.letdown, 'gacha-letdown', -4));
         // 汗の落書き（演出をへらす時は出さない）
@@ -473,14 +494,14 @@ function Reveal({
         if (gone()) return;
       }
       // めくれたカードが少し弾んで止まる
-      if (!reduce && kind !== 'letdown') void play(gsap.fromTo(card, { y: 0 }, { keyframes: [{ y: -34, duration: 0.14, ease: 'power2.out' }, { y: 0, duration: 0.5, ease: 'bounce.out' }] }));
+      if (!reduce && kind !== 'letdown') void play(gsap.fromTo(card, { y: 0 }, { keyframes: [{ y: -BOUNCE, duration: 0.14, ease: 'power2.out' }, { y: 0, duration: 0.5, ease: 'bounce.out' }] }));
       if (sr && L) {
-        // 星の落書きと紙吹雪・「スーパーレア！」のはんこ・画面揺れ大（確定・サプライズは3倍）
+        // 星の落書きと紙吹雪・「スーパーレア！」のはんこ・画面揺れ大（サプライズは3倍）
         if (!reduce) {
-          confetti(L, center, n(60), 1.4);
-          confettiRain(L, n(60));
-          sparkleBurst(L, center, n(60), 420, 420);
-          if (lavish > 1) fireworks(L, center, n(3));
+          confetti(L, center, n(60), 1.4, BIG);
+          confettiRain(L, n(60), BIG);
+          sparkleBurst(L, center, dust(60), 420, 420, BIG);
+          if (lavish > 1) fireworks(L, center, 3 * lavish);
           if (root.current) void shake(root.current, 18, lavish > 1 ? 16 : 10);
         }
         cleanups.current.push(bigText(L, { x: 640, y: 590 }, tr.gacha.superStamp, 'gacha-stamp', -12));

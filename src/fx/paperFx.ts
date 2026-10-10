@@ -26,8 +26,8 @@ export function flash(layer: HTMLElement, strength = 0.9, seconds = 0.45): void 
   gsap.fromTo(f, { opacity: strength }, { opacity: 0, duration: seconds, ease: 'power2.out', onComplete: () => f.remove() });
 }
 
-/** 星と紙吹雪の落書きが飛び散る */
-export function confetti(layer: HTMLElement, at: Pt, count = 34, spread = 1): void {
+/** 星と紙吹雪の落書きが飛び散る。scale：1つの大きさ（v2.3：数を減らした時に大きく） */
+export function confetti(layer: HTMLElement, at: Pt, count = 34, spread = 1, scale = 1): void {
   for (let i = 0; i < count; i++) {
     const star = i % 3 === 0;
     const el = document.createElement('div');
@@ -39,7 +39,7 @@ export function confetti(layer: HTMLElement, at: Pt, count = 34, spread = 1): vo
     layer.appendChild(el);
     const a = Math.random() * Math.PI * 2;
     const d = (120 + Math.random() * 260) * spread;
-    gsap.set(el, { left: at.x, top: at.y, xPercent: -50, yPercent: -50 });
+    gsap.set(el, { left: at.x, top: at.y, xPercent: -50, yPercent: -50, scale });
     gsap.to(el, {
       x: Math.cos(a) * d,
       y: Math.sin(a) * d * 0.8 + 60,
@@ -52,14 +52,15 @@ export function confetti(layer: HTMLElement, at: Pt, count = 34, spread = 1): vo
   }
 }
 
-/** 上から紙吹雪が降る（画面全体） */
-export function confettiRain(layer: HTMLElement, count = 60): void {
+/** 上から紙吹雪が降る（画面全体）。scale：1つの大きさ */
+export function confettiRain(layer: HTMLElement, count = 60, scale = 1): void {
   for (let i = 0; i < count; i++) {
     const el = document.createElement('div');
     el.className = 'paper-confetti';
     el.innerHTML = `<span style="background:${COLORS[i % COLORS.length]}"></span>`;
     layer.appendChild(el);
-    gsap.set(el, { left: Math.random() * 1280, top: -30 - Math.random() * 200, rotate: Math.random() * 360 });
+    // 画面のすぐ上から降り始める（遠くから降らせて、見えない時間を長くしない）
+    gsap.set(el, { left: Math.random() * 1280, top: -30 - Math.random() * 120, rotate: Math.random() * 360, scale });
     gsap.to(el, { top: 760, x: (Math.random() - 0.5) * 160, rotate: '+=' + (360 + Math.random() * 540), duration: 1.6 + Math.random() * 1.2, ease: 'none', onComplete: () => el.remove() });
   }
 }

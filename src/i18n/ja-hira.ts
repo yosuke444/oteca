@@ -660,7 +660,6 @@ export const hira = {
     guaranteeNote: (bags: number) => `${bags}まいガチャの さいごの 1ふくろは スーパーレア かくてい！`,
     glowNote: 'ひかっている ふくろは スーパーレアの チャンス！（かならず では ないよ）',
     guaranteeTag: 'かくてい！',
-    surprise: 'サプライズ！',
     letdown: '…ぺらっ',
     ownedCount: (n: number) => `×${n}`,
     unknown: '？',

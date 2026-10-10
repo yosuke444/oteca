@@ -653,7 +653,6 @@ export const kanji: Dict = {
     guaranteeNote: (bags) => `${bags}枚ガチャの最後の1袋はスーパーレア確定！`,
     glowNote: '光っている袋はスーパーレアのチャンス！（必ずではないよ）',
     guaranteeTag: '確定！',
-    surprise: 'サプライズ！',
     letdown: '…ぺらっ',
     ownedCount: (n) => `×${n}`,
     unknown: '？',

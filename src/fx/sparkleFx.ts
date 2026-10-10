@@ -11,9 +11,13 @@ import type { Pt } from './paperFx';
 const STAR = 'M12 1.5 L14.8 8.6 L22.4 9.1 L16.5 13.9 L18.5 21.4 L12 17.3 L5.6 21.6 L7.4 14 L1.6 9.3 L9.2 8.5 Z';
 const DIAMOND = 'M12 0.8 Q13.4 10.4 23.2 12 Q13.6 13.5 12 23.2 Q10.4 13.6 0.8 12 Q10.6 10.5 12 0.8 Z';
 
-function makeSparkle(layer: HTMLElement, size: number, kind: number): HTMLDivElement {
+/**
+ * scale：粒の大きさの倍率（v2.3：数を 1/3 にまとめた時は大きく・明るく。1 より大きいと光も強い spark--big）
+ */
+function makeSparkle(layer: HTMLElement, size: number, kind: number, scale = 1): HTMLDivElement {
   const el = document.createElement('div');
-  el.className = 'spark';
+  el.className = scale > 1 ? 'spark spark--big' : 'spark';
+  size *= scale;
   const d = kind % 2 === 0 ? STAR : DIAMOND;
   // 塗りは黄色、縁は金色（ペンの線）。ときどき白い芯
   el.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><path d="${d}" fill="var(--fx-onom-fill)" stroke="var(--super-gold)" stroke-width="1.6" stroke-linejoin="round"/>${kind % 3 === 0 ? `<circle cx="12" cy="12" r="2.2" fill="var(--paper)"/>` : ''}</svg>`;
@@ -27,10 +31,10 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
  * 袋の口から噴き出す：数十個が放物線を描いて飛び散り、くるくる回りながら落ちて消える
  * @param at 袋の口（真ん中）
  */
-export function sparkleFountain(layer: HTMLElement, at: Pt, count = 40): void {
+export function sparkleFountain(layer: HTMLElement, at: Pt, count = 40, scale = 1): void {
   for (let i = 0; i < count; i++) {
     const size = rnd(14, 34);
-    const el = makeSparkle(layer, size, i);
+    const el = makeSparkle(layer, size, i, scale);
     // 画面の上から出ないように、口の高さに合わせて上がる（低い袋ほど高く上がる）
     const up = rnd(60, Math.max(90, Math.min(300, at.y - 30)));
     const fall = rnd(320, 560);
@@ -48,10 +52,10 @@ export function sparkleFountain(layer: HTMLElement, at: Pt, count = 40): void {
 }
 
 /** カードの周りから弾ける（めくれる瞬間）。w・h はカードの大きさ（舞台の座標） */
-export function sparkleBurst(layer: HTMLElement, at: Pt, count = 24, w = 230, h = 320): void {
+export function sparkleBurst(layer: HTMLElement, at: Pt, count = 24, w = 230, h = 320, scale = 1): void {
   for (let i = 0; i < count; i++) {
     const size = rnd(12, 30);
-    const el = makeSparkle(layer, size, i + 1);
+    const el = makeSparkle(layer, size, i + 1, scale);
     const a = (i / count) * Math.PI * 2 + rnd(-0.2, 0.2);
     // カードの縁から外へ
     const sx = Math.cos(a) * w * 0.5;
@@ -103,10 +107,10 @@ export function goldBeams(layer: HTMLElement, center: Pt = { x: 640, y: 330 }): 
  * 画面全体にキラキラが降り続ける（止めるまで）。
  * @returns 止める関数（降っている分は、そのまま落ちて消える）
  */
-export function sparkleRain(layer: HTMLElement, perSecond = 18): () => void {
+export function sparkleRain(layer: HTMLElement, perSecond = 18, scale = 1): () => void {
   let n = 0;
   const spawn = () => {
-    const el = makeSparkle(layer, rnd(12, 28), n++);
+    const el = makeSparkle(layer, rnd(12, 28), n++, scale);
     const dur = rnd(2.2, 3.6);
     gsap.set(el, { left: rnd(0, 1280), top: -30, xPercent: -50, yPercent: -50, rotate: rnd(0, 360), opacity: rnd(0.7, 1) });
     gsap.to(el, { top: 760, x: rnd(-120, 120), rotate: `+=${rnd(360, 720)}`, duration: dur, ease: 'none', onComplete: () => el.remove() });

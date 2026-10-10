@@ -529,10 +529,11 @@
 .gacha-reveal__card.is-super .gacha-reveal__front {
   filter: drop-shadow(0 0 16px var(--super-gold)) drop-shadow(0 0 6px var(--super-gold));
 }
+/* NEW（v2.3）：カードにかぶらないよう、カードの上の端より少し上に出す */
 .gacha-new {
   position: absolute;
-  left: 14px;
-  top: 10px;
+  left: -42px;
+  top: -34px;
   z-index: 3;
   padding: 0 8px;
   font-size: 22px;
@@ -576,16 +577,6 @@
   color: var(--pen-blue);
 }
 /* 確定の袋・サプライズ（v2.2）：蛍光ペン2色の特大文字 */
-.gacha-guarantee,
-.gacha-surprise {
-  font-size: 110px;
-  color: var(--ink);
-  padding: 0 18px;
-  background: linear-gradient(transparent 30%, var(--marker-pink) 30%, var(--marker-pink) 62%, var(--marker-yellow) 62%, var(--marker-yellow) 92%, transparent 92%);
-}
-.gacha-surprise {
-  color: var(--pen-red);
-}
 /* 光ったのにノーマル（v2.2）：ゆるい えんぴつの文字（がっかりしすぎない） */
 .gacha-letdown {
   font-size: 60px;
@@ -625,12 +616,13 @@
   flex-wrap: wrap;
   justify-content: center;
   align-content: flex-start;
-  gap: 26px 26px;
+  gap: 40px 26px;
   overflow-y: auto;
-  padding: 16px 0;
+  /* 1段目の NEW（カードの上に出る）が切れないように */
+  padding: 50px 0 16px;
 }
 .gacha-summary__grid--many {
-  gap: 30px 16px;
+  gap: 40px 16px;
 }
 .gacha-summary__card {
   position: relative;
@@ -644,8 +636,8 @@
 }
 .gacha-summary__new {
   position: absolute;
-  left: -14px;
-  top: -14px;
+  left: -6px;
+  top: -40px;
   z-index: 5;
   padding: 0 6px;
   font-size: 17px;
