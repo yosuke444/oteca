@@ -70,7 +70,7 @@ async function rework(path, mode) {
         const v = px.slice(Math.floor(px.length * 0.1), Math.ceil(px.length * 0.9)).map((i) => Math.min(d[i], d[i + 1], d[i + 2]));
         const m = v.reduce((a, b) => a + b, 0) / v.length;
         const sd = Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length);
-        return m < 245 && sd <= 8;
+        return m < 245 && sd <= 12;
       };
 
       // 1. 端の線を切り落とす：線の半分以上が色つきの線は外側から4本まで、一様な濃さの線（灰色の帯など）は40本まで
@@ -85,8 +85,14 @@ async function rework(path, mode) {
         for (let k = 0; k < 40; k++) {
           const px = line[side](k);
           const isColored = k < 4 && px.filter(colored).length / px.length >= 0.5;
-          if (!isColored && !flat(px)) break;
-          cut[side] = k + 1;
+          if (isColored || flat(px)) {
+            cut[side] = k + 1;
+            continue;
+          }
+          // 枠の外側の白いすき間（数px）は飛ばして、その内側の枠の線も見る
+          const blank = px.filter((i) => Math.min(d[i], d[i + 1], d[i + 2]) < 245).length / px.length < 0.1;
+          if (blank && k < 8) continue;
+          break;
         }
       }
       const x0c = cut.left;

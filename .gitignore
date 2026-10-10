@@ -14,3 +14,5 @@ worker/.wrangler/
 worker/.dev.vars
 worker/node_modules/
 worker/worker-configuration.d.ts
+# トロフィあげなど、まだ使わない絵の置き場所（公開しない）
+art_hold/

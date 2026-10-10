@@ -621,3 +621,11 @@
 - [x] npm test（446件）・npm run build・npm run test:slow が通った
 - [x] 別のエージェントの突き合わせ（8件）を直した：移る側は札を書いてから0.3秒待つ、裏に回ったタブの札（localStorage だけの時）、観戦は「対戦中」にしない、取り返した時に音を戻す、デイリーの知らせ・データを けす も止まったタブでは書かない、「この タブで あそぶ」が押せないままにならない、辞書のコメントの位置、UPDATE_v2.md の古い曲名（DECISIONS #435〜#448）
 - [x] scripts/tabs-e2e.mjs（23項目）・scripts/shots-v23-art.mjs をもう一度通した
+
+### 3. 画像を入れる（2回目：追加の画像）
+- [x] すりむ.png → cards/surimu.png（800×600）、新しい奇妙なドリンク.png → cards/kimyou_drink.png（512×512。古い小さい絵と差し替え）、元祖・真・寄せ集め.png → packs/pack_ganso・pack_shin・pack_yoseatsume.png（600×900）。元の画像は assets-original/ に写した
+- [x] prepare-art.mjs：枠の外側に白いすき間がある枠の線も切り落とす（よせあつめパックの左の線）。前からある絵は変わらないことを確かめた
+- [x] assets-original/・art_hold/ は git に入っていない（git ls-files で 0件）。art_hold/ も .gitignore に足した
+- [x] スクリーンショット：scripts/shots-v23b-art.mjs（カード一覧の くわしく・対戦・ガチャのパック3つ）を 1280×720／844×390 で。切れ・ずれなし。アイテムは今までどおり ふせん の形で絵を出さないので、きみょうなドリンクの絵は画面には出ない
+- [x] npm test・npm run build
+- [ ] まだ仮の絵：コイン・プレゼント・空いた箱・デイリー・トロフィあげ
