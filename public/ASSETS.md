@@ -5,6 +5,8 @@
 絵は、元の画像を `assets-original/cards/`・`assets-original/story/`・`assets-original/packs/`・`assets-original/images/` に置き、`node scripts/prepare-art.mjs` で作り直してから使います（元の画像は公開しません）。
 作り直し：まわりの余白と写りこんだ枠を切り落とし、縦横の比率を変えずに下の大きさの中に収めます（余った所は白。1枚 300KB 以下）。
 
+アイテムの絵は、ふせんの形と色はそのままで、ふせんの中に出ます（無い時は今までの ふせん）。
+
 | 種類 | 大きさ |
 |---|---|
 | おてあげのカード | 800×600 |

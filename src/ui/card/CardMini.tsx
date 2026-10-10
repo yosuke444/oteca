@@ -6,6 +6,7 @@ import { RoughBox } from '../rough/RoughBox';
 import { tiltFrom } from '../rough/seed';
 import { effectLabel, faceLabel, sortedEffects } from './cardText';
 import { FitLine } from './FitLine';
+import { FitText, ItemArt, itemArtUrl } from './ItemArt';
 import { local } from '../../i18n';
 import { useLang, useT } from '../../i18n/useT';
 import './card.css';
@@ -37,6 +38,7 @@ export type CardMiniProps = {
 export function CardMini({ def, seed, variant, count, owned, left, unowned = false, dim = false, isNew = false, onTap, onDetail }: CardMiniProps) {
   const lang = useLang();
   const tr = useT();
+  const art = itemArtUrl(def);
   const press = useLongPress(
     () => onTap?.(),
     () => onDetail?.(),
@@ -48,7 +50,16 @@ export function CardMini({ def, seed, variant, count, owned, left, unowned = fal
       aria-label={unowned ? tr.deck.unownedAria(def.name) : undefined}
       {...press}
     >
-      {def.kind === 'otege' ? <OtegeMini def={def} seed={seed} variant={variant} dim={dim} /> : (
+      {def.kind === 'otege' ? <OtegeMini def={def} seed={seed} variant={variant} dim={dim} /> : art ? (
+        // 絵のあるアイテム（v2.3）：1行目に名前と絵を並べ、効果の文は下の残りに収める（絵と文字を重ねない）
+        <Sticky seed={seed} color={def.color ?? 'yellow'} angle={variant === 'tile' ? tiltFrom(seed, 2.5) : 0} className="card-mini__note has-art">
+          <span className="card-mini__note-head">
+            <span className="card-mini__name">{def.name}</span>
+            <ItemArt url={art} className="card-mini__art" />
+          </span>
+          {variant === 'tile' && <FitText className="card-mini__text">{local(def.text, lang)}</FitText>}
+        </Sticky>
+      ) : (
         <Sticky seed={seed} color={def.color ?? 'yellow'} angle={variant === 'tile' ? tiltFrom(seed, 2.5) : 0} className="card-mini__note">
           <span className="card-mini__name">{def.name}</span>
           {variant === 'tile' && <span className="card-mini__text">{local(def.text, lang)}</span>}

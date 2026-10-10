@@ -3,6 +3,7 @@ import { DiceDoodle, StarDoodle } from '../common/Doodles';
 import { Sticky } from '../common/Sticky';
 import { RoughBox } from '../rough/RoughBox';
 import { CardArt } from './CardArt';
+import { ItemArt, itemArtUrl } from './ItemArt';
 import { effectLabel, sortedEffects } from './cardText';
 import { local } from '../../i18n';
 import { useLang, useT } from '../../i18n/useT';
@@ -13,9 +14,11 @@ export function CardDetail({ def, seed }: { def: CardDef; seed: string }) {
   const tr = useT();
   const lang = useLang();
   if (def.kind === 'item') {
+    const art = itemArtUrl(def);
     return (
-      <Sticky seed={seed} color={def.color ?? 'yellow'} className="card-detail card-detail--item">
+      <Sticky seed={seed} color={def.color ?? 'yellow'} className={`card-detail card-detail--item ${art ? 'has-art' : ''}`}>
         <span className="card-detail__name">{def.name}</span>
+        {art && <ItemArt url={art} className="card-detail__item-art" />}
         <span className="card-detail__text">{local(def.text, lang)}</span>
         <span className="card-detail__kind">{tr.card.itemKind}</span>
       </Sticky>

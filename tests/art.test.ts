@@ -2,9 +2,23 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CARD_LIST as CARDS, trophyDef } from '../src/data/cards';
 import { CardArt } from '../src/ui/card/CardArt';
+import { CardDetail } from '../src/ui/card/CardDetail';
+import { CardMini } from '../src/ui/card/CardMini';
+import { itemArtUrl } from '../src/ui/card/ItemArt';
+import { FxSettingsProvider } from '../src/fx/fxSettings';
+
+/** 演出の設定の中で描く（ふせんは演出の速さを読む） */
+const html = (el: ReturnType<typeof createElement>) => renderToStaticMarkup(createElement(FxSettingsProvider, { fxSpeed: 0, reduceFx: false, children: el }));
+
+// カードの部品は ことばの設定（セーブ）を読むので、テストでは初期のセーブを渡す
+vi.mock('../src/state/SaveContext', async () => {
+  const { createDefaultSave } = await import('../src/save/saveData');
+  const save = createDefaultSave(false);
+  return { useSave: () => ({ save }) };
+});
 
 /** PNG の幅と高さ（ファイルの頭の IHDR から） */
 function pngSize(path: string): [number, number] {
@@ -52,5 +66,32 @@ describe('画像（v2.3）', () => {
     expect(html).toContain('trophy-doodle');
     // ふつうのカードは絵を読み込む
     expect(renderToStaticMarkup(createElement(CardArt, { def: CARDS[0], seed: 't' }))).toContain('<img');
+  });
+
+  it('アイテムのふせんに絵（v2.3）：絵が置いてあるアイテムは ふせんの中に絵。絵が無いアイテムは今までの ふせん のまま', () => {
+    const items = CARDS.filter((c) => c.kind === 'item');
+    expect(items.map((c) => c.id).sort()).toEqual(['hikikae', 'himitsu_yaiba', 'kimyou_drink', 'kusuri', 'supodori', 'yabaitsubo']);
+    for (const c of items) {
+      expect(existsSync(join('public', c.image))).toBe(true);
+      expect(itemArtUrl(c)).toContain(c.image);
+      for (const h of [
+        html(createElement(CardMini, { def: c, seed: 't', variant: 'tile' })),
+        html(createElement(CardMini, { def: c, seed: 't', variant: 'slot' })),
+        html(createElement(CardDetail, { def: c, seed: 't' })),
+      ]) {
+        expect(h).toContain('has-art');
+        expect(h).toContain(c.image);
+        // ふせんの形と色はそのまま
+        expect(h).toContain(`sticky--${c.color ?? 'yellow'}`);
+      }
+    }
+    // 絵の無いアイテム：絵を出さない（無い絵を読みに行かない）
+    const noArt = { ...items[0], image: 'cards/no_such_item.png' };
+    expect(itemArtUrl(noArt)).toBeNull();
+    const plain = html(createElement(CardMini, { def: noArt, seed: 't', variant: 'tile' }));
+    expect(plain).not.toContain('has-art');
+    expect(plain).not.toContain('<img');
+    // おてあげは今までどおり（ふせんの絵は付けない）
+    expect(itemArtUrl(CARDS[0])).toBeNull();
   });
 });

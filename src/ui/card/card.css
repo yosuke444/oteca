@@ -821,3 +821,86 @@
   transform: rotate(-8deg);
   pointer-events: none;
 }
+
+/* ============================================================
+   アイテムの絵（v2.3）：ふせんの形と色はそのまま、中に絵を入れる。
+   絵は自分の場所を持つ（名前・効果の文と重ねない）。効果の文は残りの高さに収まるまで小さくする（FitText）
+   ============================================================ */
+.item-art {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.item-art__img {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  /* 白い所は乗算で ふせんの色になじませる */
+  mix-blend-mode: multiply;
+}
+.fit-text {
+  display: block;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* カード一覧（tile）・デッキ枠（slot）：1行目に 名前 と 絵 */
+.card-mini__note.has-art .card-mini__note-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.card-mini__note.has-art .card-mini__name {
+  flex: 1;
+  min-width: 0;
+}
+.card-mini--tile .card-mini__art {
+  width: 40px;
+  height: 40px;
+}
+.card-mini--slot .card-mini__art {
+  width: 34px;
+  height: 34px;
+}
+.card-mini--slot .card-mini__note.has-art .card-mini__name {
+  font-size: 13px;
+}
+.card-mini--tile .card-mini__note.has-art .card-mini__text {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+/* 対戦のカード：名前 → 絵 → 効果の文 */
+.battle-card__note.has-art {
+  gap: 2px;
+  padding-top: 12px;
+}
+.battle-card__note.has-art .battle-card__name {
+  flex: none;
+}
+.battle-card__item-art {
+  height: 40px;
+}
+.battle-card--bench .battle-card__item-art {
+  height: 46px;
+}
+.battle-card--active .battle-card__item-art {
+  height: 64px;
+}
+.battle-card__note.has-art .battle-card__text {
+  line-height: 1.15;
+}
+
+/* カードの くわしく：名前 → 絵 → 効果の文 → 種類 */
+.card-detail__item-art {
+  height: 130px;
+}
+.card-detail--item.has-art {
+  gap: 12px;
+}

@@ -9,7 +9,8 @@ import { basename, resolve } from 'node:path';
  * - `virtual:battle-bgm`：戦闘曲（public/audio/bgm/battle/ の .mp3）。曲を足す時はファイルを置くだけでよい
  * - `virtual:audio-files`：public/audio/ の中の全部の音のファイル（例 bgm/bgm_title.mp3、se/se_click.mp3）。
  *   置いていないファイル（.ogg・効果音の差し替え）をネット越しに確かめない（公開サイトで 404 を出さない）ため
- * - `virtual:image-files`：public/images・public/packs・public/story の中の絵（v2.0。コイン・パック・ボスの絵。無ければ仮表示）
+ * - `virtual:image-files`：public/images・public/packs・public/story・public/cards の中の絵（v2.0。コイン・パック・ボスの絵。無ければ仮表示。
+ *   cards は v2.3：アイテムのふせんに絵を入れるか決めるため）
  * 開発サーバー：フォルダを見張り、ファイルを足す・消すとページを読み込み直す。公開用ビルド：ビルドした時のファイルが入る
  */
 function battleBgm(): Plugin {
@@ -21,7 +22,7 @@ function battleBgm(): Plugin {
   const dir = resolve(audioDir, 'bgm/battle');
   const imagesId = 'virtual:image-files';
   const imagesResolved = '\0' + imagesId;
-  const imageDirs = ['images', 'packs', 'story'].map((d) => resolve(import.meta.dirname, 'public', d));
+  const imageDirs = ['images', 'packs', 'story', 'cards'].map((d) => resolve(import.meta.dirname, 'public', d));
   const imageFiles = () =>
     imageDirs
       .filter((d) => existsSync(d))

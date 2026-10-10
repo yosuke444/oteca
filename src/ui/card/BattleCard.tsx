@@ -13,6 +13,7 @@ import { useLang, useT } from '../../i18n/useT';
 import { effectLabel, faceLabel, sortedEffects } from './cardText';
 import { LastingMarks } from './LastingMarks';
 import { FitLine } from './FitLine';
+import { FitText, ItemArt, itemArtUrl } from './ItemArt';
 import './card.css';
 
 /** 大きさ（SPEC §6-6）：バトル場 150×210／ベンチ 120×168／手札 110×154 */
@@ -65,6 +66,20 @@ export function BattleCard({
   const classes = `battle-card battle-card--${size} ${highlight ? 'is-highlight' : ''} ${selected ? 'is-selected' : ''} ${dim ? 'is-dim' : ''} ${className ?? ''}`;
 
   if (def.kind === 'item') {
+    const art = itemArtUrl(def);
+    if (art) {
+      // 絵のあるアイテム（v2.3）：名前 → 絵 → 効果の文（残りの高さに収める）
+      return (
+        <div className={classes} style={{ width: w, height: h, ...style }} data-uid={card.uid} {...rest}>
+          <Sticky seed={`note-${card.uid}`} color={def.color ?? 'yellow'} angle={tiltFrom(card.uid, 3)} className="battle-card__note has-art">
+            <span className="battle-card__name">{def.name}</span>
+            <ItemArt url={art} className="battle-card__item-art" />
+            <FitText className="battle-card__text">{local(def.text, lang)}</FitText>
+          </Sticky>
+          {highlight && <span className="battle-card__marker" aria-hidden />}
+        </div>
+      );
+    }
     return (
       <div className={classes} style={{ width: w, height: h, ...style }} data-uid={card.uid} {...rest}>
         <Sticky seed={`note-${card.uid}`} color={def.color ?? 'yellow'} angle={tiltFrom(card.uid, 3)} className="battle-card__note">
