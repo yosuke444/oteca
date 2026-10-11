@@ -9,10 +9,10 @@ import './coin.css';
 
 /**
  * おてあげコイン（SPEC §7 S11）。丸いコインに白旗を手描きした SVG。
- * public/images/coin.png があればそれを使う（無ければ SVG）。飛ばすコインも同じ絵
+ * public/images/coin.webp があればそれを使う（無ければ SVG）。飛ばすコインも同じ絵
  */
 export function CoinIcon({ size = 30, className }: { size?: number; className?: string }) {
-  const url = imageUrl('images/coin.png');
+  const url = imageUrl('images/coin.webp');
   if (url) return <img src={url} width={size} height={size} alt="" className={`coin-icon coin-icon--img ${className ?? ''}`} draggable={false} />;
   return (
     <svg className={`coin-icon ${className ?? ''}`} viewBox="0 0 40 40" width={size} height={size} aria-hidden>
@@ -94,7 +94,7 @@ export async function flyCoins(layer: HTMLElement, from: Pt, count: number, opts
   for (let i = 0; i < n; i++) {
     const el = document.createElement('div');
     el.className = 'coin-fly';
-    const url = imageUrl('images/coin.png');
+    const url = imageUrl('images/coin.webp');
     el.innerHTML = url ? `<img src="${url}" width="30" height="30" alt="">` : COIN_SVG;
     layer.appendChild(el);
     gsap.set(el, { left: from.x, top: from.y, xPercent: -50, yPercent: -50, scale: 0.4, rotate: 0 });

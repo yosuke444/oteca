@@ -1,5 +1,10 @@
 import { gsap } from 'gsap';
 import { BIG, FLIP_DUST, FOUNTAIN_DUST, MERGE, STAR_DUST, mergedCount } from '../../gacha/dust';
+import { cardImageUrl, isImageReady, waitCardImages } from '../../ui/imageLoader';
+import { pauseIdlePreload, resumeIdlePreload } from '../../ui/idlePreload';
+
+/** めくる前に、当たったカードの絵が読めるまで待つ長さ（v2.4。袋をふるわせて待つ） */
+const ART_WAIT_MS = 2000;
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { CARD_DB } from '../../data/cards';
@@ -57,7 +62,10 @@ export function Opening({
 
   useEffect(() => {
     alive.current = true;
+    // ガチャの演出中は、カードの絵の先読みを止める（当たったカードの絵を先に読む。v2.4）
+    pauseIdlePreload('gacha');
     return () => {
+      resumeIdlePreload('gacha');
       alive.current = false;
       rainStop.current?.();
       rainStop.current = null;
@@ -102,6 +110,16 @@ export function Opening({
       // 開ける前に、袋が小さく震えて期待をあおる
       if (!reduce) {
         await play(gsap.fromTo(el, { rotate: -3 }, { rotate: 3, x: 2, duration: 0.05, yoyo: true, repeat: big ? 11 : 7, ease: 'none' }));
+        gsap.set(el, { rotate: 0, x: 0 });
+        if (!alive.current) return;
+      }
+      // 当たったカードの絵がまだ読めていなければ、袋を ふるわせたまま最大2秒待つ（v2.4）。
+      // それでも読めなければ、仮の絵で進める（読めたら差し替わる。画面は止めない）
+      const url = cardImageUrl(CARD_DB[perBag[i].no]);
+      if (url && !isImageReady(url)) {
+        const shake = reduce ? null : gsap.fromTo(el, { rotate: -2 }, { rotate: 2, x: 1, duration: 0.06, yoyo: true, repeat: -1, ease: 'none' });
+        await waitCardImages([perBag[i].no], ART_WAIT_MS);
+        shake?.kill();
         gsap.set(el, { rotate: 0, x: 0 });
         if (!alive.current) return;
       }

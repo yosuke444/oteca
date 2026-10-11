@@ -4,14 +4,14 @@ import { imageUrl } from '../../ui/imageFiles';
 import { useT } from '../../i18n/useT';
 
 /**
- * パックの絵（SPEC §7 S09・UPDATE_v2 §11-3）。public/packs/pack_<id>.png があればそれを使う。
+ * パックの絵（SPEC §7 S09・UPDATE_v2 §11-3）。public/packs/pack_<id>.webp があればそれを使う。
  * 無い時の仮表示：手描きの袋の形に、パック名をペン文字で書く（元祖＝青、真＝赤、よせあつめ＝緑）。
  * デイリーパック（color: daily）は、緑の地に黄色のしまと黄色の縁取り、まんなかに特大の「デイリー」（v2.1-M）。
  * small は開ける時の袋（破る点線を出す）
  */
 export function PackArt({ pack, small = false, className }: { pack: PackDef; small?: boolean; className?: string }) {
   const tr = useT();
-  const img = imageUrl(`packs/pack_${pack.id}.png`);
+  const img = imageUrl(`packs/pack_${pack.id}.webp`);
   // しま模様の pattern の id（同じ画面に何枚あっても別々に）
   const stripes = `stripes-${useId().replace(/:/g, '')}`;
   const daily = pack.color === 'daily';

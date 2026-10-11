@@ -1,22 +1,26 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import type { CardDef } from '../../engine/types';
 import { imageUrl } from '../imageFiles';
+import { useImage } from '../imageLoader';
 
 /**
- * アイテムの絵（v2.3）。public/cards/<id>.png が置いてある時だけ、ふせんの中に出す。
+ * アイテムの絵（v2.3）。public/cards/<id>.webp が置いてある時だけ、ふせんの中に出す。
  * 置いていない時は null（今までの ふせん のまま。無い絵を読みに行かない）
  */
 export function itemArtUrl(def: CardDef): string | null {
   return def.kind === 'item' && def.image ? imageUrl(def.image) : null;
 }
 
-/** ふせんの中の絵。白い所は乗算で ふせんの色になじませる。読めなかった時は何も出さない */
+/**
+ * ふせんの中の絵。白い所は乗算で ふせんの色になじませる。読めなかった時は何も出さない。
+ * 絵は読み込み係（imageLoader）で読み、読み終わってから出す（v2.4。読んでいる間は同じ大きさの空き）
+ */
 export function ItemArt({ url, className }: { url: string; className?: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
+  const state = useImage(url);
+  if (state === 'error') return null;
   return (
-    <span className={`item-art ${className ?? ''}`} aria-hidden>
-      <img className="item-art__img" src={url} alt="" draggable={false} onError={() => setFailed(true)} />
+    <span className={`item-art ${className ?? ''}`} aria-hidden data-src={url}>
+      {state === 'ok' && <img className="item-art__img" src={url} alt="" draggable={false} />}
     </span>
   );
 }

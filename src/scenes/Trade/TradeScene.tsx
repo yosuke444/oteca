@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { preloadCards } from '../../ui/imageLoader';
 import { useEffect, useRef, useState } from 'react';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
 import { opponentAllowed } from '../../online/status';
@@ -189,6 +190,8 @@ export function TradeScene() {
   const playSwap = (give: Offer, get: Offer) => {
     const L = layerRef.current;
     const table = tableRef.current;
+    // 受け取るカードが決まった：絵を読み始める（はんこの後に出す時に、絵が出ているように。v2.4）
+    void preloadCards(canonical(get).map(([no]) => no));
     audio.play('jingle_trade');
     if (!L || !table) return;
     const reduce = fx.reduceFx;

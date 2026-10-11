@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { preloadCards } from '../../ui/imageLoader';
 import { flushSync } from 'react-dom';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
 import { TrophyArrival } from './TrophyArrival';
@@ -122,7 +123,10 @@ export function MenuScene() {
       rolledOnce.current = true;
       rollNow();
     }
-    setCarry(peekDailyNotice());
+    const c = peekDailyNotice();
+    // きのうの ミッションの報酬で受け取ったカード：絵を読み始める（v2.4）
+    if (c?.cards.length) void preloadCards(c.cards);
+    setCarry(c);
   }, []);
   const closeCarry = () => {
     clearDailyNotice();
@@ -157,6 +161,8 @@ export function MenuScene() {
     );
     const res = got as { results: PullResult[]; coins: number } | null;
     if (!res) return;
+    // デイリーパックのカードが決まった：絵を読み始める（v2.4）
+    void preloadCards(res.results.map((r) => r.no));
     go('gacha', { daily: { bags, results: res.results, coinsBefore: before, coins: res.coins } } satisfies GachaPayload);
   };
   const dailyBadge = features.daily ? claimableCount(save.daily) : 0;
@@ -182,7 +188,7 @@ export function MenuScene() {
         {features.daily && (
           <div className="daily-icon">
             <RoughButton seed="menu-daily" ariaLabel={tr.daily.iconAria(dailyBadge)} onClick={() => setDailyOpen(true)} data-testid="menu-daily">
-              <DailyIcon img={imageUrl('images/daily.png')} />
+              <DailyIcon img={imageUrl('images/daily.webp')} />
             </RoughButton>
             {dailyBadge > 0 && (
               <span className="daily-icon__badge num" data-testid="daily-badge">

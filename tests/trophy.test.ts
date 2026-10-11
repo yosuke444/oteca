@@ -24,7 +24,7 @@ describe('J05 トロフィーのカード', () => {
     expect(d.moves).toEqual(base.moves);
     expect(d.rarity).toBe('normal');
     expect(d.trophy).toBe(123);
-    expect(d.image).toBe('cards/trophy.png');
+    expect(d.image).toBe('cards/trophy.webp');
     // 番号の範囲（cards.json・セーブ・Worker で同じ）
     expect(TROPHY.noBase).toBe(TROPHY_CARD_NO_BASE);
     expect(TROPHY.numberMax).toBe(TROPHY_NUMBER_MAX);

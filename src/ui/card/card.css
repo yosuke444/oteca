@@ -138,6 +138,33 @@
   /* 白い所は乗算で紙になじませる（画像は scripts/prepare-art.mjs で全カード同じ大きさ・中央ぞろえにしてある） */
   mix-blend-mode: multiply;
 }
+/* 絵を読んでいる間（v2.4）：えんぴつの点線の丸が ゆっくり回る（仮の絵。読めたら すぐ絵に差し替わる） */
+.card-art__wait {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.card-art__wait::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28%;
+  aspect-ratio: 1 / 1;
+  translate: -50% -50%;
+  border: 3px dashed var(--pencil);
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: card-art-wait calc(2.4s / var(--fx-speed)) linear infinite;
+}
+html[data-reduce-fx] .card-art__wait::after {
+  animation: none;
+}
+@keyframes card-art-wait {
+  to {
+    rotate: 360deg;
+  }
+}
 .card-art__placeholder {
   display: flex;
   flex-direction: column;
@@ -828,6 +855,8 @@
    ============================================================ */
 .item-art {
   flex: none;
+  /* 絵は正方形（512×512）。読んでいる間も同じ場所を空けておく（v2.4） */
+  aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;

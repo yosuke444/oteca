@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { preloadCards } from '../../ui/imageLoader';
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { useFx } from '../../fx/fxSettings';
@@ -259,6 +260,8 @@ export function ResultScene() {
     const before = save.coins;
     // 表示用は、今のセーブの写しに同じ計算をして作る（保存は下の update で、同じ関数で1回）
     const res = applyStoryResult(structuredClone(save), story.stage, true);
+    // 限定カードが決まった：絵を読み始める（コインが飛んだ後の特別演出で出ているように。v2.4）
+    if (res?.cardNo) void preloadCards([res.cardNo]);
     update((d) => {
       applyStoryResult(d, story.stage, true);
       daily?.(d);

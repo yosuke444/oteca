@@ -9,6 +9,7 @@ import { startPost, titleNext } from '../../tutorial/post';
 import { offerById } from '../../gacha/gacha';
 import { TUTORIAL_OFFER } from '../Tutorial/PostGuide';
 import './title.css';
+import { startIdlePreload } from '../../ui/idlePreload';
 
 /**
  * S00 タイトル
@@ -16,6 +17,8 @@ import './title.css';
  * タップで音声を有効化して、メニューへ（新しく始めた人は なまえ → チュートリアルへ）。
  */
 export function TitleScene() {
+  // タイトルが出たら、空いている時間に全カードの絵を先に読んでおく（v2.4。起動は遅くしない）
+  useEffect(() => startIdlePreload(), []);
   const { go } = useNav();
   const tr = useT();
   const { save } = useSave();

@@ -1,32 +1,34 @@
-import { useState } from 'react';
 import type { CardDef } from '../../engine/types';
+import { cardImageUrl, useImage } from '../imageLoader';
 import { RoughBox } from '../rough/RoughBox';
 import './card.css';
 
 /**
- * カードのイラスト。public/cards/<id>.png が無い時は、
+ * カードのイラスト。public/cards/<id>.webp が無い・読めなかった時は、
  * ペン描きの「?」と名前を描いた仮イラストを出す（SPEC §5-3）。
+ * 絵は読み込み係（imageLoader）で読み、読み終わってから出す（v2.4。読んでいる間は空いた枠。読めたら すぐ差し替わる）。
  * トロフィーのカード（v2.0-J）は、いつも金色のトロフィーの手描き（v2.3：絵が置いてあっても読み込まない。仮の絵のまま）。番号を大きく重ねる
  */
 export function CardArt({ def, seed }: { def: CardDef; seed: string }) {
-  const [failed, setFailed] = useState(false);
-  const src = `${import.meta.env.BASE_URL}${def.image}`;
+  const url = cardImageUrl(def);
+  const state = useImage(url);
   const trophy = def.kind === 'otege' ? def.trophy : undefined;
   return (
     <RoughBox seed={`${seed}-art`} className={`card-art ${trophy ? 'card-art--trophy' : ''}`} strokeWidth={1.6} radius={4}>
-      {failed || !def.image || trophy ? (
-        trophy ? (
-          <div className="card-art__placeholder card-art__placeholder--trophy">
-            <TrophyDoodle />
-          </div>
-        ) : (
-          <div className="card-art__placeholder">
-            <span className="card-art__q">?</span>
-            <span className="card-art__name">{def.name}</span>
-          </div>
-        )
+      {trophy ? (
+        <div className="card-art__placeholder card-art__placeholder--trophy">
+          <TrophyDoodle />
+        </div>
+      ) : url && state === 'ok' ? (
+        <img className="card-art__img" src={url} alt={def.name} draggable={false} />
+      ) : url && state === 'loading' ? (
+        // 読んでいる間：空いた枠（読めたら すぐ絵に差し替わる）
+        <div className="card-art__wait" data-src={url} aria-label={def.name} />
       ) : (
-        <img className="card-art__img" src={src} alt={def.name} draggable={false} onError={() => setFailed(true)} />
+        <div className="card-art__placeholder">
+          <span className="card-art__q">?</span>
+          <span className="card-art__name">{def.name}</span>
+        </div>
       )}
       {trophy && (
         <span className="card-art__trophy-no num" data-testid="trophy-no">

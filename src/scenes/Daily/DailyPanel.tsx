@@ -159,7 +159,7 @@ function CheckMark({ done }: { done: boolean }) {
   );
 }
 
-/** メニューのアイコン：手描きのチェックリスト（public/images/daily.png があればそれを使う） */
+/** メニューのアイコン：手描きのチェックリスト（public/images/daily.webp があればそれを使う） */
 export function DailyIcon({ img }: { img: string | null }) {
   if (img) return <img src={img} alt="" className="daily-icon__img" draggable={false} />;
   return (

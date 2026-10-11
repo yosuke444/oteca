@@ -74,7 +74,7 @@ try {
   const real = failed.filter((f) => !seProbe.includes(f));
   console.log(`効果音の差し替えファイルの確認（無くて正常）：${seProbe.length}件`);
   check(real.length === 0, `読み込みエラー（画像・BGM・プログラム）：${real.length ? real.join(' / ') : 'なし'}`);
-  const kinds = { 画像: [...loaded].filter((p) => p.endsWith('.png')).length, 曲: [...loaded].filter((p) => p.endsWith('.mp3')).length };
+  const kinds = { 画像: [...loaded].filter((p) => /\.(png|webp)$/.test(p)).length, 曲: [...loaded].filter((p) => p.endsWith('.mp3')).length };
   console.log('読み込めたファイル', JSON.stringify(kinds));
   check(errors.length === 0, `ページのエラー：${errors.length ? errors.join(' / ') : 'なし'}`);
 } finally {

@@ -20,9 +20,19 @@ vi.mock('../src/state/SaveContext', async () => {
   return { useSave: () => ({ save }) };
 });
 
-/** PNG の幅と高さ（ファイルの頭の IHDR から） */
+/** 画像の幅と高さ（PNG はファイルの頭の IHDR、WebP は VP8 ・VP8L・VP8X の かたまりから） */
 function pngSize(path: string): [number, number] {
   const b = readFileSync(path);
+  if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') {
+    const kind = b.toString('ascii', 12, 16);
+    if (kind === 'VP8 ') return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+    if (kind === 'VP8L') {
+      const v = b.readUInt32LE(21);
+      return [(v & 0x3fff) + 1, ((v >> 14) & 0x3fff) + 1];
+    }
+    if (kind === 'VP8X') return [b.readUIntLE(24, 3) + 1, b.readUIntLE(27, 3) + 1];
+    throw new Error(`${path}：WebP の形が わからない`);
+  }
   return [b.readUInt32BE(16), b.readUInt32BE(20)];
 }
 
@@ -44,11 +54,21 @@ describe('画像（v2.3）', () => {
   });
 
   it('ボスの絵 800×800、パック 600×900、コイン・プレゼント・デイリー 256×256', () => {
-    for (const f of files('public/story').filter((f) => f.endsWith('.png'))) expect([f, ...pngSize(f)]).toEqual([f, 800, 800]);
-    for (const f of files('public/packs').filter((f) => f.endsWith('.png'))) expect([f, ...pngSize(f)]).toEqual([f, 600, 900]);
+    for (const f of files('public/story').filter((f) => f.endsWith('.webp'))) expect([f, ...pngSize(f)]).toEqual([f, 800, 800]);
+    for (const f of files('public/packs').filter((f) => f.endsWith('.webp'))) expect([f, ...pngSize(f)]).toEqual([f, 600, 900]);
     for (const n of ['coin', 'present', 'present_open', 'daily']) {
-      const f = `public/images/${n}.png`;
+      const f = `public/images/${n}.webp`;
       if (existsSync(f)) expect([f, ...pngSize(f)]).toEqual([f, 256, 256]);
+    }
+  });
+
+  it('v2.4：絵は WebP だけ（public に PNG を置かない）。cards.json の絵も .webp', () => {
+    const pngs = ['cards', 'story', 'packs', 'images'].flatMap((d) => files(`public/${d}`)).filter((f) => /.png$/i.test(f));
+    expect(pngs).toEqual([]);
+    for (const c of CARDS) if (c.image) expect(c.image, c.id).toMatch(/.webp$/);
+    for (const f of ['cards', 'story', 'packs', 'images'].flatMap((d) => files(`public/${d}`)).filter((f) => !f.endsWith('.gitkeep'))) {
+      const b = readFileSync(f);
+      expect([f, b.toString('ascii', 0, 4), b.toString('ascii', 8, 12)]).toEqual([f, 'RIFF', 'WEBP']);
     }
   });
 
@@ -64,8 +84,8 @@ describe('画像（v2.3）', () => {
     const html = renderToStaticMarkup(createElement(CardArt, { def: trophyDef(3), seed: 't' }));
     expect(html).not.toContain('<img');
     expect(html).toContain('trophy-doodle');
-    // ふつうのカードは絵を読み込む
-    expect(renderToStaticMarkup(createElement(CardArt, { def: CARDS[0], seed: 't' }))).toContain('<img');
+    // ふつうのカードは絵を読み込む（v2.4：読み込み係で読み終わるまでは、絵の場所を空けて待つ）
+    expect(renderToStaticMarkup(createElement(CardArt, { def: CARDS[0], seed: 't' }))).toContain(`data-src="/${CARDS[0].image}"`);
   });
 
   it('アイテムのふせんに絵（v2.3）：絵が置いてあるアイテムは ふせんの中に絵。絵が無いアイテムは今までの ふせん のまま', () => {
@@ -86,7 +106,7 @@ describe('画像（v2.3）', () => {
       }
     }
     // 絵の無いアイテム：絵を出さない（無い絵を読みに行かない）
-    const noArt = { ...items[0], image: 'cards/no_such_item.png' };
+    const noArt = { ...items[0], image: 'cards/no_such_item.webp' };
     expect(itemArtUrl(noArt)).toBeNull();
     const plain = html(createElement(CardMini, { def: noArt, seed: 't', variant: 'tile' }));
     expect(plain).not.toContain('has-art');

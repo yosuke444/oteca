@@ -7,6 +7,7 @@ import type { BattleSetup } from './battle/setup';
 import { stageByNo } from './story/story';
 import { setPendingNotice } from './online/rate';
 import { AdminKeys } from './scenes/Admin/AdminLogin';
+import { pauseIdlePreload, resumeIdlePreload } from './ui/idlePreload';
 import { resolvePendingMatches, setFriendNotice } from './online/pendingMatch';
 import { useSave } from './state/SaveContext';
 import { setLang } from './i18n';
@@ -167,6 +168,12 @@ export function App() {
     const bgm = nav.route === 'battle' ? battleBgm(nav.payload as BattleSetup | null) : ROUTE_BGM[nav.route];
     if (bgm !== undefined) audio.playBgm(bgm);
   }, [nav.route, nav.payload]);
+  // 対戦中は、カードの絵の先読みを止める（v2.4）
+  useEffect(() => {
+    if (nav.route !== 'battle') return;
+    pauseIdlePreload('battle');
+    return () => resumeIdlePreload('battle');
+  }, [nav.route]);
   // 対戦中かを「いまのタブ」の札に書く（ほかのタブで「この タブで あそぶ」を押した時の確認に使う。v2.3）
   useEffect(() => {
     tabGuard.setBattle(nav.route === 'battle' && (nav.payload as BattleSetup | null)?.mode !== 'spectate');

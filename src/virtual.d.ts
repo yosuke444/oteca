@@ -12,7 +12,7 @@ declare module 'virtual:audio-files' {
 }
 
 declare module 'virtual:image-files' {
-  /** public/images・public/packs・public/story・public/cards の中の絵（例 images/coin.png、packs/pack_ganso.png） */
+  /** public/images・public/packs・public/story・public/cards の中の絵（例 images/coin.webp、packs/pack_ganso.webp） */
   const files: string[];
   export default files;
 }

@@ -11,7 +11,7 @@ import { imageUrl } from '../../ui/imageFiles';
 import { RoughBox } from '../../ui/rough/RoughBox';
 
 /**
- * ボスの絵（public/story/boss_<id>.png）。無い時は、赤い手描き枠の中にボスの名前をペン文字で書く（UPDATE_v2 §11-2）。
+ * ボスの絵（public/story/boss_<id>.webp）。無い時は、赤い手描き枠の中にボスの名前をペン文字で書く（UPDATE_v2 §11-2）。
  */
 export function BossArt({ boss, name, small, dim }: { boss: BossId; name: string; small?: boolean; dim?: boolean }) {
   const url = imageUrl(bossImagePath(boss));

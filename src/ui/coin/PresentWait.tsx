@@ -6,13 +6,13 @@ import './coin.css';
 
 /**
  * ログボを受け取った後のプレゼントボックスの場所（SPEC §7 S11・v2.1-L）：
- * 空いた箱の絵と、次にもらえるまでの残り時間（時:分:秒）。public/images/present_open.png があればそれを使う。
+ * 空いた箱の絵と、次にもらえるまでの残り時間（時:分:秒）。public/images/present_open.webp があればそれを使う。
  * 押しても何も起きない（もらえる時刻はまだ）。1秒ごとに数え直し、0 になったら onZero で知らせる。
  * @param remaining 今の時刻での残り（ミリ秒）を返す
  */
 export function PresentWait({ remaining, onZero }: { remaining: (now: number) => number; onZero: () => void }) {
   const tr = useT();
-  const img = imageUrl('images/present_open.png');
+  const img = imageUrl('images/present_open.webp');
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     // 秒の切り替わりに合わせて数え直す

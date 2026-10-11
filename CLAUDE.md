@@ -38,6 +38,6 @@
 
 ## 企画者から後で届くもの
 
-- カード画像 → 元の画像を `assets-original/cards/` に置き、`node scripts/prepare-art.mjs` で `public/cards/<id>.png` を作る（おてあげの絵も同じ。`assets-original/images/`。元の画像は公開しないので git に入れない）
+- カード画像 → 元の画像を `assets-original/cards/` に置き、`node scripts/prepare-art.mjs` で `public/cards/<id>.webp` を作る（v2.4 から WebP。元の画像のファイル名は日本語でもよい）（おてあげの絵も同じ。`assets-original/images/`。元の画像は公開しないので git に入れない）
 - BGM → `public/audio/bgm/`（ファイル名は `src/audio/soundMap.ts` の対応表に合わせる）。戦闘曲は `public/audio/bgm/battle/battle_NN.mp3`（数は自動）。足した曲は `node scripts/measure-bgm.mjs` で測って `BATTLE_VOLUME` に音量を書く。効果音は届かない（自分で作る）
 - 追加カードのデータ → `src/data/cards.json` に No 13 から追記

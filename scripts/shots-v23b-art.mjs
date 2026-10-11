@@ -70,7 +70,7 @@ try {
       await t.click({ button: 'right' });
       await page.waitForTimeout(500);
       // アイテムは ふせん の形で、絵を出さない（今までどおり）。おてあげ（すりむ）だけ絵を確かめる
-      if (k === 'surimu') await shows(`cards/${k}.png`, 'カードの くわしく');
+      if (k === 'surimu') await shows(`cards/${k}.webp`, 'カードの くわしく');
       await snap(`02_detail_${k}`);
       await page.getByRole('button', { name: /^(とじる|閉じる)$/ }).click();
     }
@@ -79,12 +79,12 @@ try {
     await go('gacha');
     await page.getByTestId('gacha-scene').waitFor();
     for (const p of ['ganso', 'shin', 'yoseatsume']) {
-      for (let i = 0; i < 4 && !(await page.locator(`img[src*="pack_${p}.png"]`).count()); i++) {
+      for (let i = 0; i < 4 && !(await page.locator(`img[src*="pack_${p}.webp"]`).count()); i++) {
         await page.locator('.gacha-scene button').filter({ hasText: '▶' }).first().click().catch(() => {});
         await page.keyboard.press('ArrowRight').catch(() => {});
         await page.waitForTimeout(700);
       }
-      await shows(`packs/pack_${p}.png`, 'ガチャ');
+      await shows(`packs/pack_${p}.webp`, 'ガチャ');
       await snap(`03_gacha_${p}`);
     }
 
@@ -102,7 +102,7 @@ try {
     await waitIdle(page, 30000);
     await page.waitForTimeout(1500);
     await waitIdle(page, 30000);
-    await shows('cards/surimu.png', '対戦');
+    await shows('cards/surimu.webp', '対戦');
     await snap('04_battle');
     await page.locator('.battle-slot--me.battle-slot--active .battle-card').click({ button: 'right', force: true });
     await page.waitForTimeout(500);

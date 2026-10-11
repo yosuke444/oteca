@@ -13,7 +13,7 @@ import './coin.css';
 /**
  * ログインボーナスのプレゼントボックス（SPEC §7 S11）。
  * 置いてある間は小さく揺れて光る。押すと：リボンがほどける → ふたが飛ぶ → 光が広がる → コインが噴き出して
- * コイン表示へ飛ぶ → 「+50」。public/images/present.png があればそれを使う（無ければ手描きの SVG）。
+ * コイン表示へ飛ぶ → 「+50」。public/images/present.webp があればそれを使う（無ければ手描きの SVG）。
  * @param onOpen 押した瞬間に呼ぶ（ここで保存する。演出の途中で閉じても、もらい損ねない）
  * @param onCoins コインが コイン表示に着いた時（数字のカウントアップを始める合図）
  * @param onDone 演出が終わった時
@@ -45,7 +45,7 @@ export function PresentBox({
   const ribbonV = useRef<SVGPathElement>(null);
   const lid = useRef<SVGGElement>(null);
   const rays = useRef<SVGGElement>(null);
-  const img = imageUrl('images/present.png');
+  const img = imageUrl('images/present.webp');
 
   // 24時間たって、空いた箱がリボン付きに戻る：ポンッと跳ねて戻り、まわりにキラキラ。
   // 揺れの CSS アニメ（transform）が GSAP の動きを打ち消すので、戻る間は is-appearing で揺れを止める

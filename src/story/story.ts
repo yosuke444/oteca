@@ -178,9 +178,9 @@ export function applyStoryResult(draft: Pick<SaveData, 'story' | 'coins' | 'coll
   return { first, coins: draft.coins - before, cardNo };
 }
 
-/** ボスの絵（public/story/boss_<id>.png） */
+/** ボスの絵（public/story/boss_<id>.webp） */
 export function bossImagePath(boss: BossId): string {
-  return `story/boss_${boss}.png`;
+  return `story/boss_${boss}.webp`;
 }
 
 /** カードの定義（限定カードの表示用） */

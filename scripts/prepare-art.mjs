@@ -1,19 +1,22 @@
-// カード・ボス・パック・アイコンの絵を、表示用に作り直す（元の画像は変えない）
+// カード・ボス・パック・アイコンの絵を、表示用に作り直す（元の画像は変えない）。v2.4 から WebP で書き出す（軽くして絵が出るまでのラグを減らす）
 // 元の画像は公開しない（assets-original/ は git にも入れない。.gitignore）
-//   assets-original/cards/*.png   → public/cards/<id>.png      おてあげ 800×600・アイテム 512×512
-//   assets-original/story/*.png   → public/story/boss_<id>.png  800×800
-//   assets-original/packs/*.png   → public/packs/pack_<id>.png  600×900
-//   assets-original/images/*.png  → public/images/<名前>.png    コイン・プレゼント・デイリー 256×256。おてあげの絵は余白を切り取るだけ
+//   assets-original/cards/*.png   → public/cards/<id>.webp      おてあげ 800×600・アイテム 512×512
+//   assets-original/story/*.png   → public/story/boss_<id>.webp  800×800
+//   assets-original/packs/*.png   → public/packs/pack_<id>.webp  600×900
+//   assets-original/images/*.png  → public/images/<名前>.webp    コイン・プレゼント・デイリー 256×256。おてあげの絵は余白を切り取るだけ
+// 元の画像のファイル名は日本語でもよい：カードは cards.json の名前（「おてさげ.png」）、ボスは story.json のボスの名前（「おてあげドラゴン.png」）、
+//   パックは packs.json の名前（「元祖パック.png」「元祖.png」）、アイコンは コイン・プレゼント・あいたはこ・デイリー・おてあげ
 // やること（v2.3）：
 //   1. 端に写りこんだ線（スクリーンショットの枠・色つきの線など）を切り落とす
 //   2. 白に近い色を白にそろえる（乗算で表示した時に、うすい四角が見えないように）
 //   3. 余白を切り取る
 //   4. 縦横の比率を変えずに、決まった大きさの中に収める（まわりに少しだけ余白。余った所は白。引き伸ばし・ゆがみなし）
+//   5. WebP（画質 0.92。白い背景は白のまま＝乗算でなじむ）で書き出す。300KB を超える時だけ画質を少しずつ下げる
 // トロフィあげ（trophy*.png）は まだ仮の絵のまま：作らない（元の画像は art_hold/ に置いておく）
 // ファイル名がカードの id でない時（「おてさげ.png」など）は、cards.json の名前から id に直す。
 // 使い方：node scripts/prepare-art.mjs
 import { chromium } from '@playwright/test';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 
 /** 置く大きさ（幅・高さ・まわりの余白） */
@@ -25,10 +28,35 @@ const BOX = {
   icon: [256, 256, 8],
 };
 const IMAGE_PAD = 4;
+/** WebP の画質（0〜1）。見た目が荒れない値 */
+const QUALITY = 0.92;
 const ICONS = new Set(['coin', 'present', 'present_open', 'daily']);
 const MAX_BYTES = 300 * 1024;
 
 const cards = JSON.parse(readFileSync('src/data/cards.json', 'utf8')).cards;
+const bosses = JSON.parse(readFileSync('src/data/story.json', 'utf8')).stages.filter((s) => s.kind === 'boss' && s.boss);
+const packs = JSON.parse(readFileSync('src/data/packs.json', 'utf8')).packs;
+/** アイコンの日本語の名前 → ファイル名 */
+const ICON_NAMES = { コイン: 'coin', プレゼント: 'present', あいたはこ: 'present_open', 空いた箱: 'present_open', デイリー: 'daily', おてあげ: 'otege_up' };
+const stemOf = (file) => basename(file, extname(file)).normalize('NFC');
+/** ボスの元の画像の名前（boss_dragon・dragon・おてあげドラゴン）→ boss_<id>（わからなければ null） */
+function bossFileOf(file) {
+  const stem = stemOf(file);
+  const b = bosses.find((s) => stem === `boss_${s.boss}` || stem === s.boss || stem === s.name.normalize('NFC'));
+  return b ? `boss_${b.boss}` : null;
+}
+/** パックの元の画像の名前（pack_ganso・ganso・元祖パック・元祖）→ pack_<id>（わからなければ null） */
+function packFileOf(file) {
+  const stem = stemOf(file);
+  const p = packs.find((x) => stem === `pack_${x.id}` || stem === x.id || stem === x.name.normalize('NFC') || stem === x.short.normalize('NFC'));
+  return p ? `pack_${p.id}` : null;
+}
+/** アイコン・おてあげの絵の名前（coin・コイン など）→ ファイル名 */
+function imageFileOf(file) {
+  const stem = stemOf(file);
+  return ICON_NAMES[stem] ?? stem;
+}
+const webp = (name) => `${name}.webp`;
 const byId = new Map(cards.map((c) => [c.id, c]));
 const byName = new Map(cards.map((c) => [c.name.normalize('NFC'), c]));
 
@@ -42,11 +70,11 @@ function cardIdOf(file) {
 const browser = await chromium.launch();
 const page = await browser.newPage();
 
-/** ブラウザの canvas で作り直して PNG のバイト列を返す */
+/** ブラウザの canvas で作り直して WebP のバイト列を返す */
 async function rework(path, mode) {
   const url = 'data:image/png;base64,' + readFileSync(path).toString('base64');
   const res = await page.evaluate(
-    async ({ url, box, IMAGE_PAD, MAX_BYTES }) => {
+    async ({ url, box, IMAGE_PAD, MAX_BYTES, QUALITY }) => {
       const img = new Image();
       img.src = url;
       await img.decode();
@@ -189,27 +217,19 @@ async function rework(path, mode) {
       o.imageSmoothingEnabled = true;
       o.imageSmoothingQuality = 'high';
       o.drawImage(c, x0, y0, w, h, dx, dy, dw, dh);
-      // 5. 大きすぎる時（色の多い絵を大きくした時）だけ、色の段階を少しずつ減らして MAX_BYTES 以下にする（白はそのまま）
-      let png = out.toDataURL('image/png').split(',')[1];
-      let levels = 256;
-      const orig = o.getImageData(0, 0, out.width, out.height);
-      for (const q of [4, 6, 8]) {
-        if (png.length * 0.75 <= MAX_BYTES) break;
-        const img = new ImageData(new Uint8ClampedArray(orig.data), out.width, out.height);
-        const p = img.data;
-        for (let i = 0; i < p.length; i += 4) {
-          for (let k = 0; k < 3; k++) p[i + k] = p[i + k] >= 250 ? 255 : Math.min(255, Math.round(p[i + k] / q) * q);
-        }
-        o.putImageData(img, 0, 0);
-        png = out.toDataURL('image/png').split(',')[1];
-        levels = Math.round(256 / q);
+      // 5. WebP で書き出す。大きすぎる時だけ、画質を少しずつ下げて MAX_BYTES 以下にする
+      let quality = QUALITY;
+      let data64 = out.toDataURL('image/webp', quality).split(',')[1];
+      while (data64.length * 0.75 > MAX_BYTES && quality > 0.7) {
+        quality = Math.round((quality - 0.05) * 100) / 100;
+        data64 = out.toDataURL('image/webp', quality).split(',')[1];
       }
       return {
-        png,
-        info: { from: `${W}×${H}`, cut, specks, bbox: [x0, y0, w, h], to: `${out.width}×${out.height}`, scale: +(dw / w).toFixed(2), levels },
+        png: data64,
+        info: { from: `${W}×${H}`, cut, specks, bbox: [x0, y0, w, h], to: `${out.width}×${out.height}`, scale: +(dw / w).toFixed(2), quality },
       };
     },
-    { url, box: mode === 'image' ? null : BOX[mode], IMAGE_PAD, MAX_BYTES },
+    { url, box: mode === 'image' ? null : BOX[mode], IMAGE_PAD, MAX_BYTES, QUALITY },
   );
   if (res.error) throw new Error(`${path}: ${res.error}`);
   return { bytes: Buffer.from(res.png, 'base64'), info: res.info };
@@ -227,12 +247,20 @@ for (const f of readdirSync('assets-original/cards').filter((f) => /\.png$/i.tes
   jobs.push({ src: join('assets-original/cards', f), dst: join('public', card.image), mode: card.kind === 'item' ? 'item' : 'otege' });
 }
 const pngs = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => /\.png$/i.test(f)) : []);
-for (const f of pngs('assets-original/story')) jobs.push({ src: join('assets-original/story', f), dst: join('public/story', f), mode: 'boss' });
-for (const f of pngs('assets-original/packs')) jobs.push({ src: join('assets-original/packs', f), dst: join('public/packs', f), mode: 'pack' });
+for (const f of pngs('assets-original/story')) {
+  const name = bossFileOf(f);
+  if (!name) problems.push(`assets-original/story/${f}：どのボスか わからない（boss_<id> か、ボスの名前にしてください）`);
+  else jobs.push({ src: join('assets-original/story', f), dst: join('public/story', webp(name)), mode: 'boss' });
+}
+for (const f of pngs('assets-original/packs')) {
+  const name = packFileOf(f);
+  if (!name) problems.push(`assets-original/packs/${f}：どのパックか わからない（pack_<id> か、パックの名前にしてください）`);
+  else jobs.push({ src: join('assets-original/packs', f), dst: join('public/packs', webp(name)), mode: 'pack' });
+}
 for (const f of pngs('assets-original/images')) {
-  const stem = basename(f, extname(f));
+  const stem = imageFileOf(f);
   if (/^trophy/i.test(stem)) continue; // トロフィあげは まだ仮の絵のまま
-  jobs.push({ src: join('assets-original/images', f), dst: join('public/images', f), mode: ICONS.has(stem) ? 'icon' : 'image' });
+  jobs.push({ src: join('assets-original/images', f), dst: join('public/images', webp(stem)), mode: ICONS.has(stem) ? 'icon' : 'image' });
 }
 
 for (const j of jobs) {
@@ -241,7 +269,10 @@ for (const j of jobs) {
   writeFileSync(j.dst, bytes);
   const kb = (statSync(j.dst).size / 1024).toFixed(1);
   const cutText = Object.entries(info.cut).filter(([, v]) => v).map(([k, v]) => `${k}${v}px`).join(' ');
-  console.log(`${j.src} → ${j.dst}  ${info.from} → ${info.to}  絵の範囲 ${info.bbox.join(',')}  ×${info.scale}  ${kb}KB${cutText ? '  端の線を切り落とし：' + cutText : ''}${info.specks.length ? '  消した点：' + info.specks.join(' ') : ''}${info.levels < 256 ? `  色の段階 ${info.levels}` : ''}`);
+  console.log(`${j.src} → ${j.dst}  ${info.from} → ${info.to}  絵の範囲 ${info.bbox.join(',')}  ×${info.scale}  ${kb}KB  画質 ${info.quality}${cutText ? '  端の線を切り落とし：' + cutText : ''}${info.specks.length ? '  消した点：' + info.specks.join(' ') : ''}`);
+  // 同じ名前の古い PNG が public に残っていたら消す（ゲームは WebP を読む）
+  const oldPng = j.dst.replace(/\.webp$/, '.png');
+  if (existsSync(oldPng)) unlinkSync(oldPng);
   if (bytes.length > MAX_BYTES) problems.push(`${j.dst} が ${kb}KB（300KB を超えた）`);
 }
 const missing = cards.filter((c) => c.image && !jobs.some((j) => j.dst.replace(/\\/g, '/') === `public/${c.image}`));

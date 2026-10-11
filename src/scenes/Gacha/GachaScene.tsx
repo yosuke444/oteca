@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { preloadCards } from '../../ui/imageLoader';
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { audio } from '../../audio/audioManager';
@@ -108,6 +109,8 @@ export function GachaScene() {
     );
     if (!results) return;
     const got = results as PullResult[];
+    // 結果が決まった：当たったカードの絵を、すぐ読み始める（めくる時に出ているように。v2.4）
+    void preloadCards(got.map((r) => r.no), 'high');
     // チュートリアル：スーパーの種類の数（#24 の補足）と、初めて手に入れたカード（デッキ編集の一覧に NEW の印）
     if (tutorial) setPostState({ supers: new Set(got.filter((r) => r.super).map((r) => r.no)).size, newCards: [...new Set(got.filter((r) => r.isNew).map((r) => r.no))] });
     // 練習用の写しの中では、セーブの外の知らせを書かない
