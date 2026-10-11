@@ -22,8 +22,8 @@
       "name": "よせあつめパック",
       "short": "よせあつめ",
       "color": "green",
-      "normal": ["oteage", "karaage", "toriashi", "hataage", "kawaiage", "ootoro", "bunbunbun", "takarabako", "pakarapakara", "hon777", "piero", "sarashiage", "moyasu", "dokusage", "tomodachi", "hosoage", "surimu", "kusuri", "himitsu_yaiba", "kimyou_drink", "supodori", "yabaitsubo"],
-      "super": ["power", "medusa"]
+      "normal": ["oteage", "karaage", "toriashi", "hataage", "kawaiage", "ootoro", "bunbunbun", "takarabako", "pakarapakara", "hon777", "piero", "sarashiage", "moyasu", "dokusage", "tomodachi", "hosoage", "kusuri", "himitsu_yaiba", "kimyou_drink", "supodori", "yabaitsubo"],
+      "super": ["power", "medusa", "surimu"]
     },
     {
       "id": "daily",
@@ -31,7 +31,7 @@
       "short": "デイリー",
       "color": "daily",
       "purchasable": false,
-      "normal": ["oteage", "mitsume", "otesage", "yotsuashi", "sanbon", "mutsuashi", "hasami", "yonhon", "yatsuashi", "shikaku", "bakuhatsu", "yukidaruma", "shovelcar", "bakeage", "karaage", "toriashi", "hataage", "kawaiage", "ootoro", "bunbunbun", "takarabako", "pakarapakara", "hon777", "piero", "sarashiage", "moyasu", "dokusage", "tomodachi", "hosoage", "surimu", "kusuri", "himitsu_yaiba", "kimyou_drink", "supodori", "hikikae", "yabaitsubo"],
+      "normal": ["oteage", "mitsume", "otesage", "yotsuashi", "sanbon", "mutsuashi", "hasami", "yonhon", "yatsuashi", "shikaku", "bakuhatsu", "yukidaruma", "shovelcar", "bakeage", "karaage", "toriashi", "hataage", "kawaiage", "ootoro", "bunbunbun", "takarabako", "pakarapakara", "hon777", "piero", "sarashiage", "moyasu", "dokusage", "tomodachi", "hosoage", "kusuri", "himitsu_yaiba", "kimyou_drink", "supodori", "hikikae", "yabaitsubo"],
       "super": []
     }
   ],

@@ -62,3 +62,23 @@ export function checkSavedDeck(save: SaveData, slot: number, rules: RuleSet = DE
 export function usableDecks(save: SaveData, rules: RuleSet = DEFAULT_RULES): boolean[] {
   return save.decks.map((_, i) => checkSavedDeck(save, i, rules).usable);
 }
+
+/** そのデッキが「スーパーおてあげが多すぎる」で使えないか（v2.4：すりむ がスーパーになって、前のデッキが決まりに合わなくなった時） */
+export function hasTooManySuper(save: SaveData, slot: number, rules: RuleSet = DEFAULT_RULES): boolean {
+  return checkSavedDeck(save, slot, rules).problems.some((p) => p.code === 'tooManySuper');
+}
+
+/**
+ * 選んでいるデッキがスーパーおてあげ2枚以上で使えない時、使えるほかのデッキに切り替える（v2.4。起動・引き継ぎの時）。
+ * デッキは消さない（デッキ編集で直せば、また使える）。使えるデッキが無い時は、そのまま（メニューでデッキ編集へ案内する）
+ */
+export function switchFromTooManySuper(save: SaveData, rules: RuleSet = DEFAULT_RULES): SaveData {
+  if (!hasTooManySuper(save, save.selectedDeck, rules)) return save;
+  const next = usableDecks(save, rules).indexOf(true);
+  return next < 0 ? save : { ...save, selectedDeck: next };
+}
+
+/** 選んでいるデッキがスーパーおてあげ2枚以上で、ほかに使えるデッキも無い（メニューでデッキ編集へ案内する。v2.4） */
+export function needsSuperFix(save: SaveData, rules: RuleSet = DEFAULT_RULES): boolean {
+  return hasTooManySuper(save, save.selectedDeck, rules) && !usableDecks(save, rules).includes(true);
+}

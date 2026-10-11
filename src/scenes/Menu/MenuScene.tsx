@@ -28,6 +28,7 @@ import { Dialog } from '../../ui/common/Dialog';
 import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { useIsSandbox, useSave } from '../../state/SaveContext';
+import { needsSuperFix } from '../../save/collection';
 import { STEP_FROM_NOTICE } from '../../tutorial/post';
 import { useT } from '../../i18n/useT';
 import { CoinCounter, centerIn, flyCoins } from '../../ui/coin/Coin';
@@ -37,6 +38,9 @@ import { PresentWait } from '../../ui/coin/PresentWait';
 import './menu.css';
 
 type LockedId = 'story' | 'gacha' | 'trade' | 'ranking';
+
+/** 「デッキを なおしてね」を、この起動で もう出したか（v2.4） */
+let superFixShown = false;
 
 /** S01 メニュー（SPEC §7） */
 export function MenuScene() {
@@ -79,6 +83,11 @@ export function MenuScene() {
   }, []);
 
   const [pendingTrade] = useState(() => loadPendingTrade());
+  const [superFix, setSuperFix] = useState(() => !superFixShown && needsSuperFix(save));
+  const closeSuperFix = () => {
+    superFixShown = true;
+    setSuperFix(false);
+  };
   // 前のレート対戦が とちゅうで終わって負けになった（v2.0-G。1回だけ）
   const [rateNotice, setRateNotice] = useState(() => peekPendingNotice());
   useEffect(() => {
@@ -287,6 +296,35 @@ export function MenuScene() {
         >
           <p data-testid="rate-notice">{tr.online.pendingLost}</p>
           <p className="num">{tr.online.rateChange(rateNotice.before, rateNotice.after)}</p>
+        </Dialog>
+      )}
+
+      {/* 選んでいたデッキがスーパー2枚以上で、ほかに使えるデッキも無い（v2.4。起動するたびに1回） */}
+      {superFix && save.updateNoticeSeen && !rateNotice && !carry && (
+        <Dialog
+          seed="super-fix"
+          title={tr.menu.superFixTitle}
+          onClose={closeSuperFix}
+          actions={
+            <>
+              <RoughButton seed="super-fix-later" onClick={closeSuperFix}>
+                {tr.menu.superFixLater}
+              </RoughButton>
+              <RoughButton
+                seed="super-fix-go"
+                highlight
+                data-testid="super-fix-go"
+                onClick={() => {
+                  closeSuperFix();
+                  go('deck');
+                }}
+              >
+                {tr.menu.superFixGo}
+              </RoughButton>
+            </>
+          }
+        >
+          <p data-testid="super-fix">{tr.menu.superFixText}</p>
         </Dialog>
       )}
 

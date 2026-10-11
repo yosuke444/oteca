@@ -31,6 +31,10 @@ export const kanji: Dict = {
   },
 
   menu: {
+    superFixTitle: 'デッキを直してね',
+    superFixText: 'すりむ がスーパーおてあげになりました。スーパーが2枚以上入ったデッキは、直すまで対戦に使えません',
+    superFixGo: 'デッキ編集へ',
+    superFixLater: 'あとで',
     friend: 'オンライン対戦',
     friendSub: '友だち・知らない人と',
     trade: 'カードトレード',
@@ -620,6 +624,7 @@ export const kanji: Dict = {
     noteEdit: '赤い「!」のデッキは、まだ対戦に使えません',
     aria: (n, name) => `スロット${n}「${name}」`,
     none: '使えるデッキがありません。デッキ編集で作ってね',
+    tooManySuper: 'スーパーが2枚以上入っています',
   },
 
   notice: {

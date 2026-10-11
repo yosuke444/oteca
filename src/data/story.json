@@ -43,7 +43,7 @@
     {
       "no": 7, "kind": "normal", "name": "まいごの ふせん", "parents": [4], "pos": { "x": -3, "y": 4 },
       "theme": { "hira": "なかよしで かいふく", "kanji": "仲良しで回復" },
-      "deck": [["tomodachi",3], ["hataage",3], ["surimu",2], ["yotsuashi",2], ["kusuri",2], ["yabaitsubo",1], ["supodori",2]]
+      "deck": [["tomodachi",3], ["hataage",3], ["surimu",1], ["yotsuashi",3], ["kusuri",2], ["yabaitsubo",1], ["supodori",2]]
     },
     {
       "no": 8, "kind": "normal", "name": "よふかし ノート", "parents": [4,5], "pos": { "x": -1, "y": 4 },
@@ -53,7 +53,7 @@
     {
       "no": 9, "kind": "normal", "name": "こおりの のり", "parents": [5,6], "pos": { "x": 1, "y": 4 },
       "theme": { "hira": "ひえひえ じわじわ", "kanji": "ひえひえじわじわ" },
-      "deck": [["yukidaruma",3], ["sarashiage",2], ["surimu",2], ["yonhon",2], ["dokusage",2], ["kusuri",2], ["supodori",2]]
+      "deck": [["yukidaruma",3], ["sarashiage",3], ["surimu",1], ["yonhon",2], ["dokusage",2], ["kusuri",2], ["supodori",2]]
     },
     {
       "no": 10, "kind": "normal", "name": "あかペン せんせい", "parents": [6], "pos": { "x": 3, "y": 4 },
@@ -64,7 +64,7 @@
       "no": 11, "kind": "boss", "name": "おてあげウサギ", "parents": [7], "pos": { "x": -5, "y": 4 }, "boss": "usagi", "card": "oteage_usagi",
       "theme": { "hira": "バランスがた：ひいて まもって ひっくりかえす", "kanji": "バランス型：引いて守ってひっくり返す" },
       "bossRule": { "text": { "hira": "ボスは 2ターンに 1かい ドローする", "kanji": "ボスは2ターンに1回ドローする" }, "boss": { "drawEveryNTurns": 2 } },
-      "deck": [["oteage_usagi",3], ["kawaiage",2], ["piero",2], ["surimu",2], ["hataage",1], ["tomodachi",1], ["medusa",1], ["hikikae",1], ["kusuri",2]]
+      "deck": [["oteage_usagi",3], ["kawaiage",3], ["piero",2], ["surimu",1], ["hataage",1], ["tomodachi",1], ["ootoro",1], ["hikikae",1], ["kusuri",2]]
     },
     {
       "no": 12, "kind": "normal", "name": "てつの ふでばこ", "parents": [8,9], "pos": { "x": 0, "y": 5 },

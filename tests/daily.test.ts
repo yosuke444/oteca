@@ -199,13 +199,14 @@ describe('M03 確定のミッション（ほかを ぜんぶ クリア）', () =
     expect(claimableCount(s.daily)).toBe(3);
   });
 
-  it('デイリーパックは売らない（パックガチャに並ばない）。中身は3つのパックのノーマル36種類で、スーパーおてあげは無い', () => {
+  it('デイリーパックは売らない（パックガチャに並ばない）。中身は3つのパックのノーマル35種類で、スーパーおてあげは無い（v2.4：すりむ はスーパーになったので外した）', () => {
     const p = dailyPack();
     expect(p.id).toBe('daily');
     expect(p.purchasable).toBe(false);
     expect(SHOP_PACKS.map((x) => x.id)).not.toContain('daily');
     expect(p.super).toEqual([]);
-    expect(new Set(p.normal).size).toBe(36);
+    expect(new Set(p.normal).size).toBe(35);
+    expect(p.normal).not.toContain('surimu');
     const union = new Set(PACK_DATA.packs.filter((x) => x.id !== 'daily').flatMap((x) => x.normal));
     expect(new Set(p.normal)).toEqual(union);
     for (const id of p.normal) {

@@ -93,7 +93,9 @@ describe('G04 パックの中身・確率は packs.json の値', () => {
     // スーパー1種類あたり：元祖 約1.7%、真 約1.7%、よせあつめ 2.5%
     expect(Math.round(cardRate(packById('ganso')!, 'kami') * 10000) / 100).toBe(1.67);
     expect(Math.round(cardRate(packById('shin')!, 'bakudan') * 10000) / 100).toBe(1.67);
-    expect(Math.round(cardRate(packById('yoseatsume')!, 'medusa') * 10000) / 100).toBe(2.5);
+    // v2.4：すりむ がスーパーになって、よせあつめのスーパーは3種類
+    expect(Math.round(cardRate(packById('yoseatsume')!, 'medusa') * 10000) / 100).toBe(1.67);
+    expect(Math.round(cardRate(packById('yoseatsume')!, 'surimu') * 10000) / 100).toBe(1.67);
     // デイリーパックはスーパーが無い
     expect(superRate(packById('daily')!)).toBe(0);
     // ノーマルの袋の光る確率：0.8 × 0.05 ÷ 0.95（約4.2%）。光った袋のスーパー率が 50%

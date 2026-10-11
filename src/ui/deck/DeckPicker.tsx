@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DEFAULT_RULES } from '../../engine';
 import { useT } from '../../i18n/useT';
-import { usableDecks } from '../../save/collection';
+import { hasTooManySuper, usableDecks } from '../../save/collection';
 import type { SaveData } from '../../save/saveData';
 import { Dialog } from '../common/Dialog';
 import { Sticky } from '../common/Sticky';
@@ -57,7 +57,13 @@ export function DeckPicker({
             >
               <span className="num deck-picker__no">{i + 1}</span>
               <span className="deck-picker__name">{d.name}</span>
-              <span className="pencil deck-picker__count">{tr.deckPicker.cards(d.cards.length, DEFAULT_RULES.deckSize)}</span>
+              {hasTooManySuper(save, i) ? (
+                <span className="red-pen deck-picker__why" data-testid={`deck-slot-${i}-super`}>
+                  {tr.deckPicker.tooManySuper}
+                </span>
+              ) : (
+                <span className="pencil deck-picker__count">{tr.deckPicker.cards(d.cards.length, DEFAULT_RULES.deckSize)}</span>
+              )}
             </Sticky>
             {!usable[i] && d.cards.length > 0 && <span className="deck-picker__bad num">{tr.deckPicker.bad}</span>}
           </button>

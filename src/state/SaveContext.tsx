@@ -11,6 +11,7 @@ import { type KeyValueStore, type SaveStorage, browserCookieJar, load, persist, 
 import { type SaveData, createDefaultSave, normalizeSave } from '../save/saveData';
 import { t } from '../i18n';
 import { mayWriteSave } from '../tabLock/tabGuard';
+import { switchFromTooManySuper } from '../save/collection';
 
 /**
  * 画面からセーブデータを使う窓口。
@@ -78,7 +79,7 @@ function withPlayerId(data: SaveData): SaveData {
 /** 起動時の読み込み。無ければ初期データ。起動のたびに保存し直して期限を延ばす（SPEC §12-5） */
 function boot(storage: SaveStorage): SaveData {
   const loaded = load(storage) ?? freshSave();
-  const data = withPlayerId({ ...normalizeSave(loaded), saveCounter: loaded.saveCounter + 1 });
+  const data = switchFromTooManySuper(withPlayerId({ ...normalizeSave(loaded), saveCounter: loaded.saveCounter + 1 }));
   persist(storage, data);
   return data;
 }
@@ -127,7 +128,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const replace = useCallback(
     (data: SaveData) => {
       // 復元したデータの保存回数が小さくても、次の読み込みで古い方に負けないようにする
-      commit(withPlayerId({ ...normalizeSave(data), saveCounter: Math.max(save.saveCounter, data.saveCounter) + 1 }));
+      commit(switchFromTooManySuper(withPlayerId({ ...normalizeSave(data), saveCounter: Math.max(save.saveCounter, data.saveCounter) + 1 })));
     },
     [commit, save.saveCounter],
   );

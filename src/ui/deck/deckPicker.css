@@ -56,6 +56,13 @@
 .deck-picker__count {
   font-size: 14px;
 }
+/* スーパーが多すぎて使えない理由（v2.4）。数の代わりに、小さく2行まで */
+.deck-picker__why {
+  font-size: 12px;
+  line-height: 1.15;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
 .deck-picker__bad {
   position: absolute;
   right: -6px;
