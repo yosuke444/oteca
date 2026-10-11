@@ -3,7 +3,6 @@ import { features } from '../../config/features';
 import { sendProfile } from '../../online/rankingApi';
 import { formatUserId } from '../../save/userId';
 import { copyText } from '../../ui/common/copyText';
-import { useAdminHold } from '../Admin/AdminLogin';
 import { useNav } from '../../router';
 import { NAME_MAX, VOLUME_MAX, clampText } from '../../save/saveData';
 import { useSave } from '../../state/SaveContext';
@@ -39,7 +38,6 @@ export function SettingsScene() {
   const tr = useT();
 
   // ランキング（v2.0-I）：名前・載せる設定を変えたらサーバーに知らせる（次の更新から反映。届かなければ次に開いた時）
-  const adminHold = useAdminHold();
   const saveRef = useRef(save);
   saveRef.current = save;
   const firstProfile = useRef(true);
@@ -55,13 +53,11 @@ export function SettingsScene() {
 
   return (
     <div className="settings-scene">
-      {/* 「せってい」の字を10秒押し続けると、管理者のパスワードの入力欄（v2.3。SPEC §7 S20） */}
       <h1 className="settings-scene__title">
-        <span {...adminHold.props} style={tiltStyle('settings-title')} className={`tilt ${adminHold.props.className}`}>
+        <span style={tiltStyle('settings-title')} className="tilt">
           {tr.settings.title}
         </span>
       </h1>
-      {adminHold.dialog}
       <RoughButton seed="settings-back" className="settings-scene__back" onClick={() => go('menu')}>
         {tr.common.back}
       </RoughButton>

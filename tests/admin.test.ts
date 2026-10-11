@@ -200,3 +200,41 @@ describe('J06 停止の確かめ（端末）', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('J08 管理画面の入り口：O と T の同時押し（v2.4）', async () => {
+  const { ADMIN_KEYS, createChordWatcher, isTypingTarget } = await import('../src/scenes/Admin/AdminLogin');
+  it('両方が押された瞬間だけ。どちらが先でもよい。片方だけ・押しっぱなしの繰り返しでは開かない', () => {
+    expect(ADMIN_KEYS).toEqual(['KeyO', 'KeyT']);
+    const w = createChordWatcher(ADMIN_KEYS);
+    expect(w.keydown('KeyO')).toBe(false);
+    expect(w.keydown('KeyO')).toBe(false); // 繰り返し
+    expect(w.keydown('KeyT')).toBe(true);
+    expect(w.keydown('KeyT')).toBe(false); // 押しっぱなし
+    expect(w.keydown('KeyO')).toBe(false);
+    w.keyup('KeyO');
+    expect(w.keydown('KeyO')).toBe(true); // 離して押し直した
+    w.keyup('KeyO');
+    w.keyup('KeyT');
+    expect(w.keydown('KeyT')).toBe(false);
+    expect(w.keydown('KeyO')).toBe(true); // T が先
+    w.reset();
+    expect(w.keydown('KeyT')).toBe(false);
+    // ほかのキー・片方だけ
+    const v = createChordWatcher(ADMIN_KEYS);
+    expect(v.keydown('KeyP')).toBe(false);
+    expect(v.keydown('KeyO')).toBe(false);
+    v.keyup('KeyO');
+    expect(v.keydown('KeyT')).toBe(false);
+  });
+  it('文字を打つ欄（text・password・textarea・書ける所）では反応しない。ボタンなどでは反応する', () => {
+    const el = (tagName: string, extra: Record<string, unknown> = {}) => ({ tagName, isContentEditable: false, ...extra }) as unknown as EventTarget;
+    expect(isTypingTarget(el('INPUT', { type: 'text' }))).toBe(true);
+    expect(isTypingTarget(el('INPUT', { type: 'password' }))).toBe(true);
+    expect(isTypingTarget(el('TEXTAREA'))).toBe(true);
+    expect(isTypingTarget(el('DIV', { isContentEditable: true }))).toBe(true);
+    expect(isTypingTarget(el('INPUT', { type: 'checkbox' }))).toBe(false);
+    expect(isTypingTarget(el('BUTTON'))).toBe(false);
+    expect(isTypingTarget(el('DIV'))).toBe(false);
+    expect(isTypingTarget(null)).toBe(false);
+  });
+});

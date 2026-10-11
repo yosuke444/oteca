@@ -6,6 +6,7 @@ import { tabGuard } from './tabLock/tabGuard';
 import type { BattleSetup } from './battle/setup';
 import { stageByNo } from './story/story';
 import { setPendingNotice } from './online/rate';
+import { AdminKeys } from './scenes/Admin/AdminLogin';
 import { resolvePendingMatches, setFriendNotice } from './online/pendingMatch';
 import { useSave } from './state/SaveContext';
 import { setLang } from './i18n';
@@ -191,6 +192,8 @@ export function App() {
       </Stage>
       <PageTurn />
       <RotateHint />
+      {/* 管理画面の入り口：O と T の同時押し（v2.4。SPEC §7 S20） */}
+      <AdminKeys route={nav.route} />
     </NavContext.Provider>
   );
 }

@@ -1,8 +1,7 @@
 // 重いテスト（npm run test:slow）：本物のブラウザ（Playwright）で画面を開いて確かめる（v2.3）。
 // 自分で開発サーバーを立てるので、npm run dev は要らない。
 // - L01 全部の画面を 1280×720・844×390・390×844、両方の言語で開き、文字のはみ出し・押せないボタンが無い（scripts/layoutScan.mjs）
-// - L02 管理者のパスワード：設定の「せってい」の字を10秒押すと開く。9秒で離す・途中で字の外に出る・大きく動く と開かない。
-//       隠しボタンは無い。ふつうのクリック・タップでは何も起きない。押している間 見た目が変わらず、文字も選ばれない。マウスと指の両方
+// - L02 管理画面の入り口（v2.4）：O と T の同時押しで開く。片方だけ・文字を打つ欄・対戦中・長押しでは開かない
 import { type ChildProcess, spawn } from 'node:child_process';
 import { chromium, type Browser, type Page } from '@playwright/test';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -62,9 +61,9 @@ describe('L01 画面のはみ出し（全部の画面・3つの大きさ・2つ�
   }, 20 * 60 * 1000);
 });
 
-/** 設定を開いて、「せってい」の字の真ん中を返す */
-async function openSettings(touch: boolean): Promise<{ page: Page; x: number; y: number; close: () => Promise<void> }> {
-  const ctx = await browser!.newContext({ viewport: { width: 1280, height: 720 }, hasTouch: touch, isMobile: false });
+/** メニューまで開いた画面（セーブは「チュートリアル済み」） */
+async function openMenu(): Promise<{ page: Page; close: () => Promise<void> }> {
+  const ctx = await browser!.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await ctx.newPage();
   await page.goto(BASE + '?debug=1');
   await page.waitForTimeout(800);
@@ -73,116 +72,139 @@ async function openSettings(touch: boolean): Promise<{ page: Page; x: number; y:
   await page.waitForTimeout(2000);
   await page.mouse.click(640, 360);
   await page.locator('.menu-scene').waitFor();
-  await page.evaluate(() => (window as unknown as { __otecaGo: (r: string) => void }).__otecaGo('settings'));
-  const hold = page.getByTestId('admin-hold');
-  await hold.waitFor();
-  await page.waitForTimeout(800);
-  const box = (await hold.boundingBox())!;
-  return { page, x: box.x + box.width / 2, y: box.y + box.height / 2, close: () => ctx.close() };
-}
-
-/** 押す・動かす・離す（マウスと指で同じ書き方） */
-async function presser(page: Page, touch: boolean) {
-  if (!touch) {
-    return {
-      down: async (x: number, y: number) => {
-        await page.mouse.move(x, y);
-        await page.mouse.down();
-      },
-      move: (x: number, y: number) => page.mouse.move(x, y, { steps: 5 }),
-      up: () => page.mouse.up(),
-    };
-  }
-  const cdp = await page.context().newCDPSession(page);
-  let at = { x: 0, y: 0 };
-  return {
-    down: async (x: number, y: number) => {
-      at = { x, y };
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    },
-    move: async (x: number, y: number) => {
-      for (let i = 1; i <= 5; i++) {
-        const p = { x: at.x + ((x - at.x) * i) / 5, y: at.y + ((y - at.y) * i) / 5 };
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [p] });
-      }
-      at = { x, y };
-    },
-    up: () => cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }),
-  };
+  await page.waitForTimeout(500);
+  return { page, close: () => ctx.close() };
 }
 
 const opened = (page: Page) => page.getByTestId('admin-password').count();
-
-for (const touch of [false, true]) {
-  const how = touch ? '指（タッチ）' : 'マウス';
-  describe(`L02 管理者のパスワード：「せってい」の字を10秒押す（${how}）`, () => {
-    it('① 10秒押すと パスワードの入力欄が開く。押している間は見た目が変わらず、文字も選ばれない', async () => {
-      const { page, x, y, close } = await openSettings(touch);
-      const p = await presser(page, touch);
-      const before = await page.getByTestId('admin-hold').screenshot();
-      await p.down(x, y);
-      await page.waitForTimeout(5000);
-      const middle = await page.getByTestId('admin-hold').screenshot();
-      expect(Buffer.compare(before, middle)).toBe(0);
-      await page.waitForTimeout(6500);
-      expect(await opened(page)).toBe(1);
-      await p.up();
-      expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
-      // 離しても開いたまま
-      await page.waitForTimeout(800);
-      expect(await opened(page)).toBe(1);
-      await close();
-    }, 60000);
-
-    it('② 9秒で離すと開かない（離したら数え直し）', async () => {
-      const { page, x, y, close } = await openSettings(touch);
-      const p = await presser(page, touch);
-      await p.down(x, y);
-      await page.waitForTimeout(9000);
-      await p.up();
-      await page.waitForTimeout(2500);
-      expect(await opened(page)).toBe(0);
-      await close();
-    }, 60000);
-
-    it('③ 途中で字の外に出ると開かない。大きく動いた時も開かない', async () => {
-      const { page, x, y, close } = await openSettings(touch);
-      const p = await presser(page, touch);
-      // 字の外へ出て、押したまま待つ
-      await p.down(x, y);
-      await page.waitForTimeout(3000);
-      await p.move(x + 300, y + 200);
-      await page.waitForTimeout(8000);
-      await p.up();
-      expect(await opened(page)).toBe(0);
-      // 字の端から、少しだけ（数え直しの大きさより小さく）外へ出る
-      const box = (await page.getByTestId('admin-hold').boundingBox())!;
-      await p.down(box.x + box.width - 3, y);
-      await page.waitForTimeout(2000);
-      await p.move(box.x + box.width + 6, y);
-      await page.waitForTimeout(9000);
-      await p.up();
-      expect(await opened(page)).toBe(0);
-      // 字の中で大きく動く（スクロールのつもり）
-      await p.down(x - 20, y);
-      await page.waitForTimeout(2000);
-      await p.move(x + 20, y);
-      await page.waitForTimeout(9000);
-      await p.up();
-      expect(await opened(page)).toBe(0);
-      await close();
-    }, 60000);
-
-    it('④ 隠しボタンは無い。ふつうのクリック・タップでは何も起きない', async () => {
-      const { page, x, y, close } = await openSettings(touch);
-      expect(await page.getByTestId('admin-button').count()).toBe(0);
-      expect(await page.getByTestId('admin-corner').count()).toBe(0);
-      if (touch) await page.touchscreen.tap(x, y);
-      else await page.mouse.click(x, y);
-      await page.waitForTimeout(1500);
-      expect(await opened(page)).toBe(0);
-      expect(await page.getByTestId('admin-button').count()).toBe(0);
-      await close();
-    }, 60000);
-  });
+const goTo = (page: Page, route: string, payload?: unknown) =>
+  page.evaluate(([r, p]) => (window as unknown as { __otecaGo: (r: string, p?: unknown) => void }).__otecaGo(r as string, p), [route, payload] as const);
+/** O と T を押して離す（first を押したまま second を押す） */
+async function chord(page: Page, first = 'KeyO', second = 'KeyT') {
+  await page.keyboard.down(first);
+  await page.keyboard.down(second);
+  await page.waitForTimeout(300);
+  await page.keyboard.up(second);
+  await page.keyboard.up(first);
+  await page.waitForTimeout(300);
 }
+async function closeLogin(page: Page) {
+  await page.getByRole('button', { name: 'やめる' }).click();
+  await page.waitForTimeout(300);
+}
+
+describe('L02 管理画面の入り口：O と T の同時押し（v2.4）', () => {
+  it('① 同時押しで開く（どちらが先でも・どの画面でも・大文字でも・日本語入力がオンでも）。押しっぱなしでも1回だけ', async () => {
+    const { page, close } = await openMenu();
+    await chord(page, 'KeyO', 'KeyT');
+    expect(await opened(page)).toBe(1);
+    await closeLogin(page);
+    await chord(page, 'KeyT', 'KeyO');
+    expect(await opened(page)).toBe(1);
+    await closeLogin(page);
+    // ほかの画面でも
+    for (const r of ['settings', 'deck', 'gacha', 'title']) {
+      await goTo(page, r);
+      await page.waitForTimeout(900);
+      await chord(page);
+      expect(await opened(page), r).toBe(1);
+      await closeLogin(page);
+    }
+    // 大文字（Shift を押したまま）
+    await page.keyboard.down('Shift');
+    await chord(page);
+    await page.keyboard.up('Shift');
+    expect(await opened(page)).toBe(1);
+    await closeLogin(page);
+    // 日本語入力がオン（key は Process、keyCode 229。code は KeyO・KeyT のまま）
+    await page.evaluate(() => {
+      for (const code of ['KeyO', 'KeyT']) window.dispatchEvent(new KeyboardEvent('keydown', { code, key: 'Process', keyCode: 229, bubbles: true }));
+    });
+    await page.waitForTimeout(300);
+    expect(await opened(page)).toBe(1);
+    await page.evaluate(() => {
+      for (const code of ['KeyO', 'KeyT']) window.dispatchEvent(new KeyboardEvent('keyup', { code, key: 'Process', keyCode: 229, bubbles: true }));
+    });
+    await closeLogin(page);
+    // 押しっぱなし：閉じても、キーの繰り返しでは もう開かない。離して押し直すと開く
+    await page.keyboard.down('KeyO');
+    await page.keyboard.down('KeyT');
+    await page.waitForTimeout(200);
+    expect(await opened(page)).toBe(1);
+    await closeLogin(page);
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.down('KeyT'); // 繰り返し（repeat）
+      await page.keyboard.down('KeyO');
+    }
+    await page.waitForTimeout(300);
+    expect(await opened(page)).toBe(0);
+    await page.keyboard.up('KeyT');
+    await page.keyboard.up('KeyO');
+    await chord(page);
+    expect(await opened(page)).toBe(1);
+    await close();
+  }, 120000);
+
+  it('② O だけ・T だけでは開かない（離してから もう片方でも開かない）', async () => {
+    const { page, close } = await openMenu();
+    for (const k of ['KeyO', 'KeyT']) {
+      await page.keyboard.down(k);
+      await page.waitForTimeout(400);
+      await page.keyboard.up(k);
+    }
+    await page.keyboard.press('KeyO');
+    await page.keyboard.press('KeyT');
+    await page.keyboard.press('KeyO');
+    await page.waitForTimeout(400);
+    expect(await opened(page)).toBe(0);
+    await close();
+  }, 60000);
+
+  it('③ 文字を打つ欄（名前）にカーソルがある時は開かない。パスワードの欄で O・T を打っても もう1つ開かない', async () => {
+    const { page, close } = await openMenu();
+    await goTo(page, 'name');
+    const input = page.getByTestId('name-input');
+    await input.waitFor();
+    await input.click();
+    await chord(page);
+    expect(await opened(page)).toBe(0);
+    // 欄から外れたら開く
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await chord(page);
+    expect(await opened(page)).toBe(1);
+    const pw = page.getByTestId('admin-password');
+    await pw.click();
+    await chord(page);
+    expect(await opened(page)).toBe(1);
+    expect(await pw.inputValue()).toBe('ot');
+    await close();
+  }, 60000);
+
+  it('④ 対戦中は開かない', async () => {
+    const { page, close } = await openMenu();
+    const deck = [1, 2, 3, 4, 5, 6, 7, 9, 10, 1, 2, 3, 4, 5, 6];
+    await goTo(page, 'battle', { mode: 'cpu', cpuLevel: 'weak', decks: { p1: deck, p2: deck }, names: { p1: 'たろう', p2: 'CPU' }, seed: 'keys', me: 'p1', record: false });
+    await page.locator('.battle').waitFor();
+    await page.waitForTimeout(2500);
+    await chord(page);
+    await chord(page, 'KeyT', 'KeyO');
+    expect(await opened(page)).toBe(0);
+    await close();
+  }, 60000);
+
+  it('⑤ 「せってい」の字の長押しでは もう開かない（長押しの場所も無い）', async () => {
+    const { page, close } = await openMenu();
+    await goTo(page, 'settings');
+    await page.waitForTimeout(900);
+    expect(await page.getByTestId('admin-hold').count()).toBe(0);
+    const title = page.locator('.settings-scene__title span');
+    const box = (await title.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(10800);
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    expect(await opened(page)).toBe(0);
+    await close();
+  }, 60000);
+});

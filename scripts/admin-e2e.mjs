@@ -67,18 +67,15 @@ try {
   };
   const go = (p, route, payload) => p.page.evaluate(([r, pl]) => window.__otecaGo(r, pl), [route, payload ?? null]);
 
-  /** 設定の「せってい」の字を10秒押す → パスワード（v2.3：隠しボタンは無い）→ 管理者メニュー */
+  /** O と T の同時押し → パスワード（v2.4）→ 管理者メニュー */
   const loginAdmin = async (p, tag) => {
     await go(p, 'settings');
-    const hold = p.page.getByTestId('admin-hold');
-    await hold.waitFor();
-    const box = await hold.boundingBox();
-    await p.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await p.page.mouse.down();
-    await p.page.waitForTimeout(4000);
-    expect((await p.page.getByTestId('admin-password').count()) === 0, `${tag} 押している途中は何も出ない`);
-    await p.page.waitForTimeout(6300);
-    await p.page.mouse.up();
+    await p.page.waitForTimeout(600);
+    await p.page.keyboard.down('KeyO');
+    expect((await p.page.getByTestId('admin-password').count()) === 0, `${tag} O だけでは何も出ない`);
+    await p.page.keyboard.down('KeyT');
+    await p.page.keyboard.up('KeyT');
+    await p.page.keyboard.up('KeyO');
     await p.page.getByTestId('admin-password').fill('wrong-password');
     await p.page.getByTestId('admin-login-go').click();
     await p.page.getByTestId('admin-login-note').filter({ hasText: /4/ }).waitFor();

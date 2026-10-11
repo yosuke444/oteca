@@ -1,66 +1,99 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useT } from '../../i18n/useT';
 import { isAdmin, loginAdmin } from '../../online/adminApi';
-import { useNav } from '../../router';
+import { type RouteId, useNav } from '../../router';
 import { Dialog } from '../../ui/common/Dialog';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import './admin.css';
 
-/** 「せってい」の字を押し続ける時間（v2.0-J・v2.3。SPEC §7 S20） */
-export const ADMIN_HOLD_MS = 10000;
-/** 押している間に、これより大きく指・マウスが動いたら数え直し（スクロールなど。舞台の拡大縮小前の画面の px） */
-export const ADMIN_HOLD_SLOP = 12;
+/** 管理画面の入り口のキー（v2.4。SPEC §7 S20）：O と T。event.code で見る（日本語入力・大文字小文字に関係なく） */
+export const ADMIN_KEYS: readonly string[] = ['KeyO', 'KeyT'];
+
+/** 文字を打つ欄か（名前・チャット・パスワードなど。ここにカーソルがある時は O・T に反応しない） */
+export function isTypingTarget(el: EventTarget | null): boolean {
+  if (!el || typeof (el as HTMLElement).tagName !== 'string') return false;
+  const h = el as HTMLElement;
+  if (h.isContentEditable) return true;
+  if (h.tagName === 'TEXTAREA' || h.tagName === 'SELECT') return true;
+  if (h.tagName !== 'INPUT') return false;
+  return !['button', 'checkbox', 'radio', 'range', 'submit', 'reset', 'image', 'color', 'file'].includes((h as HTMLInputElement).type);
+}
 
 /**
- * 設定（S06）の左上の「せってい」の字を10秒押し続けると、パスワードの入力欄がすぐ開く（v2.3。隠しボタンは無くした）。
- * 正しいかは Worker が確かめる（パスワードはゲームに書かない）。正しければ管理者メニューへ（ページを閉じるまでは もう一度入れなくてよい）。
- * - マウスでも指でも。途中で離した・字の外に出た・大きく動いた時は数え直し
- * - 押している間も、見た目・音・振動は変えない。ふつうのタップ・クリックでは何も起きない
- * - 文字の選択・コピーのメニュー・右クリックのメニュー・虫めがねを出さない（CSS の admin-hold と、ここの preventDefault）
+ * キーの同時押しの見張り（ふつうの処理だけ）。決めたキーが全部「押されている」状態になった瞬間だけ true を返す。
+ * どの順に押してもよい。押しっぱなし（キーの繰り返し）では、どれかを離すまで もう true を返さない
  */
-export function useAdminHold() {
+export function createChordWatcher(codes: readonly string[]) {
+  const down = new Set<string>();
+  let fired = false;
+  const all = () => codes.every((c) => down.has(c));
+  return {
+    keydown(code: string): boolean {
+      if (!codes.includes(code)) return false;
+      down.add(code);
+      if (fired || !all()) return false;
+      fired = true;
+      return true;
+    },
+    keyup(code: string): void {
+      down.delete(code);
+      if (!all()) fired = false;
+    },
+    /** 画面が裏に回った時など（離したことが届かないので、押していないことにする） */
+    reset(): void {
+      down.clear();
+      fired = false;
+    },
+  };
+}
+
+/** O・T に反応しない画面（対戦中。管理者メニューの中も） */
+const QUIET_ROUTES: ReadonlySet<RouteId> = new Set<RouteId>(['battle', 'admin']);
+
+/**
+ * 管理画面の入り口（v2.4。SPEC §7 S20）：キーボードの O と T が両方押された瞬間に、パスワードの入力欄を開く（どちらが先でもよい）。
+ * 対戦中と、文字を打つ欄にカーソルがある時は反応しない。押しっぱなしでも1回だけ。開く時に見た目・音の合図は出さない。
+ * 正しいかは Worker が確かめる（パスワードはゲームに書かない）。正しければ管理者メニューへ（ページを閉じるまでは もう一度入れなくてよい）
+ */
+export function AdminKeys({ route }: { route: RouteId }) {
   const { go } = useNav();
   const [login, setLogin] = useState(false);
-  const timer = useRef<number | null>(null);
-  const start = useRef<{ x: number; y: number; id: number } | null>(null);
-  const cancel = () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = null;
-    start.current = null;
-  };
-  useEffect(() => cancel, []);
-  const props = {
-    className: 'admin-hold',
-    'data-testid': 'admin-hold',
-    onPointerDown: (e: PointerEvent<HTMLElement>) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      cancel();
-      start.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
-      timer.current = window.setTimeout(() => {
-        timer.current = null;
-        start.current = null;
-        if (isAdmin()) go('admin');
-        else setLogin(true);
-      }, ADMIN_HOLD_MS);
-    },
-    onPointerMove: (e: PointerEvent<HTMLElement>) => {
-      const st = start.current;
-      if (!st || e.pointerId !== st.id) return;
-      // 字の外に出た（指は押した所に とらわれるので、位置で見る）・大きく動いた
-      const r = e.currentTarget.getBoundingClientRect();
-      const outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
-      if (outside || Math.hypot(e.clientX - st.x, e.clientY - st.y) > ADMIN_HOLD_SLOP) cancel();
-    },
-    onPointerUp: cancel,
-    onPointerLeave: cancel,
-    onPointerCancel: cancel,
-    onContextMenu: (e: MouseEvent) => e.preventDefault(),
-    // 長押しで文字を選んだり、ドラッグで画像のように持ち上げたりしない
-    onSelectStart: (e: SyntheticEvent) => e.preventDefault(),
-    onDragStart: (e: SyntheticEvent) => e.preventDefault(),
-  };
-  const dialog = login ? <AdminLoginDialog onClose={() => setLogin(false)} onOk={() => go('admin')} /> : null;
-  return { props, dialog };
+  const state = useRef({ route, login });
+  state.current = { route, login };
+  useEffect(() => {
+    const chord = createChordWatcher(ADMIN_KEYS);
+    const onDown = (e: KeyboardEvent) => {
+      // 文字を打つ欄では数えない（そこで打った O・T で開かないように）
+      if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) return;
+      if (!chord.keydown(e.code)) return;
+      const cur = state.current;
+      if (QUIET_ROUTES.has(cur.route) || cur.login) return;
+      // 開いたパスワードの欄に、押した T（や O）の字が入らないように
+      e.preventDefault();
+      if (isAdmin()) go('admin');
+      else setLogin(true);
+    };
+    const onUp = (e: KeyboardEvent) => chord.keyup(e.code);
+    const onBlur = () => chord.reset();
+    window.addEventListener('keydown', onDown, true);
+    window.addEventListener('keyup', onUp, true);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onDown, true);
+      window.removeEventListener('keyup', onUp, true);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [go]);
+  if (!login) return null;
+  return (
+    <AdminLoginDialog
+      onClose={() => setLogin(false)}
+      onOk={() => {
+        setLogin(false);
+        go('admin');
+      }}
+    />
+  );
 }
 
 function AdminLoginDialog({ onClose, onOk }: { onClose: () => void; onOk: () => void }) {
@@ -85,7 +118,7 @@ function AdminLoginDialog({ onClose, onOk }: { onClose: () => void; onOk: () => 
     setNote(tr.admin.offline);
   };
   return (
-    // うしろをタップしても閉じない（指で10秒押して開いた時、離した指のタップで すぐ閉じてしまうため。v2.3）。閉じるのは「やめる」
+    // うしろをタップしても閉じない（閉じるのは「やめる」。v2.3）
     <Dialog
       seed="admin-login"
       title={tr.admin.loginTitle}
