@@ -78,13 +78,13 @@ export function RateScene() {
       return;
     }
     const oppRate = g.oppRate ?? (phase.kind === 'vs' ? phase.opp.opponentRate : save.rate);
-    // 試合が始まる：「レート対戦中」の印（ページを閉じたら次に開いた時に負け）と、直前の相手を保存
-    update((d) => startRateMatch(d, g.oppPlayerId, oppRate));
-    toBattle.current = true;
-    offLink();
     // 試合ID は、組んだ相手と同じ人と始まった時だけ使う（違う人なら報告しない）
     const p = pairedRef.current;
     const matchId = p && p.opponentId === g.oppPlayerId ? p.matchId : undefined;
+    // 試合が始まる：「レート対戦中」の印（始まった後にページを閉じたら、次に開いた時に負け。試合ID も入れて、相手の勝ちを報告できるように。v2.4）と、直前の相手を保存
+    update((d) => startRateMatch(d, g.oppPlayerId, oppRate, matchId ?? ''));
+    toBattle.current = true;
+    offLink();
     // 両者のレートとトロフィあげの数（v2.2。名前の欄に出す。組んだ相手と同じ人と始まった時だけ）
     const oppSide = g.me === 'p1' ? 'p2' : 'p1';
     const badges = p && p.opponentId === g.oppPlayerId ? ({ [g.me]: p.me, [oppSide]: { rate: p.opponentRate, trophies: p.opponentTrophies } } as Record<'p1' | 'p2', PlayerBadge>) : undefined;

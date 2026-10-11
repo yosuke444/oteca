@@ -98,7 +98,7 @@ export async function scanPage(page) {
     // 2. 文字が、いちばん近い枠（ボタン・手描きの箱・ふせん・ダイアログ）から はみ出す
     const FRAME = 'button, [role="button"], .rough-btn, .rough-box, .sticky, .dialog__box, .card-mini, .battle-card';
     /** わざと枠の角・線の上に重ねて出している印（枚数・のこり・NEW・S・パネルの見出し など）。枠からのはみ出しは見ない */
-    const OVERHANG = '.card-mini__count, .card-mini__left, .card-mini__new, .card-stamp, .list-panel__title, .gacha-new, .gacha-summary__new, .trade-mine__limited, .card-art__trophy-no, .daily-icon__badge, .trade-received__count';
+    const OVERHANG = '.card-mini__count, .deck-picker__bad, .card-mini__left, .card-mini__new, .card-stamp, .list-panel__title, .gacha-new, .gacha-summary__new, .trade-mine__limited, .card-art__trophy-no, .daily-icon__badge, .trade-received__count';
     for (const el of stage.querySelectorAll('*')) {
       if (skip(el)) continue;
       const rs = textRects(el);

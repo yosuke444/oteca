@@ -2,9 +2,6 @@ import { gsap } from 'gsap';
 import { BIG, FLIP_DUST, FOUNTAIN_DUST, MERGE, STAR_DUST, mergedCount } from '../../gacha/dust';
 import { cardImageUrl, isImageReady, waitCardImages } from '../../ui/imageLoader';
 import { pauseIdlePreload, resumeIdlePreload } from '../../ui/idlePreload';
-
-/** めくる前に、当たったカードの絵が読めるまで待つ長さ（v2.4。袋をふるわせて待つ） */
-const ART_WAIT_MS = 2000;
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { CARD_DB } from '../../data/cards';
@@ -19,6 +16,9 @@ import { CardBack } from '../../ui/card/CardBack';
 import { PrizeCard } from '../../ui/card/PrizeCard';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { PackArt } from './PackArt';
+
+/** めくる前に、当たったカードの絵が読めるまで待つ長さ（v2.4。袋をふるわせて待つ） */
+const ART_WAIT_MS = 2000;
 
 /**
  * 袋を開ける（SPEC §7 S09「演出」）。

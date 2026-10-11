@@ -15,7 +15,8 @@ describe('K02 もやすの技（v2.2 で両方20下げた）', () => {
       [[1, 2, 3], [{ type: 'damage', amount: 60 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
       [[4, 5, 6], [{ type: 'damage', amount: 100 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
     ]);
-    expect(protocolVersion).toBe(9);
+    // v2.4：すりむ がスーパー・ひきかえカード・切断の決まりが変わったので 10
+    expect(protocolVersion).toBe(10);
   });
 });
 

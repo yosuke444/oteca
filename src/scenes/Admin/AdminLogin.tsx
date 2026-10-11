@@ -65,6 +65,8 @@ export function AdminKeys({ route }: { route: RouteId }) {
     const onDown = (e: KeyboardEvent) => {
       // 文字を打つ欄では数えない（そこで打った O・T で開かないように）
       if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) return;
+      // Ctrl・Alt・⌘ といっしょのキー（ショートカット）は数えない（⌘ を押している間のキーは、離したことが届かないことがある）
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (!chord.keydown(e.code)) return;
       const cur = state.current;
       if (QUIET_ROUTES.has(cur.route) || cur.login) return;
@@ -78,7 +80,9 @@ export function AdminKeys({ route }: { route: RouteId }) {
     window.addEventListener('keydown', onDown, true);
     window.addEventListener('keyup', onUp, true);
     window.addEventListener('blur', onBlur);
+    document.addEventListener('visibilitychange', onBlur);
     return () => {
+      document.removeEventListener('visibilitychange', onBlur);
       window.removeEventListener('keydown', onDown, true);
       window.removeEventListener('keyup', onUp, true);
       window.removeEventListener('blur', onBlur);

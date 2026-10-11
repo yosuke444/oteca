@@ -769,7 +769,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     downloadActionLog(buildActionLog(setup, match.log, hashState(match.state), extra));
   };
   // 相手の通信が30秒もどらない時は、残った側の勝ち（上の effect）。切れたのが自分の時だけ「つうしんが きれたよ」を出す（v2.4）
-  const lostOpen = selfCut && view.phase !== 'over';
+  const lostOpen = selfCut && online.connection !== 'ok' && view.phase !== 'over';
 
   return (
     <div className="battle" ref={rootRef}>
