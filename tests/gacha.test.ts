@@ -201,3 +201,28 @@ describe('G08 15まいガチャの最後の袋は確定（v2.2）', () => {
     expect(revealKind({ glow: false, guaranteed: false }, false)).toBe('normal');
   });
 });
+
+describe('G12 星くずの粒の数（v2.4：通常のカードの時を1.5倍。スーパーはそのまま。3つを1つにまとめた後の数）', async () => {
+  const { FLIP_DUST, FOUNTAIN_DUST, MERGE, STAR_DUST, mergedCount } = await import('../src/gacha/dust');
+  it('光らない袋（通常のカード）：袋の口 13 → 20、めくる時 8 → 12。粒は3つを1つにまとめたまま', () => {
+    expect(MERGE).toBe(3);
+    expect(mergedCount(FOUNTAIN_DUST.plain, false)).toBe(20);
+    expect(mergedCount(FLIP_DUST.plain, false)).toBe(12);
+    // 前の数（1.5倍する前）
+    expect(mergedCount(40, false)).toBe(13);
+    expect(mergedCount(24, false)).toBe(8);
+  });
+  it('スーパー（光った袋）の量は前のまま：袋の口 40、めくる時 24、表が出た時 14・12、降り続ける 3.2個／秒', () => {
+    expect(mergedCount(FOUNTAIN_DUST.glowing, false)).toBe(40);
+    expect(mergedCount(FLIP_DUST.glowing, false)).toBe(24);
+    expect(STAR_DUST).toBe(0.6);
+    expect(mergedCount(72 * STAR_DUST, false)).toBe(14);
+    expect(mergedCount(60 * STAR_DUST, false)).toBe(12);
+    expect((16 * STAR_DUST) / MERGE).toBeCloseTo(3.2);
+  });
+  it('演出をへらす時は 1/4（少なくとも1つ）', () => {
+    expect(mergedCount(FLIP_DUST.plain, true)).toBe(3);
+    expect(mergedCount(FOUNTAIN_DUST.plain, true)).toBe(5);
+    expect(mergedCount(1, true)).toBe(1);
+  });
+});

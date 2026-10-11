@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { BIG, FLIP_DUST, FOUNTAIN_DUST, MERGE, STAR_DUST, mergedCount } from '../../gacha/dust';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
 import { CARD_DB } from '../../data/cards';
@@ -117,8 +118,8 @@ export function Opening({
       el.classList.add('is-torn');
       const mouth = { x: at.x, y: at.y - (r.height / s) * 0.36 };
       if (!reduce) paperScraps(layer, mouth, 12);
-      // 袋の口から黄色いキラキラが噴き出す（光る袋は3倍）＋ しゃらしゃら。粒は 3つを1つにまとめて大きく（v2.3）
-      sparkleFountain(layer, mouth, Math.max(1, Math.round(((big ? 120 : 40) * (reduce ? 0.25 : 1)) / MERGE)), BIG);
+      // 袋の口から黄色いキラキラが噴き出す（光る袋は多め。光らない袋は v2.4 で1.5倍）＋ しゃらしゃら。粒は 3つを1つにまとめて大きく（v2.3）
+      sparkleFountain(layer, mouth, mergedCount(big ? FOUNTAIN_DUST.glowing : FOUNTAIN_DUST.plain, reduce), BIG);
       audio.play('se_sparkle');
       await play(gsap.to(strip, { x: 120, y: -90, rotate: 40, opacity: 0, duration: reduce ? 0.15 : 0.45, ease: 'power2.out', onComplete: () => strip.remove() }));
       gsap.to(el, { scale: 1, scaleX: 1, scaleY: 1, y: 0, duration: 0.15 });
@@ -207,12 +208,6 @@ export function Opening({
   );
 }
 
-/** 粒（キラキラ・紙吹雪）は 3つを1つにまとめる（v2.3。1つを大きく・明るくして、華やかさは保つ） */
-const MERGE = 3;
-/** まとめた粒の大きさの倍率 */
-const BIG = 1.5;
-/** スーパーレアの星くずの量（v2.3：今の6割） */
-const STAR_DUST = 0.6;
 /** サプライズで、めくった瞬間にカードがふくらむ大きさ */
 const SURPRISE_POP = 1.35;
 /** めくれたカードが弾む高さ（舞台の px） */
@@ -385,7 +380,7 @@ function Reveal({
     // 豪華さの倍率（サプライズは3倍。確定の袋は v2.3 から ふつうのスーパーレアと同じ）
     const lavish = kind === 'surprise' ? 3 : 1;
     /** 粒の数：3つを1つにまとめ（1つを大きく・明るく）、演出をへらす時は さらに 1/4 */
-    const n = (x: number) => Math.max(1, Math.round((x * lavish * (reduce ? 0.25 : 1)) / MERGE));
+    const n = (x: number) => mergedCount(x, reduce, lavish);
     /** スーパーレアの星くず（v2.3：今の6割） */
     const dust = (x: number) => n(x * STAR_DUST);
     const center = { x: 640, y: 330 };
@@ -457,7 +452,7 @@ function Reveal({
       audio.play('se_card_flip');
       if (L) {
         const glowing = kind === 'super' || kind === 'letdown';
-        sparkleBurst(L, centerIn(L, card), Math.max(1, Math.round(((glowing ? 72 : 24) * (reduce ? 0.25 : 1)) / MERGE)), 230, 320, BIG);
+        sparkleBurst(L, centerIn(L, card), mergedCount(glowing ? FLIP_DUST.glowing : FLIP_DUST.plain, reduce), 230, 320, BIG);
         audio.play('se_sparkle');
       }
       await play(gsap.to(back, { scaleX: 0, duration: 0.14, ease: 'power1.in' }));
