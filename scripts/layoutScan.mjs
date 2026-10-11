@@ -2,6 +2,7 @@
 // - 文字がボタン・枠（手描きの箱・ふせん・ダイアログ）からはみ出している
 // - 文字が、はみ出しを隠す要素（overflow: hidden）で切れている
 // - ボタンが舞台（1280×720）の外や、はみ出しを隠す親の外に出ていて押せない（スクロールできる一覧の中は、スクロールで届くのでよい）
+// - ボタンどうしが重なっている（v2.4。押せるボタンだけ）
 // 全部の画面を、セーブを入れて開き（window.__otecaGo。?debug=1）、ダイアログもいくつか開いて調べる。
 
 /** 調べる大きさ（横長2つと、縦向きのスマホ。縦向きは「よこむきに してね」が重なるが、下の画面も同じ並びで調べる） */
@@ -116,6 +117,48 @@ export async function scanPage(page) {
       // 3. はみ出しを隠す要素で切れている（スクロールできる要素は除く）
       if (c.scroll ? c.el.classList.contains('story-map') ? false : rs.some((r) => outsideX(r, c.box)) : rs.some((r) => outside(r, c.box))) out.push(`文字が切れている・画面の外：${label(el)}`);
     }
+
+    // 4. ボタンどうしが重なっている（v2.4）。いちばん上に出ているボタン（中の9点のどこかを指すと、そのボタンに当たる）だけを比べる
+    //    （ダイアログ・パネルの後ろに隠れたボタンは比べない）。わざと重ねて並べるもの（対戦の手札など）は除く。
+    //    はみ出しを隠す親（スクロールの欄も）の外に出ている部分は見えないので、見える部分どうしで比べる
+    const STACKED = '.battle-hand, .story-map, .gacha-open__bags, .choose-panel';
+    const visibleBox = (el) => {
+      let b = { left: sr.left, top: sr.top, right: sr.right, bottom: sr.bottom };
+      for (let e = el.parentElement; e && e !== stage; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+        const r = e.getBoundingClientRect();
+        b = { left: Math.max(b.left, r.left), top: Math.max(b.top, r.top), right: Math.min(b.right, r.right), bottom: Math.min(b.bottom, r.bottom) };
+      }
+      return b;
+    };
+    const hits = [];
+    for (const b of stage.querySelectorAll('button, [role="button"], .rough-btn')) {
+      if (skip(b) || !shown(b) || b.closest(STACKED)) continue;
+      const br = b.getBoundingClientRect();
+      const vb = visibleBox(b);
+      const r = { left: Math.max(br.left, vb.left), top: Math.max(br.top, vb.top), right: Math.min(br.right, vb.right), bottom: Math.min(br.bottom, vb.bottom) };
+      if (r.right - r.left < 2 || r.bottom - r.top < 2) continue;
+      let onTop = false;
+      for (const fx of [0.15, 0.5, 0.85]) {
+        for (const fy of [0.15, 0.5, 0.85]) {
+          const at = document.elementFromPoint(r.left + (r.right - r.left) * fx, r.top + (r.bottom - r.top) * fy);
+          if (at && (at === b || b.contains(at))) onTop = true;
+        }
+      }
+      if (onTop) hits.push({ b, r });
+    }
+    const gap = 6 * Math.max(k, 0.5);
+    for (let i = 0; i < hits.length; i++) {
+      for (let j = i + 1; j < hits.length; j++) {
+        const p = hits[i];
+        const q = hits[j];
+        if (p.b.contains(q.b) || q.b.contains(p.b)) continue;
+        const w = Math.min(p.r.right, q.r.right) - Math.max(p.r.left, q.r.left);
+        const h = Math.min(p.r.bottom, q.r.bottom) - Math.max(p.r.top, q.r.top);
+        if (w > gap && h > gap) out.push(`ボタンどうしが重なる：${label(p.b).slice(0, 16)} と ${label(q.b).slice(0, 16)}`);
+      }
+    }
     return [...new Set(out)];
   });
 }
@@ -153,6 +196,21 @@ export const SCREENS = [
   ['cpu', async (p) => p.evaluate(() => window.__otecaGo('cpu'))],
   ['online', async (p) => p.evaluate(() => window.__otecaGo('online'))],
   ['lobby', async (p) => p.evaluate(() => window.__otecaGo('lobby'))],
+  // フレンド対戦の待機画面（部屋番号を入れて入った後。v2.4）
+  ['lobby_wait', async (p) => {
+    await p.evaluate(() => window.__otecaGo('lobby'));
+    for (const d of '482913') await p.getByRole('button', { name: d, exact: true }).click();
+    await p.getByRole('button', { name: /へやに はいる|部屋に入る/ }).click();
+    await p.locator('.lobby--wait').waitFor();
+    await p.waitForTimeout(400);
+  }],
+  // レート対戦の「あいてを さがしています」（v2.4）
+  ['rate_search', async (p) => {
+    await p.evaluate(() => window.__otecaGo('rate'));
+    await p.getByTestId('rate-search').click();
+    await p.getByTestId('rate-searching').waitFor();
+    await p.waitForTimeout(400);
+  }],
   ['story', async (p) => p.evaluate(() => window.__otecaGo('story'))],
   ['story_confirm', async (p) => {
     await p.evaluate(() => window.__otecaGo('story'));

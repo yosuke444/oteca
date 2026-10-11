@@ -2271,7 +2271,7 @@ type GameEvent =
 | K07 | 更新は日本時間 4:00 と 16:00（Cron は UTC 19:00 と 7:00）。次の更新の時刻。wrangler.toml の crons と RANKING.batchHoursJst が合っている（tests/ranking.logic.test.ts・ranking.client.test.ts） |
 | K08 | トロフィーの表示：0個は何も出さない、5個までは絵の数、6個以上は5個の絵と「+1」「+2」…（tests/v22.test.ts） |
 | K09 | 受付係の `paired` に、両者の正式なレートとトロフィあげの数（npm run test:worker・tests/ranking.client.test.ts） |
-| L01 | （npm run test:slow。tests/layout.slow.test.ts）全部の画面を 1280×720・844×390・390×844、両方の言語で開き、文字がボタン・枠からはみ出していない・ボタンが画面や枠の外に出ていない（scripts/layoutScan.mjs。v2.3） |
+| L01 | （npm run test:slow。tests/layout.slow.test.ts）全部の画面（v2.4 でフレンドの待機画面・レートの「さがしています」を足した）を 1280×720・844×390・390×844、両方の言語で開き、文字がボタン・枠からはみ出していない・ボタンが画面や枠の外に出ていない・ボタンどうしが重なっていない（v2.4。いちばん上に出ているボタンどうしを、見えている部分で比べる。対戦の手札など わざと重ねるものは除く）（scripts/layoutScan.mjs。v2.3） |
 | L02 | （npm run test:slow）O と T の同時押しでパスワードの入力欄が開く（どちらが先でも・いろいろな画面・Shift・日本語入力オン・押しっぱなしでも1回）。O だけ・T だけでは開かない。文字を打つ欄では開かない。対戦中は開かない。「せってい」の字の長押しでは もう開かない（v2.4。tests/admin.test.ts J08 も） |
 | S01 | （tests/surimu.test.ts。v2.4）すりむ はスーパーおてあげ（No・HP・技は前のまま）。パックは よせあつめのスーパーの枠だけ。引くとスーパーとして出て、持っていれば換金できる。スポドリは使えない |
 | S02 | すりむ はほかのスーパーと同じデッキに入れられない（すりむ2枚も）。ストーリーの敵のデッキもスーパーは合計1枚まで |

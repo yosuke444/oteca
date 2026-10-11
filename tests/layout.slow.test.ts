@@ -1,6 +1,6 @@
 // 重いテスト（npm run test:slow）：本物のブラウザ（Playwright）で画面を開いて確かめる（v2.3）。
 // 自分で開発サーバーを立てるので、npm run dev は要らない。
-// - L01 全部の画面を 1280×720・844×390・390×844、両方の言語で開き、文字のはみ出し・押せないボタンが無い（scripts/layoutScan.mjs）
+// - L01 全部の画面を 1280×720・844×390・390×844、両方の言語で開き、文字のはみ出し・押せないボタン・ボタンどうしの重なり（v2.4）が無い（scripts/layoutScan.mjs）
 // - L02 管理画面の入り口（v2.4）：O と T の同時押しで開く。片方だけ・文字を打つ欄・対戦中・長押しでは開かない
 import { type ChildProcess, spawn } from 'node:child_process';
 import { chromium, type Browser, type Page } from '@playwright/test';
@@ -54,8 +54,8 @@ afterAll(async () => {
   }
 });
 
-describe('L01 画面のはみ出し（全部の画面・3つの大きさ・2つの言語）', () => {
-  it('文字がボタン・枠からはみ出さない。ボタンが画面・枠の外に出ていない', async () => {
+describe('L01 画面のはみ出し・重なり（全部の画面・3つの大きさ・2つの言語）', () => {
+  it('文字がボタン・枠からはみ出さない。ボタンが画面・枠の外に出ていない。ボタンどうしが重ならない', async () => {
     const found = await scanAll(browser!, BASE);
     expect(found).toEqual([]);
   }, 20 * 60 * 1000);

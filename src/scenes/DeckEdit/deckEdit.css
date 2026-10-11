@@ -217,18 +217,23 @@
 }
 
 /* ---------- 下のボタン ---------- */
+/* 左の欄の幅に収める（右下の「このモードの せつめい」と重ならないように。v2.4） */
 .deck-scene__actions {
   position: absolute;
   left: 30px;
-  right: 30px;
+  width: 590px;
   top: 632px;
   display: flex;
-  gap: 18px;
+  gap: 14px;
 }
 .deck-scene__action {
+  flex: 1 1 auto;
   height: 64px;
-  font-size: 22px;
+  font-size: 20px;
+  line-height: 1.15;
   padding: 0 4px;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 /* ---------- ダイアログの中 ---------- */

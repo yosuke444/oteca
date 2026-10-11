@@ -167,9 +167,11 @@
   margin: 12px 0 0;
   font-size: 28px;
 }
+/* 「やめる」は右下（左下の「いまの デッキ」「デッキを かえる」と重ならないように。v2.4） */
 .lobby-wait__cancel {
   position: absolute;
-  bottom: 40px;
+  right: 60px;
+  bottom: 36px;
   width: 220px;
   height: 66px;
   font-size: 26px;
@@ -396,10 +398,12 @@
   left: 60px;
   bottom: 36px;
 }
+/* 待機画面の「いまの デッキ」と「デッキを かえる」は左下に縦に並べる（v2.4。横に並べると「やめる」に重なっていた） */
 .lobby-wait__deck .lobby-room__deck {
-  flex-direction: row;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 700px;
 }
 html[data-reduce-fx] .lobby-room__note {
   animation: none;
