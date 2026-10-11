@@ -266,7 +266,7 @@
         {"faces":[5,6],"effects":[{"type":"draw","count":1}]}
       ], "image": "cards/oteage_usagi.png", "flavor": "" },
 
-    {"no":47,"id":"hikikae","name":"ひきかえカード","kind":"item","color":"yellow","useCondition":"deckNotEmpty","effects":[{"type":"search","count":1}],"text":{"hira":"やまふだから すきな 1まいを てふだに くわえて、やまふだを きる","kanji":"山札から好きな1枚を手札に加えて、山札を切る"},"image":"cards/hikikae.png"},
+    {"no":47,"id":"hikikae","name":"ひきかえカード","kind":"item","color":"yellow","useCondition":"deckHasSearchable","effects":[{"type":"search","count":1}],"text":{"hira":"やまふだから すきな 1まいを てふだに くわえて、やまふだを きる（スーパーおてあげは えらべない）","kanji":"山札から好きな1枚を手札に加えて、山札を切る（スーパーおてあげは選べない）"},"image":"cards/hikikae.png"},
 
     {"no":48,"id":"yabaitsubo","name":"やばいつぼ","kind":"item","color":"purple","minHand":2,"effects":[{"type":"draw","count":2},{"type":"discard","count":3}],"text":{"hira":"やまふだから 2まい ひいて、てふだから 3まい えらんで すてる","kanji":"山札から2枚引いて、手札から3枚選んで捨てる"},"image":"cards/yabaitsubo.png"}
   ]

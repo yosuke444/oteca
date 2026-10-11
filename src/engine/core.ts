@@ -63,6 +63,12 @@ export function otegeDefOf(s: GameState, uid: string): OtegeCardDef | undefined 
   return d && d.kind === 'otege' ? d : undefined;
 }
 
+/** ひきかえカードで山札から選べるカードか（スーパーおてあげは選べない。v2.4） */
+export function isSearchable(s: GameState, uid: string): boolean {
+  const d = defOf(s, uid);
+  return !!d && !(d.kind === 'otege' && d.rarity === 'super');
+}
+
 /** バトル場かベンチにいるか */
 export function isInPlay(s: GameState, uid: string): boolean {
   const c = s.cards[uid];

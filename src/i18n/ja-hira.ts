@@ -141,6 +141,8 @@ export const hira = {
       picked: (a: number, b: number) => `${a} / ${b}`,
       waitOpp: 'あいてが えらんでいるよ…',
       deckNote: 'やまふだの じゅんばんは わからないように、ばんごう じゅんに ならべているよ',
+      /** ひきかえカードで、灰色のスーパーおてあげ（v2.4） */
+      noSuper: 'スーパーおてあげ は えらべません',
     },
     lasting: {
       poison: (n: number, times: number) => `${n} ×${times}`,
@@ -181,6 +183,7 @@ export const hira = {
       justPlaced: 'だした ターンは こうたい できないよ',
       badChoice: 'その カードは えらべないよ',
       deckEmpty: 'やまふだが ないよ',
+      noSearchable: 'やまふだに えらべる カードが ないよ（スーパーおてあげ は えらべません）',
       handTooSmall: 'てふだが たりないよ',
     },
     log: {

@@ -6,6 +6,7 @@ import {
   drawOne,
   endGame,
   isOver,
+  isSearchable,
   other,
   otegeDefOf,
   promote,
@@ -124,7 +125,10 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
       const item = defOf(s, action.uid);
       if (!item || item.kind !== 'item') return 'notItem';
       if (item.minHand !== undefined && ps.hand.length < item.minHand) return 'handTooSmall';
-      if (item.useCondition === 'deckNotEmpty' && ps.deck.length === 0) return 'deckEmpty';
+      if (item.useCondition === 'deckHasSearchable') {
+        if (ps.deck.length === 0) return 'deckEmpty';
+        if (!ps.deck.some((u) => isSearchable(s, u))) return 'noSearchable';
+      }
       // おてあげに使わないアイテム（ひきかえカード・やばいつぼ）
       if (!item.target) return action.targetUid === undefined ? null : 'badTarget';
       if (typeof action.targetUid !== 'string') return 'badTarget';

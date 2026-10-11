@@ -137,6 +137,7 @@ export const kanji: Dict = {
       picked: (a, b) => `${a} / ${b}`,
       waitOpp: '相手が選んでいます…',
       deckNote: '山札の順番が分からないように、番号順に並べています',
+      noSuper: 'スーパーおてあげは選べません',
     },
     lasting: {
       poison: (n, times) => `${n} ×${times}`,
@@ -177,6 +178,7 @@ export const kanji: Dict = {
       justPlaced: '出したターンは交代できません',
       badChoice: 'そのカードは選べません',
       deckEmpty: '山札がありません',
+      noSearchable: '山札に選べるカードがありません（スーパーおてあげは選べません）',
       handTooSmall: '手札が足りません',
     },
     log: {

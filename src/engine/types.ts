@@ -89,8 +89,8 @@ export type OtegeCardDef = {
   trophy?: number;
 };
 
-/** アイテムの使用条件：HP満タンには使えない／山札0枚では使えない */
-export type ItemUseCondition = 'notFullHp' | 'deckNotEmpty';
+/** アイテムの使用条件：HP満タンには使えない／山札に選べるカードが無いと使えない（スーパーおてあげは選べない。v2.4） */
+export type ItemUseCondition = 'notFullHp' | 'deckHasSearchable';
 
 /** 2つの言語を持つ文（にほんご＝hira、日本語＝kanji。SPEC §6-4b）。エンジンは使わない（画面用） */
 export type LocalText = { hira: string; kanji: string };
@@ -345,6 +345,8 @@ export type RejectReason =
   | 'notPending'
   /** 山札が0枚なので使えない（ひきかえカード） */
   | 'deckEmpty'
+  /** 山札に選べるカードが無いので使えない（ひきかえカード。山札がスーパーおてあげだけ。v2.4） */
+  | 'noSearchable'
   /** 手札が足りないので使えない（やばいつぼ） */
   | 'handTooSmall'
   /** 選び方が正しくない（枚数・選べないカード） */

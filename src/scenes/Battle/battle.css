@@ -766,6 +766,29 @@
 .choose-panel__card.is-picked {
   transform: translateY(-10px);
 }
+/* ひきかえカードで選べないカード（スーパーおてあげ。v2.4）：灰色 */
+.choose-panel__card.is-locked {
+  cursor: not-allowed;
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.choose-panel__warn {
+  margin: 8px 0 0;
+  font-size: 19px;
+  text-align: center;
+}
+.choose-panel__warn.is-shake {
+  animation: choose-warn-shake calc(320ms / var(--fx-speed)) ease-out;
+}
+html[data-reduce-fx] .choose-panel__warn.is-shake {
+  animation: none;
+}
+@keyframes choose-warn-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+}
 .choose-panel__count {
   margin-right: auto;
   font-size: 30px;

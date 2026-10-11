@@ -1,4 +1,4 @@
-import { type Ctx, dealDamage, discardCards, drawOne, heal, isInPlay, isOver, other, setHp } from './core';
+import { type Ctx, dealDamage, discardCards, drawOne, heal, isInPlay, isOver, isSearchable, other, setHp } from './core';
 import { shuffleInPlace } from './rng';
 import type {
   CardInstance,
@@ -83,15 +83,17 @@ export const effectHandlers: { [T in EffectType]: Handler<T> } = {
   /** 時限のきぜつは「登録」だけ（registerLasting）。今すぐは何もしない */
   faintLater() {},
 
-  /** 山札から選んで手札に加え、山札を切る（ひきかえカード） */
+  /** 山札から選んで手札に加え、山札を切る（ひきかえカード）。スーパーおてあげは選べない（v2.4） */
   search(ctx, effect, src) {
     const ps = ctx.s.players[src.player];
-    if (ps.deck.length === 0 || effect.count <= 0) return;
-    if (ps.deck.length <= effect.count) {
-      takeFromDeck(ctx, src.player, [...ps.deck], src.sourceUid);
+    const options = ps.deck.filter((u) => isSearchable(ctx.s, u));
+    if (options.length === 0 || effect.count <= 0) return;
+    // 山札がぜんぶ選べるカードで、選ぶ枚数以下なら、選ばずに全部加える（選べないカードが混ざる時は、灰色で見せて選ばせる）
+    if (options.length === ps.deck.length && ps.deck.length <= effect.count) {
+      takeFromDeck(ctx, src.player, options, src.sourceUid);
       return;
     }
-    requestChoice(ctx, { player: src.player, kind: 'search', count: effect.count, options: [...ps.deck], sourceUid: src.sourceUid });
+    requestChoice(ctx, { player: src.player, kind: 'search', count: effect.count, options, sourceUid: src.sourceUid });
   },
 
   /** このターンのダメージ加算（重ね掛け可） */

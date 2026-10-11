@@ -65,7 +65,7 @@ export function parseCardData(data: unknown): CardData {
         check(Array.isArray(t.rarity) && t.rarity.every((r) => RARITIES.includes(r)), `${where}: target.rarity が不正です`);
       }
       check(c.color === undefined || NOTE_COLORS.includes(c.color as NoteColor), `${where}: color が不正です`);
-      check(c.useCondition === undefined || c.useCondition === 'notFullHp' || c.useCondition === 'deckNotEmpty', `${where}: useCondition が不正です`);
+      check(c.useCondition === undefined || c.useCondition === 'notFullHp' || c.useCondition === 'deckHasSearchable', `${where}: useCondition が不正です`);
       check(c.useCondition !== 'notFullHp' || c.target !== undefined, `${where}: notFullHp は target のあるアイテムだけ`);
       check(c.minHand === undefined || (Number.isInteger(c.minHand) && (c.minHand as number) >= 1), `${where}: minHand が不正です`);
       const blocked = c.blockedIfUsedThisTurn;
