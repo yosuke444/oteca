@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RATING } from '../src/config/rating';
-import { applyRateResult, expectedScore, nextRate, rateOutcome, resolvePendingRate, safeName, startRateMatch } from '../src/online/rate';
+import { applyRateResult, beginRateMatch, expectedScore, nextRate, rateOutcome, resolvePendingRate, safeName, startRateMatch } from '../src/online/rate';
 import { createDefaultSave } from '../src/save/saveData';
 
 describe('R01 レートの計算（UPDATE_v2 §8-4）', () => {
@@ -26,15 +26,29 @@ describe('R01 レートの計算（UPDATE_v2 §8-4）', () => {
 describe('R02 途中で終わった試合', () => {
   it('試合の始めに「レート対戦中」の印と直前の相手を保存。結果を書くと印は消える', () => {
     const s = createDefaultSave();
-    startRateMatch(s, 'opp-1', 120);
-    expect(s.pendingRateMatch).toEqual({ opponentId: 'opp-1', opponentRate: 120 });
+    startRateMatch(s, 'opp-1', 120, '0123456789abcdef');
+    // 部屋で会えた時は「まだ始まっていない」。準備が終わったら「始まった」（v2.4）
+    expect(s.pendingRateMatch).toEqual({ opponentId: 'opp-1', opponentRate: 120, matchId: '0123456789abcdef', begun: false });
+    beginRateMatch(s, 'other');
+    expect(s.pendingRateMatch?.begun).toBe(false);
+    beginRateMatch(s, 'opp-1');
+    expect(s.pendingRateMatch?.begun).toBe(true);
     expect(s.lastRateOpponentId).toBe('opp-1');
     applyRateResult(s, 120, 'win');
     expect(s.pendingRateMatch).toBeNull();
   });
+  it('始まる前（準備中）に閉じた：次に開いた時に勝ち負けを付けずに印だけ消す（v2.4）', () => {
+    const s = createDefaultSave();
+    startRateMatch(s, 'opp-2', 100);
+    expect(resolvePendingRate(s)).toBeNull();
+    expect(s.pendingRateMatch).toBeNull();
+    expect(s.rate).toBe(100);
+    expect(s.rateStats).toMatchObject({ wins: 0, losses: 0 });
+  });
   it('ページを閉じた：次に開いた時に負けとして1回だけ計算する', () => {
     const s = createDefaultSave();
     startRateMatch(s, 'opp-2', 100);
+    beginRateMatch(s, 'opp-2');
     expect(resolvePendingRate(s)).toEqual({ before: 100, after: 90, outcome: 'lose' });
     expect(s.rateStats.losses).toBe(1);
     expect(resolvePendingRate(s)).toBeNull();
@@ -67,8 +81,8 @@ describe('R02b 途中で終わった試合の結果の決め方（rateOutcome）
     expect(rateOutcome({ ...base, agree: false })).toEqual({ outcome: 'void', coins: false });
     expect(rateOutcome(base)).toBeNull();
   });
-  it('相手の切断・退室：残った側の勝ち（コインなし）。自分がオフラインなら無効', () => {
-    expect(rateOutcome({ ...base, reason: 'disconnect' })).toEqual({ outcome: 'win', coins: false });
+  it('相手の切断・退室：残った側の勝ち（ふだんの勝ちと同じコイン。v2.4）。自分がオフラインなら無効', () => {
+    expect(rateOutcome({ ...base, reason: 'disconnect' })).toEqual({ outcome: 'win', coins: true });
     expect(rateOutcome({ ...base, reason: 'disconnect', online: false })).toEqual({ outcome: 'void', coins: false });
   });
   it('決着のあと結果がそろう前に相手が出ていった：自分の画面の勝敗（コインなし）', () => {
@@ -77,11 +91,12 @@ describe('R02b 途中で終わった試合の結果の決め方（rateOutcome）
   it('印が別の相手・もう無い時は書かない。印を残したまま次の試合を始めると、前の試合は負け', () => {
     const s = createDefaultSave();
     startRateMatch(s, 'a', 100);
+    beginRateMatch(s, 'a');
     expect(applyRateResult(s, 100, 'win', 'b')).toBeNull();
     expect(s.rate).toBe(100);
     startRateMatch(s, 'b', 100); // a の印が残っていた → 負け
     expect(s.rate).toBe(90);
-    expect(s.pendingRateMatch).toEqual({ opponentId: 'b', opponentRate: 100 });
+    expect(s.pendingRateMatch).toEqual({ opponentId: 'b', opponentRate: 100, matchId: '', begun: false });
     expect(applyRateResult(s, 100, 'win', 'b')?.after).toBe(101);
     expect(applyRateResult(s, 100, 'win', 'b')).toBeNull();
   });

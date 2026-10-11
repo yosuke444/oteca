@@ -86,8 +86,13 @@ export type SaveData = {
   rateStats: WinLoss & { best: number };
   /** 直前のレート対戦の相手のユーザーID（'' ＝なし。v2.0-I までは playerId） */
   lastRateOpponentId: string;
-  /** レート対戦中の印 */
-  pendingRateMatch: { opponentId: string; opponentRate: number } | null;
+  /** レート対戦中の印（v2.4 で試合ID と「始まったか」を足した。形式版数10） */
+  pendingRateMatch: PendingRateMatch | null;
+  /**
+   * フレンド対戦中の印（v2.4。形式版数10）：対戦が始まった（準備が終わった）時に付け、対戦の画面を出る時に消す。
+   * 残っていたら（ページを閉じた・通信が切れたまま閉じた）次に開いた時に負けとして数える
+   */
+  pendingFriendMatch: { opponentId: string } | null;
   /** 処理済みの交換ID（16桁の16進数）の直近20件 */
   trade: { doneIds: string[] };
   /**
@@ -104,6 +109,11 @@ export type SaveData = {
   /** デイリーミッション（v2.1-M） */
   daily: DailyState;
 };
+
+/**
+ * レート対戦中の印。matchId：受付係の試合ID（'' ＝無い）。begun：準備が終わって対戦が始まったか（始まる前に切れた試合は勝ち負けを付けない。v2.4）
+ */
+export type PendingRateMatch = { opponentId: string; opponentRate: number; matchId: string; begun: boolean };
 
 /** 受け取ったトロフィー（v2.0-J。形式版数9） */
 export type Trophy = { number: number; receivedAt: number };
@@ -228,7 +238,10 @@ export function normalizeSave(data: SaveData): SaveData {
     rateStats: { ...winLoss(data.rateStats), best: clampInt(data.rateStats?.best) },
     lastRateOpponentId: normalizeUserId(data.lastRateOpponentId),
     pendingRateMatch:
-      pending && normalizeUserId(pending.opponentId) ? { opponentId: normalizeUserId(pending.opponentId), opponentRate: clampInt(pending.opponentRate) } : null,
+      pending && normalizeUserId(pending.opponentId)
+        ? { opponentId: normalizeUserId(pending.opponentId), opponentRate: clampInt(pending.opponentRate), matchId: normalizeId(pending.matchId), begun: pending.begun !== false }
+        : null,
+    pendingFriendMatch: data.pendingFriendMatch ? { opponentId: normalizeUserId(data.pendingFriendMatch.opponentId) } : null,
     trade: { doneIds: (data.trade?.doneIds ?? []).map(normalizeId).filter((id) => id !== '').slice(-TRADE_IDS_MAX) },
     ranking: {
       token: clampText(data.ranking?.token ?? '', RANKING_TEXT_MAX),
@@ -274,7 +287,7 @@ export function emptyDaily(): DailyState {
 /** 後の項目（D〜I）の枠の初期値。新しいセーブと、古いセーブからの移行で共通 */
 export function laterFieldsDefault(): Pick<
   SaveData,
-  'playerId' | 'userId' | 'userIdRegistered' | 'trophies' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
+  'playerId' | 'userId' | 'userIdRegistered' | 'trophies' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'pendingFriendMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
 > {
   return {
     playerId: '',
@@ -287,6 +300,7 @@ export function laterFieldsDefault(): Pick<
     rateStats: { wins: 0, losses: 0, best: RATE_START },
     lastRateOpponentId: '',
     pendingRateMatch: null,
+    pendingFriendMatch: null,
     trade: { doneIds: [] },
     // 「ランキングに のる」は初期値オン（v2.0-I・v2.2）
     ranking: { token: '', optIn: true, unsent: [], provisional: false, syncedAt: 0, playedAt: 0, lastMatchId: '' },

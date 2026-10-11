@@ -41,7 +41,7 @@ import type { RatePayload } from '../Online/RateScene';
 export type ResultPayload = {
   setup: BattleSetup;
   winner: Side;
-  /** disconnect：レート対戦で相手の通信が切れた・部屋を出た（残った側の勝ち。v2.0-G） */
+  /** disconnect：オンライン対戦で相手の通信が切れた・部屋を出た（残った側の勝ち。v2.0-G・v2.4 でフレンド対戦も） */
   reason: EndReason | 'disconnect';
   stats: MatchStats;
   log: Action[];
@@ -134,7 +134,9 @@ export function ResultScene() {
     if (r.setup.mode === 'online') endOnline();
     go('menu');
   };
-  const rematchNote = agree === false
+  const rematchNote = r.reason === 'disconnect'
+    ? ''
+    : agree === false
     ? tr.result.disagree
     : oppBack
     ? tr.result.oppBack
@@ -179,13 +181,15 @@ export function ResultScene() {
     return (d: SaveData) => void addDailyProgress(d, now, p);
   };
 
-  // 勝敗数をセーブデータに記録（フレンド対戦は stats、CPU対戦は強さごとの cpuStats。中断・切断は記録しない）
+  // 勝敗数をセーブデータに記録（フレンド対戦は stats、CPU対戦は強さごとの cpuStats。中断は記録しない。相手の切断は残った側の勝ち（v2.4））
   useEffect(() => {
     if (recorded.current || !r.setup.record || r.setup.rated) return;
-    if (r.setup.mode === 'online' && agree !== true) return;
+    // 相手の通信が切れて勝った試合（v2.4）は、結果がそろわなくても勝ちとして書く（ふだんの勝ちと同じコイン。両者2ターン以上の決まりは同じ）
+    const settled = r.reason === 'disconnect' ? true : agree;
+    if (r.setup.mode === 'online' && settled !== true) return;
     recorded.current = true;
     // 対戦の報酬（SPEC §7 S11）：勝敗の記録と同じ保存で、コイン（と今日の試合数）を足す
-    const kind = rewardKindFor(r.setup, agree);
+    const kind = rewardKindFor(r.setup, settled);
     const today = todayKey(new Date());
     const info: MatchInfo = { kind, cpuLevel: r.setup.cpuLevel, win, turnCounts: r.stats.turnCounts };
     // 表示用の見積もり（保存は下の update の中で、同じ計算で行う）
@@ -345,7 +349,7 @@ export function ResultScene() {
       </h1>
       <p className="result__reason">
         {r.reason === 'disconnect' ? tr.result.reasonDisconnect : tr.result.reason[r.reason]}
-        {hotSeat ? '' : win ? tr.result.youWin : tr.result.oppWins(r.setup.names[opp])}
+        {r.reason === 'disconnect' || hotSeat ? '' : win ? tr.result.youWin : tr.result.oppWins(r.setup.names[opp])}
       </p>
 
       <RoughBox seed="result-memo" className="result__memo" paper radius={6}>
@@ -480,7 +484,6 @@ export function ResultScene() {
           )}
         </p>
       )}
-      {r.reason === 'disconnect' && <p className="result__rate-note blue-pen">{tr.rate.won}</p>}
       {picking && (
         <DeckPickerDialog save={save} current={save.selectedDeck} mode="battle" title={tr.result.changeDeck} note={tr.lobby.nextGameNote} onPick={changeDeck} onClose={() => setPicking(false)} />
       )}

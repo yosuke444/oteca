@@ -204,7 +204,51 @@ describe('オンライン：連番（SPEC §11-5）', () => {
 });
 
 describe('オンライン：切断・再接続（SPEC §11-7）', () => {
-  it('6秒 返事が無いと「まっています」、30秒で「きれた」。戻ってきたら送り直して続く', async () => {
+  /** 「まっています」になる時まで、見張りの間隔ずつ進める */
+  async function untilWaiting(hub: Parameters<typeof settle>[0], clock: { advance: (ms: number) => void }, conn: string[]) {
+    for (let i = 0; i < 200 && conn.at(-1) !== 'waiting'; i++) {
+      clock.advance(250);
+      await settle(hub);
+    }
+  }
+  it('D01 6秒 返事が無いと「まっています」（残り秒数）。そこから29秒でつながり直すと、送り直して続く（v2.4）', async () => {
+    const { hub, clock, a, b } = await pair();
+    const got: string[] = [];
+    b.s.onRemoteAction = (act) => got.push(act.type);
+    const bRecv = b.t.onMessage;
+    b.t.onMessage = () => {};
+    const aRecv = a.t.onMessage;
+    a.t.onMessage = () => {};
+    a.s.sendAction({ type: 'PLACE_BENCH', player: 'p1', uid: 'p1-1' });
+    a.s.sendAction({ type: 'END_TURN', player: 'p1' });
+    expect(a.s.lostInSeconds).toBeNull();
+    clock.advance(WAITING_AFTER_MS - 500);
+    await settle(hub);
+    expect(a.conn).not.toContain('waiting');
+    await untilWaiting(hub, clock, a.conn);
+    expect(a.conn.at(-1)).toBe('waiting');
+    expect(a.s.lostInSeconds).toBe(30);
+    clock.advance(LOST_AFTER_MS - 1000);
+    await settle(hub);
+    // 29秒：まだ「きれた」にならない（残り1秒）
+    expect(a.conn.at(-1)).toBe('waiting');
+    expect(a.conn).not.toContain('lost');
+    expect(a.s.lostInSeconds).toBe(1);
+    // つながり直す
+    b.t.onMessage = bRecv;
+    a.t.onMessage = aRecv;
+    clock.advance(500);
+    await settle(hub);
+    clock.advance(3000);
+    await settle(hub);
+    expect(a.conn.at(-1)).toBe('ok');
+    expect(b.conn.at(-1)).toBe('ok');
+    expect(a.conn).not.toContain('lost');
+    expect(a.s.lostInSeconds).toBeNull();
+    expect(got).toEqual(['PLACE_BENCH', 'END_TURN']);
+  });
+
+  it('D02 「まっています」になってから30秒で「きれた」。そのあと戻ってきても送り直して ok に戻る', async () => {
     const { hub, clock, a, b } = await pair();
     const got: string[] = [];
     b.s.onRemoteAction = (act) => got.push(act.type);
@@ -215,24 +259,18 @@ describe('オンライン：切断・再接続（SPEC §11-7）', () => {
     a.t.onMessage = () => {};
     a.s.sendAction({ type: 'PLACE_BENCH', player: 'p1', uid: 'p1-1' });
     a.s.sendAction({ type: 'END_TURN', player: 'p1' });
-    clock.advance(WAITING_AFTER_MS + 1000);
-    await settle(hub);
+    await untilWaiting(hub, clock, a.conn);
     expect(a.conn).toContain('waiting');
-    expect(b.conn).toContain('waiting');
-    // 「もうすこし まつ」を押すと、そこから30秒待つ
-    clock.advance(LOST_AFTER_MS);
-    await settle(hub);
-    expect(a.conn.at(-1)).toBe('lost');
-    a.s.waitMore();
-    expect(a.conn.at(-1)).toBe('waiting');
-    // そこから 30秒は「きれた」にならない
     clock.advance(LOST_AFTER_MS - 1000);
     await settle(hub);
     expect(a.conn.at(-1)).toBe('waiting');
-    clock.advance(1500);
+    clock.advance(1000);
     await settle(hub);
     expect(a.conn.at(-1)).toBe('lost');
-    a.s.waitMore();
+    expect(a.s.lostInSeconds).toBe(0);
+    clock.advance(1000);
+    await settle(hub);
+    expect(b.conn.at(-1)).toBe('lost');
     // 通信が戻る
     b.t.onMessage = bRecv;
     a.t.onMessage = aRecv;

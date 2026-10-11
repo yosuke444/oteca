@@ -37,7 +37,11 @@ import './battle.css';
 import { local, t } from '../../i18n';
 import { stageByNo } from '../../story/story';
 import { useSave } from '../../state/SaveContext';
-import { applyRateResult } from '../../online/rate';
+import { applyRateResult, beginRateMatch, resolvePendingRate } from '../../online/rate';
+import { clearFriendMatch, cutOutcome, matchBegun, resolvePendingFriend, startFriendMatch } from '../../online/pendingMatch';
+import { markProvisional, queueReport } from '../../online/ranking';
+import { features } from '../../config/features';
+import type { LobbyPayload } from '../Lobby/LobbyScene';
 import { useT } from '../../i18n/useT';
 import { type TutorialDriver, tutorialThink } from '../../tutorial/driver';
 import { think as defaultThink } from '../../cpu/thinker';
@@ -384,13 +388,63 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     return () => window.clearTimeout(id);
   }, [view, busy, go, setup, online.problem]);
 
-  // ---------------------------------------------------------------- レート対戦の途中で終わった試合（v2.0-G。SPEC §7 S15）
-  const rateDone = useRef(false);
+  // ---------------------------------------------------------------- とちゅうの試合の印（v2.4。SPEC §11-7）
+  // 準備が終わって対戦が始まったら「とちゅうの試合」の印を付ける（このままページを閉じたら、次に開いた時に負け）。
+  // フレンド対戦の印は、対戦の画面を出る時に消す（勝ち負けはリザルトなどで書く）。レート対戦の印は結果を書く時に消える
+  const begun = setup.mode === 'online' && matchBegun(view?.phase);
+  const pendingMarked = useRef(false);
   useEffect(() => {
-    if (!setup.rated || rateDone.current || !view || view.phase === 'over') return;
-    // 相手の通信が30秒もどらない・相手が部屋を出た：残った側の勝ち（リザルトでレートに書く）
+    if (!begun || pendingMarked.current || !setup.record) return;
+    pendingMarked.current = true;
+    const g = currentOnline()?.lastStart;
+    if (setup.rated) updateSave((d) => void beginRateMatch(d, setup.rated!.oppId));
+    else updateSave((d) => void startFriendMatch(d, g?.oppUserId ?? ''));
+  }, [begun]);
+  useEffect(
+    () => () => {
+      if (pendingMarked.current && !setup.rated) updateSave((d) => void (d.pendingFriendMatch && clearFriendMatch(d)));
+      pendingMarked.current = false;
+    },
+    [],
+  );
+
+  // ---------------------------------------------------------------- 相手の通信が切れた・相手が出ていった（v2.0-G・v2.4。SPEC §7 S15・§11-7）
+  const cutDone = useRef(false);
+  /** 切れたのは自分（オフライン）：「つうしんが きれたよ。この たいせんは まけ」を出す */
+  const [selfCut, setSelfCut] = useState(false);
+  useEffect(() => {
+    if (setup.mode !== 'online' || cutDone.current || !view || view.phase === 'over') return;
+    // 「まっています」から30秒もどらない・相手が部屋を出た
     if (online.connection === 'lost' || online.problem === 'left') {
-      rateDone.current = true;
+      cutDone.current = true;
+      const out = cutOutcome({ begun: matchBegun(view.phase), online: navigator.onLine !== false });
+      if (out === 'noGame') {
+        // 始まる前（準備中）：勝ち負けを付けず、待機画面へ。レート対戦は無効（「レート対戦中」の印を消し、無効と報告）
+        const rated = setup.rated;
+        if (rated) {
+          updateSave((d) => {
+            applyRateResult(d, rated.oppRate, 'void', rated.oppId);
+            if (features.ranking && rated.matchId) queueReport(d, { matchId: rated.matchId, winner: 'void' });
+          });
+          endOnline();
+          go('rate');
+          return;
+        }
+        const link = currentOnline();
+        if (link && online.problem !== 'left') {
+          link.backToRoom();
+          go('lobby', { backToRoom: true, oppCut: true } satisfies LobbyPayload);
+        } else {
+          endOnline();
+          go('lobby', { oppCut: true } satisfies LobbyPayload);
+        }
+        return;
+      }
+      if (out === 'selfCut') {
+        setSelfCut(true);
+        return;
+      }
+      // 残った側の勝ち（リザルトで勝敗・コイン・レートを書く）
       const match = matchRef.current!;
       const result: ResultPayload = {
         setup,
@@ -405,11 +459,37 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
       return;
     }
     // データのずれ・種のごまかし：無効試合（レートもコインも変わらない。「レート対戦中」の印は消す）
-    if (online.problem === 'desync' || online.problem === 'cheat') {
-      rateDone.current = true;
+    if (setup.rated && (online.problem === 'desync' || online.problem === 'cheat')) {
+      cutDone.current = true;
       updateSave((d) => void applyRateResult(d, setup.rated!.oppRate, 'void'));
     }
   }, [online.connection, online.problem, view?.phase]);
+  /** 切れたのは自分：この試合を負けとして書いて（レートは相手の勝ちを報告）、メニューへ */
+  const selfCutToMenu = useCallback(() => {
+    updateSave((d) => {
+      const p = d.pendingRateMatch;
+      if (setup.rated && resolvePendingRate(d) && features.ranking && p?.matchId) {
+        markProvisional(d, Date.now(), p.matchId);
+        queueReport(d, { matchId: p.matchId, winner: p.opponentId });
+      }
+      if (!setup.rated) resolvePendingFriend(d);
+    });
+    endOnline();
+    go('menu');
+  }, [go, setup.rated]);
+
+  /** 「まっています」の残り秒数（v2.4） */
+  const [netLeft, setNetLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (setup.mode !== 'online' || online.connection !== 'waiting') {
+      setNetLeft(null);
+      return;
+    }
+    const read = () => setNetLeft(currentOnline()?.session.lostInSeconds ?? null);
+    read();
+    const id = window.setInterval(read, 250);
+    return () => window.clearInterval(id);
+  }, [setup.mode, online.connection]);
 
   // 再戦で相手がデッキを変えていたら、対戦の始めに知らせる（v2.0-G）
   useEffect(() => {
@@ -688,8 +768,8 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
     const extra = setup.mode === 'online' ? { desyncTurn: online.desyncTurn, rejected: match.rejected, session: currentOnline()?.session.debugLog() ?? null } : undefined;
     downloadActionLog(buildActionLog(setup, match.log, hashState(match.state), extra));
   };
-  // レート対戦では「きれた」を選ばせず、残った側の勝ちにする（下の effect）
-  const lostOpen = setup.mode === 'online' && !setup.rated && online.connection === 'lost' && !online.problem && view.phase !== 'over';
+  // 相手の通信が30秒もどらない時は、残った側の勝ち（上の effect）。切れたのが自分の時だけ「つうしんが きれたよ」を出す（v2.4）
+  const lostOpen = selfCut && view.phase !== 'over';
 
   return (
     <div className="battle" ref={rootRef}>
@@ -785,8 +865,9 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
 
       {/* 相手の通信が止まっている（SPEC §11-7） */}
       {setup.mode === 'online' && online.connection === 'waiting' && !online.problem && view.phase !== 'over' && (
-        <div className="battle-netwait" role="status">
+        <div className="battle-netwait" role="status" data-testid="net-wait">
           {tr.battle.waitNet}
+          {netLeft !== null && <span className="battle-netwait__left num">{tr.battle.waitNetLeft(netLeft)}</span>}
         </div>
       )}
 
@@ -795,14 +876,9 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
           seed="net-lost"
           title={tr.battle.lostTitle}
           actions={
-            <>
-              <RoughButton seed="net-lost-menu" onClick={quitToMenu}>
-                {tr.common.toMenu}
-              </RoughButton>
-              <RoughButton seed="net-lost-wait" highlight onClick={() => currentOnline()?.session.waitMore()}>
-                {tr.battle.waitMore}
-              </RoughButton>
-            </>
+            <RoughButton seed="net-lost-menu" highlight onClick={selfCutToMenu} data-testid="net-lost-menu">
+              {tr.common.toMenu}
+            </RoughButton>
           }
         >
           {tr.battle.lostText}

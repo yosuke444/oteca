@@ -7,7 +7,7 @@ import type { NetTransport } from './transport';
  * フレンド対戦の通信の流れ（SPEC §11-2〜§11-7）
  * 入室 → 部屋の人をそろえる（8人まで。v2.0-G）→ 2人だけなら自動で、3人以上なら申し込みで対戦者を決める
  * → コミット・リビールで乱数の種を決める → 操作を連番付きで送り合う（ロックステップ）→ ターンごとに状態ハッシュを比べる
- * ping/pong で切断を見張り、30秒以内に戻れば操作を送り直して続ける。再戦・「ほかの ひとと あそぶ」も扱う。
+ * ping/pong で切断を見張り、「まっています」になってから30秒以内に戻れば操作を送り直して続ける（v2.4：30秒たったら「きれた」）。再戦・「ほかの ひとと あそぶ」も扱う。
  * 画面（React）には依存しない。テストでは MemoryHub の通信で動かす。
  */
 
@@ -97,9 +97,13 @@ function realRandom(n: number): Uint8Array {
 }
 
 export const PING_EVERY_MS = 3000;
+/** 「まっています」の間は ping を早めに送る（つながり直したら、すぐ相手に分かるように。v2.4） */
+export const PING_WAITING_MS = 500;
 /** 見張りの間隔 */
 const TICK_MS = 250;
+/** 相手から何も届かないと「まっています」にするまでの時間 */
 export const WAITING_AFTER_MS = 6000;
+/** 「まっています」になってから「きれた」にするまでの時間（v2.4：相手の通信が切れたら30秒待つ） */
 export const LOST_AFTER_MS = 30000;
 /** 最初に誰かを見つけてから、対戦者を決めるまで待つ時間（ほぼ同時に入った人の hello を集めるため） */
 export const PICK_AFTER_MS = 1000;
@@ -206,8 +210,8 @@ export class OnlineSession {
   private myResult: Side | null = null;
   private oppResult: Side | null = null;
   private resultTold = false;
-  /** 「もうすこし まつ」を押した時、この時刻までは「きれた」にしない */
-  private graceUntil = 0;
+  /** 「まっています」になった時刻（0 ＝ つながっている）。ここから30秒で「きれた」（v2.4） */
+  private waitingSince = 0;
   private oppRematch = -1;
   /** 観戦者（ピアID → 今の試合を見ているか）。部屋の人（peers）には入れない（v2.0-J） */
   private readonly spectators = new Map<string, { watching: boolean }>();
@@ -774,7 +778,7 @@ export class OnlineSession {
     this.myResult = null;
     this.oppResult = null;
     this.resultTold = false;
-    this.graceUntil = 0;
+    this.waitingSince = 0;
     if (this.connection !== 'ok') {
       this.connection = 'ok';
       this.onConnection('ok');
@@ -1002,13 +1006,14 @@ export class OnlineSession {
       this.armPick();
     }
     if (!this.opponentPeer && !this.opponentPlayerId) return;
-    if (this.opponentPeer && now - this.lastPing >= PING_EVERY_MS) {
+    if (this.opponentPeer && now - this.lastPing >= (this.connection === 'ok' ? PING_EVERY_MS : PING_WAITING_MS)) {
       this.lastPing = now;
       this.send(makeMsg('ping', this.opts.protocol, { t: now, n: this.myLog.length, game: this.game }), this.opponentPeer);
     }
     const since = now - this.lastHeard;
-    const lost = since >= LOST_AFTER_MS && now >= this.graceUntil;
-    const next: Connection = lost ? 'lost' : since >= WAITING_AFTER_MS ? 'waiting' : 'ok';
+    if (this.waitingSince === 0 && since >= WAITING_AFTER_MS) this.waitingSince = now;
+    const lost = this.waitingSince > 0 && now - this.waitingSince >= LOST_AFTER_MS;
+    const next: Connection = lost ? 'lost' : this.waitingSince > 0 ? 'waiting' : 'ok';
     if (next !== this.connection) {
       this.connection = next;
       this.onConnection(next);
@@ -1017,6 +1022,7 @@ export class OnlineSession {
 
   private heard(): void {
     this.lastHeard = this.clock.now();
+    this.waitingSince = 0;
     if (this.connection !== 'ok') {
       this.connection = 'ok';
       // 通信が戻った：途切れている間に届かなかったかもしれないので、全部送り直す（重複は相手が捨てる）
@@ -1025,11 +1031,10 @@ export class OnlineSession {
     }
   }
 
-  /** 「もうすこし まつ」：切れた扱いをやめて、もう30秒待つ（SPEC §11-7） */
-  waitMore(): void {
-    this.graceUntil = this.clock.now() + LOST_AFTER_MS;
-    this.connection = 'waiting';
-    this.onConnection('waiting');
+  /** 「まっています」の残り秒数（切り上げ。つながっている時は null。v2.4：画面に出す） */
+  get lostInSeconds(): number | null {
+    if (this.waitingSince === 0) return null;
+    return Math.max(0, Math.ceil((this.waitingSince + LOST_AFTER_MS - this.clock.now()) / 1000));
   }
 
   /** 相手の名前 */
@@ -1059,6 +1064,7 @@ export class OnlineSession {
     if (id === this.opponentPeer) {
       this.goneOpponent = id;
       this.opponentPeer = null;
+      if (this.waitingSince === 0) this.waitingSince = this.clock.now();
       if (this.connection === 'ok') {
         this.connection = 'waiting';
         this.onConnection('waiting');

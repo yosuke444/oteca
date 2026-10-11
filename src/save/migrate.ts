@@ -16,7 +16,9 @@ import {
   readSaveV7,
   readSaveV8,
   readSaveV9,
+  readSaveV10,
   type SaveDataV8,
+  type SaveDataV9,
 } from './binary';
 import { applyRateResult } from '../online/rate';
 import { newUserId } from './userId';
@@ -44,6 +46,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   7: readSaveV7,
   8: readSaveV8,
   9: readSaveV9,
+  10: readSaveV10,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -66,7 +69,15 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   /** 7 → 8（v2.0-J）：ユーザーID を作る。相手の判別をユーザーID に変えた（SPEC §12-3f） */
   7: (old) => upgradeToV8(old as SaveDataV7),
   /** 8 → 9（v2.0-J）：トロフィーの一覧（空）を足す（SPEC §12-3g） */
-  8: (old) => ({ ...(old as SaveDataV8), trophies: [] }) satisfies SaveData,
+  8: (old) => ({ ...(old as SaveDataV8), trophies: [] }) satisfies SaveDataV9,
+  /**
+   * 9 → 10（v2.4）：レート対戦中の印に試合ID（無し）と「始まった」を足す（今までどおり次に開いた時に負け）。フレンド対戦中の印（無し）を足す
+   */
+  9: (old) => {
+    const d = old as SaveDataV9;
+    const p = d.pendingRateMatch;
+    return { ...d, pendingRateMatch: p ? { ...p, matchId: '', begun: true } : null, pendingFriendMatch: null } satisfies SaveData;
+  },
 };
 
 /**

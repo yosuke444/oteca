@@ -5,7 +5,8 @@ import { ROUTE_BGM } from './audio/routeBgm';
 import { tabGuard } from './tabLock/tabGuard';
 import type { BattleSetup } from './battle/setup';
 import { stageByNo } from './story/story';
-import { resolvePendingRate, setPendingNotice } from './online/rate';
+import { setPendingNotice } from './online/rate';
+import { resolvePendingMatches, setFriendNotice } from './online/pendingMatch';
 import { useSave } from './state/SaveContext';
 import { setLang } from './i18n';
 import { NavContext, type Nav, type RouteId, isDebugMode } from './router';
@@ -106,12 +107,15 @@ export function App() {
   // ことば：React の外（演出・対戦ログ）でも今の言語の辞書を使えるように、描く前に知らせる（SPEC §6-4b）
   setLang(save.settings.lang);
 
-  // 前のレート対戦が とちゅうで終わっていた（ページを閉じた・読み込み直した）：起動した時に負けとして計算する（SPEC §7 S15）
+  // 前のオンライン対戦が とちゅうで終わっていた（ページを閉じた・読み込み直した・通信が切れたまま閉じた）：起動した時に負けとして計算する（SPEC §7 S15・§11-7）
   const { update } = useSave();
   useEffect(() => {
-    if (!save.pendingRateMatch) return;
-    setPendingNotice(resolvePendingRate(structuredClone(save)));
-    update((d) => void resolvePendingRate(d));
+    if (!save.pendingRateMatch && !save.pendingFriendMatch) return;
+    const now = Date.now();
+    const res = resolvePendingMatches(structuredClone(save), { ranking: features.ranking, now });
+    setPendingNotice(res.rate);
+    setFriendNotice(res.friend);
+    update((d) => void resolvePendingMatches(d, { ranking: features.ranking, now }));
   }, []);
 
   // ランキング（v2.0-I。SPEC §7 S15）：起動した時に、送れなかった結果の報告を送り直し、

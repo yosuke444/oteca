@@ -58,7 +58,7 @@ function errorText(s: SessionStatus): string | null {
 }
 
 /** リザルトの「ほかの ひとと あそぶ」から戻る時（いまの部屋の通信のまま、へやの なかま を出す。v2.0-G） */
-export type LobbyPayload = { backToRoom?: boolean } | null;
+export type LobbyPayload = { backToRoom?: boolean; oppCut?: boolean } | null;
 
 /** S03 フレンド対戦ロビー（SPEC §7。v2.0-G：へやの なかま） */
 export function LobbyScene() {
@@ -81,6 +81,13 @@ export function LobbyScene() {
   const [note, setNote] = useState<{ text: string; n: number } | null>(null);
   const [picking, setPicking] = useState(false);
   const say = (text: string) => setNote((x) => ({ text, n: (x?.n ?? 0) + 1 }));
+  // 対戦が始まる前に相手の通信が切れて戻ってきた（v2.4）
+  useEffect(() => {
+    if (!(payload as LobbyPayload)?.oppCut) return;
+    // 部屋に残っていれば まちあい の画面で一言、部屋の通信が終わっていれば部屋番号の画面でお知らせ
+    if (back) say(t().lobby.oppCut);
+    else setPhase({ kind: 'error', text: t().lobby.oppCut });
+  }, []);
   /** 対戦画面へ進んだ（画面を出ても通信は切らない） */
   const toBattle = useRef(false);
   const vsDone = useRef(false);

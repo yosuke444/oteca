@@ -102,9 +102,9 @@ export const kanji: Dict = {
     hash: 'ハッシュ',
     ops: (n) => `（操作 ${n}）`,
     waitNet: '相手の通信を待っています…',
+    waitNetLeft: (s) => `残り${s}秒`,
     lostTitle: '通信が切れました',
-    lostText: '相手から30秒返事がありません。この対戦は記録されません。',
-    waitMore: 'もう少し待つ',
+    lostText: '通信が30秒戻りませんでした。この対戦は負けになります。',
     leftTitle: '相手がいなくなりました',
     desyncTitle: 'データのずれが起きました',
     leftText: '相手が対戦をやめたようです。この対戦は記録されません。',
@@ -294,7 +294,7 @@ export const kanji: Dict = {
     oppBack: '相手は部屋に戻ったよ',
     changeDeck: 'デッキを変える',
     myDeck: (name) => `今のデッキ：${name}`,
-    reasonDisconnect: '相手の通信が切れて',
+    reasonDisconnect: '相手の通信が切れたので勝ち',
     saveLog: '行動ログを保存',
   },
 
@@ -357,6 +357,7 @@ export const kanji: Dict = {
     coinsLeft: (n) => `今日コインがもらえるのは、あと${n}試合`,
     pendingTitle: 'お知らせ',
     pendingLost: '前のレート対戦が途中で終わったので、負けになったよ',
+    pendingLostFriend: '前のオンライン対戦が途中で終わったので、負けになったよ',
     rateChange: (a, b) => `レート ${a} → ${b}`,
   },
 
@@ -369,7 +370,6 @@ export const kanji: Dict = {
     note: 'レートは組み合わせには使わないよ。待っている順に組むよ。前の相手とは続けて組まないよ',
     vsRate: (n) => `レート ${n}`,
     next: '次の試合へ',
-    won: '相手の通信が切れたので、勝ちになったよ',
     voided: 'この試合は無効だよ（レートもコインも変わらないよ）',
     found: '相手が見つかった！',
     leaveWarn: '途中でやめると負けになるよ',
@@ -533,6 +533,7 @@ export const kanji: Dict = {
   },
 
   lobby: {
+    oppCut: '相手の通信が切れたので、対戦をやめました',
     title: 'フレンド対戦',
     full: 'この部屋は満員です。\n違う番号にしてね',
     version: 'バージョンが違います。\n2人ともページを読み込み直してね',

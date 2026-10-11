@@ -16,6 +16,7 @@ import { DailyIcon, DailyPanel } from '../Daily/DailyPanel';
 import type { GachaPayload } from '../Gacha/GachaScene';
 import '../Daily/daily.css';
 import { clearPendingNotice, peekPendingNotice } from '../../online/rate';
+import { clearFriendNotice, peekFriendNotice } from '../../online/pendingMatch';
 import { loadPendingTrade } from '../../trade/pendingStore';
 import { features } from '../../config/features';
 import { isDebugMode, useNav } from '../../router';
@@ -90,8 +91,12 @@ export function MenuScene() {
   };
   // 前のレート対戦が とちゅうで終わって負けになった（v2.0-G。1回だけ）
   const [rateNotice, setRateNotice] = useState(() => peekPendingNotice());
+  // 前のフレンド対戦が とちゅうで終わって負けになった（v2.4。1回だけ）
+  const [friendNotice, setFriendNotice] = useState(() => peekFriendNotice());
   useEffect(() => {
-    if (!sandbox) clearPendingNotice();
+    if (sandbox) return;
+    clearPendingNotice();
+    clearFriendNotice();
   }, []);
 
   // デイリーミッション（SPEC §7 S17・v2.1-M）：開いた時に「その日」が変わっていたら入れ替える。
@@ -283,24 +288,35 @@ export function MenuScene() {
         />
       )}
 
-      {rateNotice && (
+      {(rateNotice || friendNotice) && (
         <Dialog
           seed="rate-notice"
           title={tr.online.pendingTitle}
-          onClose={() => setRateNotice(null)}
+          onClose={() => {
+            setRateNotice(null);
+            setFriendNotice(false);
+          }}
           actions={
-            <RoughButton seed="rate-notice-ok" highlight onClick={() => setRateNotice(null)}>
+            <RoughButton
+              seed="rate-notice-ok"
+              highlight
+              onClick={() => {
+                setRateNotice(null);
+                setFriendNotice(false);
+              }}
+            >
               {tr.common.ok}
             </RoughButton>
           }
         >
-          <p data-testid="rate-notice">{tr.online.pendingLost}</p>
-          <p className="num">{tr.online.rateChange(rateNotice.before, rateNotice.after)}</p>
+          {rateNotice && <p data-testid="rate-notice">{tr.online.pendingLost}</p>}
+          {rateNotice && <p className="num">{tr.online.rateChange(rateNotice.before, rateNotice.after)}</p>}
+          {friendNotice && <p data-testid="friend-notice">{tr.online.pendingLostFriend}</p>}
         </Dialog>
       )}
 
       {/* 選んでいたデッキがスーパー2枚以上で、ほかに使えるデッキも無い（v2.4。起動するたびに1回） */}
-      {superFix && save.updateNoticeSeen && !rateNotice && !carry && (
+      {superFix && save.updateNoticeSeen && !rateNotice && !friendNotice && !carry && (
         <Dialog
           seed="super-fix"
           title={tr.menu.superFixTitle}
@@ -371,7 +387,7 @@ export function MenuScene() {
       )}
       {/* デイリーの報酬のコインは、パネルより上を飛ぶ */}
       <div className="menu-scene__fx menu-scene__fx--top" ref={topFx} aria-hidden />
-      {carry && save.updateNoticeSeen && !rateNotice && (
+      {carry && save.updateNoticeSeen && !rateNotice && !friendNotice && (
         <Dialog
           seed="daily-carry"
           title={tr.daily.carryTitle}

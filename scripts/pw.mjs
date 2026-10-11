@@ -56,7 +56,13 @@ export async function toMenu(page, size) {
   // 新しいセーブでは なまえ → チュートリアル になる（v2.0-T）。名前はそのまま決めて、チュートリアルはスキップする
   const name = page.getByTestId('name-ok');
   const deck = page.getByRole('button', { name: /デッキへんしゅう|デッキ編集/ });
-  await name.or(deck).first().waitFor();
+  // 新しいセーブでは、はじめに ことば を選ぶ（にほんご）
+  const lang = page.getByRole('button', { name: /にほんご/ });
+  await name.or(deck).or(lang).first().waitFor();
+  if (await lang.isVisible().catch(() => false)) {
+    await lang.click();
+    await name.or(deck).first().waitFor();
+  }
   if (await name.isVisible()) {
     await name.click();
     await page.getByTestId('tutorial-skip').click();

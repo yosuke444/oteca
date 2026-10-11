@@ -571,6 +571,11 @@
   pointer-events: none;
   animation: netwait-blink calc(1.4s / var(--fx-speed)) ease-in-out infinite;
 }
+/* 残り秒数（v2.4） */
+.battle-netwait__left {
+  margin-left: 0.6em;
+  font-size: 0.9em;
+}
 @keyframes netwait-blink {
   50% { border-color: var(--paper); }
 }
