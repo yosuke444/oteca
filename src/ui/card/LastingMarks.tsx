@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GameState, Lasting, Side } from '../../engine/types';
 import { useT } from '../../i18n/useT';
 import { benchBombs, drawTags, lastingRows, rowFit } from './lastingLayout';
@@ -44,11 +44,24 @@ function Tag({ l, size, small, popup }: { l: Lasting; size: number; small?: bool
 export function LastingTable({ view, side, mine }: { view: GameState; side: Side; mine: boolean }) {
   const tr = useT();
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const uid = view.players[side].active;
   const rows = lastingRows(view, uid);
+  // ほかの物（ベンチのカードなど）にかぶっている札だけ、少し透かす（v2.6。かぶっていない札は はっきり）
+  useLayoutEffect(() => markOverlaps(ref.current));
+  // 動いている途中（攻撃の突進から戻る・画面の大きさが変わる）にも合うよう、少しあとと、画面の大きさが変わった時にも調べ直す
+  useEffect(() => {
+    const again = () => markOverlaps(ref.current);
+    const timer = window.setTimeout(again, 700);
+    window.addEventListener('resize', again);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', again);
+    };
+  });
   if (rows.every((r) => r.length === 0)) return null;
   return (
-    <div className={`lasting-table lasting-table--${mine ? 'me' : 'opp'}`} data-lasting-table={side} data-lasting-uid={uid ?? ''}>
+    <div ref={ref} className={`lasting-table lasting-table--${mine ? 'me' : 'opp'}`} data-lasting-table={side} data-lasting-uid={uid ?? ''}>
       {rows.map((row, i) => {
         if (row.length === 0) return <div key={i} className="lasting-row lasting-row--empty" data-row={i + 1} />;
         const fit = rowFit(row.length);
@@ -84,6 +97,21 @@ export function LastingTable({ view, side, mine }: { view: GameState; side: Side
       )}
     </div>
   );
+}
+
+/** 札がかぶるかを調べる相手：場のカード・山札・すてふだ・名前・ターンの文字など（表の外の物） */
+const OTHERS = '.battle-slot .battle-card, .battle-slot .card-back, .battle-pile, .battle-name, .battle-turn, .battle-dice, .battle-draw';
+
+/** 表の中の札（と「+N」）のうち、ほかの物にかぶっているものに is-over を付ける */
+function markOverlaps(table: HTMLElement | null): void {
+  const board = table?.parentElement;
+  if (!table || !board) return;
+  const others = [...board.querySelectorAll<HTMLElement>(OTHERS)].filter((el) => !table.contains(el)).map((el) => el.getBoundingClientRect());
+  for (const tag of table.querySelectorAll<HTMLElement>('.lasting-row .lasting-tag, .lasting-row .lasting-more')) {
+    const r = tag.getBoundingClientRect();
+    const over = others.some((o) => r.left < o.right - 1 && o.left < r.right - 1 && r.top < o.bottom - 1 && o.top < r.bottom - 1);
+    tag.classList.toggle('is-over', over);
+  }
 }
 
 /** ベンチのおてあげ：ばくだんの札だけを小さく（あと何ターンかの数字つき） */

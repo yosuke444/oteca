@@ -4,7 +4,7 @@ import { Match } from '../src/controllers/match';
 import { RemoteController } from '../src/controllers/remote';
 import { CARD_DB } from '../src/data/cards';
 import { classicDeckNos } from '../src/data/starterDeck';
-import type { Side } from '../src/engine';
+import type { GameEvent, Side } from '../src/engine';
 import { type Clock, type GameStart, OnlineSession, PICK_AFTER_MS, type SessionStatus } from '../src/net/session';
 import { MemoryHub, type MemoryTransport } from '../src/net/transport';
 import { makeRandom } from './save.helpers';
@@ -82,11 +82,11 @@ export async function settle(hub: MemoryHub): Promise<void> {
   }
 }
 
-export async function pair(seedA = 1, seedB = 2) {
+export async function pair(seedA = 1, seedB = 2, deck?: number[]) {
   const hub = new MemoryHub();
   const clock = new FakeClock();
-  const a = makePeer(hub, clock, 'peer-a', { seed: seedA, name: 'あ' });
-  const b = makePeer(hub, clock, 'peer-b', { seed: seedB, name: 'い' });
+  const a = makePeer(hub, clock, 'peer-a', { seed: seedA, name: 'あ', deck });
+  const b = makePeer(hub, clock, 'peer-b', { seed: seedB, name: 'い', deck });
   a.s.join('123456');
   clock.advance(10);
   b.s.join('123456');
@@ -98,8 +98,10 @@ export async function pair(seedA = 1, seedB = 2) {
  * 通信なしで、2つのセッション＋2つのエンジンを動かす。
  * 各端末では、自分の側を CPU、相手の側を remote にする（相手の操作は通信で届いたものだけ）。
  */
-export async function playLockstep(seedA: number, seedB: number, hooks: { tamper?: boolean } = {}) {
-  const { hub, clock, a, b } = await pair(seedA, seedB);
+export async function playLockstep(seedA: number, seedB: number, hooks: { tamper?: boolean; deck?: number[] } = {}) {
+  const { hub, clock, a, b } = await pair(seedA, seedB, hooks.deck);
+  /** それぞれの端末で出たイベント（画面の演出の順番） */
+  const logs: GameEvent[][] = [];
   const pending: (() => void)[] = [];
   const sched = (fn: () => void) => {
     pending.push(fn);
@@ -119,6 +121,9 @@ export async function playLockstep(seedA: number, seedB: number, hooks: { tamper
       sendHash: (turn, h) => peer.s.sendHash(turn, hooks.tamper && peer === b ? 'deadbeef' : h),
       sendResult: (w) => peer.s.sendResult(w),
     });
+    const log: GameEvent[] = [];
+    match.subscribe((step) => log.push(...step.events));
+    logs.push(log);
     sides.push({ peer, match, me: g.me });
   }
   for (let i = 0; i < 20000; i++) {
@@ -131,5 +136,5 @@ export async function playLockstep(seedA: number, seedB: number, hooks: { tamper
     }
     fn();
   }
-  return { hub, clock, a, b, sides };
+  return { hub, clock, a, b, sides, logs };
 }

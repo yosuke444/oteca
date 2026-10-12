@@ -111,6 +111,8 @@ export const SE_KEYS = [
   'se_lasting_bomb',
   'se_lasting_draw',
   'se_lasting_clear',
+  'se_self_hit',
+  'se_self_blast',
   'se_ko',
   'se_item_kusuri',
   'se_item_yaiba',

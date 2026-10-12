@@ -75,9 +75,12 @@ export function strongAction(s: GameState, side: Side, noSwap = false): Action |
   // くりだし：倒されにくく、相手を倒しやすいおてあげ
   const promote = only(legal, 'PROMOTE');
   if (promote.length > 0) {
+    // 相手のバトル場が HP0 で気絶を待っている（自爆で両方HP0。v2.6）なら、相手が次に出しそうなおてあげ（価値が一番高いベンチ）で考える
+    const sp = promoteView(s, side);
+    const spOpp = sp.players[side === 'p1' ? 'p2' : 'p1'].active;
     return best(promote, (a) => {
-      const safe = 1 - threat(s, side, a.benchUid);
-      const ko = oppActive ? koChance(s, a.benchUid, s.cards[oppActive].hp) : 0;
+      const safe = 1 - threat(sp, side, a.benchUid);
+      const ko = spOpp ? koChance(sp, a.benchUid, sp.cards[spOpp].hp) : 0;
       return safe * 100 + ko * 80 + otegeValue(s, a.benchUid) * 0.05;
     });
   }
@@ -299,4 +302,13 @@ export function decide(level: CpuLevel, state: GameState, side: Side, rand: Rand
     case 'strongest':
       return strongestAction(view, side, rand, opts);
   }
+}
+
+/** くりだしを考える時の状態：相手のバトル場が気絶を待つ HP0 なら、相手のベンチで価値が一番高いおてあげがバトル場にいるとみなす（v2.6） */
+function promoteView(s: GameState, side: Side): GameState {
+  const opp: Side = side === 'p1' ? 'p2' : 'p1';
+  const ops = s.players[opp];
+  if (!s.deferredFaint || s.deferredFaint.uid !== ops.active) return s;
+  const next = ops.bench.length > 0 ? ops.bench.reduce((a, b) => (otegeValue(s, b) > otegeValue(s, a) ? b : a)) : null;
+  return { ...s, players: { ...s.players, [opp]: { ...ops, active: next, bench: ops.bench.filter((u) => u !== next) } } };
 }

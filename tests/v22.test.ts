@@ -15,8 +15,8 @@ describe('K02 もやすの技（v2.2 で両方20下げた）', () => {
       [[1, 2, 3], [{ type: 'damage', amount: 60 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
       [[4, 5, 6], [{ type: 'damage', amount: 100 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
     ]);
-    // v2.4：すりむ がスーパー・ひきかえカード・切断の決まりが変わったので 10。v2.5：持続効果の決まりが変わったので 11
-    expect(protocolVersion).toBe(11);
+    // v2.4：すりむ がスーパー・ひきかえカード・切断の決まりが変わったので 10。v2.5：持続効果の決まりが変わったので 11。v2.6：自爆で両方が気絶する順番が変わったので 12
+    expect(protocolVersion).toBe(12);
   });
 });
 

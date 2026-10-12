@@ -250,6 +250,29 @@ export const RECIPES: Record<string, Recipe> = {
       { src: 'white', gain: 0.25, filter: { type: 'highpass', freq: [6000, 3000], time: 0.5 }, env: { a: 0.02, d: 0.45, s: 0, r: 0.08 } },
     ],
   },
+  // ↓ 自爆（v2.6）。相手から受ける「ドカッ」と違い、火花がはじける「バシュッ」と、反動の「ビヨン」
+  // 自爆：火花の「バシュッ」→ 後ろにはじかれる「ビヨン」→ 紙の破片の「パラッ」
+  se_self_hit: {
+    gain: 0.9,
+    layers: [
+      { src: 'white', gain: 0.55, filter: { type: 'bandpass', freq: [1200, 5200], q: 1.1, time: 0.12 }, env: { a: 0.002, d: 0.16, s: 0, r: 0.05 }, drive: 0.3 },
+      { src: 'sawtooth', gain: 0.16, freq: [1400, 260], freqTime: 0.18, env: { a: 0.002, d: 0.2, s: 0, r: 0.05 }, filter: { type: 'lowpass', freq: [4000, 900] } },
+      { src: 'triangle', gain: 0.35, env: { a: 0.003, d: 0.07, s: 0.4, r: 0.12 }, notes: [{ t: 0.06, f: 220, d: 0.06 }, { t: 0.12, f: 330, d: 0.06 }, { t: 0.18, f: 196, d: 0.06 }, { t: 0.24, f: 262, d: 0.08, g: 0.7 }] },
+      { src: 'white', gain: 0.22, filter: { type: 'bandpass', freq: [2600, 2600], q: 2 }, env: { a: 0.001, d: 0.015, s: 0, r: 0.01 }, delay: 0.1, grains: { count: 10, spread: 0.35, jitter: 0.9, pitchJitter: 0.5, gainJitter: 0.6, fade: 0.6 }, pan: [-0.5, 0.5] },
+    ],
+  },
+  // 大きな自爆（自分に999）：導火線なしの「ドッカーン」＋はじける火花＋破片がたくさん
+  se_self_blast: {
+    gain: 1,
+    layers: [
+      { src: 'white', gain: 0.6, filter: { type: 'bandpass', freq: [900, 5200], q: 0.9, time: 0.1 }, env: { a: 0.001, d: 0.12, s: 0, r: 0.04 }, drive: 0.4 },
+      { src: 'sine', gain: 1, freq: [140, 26], freqTime: 0.9, env: { a: 0.001, d: 1.0, s: 0, r: 0.2 }, drive: 0.75, delay: 0.04 },
+      { src: 'brown', gain: 0.95, filter: { type: 'lowpass', freq: [4200, 140], time: 1.1 }, env: { a: 0.002, d: 1.1, s: 0, r: 0.3 }, drive: 0.45, reverb: 0.55, reverbLong: true, delay: 0.04 },
+      { src: 'sawtooth', gain: 0.14, freq: [1800, 120], freqTime: 0.5, env: { a: 0.002, d: 0.5, s: 0, r: 0.1 }, filter: { type: 'lowpass', freq: [5000, 600] } },
+      { src: 'white', gain: 0.26, filter: { type: 'bandpass', freq: [3000, 3000], q: 2 }, env: { a: 0.001, d: 0.02, s: 0, r: 0.01 }, delay: 0.2, grains: { count: 30, spread: 1.0, jitter: 0.9, pitchJitter: 0.6, gainJitter: 0.6, fade: 0.7 }, pan: [-0.7, 0.7] },
+      sparkle(0.15, 0.9, 14, 0.06),
+    ],
+  },
   // きぜつ：紙をくしゃくしゃに丸める → 最後に「ポスッ」
   se_ko: {
     gain: 0.9,

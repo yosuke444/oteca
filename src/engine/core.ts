@@ -39,6 +39,7 @@ export function cloneState(s: GameState): GameState {
     resumeAfterPromote: s.resumeAfterPromote ? { ...s.resumeAfterPromote } : null,
     scheduled: s.scheduled.map((e) => ({ ...e })),
     lasting: s.lasting.map((e) => ({ ...e })),
+    deferredFaint: s.deferredFaint ? { ...s.deferredFaint } : null,
     pendingChoice: s.pendingChoice
       ? { ...s.pendingChoice, options: [...s.pendingChoice.options], rest: s.pendingChoice.rest.map((q) => ({ ...q, src: { ...q.src } })), after: { ...s.pendingChoice.after } }
       : null,
@@ -107,6 +108,7 @@ export function endGame(ctx: Ctx, winner: Side, reason: EndReason): void {
   ctx.s.endReason = reason;
   ctx.s.pendingPromote = [];
   ctx.s.resumeAfterPromote = null;
+  ctx.s.deferredFaint = null;
   ctx.events.push({ type: 'GameOver', winner, reason });
 }
 
@@ -120,14 +122,19 @@ export function discardCards(ctx: Ctx, player: Side, uids: string[], fromDeck: b
   ctx.events.push({ type: 'Discarded', player, uids: [...uids], fromDeck });
 }
 
-/** ダメージを与える。HPが0以下になったら、きぜつの判定まで行う */
-export function dealDamage(ctx: Ctx, uid: string, amount: number, by: Side): void {
+/**
+ * ダメージを与える。HPが0以下になったら、きぜつの判定まで行う。
+ * deferFaint：HPが0になっても、きぜつを後回しにする（GameState.deferredFaint。v2.6）
+ */
+export function dealDamage(ctx: Ctx, uid: string, amount: number, by: Side, deferFaint = false): void {
   const c = ctx.s.cards[uid];
   if (!c || !isInPlay(ctx.s, uid) || isOver(ctx.s)) return;
   const dmg = Math.max(0, amount);
   c.hp = Math.max(0, c.hp - dmg);
   ctx.events.push({ type: 'Damaged', uid, amount: dmg, hpAfter: c.hp, big: dmg >= BIG_DAMAGE });
-  if (c.hp <= 0) faint(ctx, uid, by);
+  if (c.hp > 0) return;
+  if (deferFaint) ctx.s.deferredFaint = { uid, by };
+  else faint(ctx, uid, by);
 }
 
 /** 回復する。最大HPは超えない */
@@ -158,6 +165,8 @@ export function faint(ctx: Ctx, uid: string, by: Side): void {
   const c = s.cards[uid];
   const ps = s.players[c.owner];
   const wasActive = ps.active === uid;
+  // 後回しにしていた気絶が、ほかの理由で先に起きた（v2.6）
+  if (s.deferredFaint?.uid === uid) s.deferredFaint = null;
   if (wasActive) ps.active = null;
   else ps.bench = ps.bench.filter((u) => u !== uid);
   c.attackAdd = 0;

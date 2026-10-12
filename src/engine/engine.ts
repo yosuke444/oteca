@@ -6,6 +6,8 @@ import {
   drawOne,
   endGame,
   isOver,
+  faint,
+  isInPlay,
   isSearchable,
   other,
   otegeDefOf,
@@ -274,6 +276,14 @@ function doPromote(ctx: Ctx, player: Side, benchUid: string): void {
   promote(ctx, player, benchUid);
   s.pendingPromote = s.pendingPromote.filter((p) => p !== player);
   if (s.pendingPromote.length > 0) return;
+  // 自爆で両方HP0の時：相手が次を出し終わったので、ここで自爆した側がきぜつする（v2.6）
+  const d = s.deferredFaint;
+  if (d) {
+    s.deferredFaint = null;
+    // ほかの理由で もう気絶していたら、二度は気絶させない
+    if (isInPlay(s, d.uid)) faint(ctx, d.uid, d.by);
+    if (isOver(s) || s.pendingPromote.length > 0) return;
+  }
   resume(ctx);
 }
 
@@ -418,7 +428,8 @@ function attack(ctx: Ctx, player: Side): boolean {
  */
 function processLasting(ctx: Ctx, player: Side): void {
   const { s } = ctx;
-  const counts = (l: Lasting) => l.holder === player && l.createdTurn < s.turnNumber;
+  // きぜつを後回しにしている（HP0の）おてあげの持続効果は発動しない（このあと気絶して消える。v2.6）
+  const counts = (l: Lasting) => l.holder === player && l.createdTurn < s.turnNumber && (l.targetUid === null || l.targetUid !== s.deferredFaint?.uid);
   const newestFirst = (a: Lasting, b: Lasting) => b.seq - a.seq;
   const fire = (list: Lasting[]) => {
     for (const l of list) {

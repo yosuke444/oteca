@@ -270,6 +270,11 @@ export type GameState = {
   lasting: Lasting[];
   /** 最後に付けた持続効果の受けた順番（v2.5） */
   lastingSeq: number;
+  /**
+   * 後回しにしている気絶（v2.6）：技で相手を倒し、同じ技の自分へのダメージで自分もHP0になった時、
+   * 相手がベンチから次を出し終わるまで、自分のおてあげはHP0のままバトル場に残る。相手が出し終わったら気絶する
+   */
+  deferredFaint: { uid: string; by: Side } | null;
   /** カードを選ぶ待ち（phase が choose の時） */
   pendingChoice: PendingChoice | null;
   winner: Side | null;

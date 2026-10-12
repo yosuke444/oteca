@@ -98,6 +98,7 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
     scheduled: [],
     lasting: [],
     lastingSeq: 0,
+    deferredFaint: null,
     pendingChoice: null,
     winner: null,
     endReason: null,

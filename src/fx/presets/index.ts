@@ -29,6 +29,7 @@ import {
   tape,
 } from '../parts';
 import { play, wait } from '../timing';
+import { selfHitBefore } from './selfHit';
 import { lastingAddedAfter, lastingClearedBefore, lastingDamagedBefore, lastingFiredBefore, lastingTickedAfter, lastingTickedBefore } from './lasting';
 import '../fx.css';
 import { t } from '../../i18n';
@@ -308,6 +309,11 @@ async function damageBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Damaged' 
   // 持続効果のダメージは、攻撃の動き（突進）を使わない（v2.5）
   if (ctx.flags.lasting) {
     await lastingDamagedBefore(env, e);
+    return;
+  }
+  // 自爆（技を使ったおてあげ自身へのダメージ）は、攻撃を受けた時とは別の専用の動き（v2.6）
+  if (ctx.attackerUid === e.uid) {
+    await selfHitBefore(env, e, ctx.finalBlow);
     return;
   }
   // 決着の最後の一撃はスローモーション（0.4倍速）

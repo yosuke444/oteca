@@ -39,11 +39,16 @@ export const effectHandlers: { [T in EffectType]: Handler<T> } = {
     heal(ctx, targetOf(src), effect.amount);
   },
 
-  /** 技を使ったおてあげ自身にダメージ。きぜつしたら相手の手柄（SPEC §4-5 ③） */
+  /**
+   * 技を使ったおてあげ自身にダメージ。きぜつしたら相手の手柄（SPEC §4-5 ③）。
+   * この技で相手を倒し、相手がベンチから次を選んでいる時は、自分のきぜつを後回しにする（相手が出し終わってから。v2.6）
+   */
   selfDamage(ctx, effect, src) {
     const c = ctx.s.cards[src.sourceUid];
     if (!c || effect.amount <= 0) return;
-    dealDamage(ctx, c.uid, effect.amount, other(c.owner));
+    const opp = other(c.owner);
+    const knockedOut = src.kind === 'move' && !!src.hitUid && !isInPlay(ctx.s, src.hitUid);
+    dealDamage(ctx, c.uid, effect.amount, opp, knockedOut && ctx.s.pendingPromote.includes(opp));
   },
 
   /** 山札から引く（山札が0なら引けないだけ） */
@@ -71,8 +76,8 @@ export const effectHandlers: { [T in EffectType]: Handler<T> } = {
   /** 技を使ったおてあげをベンチと交代：2体なら選ぶ・1体なら自動・0体なら何もしない（SPEC §4-5 ⑤） */
   switchWithBench(ctx, _effect, src) {
     const ps = ctx.s.players[src.player];
-    // 技を使ったおてあげがバトル場にいない（自分へのダメージできぜつした等）なら行わない
-    if (ps.active !== src.sourceUid || ps.bench.length === 0) return;
+    // 技を使ったおてあげがバトル場にいない（自分へのダメージできぜつした等）・HP0（きぜつの後回し。v2.6）なら行わない
+    if (ps.active !== src.sourceUid || ps.bench.length === 0 || ctx.s.cards[src.sourceUid].hp <= 0) return;
     if (ps.bench.length === 1) {
       switchByEffect(ctx, src.player, ps.bench[0]);
       return;
@@ -158,7 +163,7 @@ export function registerLasting(ctx: Ctx, effect: Effect, src: EffectSource): vo
   };
   const hit = src.hitUid ?? null;
   // 持続ダメージ・持続回復は、バトル場のおてあげにだけ付く（ベンチに戻ると消える。v2.5）
-  const onActive = (uid: string | null) => uid !== null && s.players[s.cards[uid]?.owner ?? src.player].active === uid;
+  const onActive = (uid: string | null) => uid !== null && s.players[s.cards[uid]?.owner ?? src.player].active === uid && s.cards[uid].hp > 0;
   // ばくだんは、場にいれば付く（すでにきぜつしていたら付けない）
   const alive = (uid: string | null) => uid !== null && isInPlay(s, uid);
   switch (effect.type) {
