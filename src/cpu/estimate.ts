@@ -98,7 +98,7 @@ export function selfKoChance(s: GameState, uid: string): number {
 
 /**
  * 相手のバトル場のおてあげが、次の攻撃で このおてあげを倒す確率（相手の手札のアイテムは分からないので margin だけ多めに見る）。
- * withLasting：付いている持続ダメージ・時限も数えるか（交代で守るかを決める時は数えない。ベンチに下げても付いたままなので）
+ * withLasting：付いている持続ダメージ・時限も数えるか（交代で守るかを決める時は数えない。v2.5 からベンチに下げると持続ダメージは消えるが、CPU の強さは変えないため見方はそのまま）
  */
 export function threat(s: GameState, side: Side, targetUid: string, margin = 0, withLasting = true): number {
   const opp: Side = side === 'p1' ? 'p2' : 'p1';
@@ -108,8 +108,8 @@ export function threat(s: GameState, side: Side, targetUid: string, margin = 0, 
   const base = { ...s, cards: { ...s.cards, [a]: { ...s.cards[a], attackAdd: 0, attackOverride: null } } };
   // 付いている持続ダメージ・時限も、このおてあげを倒す原因になる
   if (!withLasting) return koChance(base, a, s.cards[targetUid].hp - margin);
-  const pending = s.lasting.filter((l) => l.targetUid === targetUid && l.owner === opp && l.kind === 'damage' && l.skip === 0).reduce((t, l) => t + l.amount, 0);
-  const bombNow = s.lasting.some((l) => l.targetUid === targetUid && l.kind === 'faint' && l.skip === 0);
+  const pending = s.lasting.filter((l) => l.targetUid === targetUid && l.owner === opp && l.kind === 'damage' && l.turns === 1).reduce((t, l) => t + l.amount, 0);
+  const bombNow = s.lasting.some((l) => l.targetUid === targetUid && l.kind === 'faint' && l.turns === 1);
   if (bombNow) return 1;
   return koChance(base, a, s.cards[targetUid].hp - margin - pending);
 }

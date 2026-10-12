@@ -1,7 +1,7 @@
-import { type Ctx, SIDES, rollDie } from './core';
+import { type Ctx, SIDES, other, rollDie } from './core';
 import { DEFAULT_RULES } from './rules';
 import { seedRng, shuffleInPlace } from './rng';
-import type { CardDb, CardInstance, GameEvent, GameState, PlayerState, RuleSet, Side } from './types';
+import type { CardDb, CardInstance, GameEvent, GameState, Lasting, PlayerState, RuleSet, Side } from './types';
 
 /** 試合を始めるのに必要なもの */
 export type GameConfig = {
@@ -31,8 +31,14 @@ export type GameConfig = {
   noShuffle?: boolean;
 };
 
+/**
+ * 持続効果を最初から付けておく（デバッグ・確認のスクリーンショット用。v2.5）。
+ * at：付く先（active＝バトル場・bench0／bench1＝ベンチ・player＝プレイヤー＝遅延ドロー）。turns：何ターン後に発動するか
+ */
+export type SandboxLasting = { kind: Lasting['kind']; amount: number; turns: number; at: 'active' | 'bench0' | 'bench1' | 'player' };
+
 /** カードを ためす：1人ぶんの置き方（カードNo） */
-export type SandboxSide = { active: number; bench: number[]; hand: number[]; deck: number[] };
+export type SandboxSide = { active: number; bench: number[]; hand: number[]; deck: number[]; lasting?: SandboxLasting[]; /** バトル場のおてあげの HP（確認用。省略時は満タン） */ activeHp?: number };
 
 /**
  * 試合の準備（SPEC §4-3）
@@ -91,6 +97,7 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
     resumeAfterPromote: null,
     scheduled: [],
     lasting: [],
+    lastingSeq: 0,
     pendingChoice: null,
     winner: null,
     endReason: null,
@@ -160,6 +167,22 @@ function placeSandbox(ctx: Ctx, sandbox: Record<Side, SandboxSide>): GameState {
     ps.bench = sb.bench.map(() => uids[i++]);
     ps.hand = sb.hand.map(() => uids[i++]);
     ps.deck = uids.slice(i);
+  }
+  // 持続効果を付けておく（受けた順は、書いた順）
+  for (const side of SIDES) {
+    const ps = s.players[side];
+    const hp = sandbox[side].activeHp;
+    if (hp !== undefined && ps.active) s.cards[ps.active].hp = Math.max(1, Math.min(hp, s.cards[ps.active].maxHp));
+    for (const l of sandbox[side].lasting ?? []) {
+      const targetUid = l.at === 'player' ? null : l.at === 'active' ? ps.active : (ps.bench[l.at === 'bench0' ? 0 : 1] ?? null);
+      if (l.at !== 'player' && targetUid === null) continue;
+      // ゲームで起きない形は作らない：遅延ドローはプレイヤーだけ、持続ダメージ・回復はバトル場だけ（ベンチはばくだんだけ）
+      if ((l.kind === 'draw') !== (l.at === 'player')) continue;
+      if (l.kind !== 'faint' && l.kind !== 'draw' && l.at !== 'active') continue;
+      const mine = l.kind === 'heal' || l.kind === 'selfDamage' || l.kind === 'draw';
+      s.lastingSeq += 1;
+      s.lasting.push({ seq: s.lastingSeq, owner: mine ? side : other(side), holder: side, kind: l.kind, amount: l.amount, targetUid, turns: l.turns, sourceUid: targetUid ?? ps.active ?? '', createdTurn: 0 });
+    }
   }
   s.firstPlayer = 'p1';
   s.currentPlayer = 'p1';

@@ -77,7 +77,9 @@ export function logLine(e: GameEvent, view: GameState, names: Record<Side, strin
     case 'ChoiceNeeded':
       return L.chooseWait(names[e.player]);
     case 'LastingFired':
-      return e.lasting.targetUid !== null ? L.lasting(nm(e.lasting.targetUid)) : L.lasting(names[e.lasting.owner]);
+      return e.lasting.targetUid !== null ? L.lasting(nm(e.lasting.targetUid)) : L.lasting(names[e.lasting.holder]);
+    case 'LastingCleared':
+      return L.lastingCleared(nm(e.uid));
     default:
       return null;
   }

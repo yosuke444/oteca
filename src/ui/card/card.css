@@ -942,3 +942,14 @@ html[data-reduce-fx] .card-art__wait::after {
 .prize-card__inner {
   transform-origin: 0 0;
 }
+/* あとから くる こうかの ちゅうい（v2.5） */
+.card-detail__note {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--pen-blue);
+}
+/* くわしくでは、長い効果（「9かいごに4まいドロー」）を折り返す（v2.5。枠からはみ出さない） */
+.card-moves--big .card-moves__effect {
+  white-space: normal;
+}

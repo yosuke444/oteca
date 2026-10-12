@@ -138,42 +138,58 @@ export function runEffect(ctx: Ctx, effect: Effect, src: EffectSource): void {
 
 /**
  * 持続効果・時限の登録（SPEC §4-5 ①②・処理順の6）。
- * then[i] は (i+1) 回後。0 の回は登録しない。
+ * then[i] は (i+1) ターン後（付いたおてあげの持ち主のターンの終わりで数える）。0 の回は登録しない。
+ * 受けた順番（seq）を1つずつ増やして付ける（古いものほど小さい）。
  */
 export function registerLasting(ctx: Ctx, effect: Effect, src: EffectSource): void {
   if (isOver(ctx.s)) return;
-  const add = (kind: Lasting['kind'], amount: number, targetUid: string | null, timing: Lasting['timing'], skip: number) => {
-    const lasting: Lasting = { owner: src.player, kind, amount, targetUid, timing, skip, sourceUid: src.sourceUid, createdTurn: ctx.s.turnNumber };
-    ctx.s.lasting.push(lasting);
+  const { s } = ctx;
+  const add = (kind: Lasting['kind'], amount: number, targetUid: string | null, turns: number) => {
+    const holder = targetUid !== null ? s.cards[targetUid].owner : src.player;
+    s.lastingSeq += 1;
+    const lasting: Lasting = { seq: s.lastingSeq, owner: src.player, holder, kind, amount, targetUid, turns, sourceUid: src.sourceUid, createdTurn: s.turnNumber };
+    s.lasting.push(lasting);
     ctx.events.push({ type: 'LastingAdded', lasting: { ...lasting } });
   };
-  const each = (then: number[] | undefined, fn: (amount: number, skip: number) => void) => {
+  const each = (then: number[] | undefined, fn: (amount: number, turns: number) => void) => {
     (then ?? []).forEach((amount, i) => {
-      if (amount > 0) fn(amount, i);
+      if (amount > 0) fn(amount, i + 1);
     });
   };
   const hit = src.hitUid ?? null;
-  // 付く先のおてあげが場にいなければ（すでにきぜつした等）付けない
-  const alive = (uid: string | null) => uid !== null && isInPlay(ctx.s, uid);
+  // 持続ダメージ・持続回復は、バトル場のおてあげにだけ付く（ベンチに戻ると消える。v2.5）
+  const onActive = (uid: string | null) => uid !== null && s.players[s.cards[uid]?.owner ?? src.player].active === uid;
+  // ばくだんは、場にいれば付く（すでにきぜつしていたら付けない）
+  const alive = (uid: string | null) => uid !== null && isInPlay(s, uid);
   switch (effect.type) {
     case 'damage':
-      if (alive(hit)) each(effect.then, (a, skip) => add('damage', a, hit, 'opponentTurnEnd', skip));
+      if (onActive(hit)) each(effect.then, (a, t) => add('damage', a, hit, t));
       break;
     case 'heal':
-      if (alive(src.sourceUid)) each(effect.then, (a, skip) => add('heal', a, src.sourceUid, 'ownerTurnEnd', skip));
+      if (onActive(src.sourceUid)) each(effect.then, (a, t) => add('heal', a, src.sourceUid, t));
       break;
     case 'selfDamage':
-      if (alive(src.sourceUid)) each(effect.then, (a, skip) => add('selfDamage', a, src.sourceUid, 'ownerTurnEnd', skip));
+      if (onActive(src.sourceUid)) each(effect.then, (a, t) => add('selfDamage', a, src.sourceUid, t));
       break;
     case 'draw':
-      each(effect.then, (a, skip) => add('draw', a, null, 'ownerTurnEnd', skip));
+      each(effect.then, (a, t) => add('draw', a, null, t));
       break;
     case 'faintLater':
-      if (alive(hit) && effect.after >= 1) add('faint', 0, hit, 'opponentTurnEnd', effect.after - 1);
+      if (alive(hit) && effect.after >= 1) add('faint', 0, hit, effect.after);
       break;
     default:
       break;
   }
+}
+
+/**
+ * バトル場からベンチに戻ったおてあげの、持続ダメージ・持続回復を消す（ばくだんは残る。v2.5）
+ */
+export function clearLastingOnBench(ctx: Ctx, uid: string): void {
+  const gone = ctx.s.lasting.filter((l) => l.targetUid === uid && l.kind !== 'faint');
+  if (gone.length === 0) return;
+  ctx.s.lasting = ctx.s.lasting.filter((l) => !gone.includes(l));
+  ctx.events.push({ type: 'LastingCleared', uid, seqs: gone.map((l) => l.seq) });
 }
 
 /** 持続効果・時限を1つ発動する（SPEC §4-5 ②③） */
@@ -271,6 +287,7 @@ function switchByEffect(ctx: Ctx, player: Side, benchUid: string): void {
   const oldActive = ps.active;
   const i = ps.bench.indexOf(benchUid);
   if (!oldActive || i < 0) return;
+  clearLastingOnBench(ctx, oldActive);
   ps.bench[i] = oldActive;
   ps.active = benchUid;
   ctx.s.cards[benchUid].benchedOnTurn = null;

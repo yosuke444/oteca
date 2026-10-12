@@ -81,8 +81,25 @@ function OtegeDetail({ def, seed }: { def: OtegeCardDef; seed: string }) {
             </li>
           ))}
         </ul>
+        <LastingNotes def={def} />
         {def.flavor && <p className="card-detail__flavor">{def.flavor}</p>}
       </RoughBox>
     </div>
+  );
+}
+
+/** あとから くる こうかの ちゅうい（技に「+」・ばくだん・あとから ひく カードが ある おてあげだけ。v2.5） */
+function LastingNotes({ def }: { def: OtegeCardDef }) {
+  const tr = useT();
+  const effects = def.moves.flatMap((m) => m.effects);
+  const later = effects.some((e) => (e.type === 'damage' || e.type === 'heal' || e.type === 'selfDamage') && (e.then ?? []).some((n) => n > 0));
+  const bomb = effects.some((e) => e.type === 'faintLater');
+  const draw = effects.some((e) => e.type === 'draw' && (e.then ?? []).some((n) => n > 0));
+  const notes = [later && tr.card.lastingNote, bomb && tr.card.bombNote, draw && tr.card.drawLaterNote].filter((x): x is string => !!x);
+  if (notes.length === 0) return null;
+  return (
+    <p className="card-detail__note" data-testid="card-lasting-note">
+      {notes.join(' ')}
+    </p>
   );
 }

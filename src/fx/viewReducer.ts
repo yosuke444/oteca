@@ -124,15 +124,18 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
     case 'LastingAdded':
       v.lasting = [...v.lasting, { ...e.lasting }];
       break;
-    case 'LastingFired': {
-      // 発動したものを消す（見送り回数の変化はイベントが無いので、操作の終わりに正式な状態へそろう）
-      const same = (l: (typeof v.lasting)[number]) =>
-        l.owner === e.lasting.owner && l.kind === e.lasting.kind && l.targetUid === e.lasting.targetUid && l.sourceUid === e.lasting.sourceUid && l.createdTurn === e.lasting.createdTurn;
-      const i = v.lasting.findIndex((l) => same(l) && l.skip === 0);
-      const j = i >= 0 ? i : v.lasting.findIndex(same);
-      if (j >= 0) v.lasting = v.lasting.filter((_, k) => k !== j);
+    case 'LastingFired':
+      // 発動したものを消す（受けた順番 seq で見分ける）
+      v.lasting = v.lasting.filter((l) => l.seq !== e.lasting.seq);
       break;
-    }
+    case 'LastingTicked':
+      // 残りが1ターン進む（行が1つ上がる・「あと」が1減る。v2.5）
+      v.lasting = v.lasting.map((l) => (e.seqs.includes(l.seq) ? { ...l, turns: l.turns - 1 } : l));
+      break;
+    case 'LastingCleared':
+      // ベンチに戻って、持続ダメージ・持続回復が消えた（v2.5）
+      v.lasting = v.lasting.filter((l) => !e.seqs.includes(l.seq));
+      break;
     case 'Discarded': {
       const ps = v.players[e.player];
       if (e.fromDeck) ps.deck = ps.deck.filter((u) => !e.uids.includes(u));

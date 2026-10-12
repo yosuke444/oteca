@@ -29,6 +29,7 @@ import {
   tape,
 } from '../parts';
 import { play, wait } from '../timing';
+import { lastingAddedAfter, lastingClearedBefore, lastingDamagedBefore, lastingFiredBefore, lastingTickedAfter, lastingTickedBefore } from './lasting';
 import '../fx.css';
 import { t } from '../../i18n';
 
@@ -304,6 +305,11 @@ async function damageBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Damaged' 
   const attacker = ctx.attackerUid ? env.cardEl(ctx.attackerUid) : null;
   const tAt = cardCenter(env, e.uid);
   ctx.flags.hpBefore = env.view().cards[e.uid]?.hp;
+  // 持続効果のダメージは、攻撃の動き（突進）を使わない（v2.5）
+  if (ctx.flags.lasting) {
+    await lastingDamagedBefore(env, e);
+    return;
+  }
   // 決着の最後の一撃はスローモーション（0.4倍速）
   if (ctx.finalBlow) env.slowMo(0.4);
   // 攻撃側がぐっと下がってから前へ突進（速度線）
@@ -361,7 +367,10 @@ async function healBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Healed' }>,
   const before = c?.hp ?? e.hpAfter - e.amount;
   const max = c?.maxHp ?? 0;
   const item = ctx.flags.item as ItemFxKind | undefined;
-  if (item === 'bigHeal') {
+  if (ctx.flags.lasting) {
+    // 持続回復：光の粒は LastingFired で出した。ここでは数字とHPバーだけ（v2.5）
+    ctx.flags.heal = { before, max, mode: 'heal' };
+  } else if (item === 'bigHeal') {
     // スポドリ：水色の水しぶきが弾け、HPバーが大きく伸びる
     particles(env, { kind: 'splash', x: at.x, y: at.y, count: 44, colors: ['var(--pen-sky)', 'var(--fx-splash-light)', 'var(--pen-blue)'], speed: [220, 620], size: [3, 7], life: [0.5, 0.9], gravity: 900, spread: Math.PI * 0.9 });
     const ring = spawn(env, 'fx-splash-ring', at);
@@ -578,37 +587,7 @@ async function promoteAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Promoted'
   await wait(250);
 }
 
-// ---------------------------------------------------------------- 持続効果・カードを選ぶ（v2.0。SPEC §8-5）
-
-/** 持続効果の印の要素（カードの上、またはプレイヤーの山札の横） */
-function lastingMarkEl(env: FxEnv, l: Extract<GameEvent, { type: 'LastingFired' }>['lasting']): HTMLElement | null {
-  const box = l.targetUid !== null ? env.root.querySelector(`[data-lasting="${l.targetUid}"]`) : env.root.querySelector(`[data-lasting="${l.owner}-draw"]`);
-  return (box?.querySelector(`[data-kind="${l.kind}"]`) as HTMLElement | null) ?? null;
-}
-
-/** 印がぽんと付く */
-async function lastingAddedAfter(env: FxEnv, e: Extract<GameEvent, { type: 'LastingAdded' }>): Promise<void> {
-  const el = lastingMarkEl(env, e.lasting);
-  if (!el) return;
-  env.sound('se_pen');
-  await play(gsap.fromTo(el, { scale: 1.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: 'back.out(3)', clearProps: 'scale,opacity' }));
-}
-
-/** 発動する時は、その印が光ってから効果の演出（このあとの Damaged・Healed・Drew・Fainted） */
-async function lastingFiredBefore(env: FxEnv, e: Extract<GameEvent, { type: 'LastingFired' }>): Promise<void> {
-  const el = lastingMarkEl(env, e.lasting);
-  env.sound(e.lasting.kind === 'faint' ? 'se_hit_big' : 'se_pen');
-  if (!el) {
-    await wait(200);
-    return;
-  }
-  el.classList.add('is-fire');
-  const b = boxOf(env, el);
-  const glow = b && !env.reduce() ? await marker(env, { x: b.x - 4, y: b.y - 2, w: b.w + 8, h: b.h + 4 }, undefined, 0.2) : null;
-  await wait(e.lasting.kind === 'faint' ? 650 : 420);
-  el.classList.remove('is-fire');
-  glow?.remove();
-}
+// ---------------------------------------------------------------- 持続効果は ./lasting.ts（v2.5）・カードを選ぶ（v2.0。SPEC §8-5）
 
 /** 捨てる：カードが すてふだへ飛ぶ（相手の手札は裏面で出て、表に返る） */
 async function discardedBefore(env: FxEnv, e: Extract<GameEvent, { type: 'Discarded' }>): Promise<void> {
@@ -767,6 +746,8 @@ export const PRESETS: PresetMap = {
   ItemUsed: { before: itemBefore, after: itemAfter },
   LastingAdded: { after: lastingAddedAfter },
   LastingFired: { before: lastingFiredBefore },
+  LastingTicked: { before: lastingTickedBefore, after: lastingTickedAfter },
+  LastingCleared: { before: lastingClearedBefore },
   Discarded: { before: discardedBefore },
   Searched: { after: searchedAfter },
   DeckShuffled: { before: shuffledBefore },

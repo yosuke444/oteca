@@ -1,2 +1,2 @@
 export const appVersion = '0.0.0';
-export const protocolVersion = 10;
+export const protocolVersion = 11;

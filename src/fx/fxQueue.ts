@@ -1,5 +1,6 @@
 import type { GameEvent, GameState, Side } from '../engine/types';
 import type { FxEnv, StepContext } from './env';
+import { lastingInEffect } from './lastingContext';
 import { PRESETS } from './presets';
 import { wait } from './timing';
 import { applyEventToView } from './viewReducer';
@@ -82,6 +83,8 @@ export class FxQueue {
       const e = step.events[i];
       ctx.index = i;
       if (e.type === 'MoveSelected') ctx.attackerUid = e.uid;
+      // 持続効果の発動のあとに続くイベント（ダメージ・回復・ドロー・きぜつ）は、持続効果の動きで見せる（v2.5）
+      ctx.flags.lasting = lastingInEffect(step.events, i) ?? undefined;
       const preset = PRESETS[e.type] as { before?: Function; after?: Function } | undefined;
       // 演出で失敗しても、表示は進めて試合は止めない
       try {

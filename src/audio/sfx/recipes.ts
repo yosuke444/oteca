@@ -193,6 +193,63 @@ export const RECIPES: Record<string, Recipe> = {
       sparkle(0.1, 0.6, 14, 0.07),
     ],
   },
+  // ↓ 持続効果（v2.5）。攻撃の「ドカッ」とはっきり違う、インク・光・泡の音
+  // 持続ダメージ：赤いインクのしずくが「ポタッ」と落ちて「ジュッ」としみる
+  se_lasting_damage: {
+    gain: 0.85,
+    layers: [
+      { src: 'sine', gain: 0.55, freq: [1500, 380], freqTime: 0.07, env: { a: 0.001, d: 0.09, s: 0, r: 0.03 } },
+      { src: 'sine', gain: 0.3, freq: [900, 260], freqTime: 0.05, env: { a: 0.001, d: 0.06, s: 0, r: 0.02 }, delay: 0.07 },
+      { src: 'white', gain: 0.32, filter: { type: 'bandpass', freq: [4200, 1800], q: 1.4, time: 0.3 }, env: { a: 0.004, d: 0.28, s: 0, r: 0.06 }, delay: 0.06, reverb: 0.15 },
+      { src: 'triangle', gain: 0.2, freq: [220, 150], env: { a: 0.002, d: 0.12, s: 0, r: 0.03 }, delay: 0.06 },
+    ],
+  },
+  // 持続回復：光の粒が「ふわ〜っ」と立ちのぼる（息のような音が上がっていく）
+  se_lasting_heal: {
+    gain: 0.7,
+    layers: [
+      { src: 'pink', gain: 0.32, filter: { type: 'bandpass', freq: [500, 4200], q: 2.2, time: 0.7 }, env: { a: 0.12, d: 0.45, s: 0, r: 0.2 }, pan: [-0.2, 0.2] },
+      { src: 'sine', gain: 0.22, freq: [520, 1560], freqTime: 0.7, partials: [1, 2.01], env: { a: 0.08, d: 0.5, s: 0, r: 0.25 }, reverb: 0.4 },
+      { src: 'triangle', gain: 0.18, env: { a: 0.01, d: 0.12, s: 0.3, r: 0.25 }, notes: [{ t: 0.15, f: N.G5, d: 0.2 }, { t: 0.32, f: N.D6, d: 0.2 }, { t: 0.5, f: N.G6, d: 0.35 }], reverb: 0.5, reverbLong: true },
+      sparkle(0.2, 0.7, 16, 0.06),
+    ],
+  },
+  // ばくだんの導火線：「ジジジ…」と火花が走る
+  se_lasting_fuse: {
+    gain: 0.7,
+    layers: [
+      { src: 'white', gain: 0.35, filter: { type: 'highpass', freq: [5200, 3800] }, env: { a: 0.001, d: 0.012, s: 0, r: 0.006 }, grains: { count: 26, spread: 0.6, jitter: 0.9, pitchJitter: 0.3, gainJitter: 0.7 } },
+      { src: 'square', gain: 0.05, freq: [1800, 2400], env: { a: 0.01, d: 0.55, s: 0, r: 0.05 }, filter: { type: 'bandpass', freq: [2600, 3200], q: 3 } },
+    ],
+  },
+  // ばくだん：「ボカーン」＋紙吹雪の「パラパラ」
+  se_lasting_bomb: {
+    gain: 1,
+    layers: [
+      { src: 'sine', gain: 1, freq: [110, 24], freqTime: 0.8, env: { a: 0.001, d: 0.9, s: 0, r: 0.15 }, drive: 0.7 },
+      { src: 'brown', gain: 0.9, filter: { type: 'lowpass', freq: [3000, 120], time: 1.0 }, env: { a: 0.002, d: 1.0, s: 0, r: 0.3 }, drive: 0.4, reverb: 0.5, reverbLong: true },
+      { src: 'white', gain: 0.5, filter: { type: 'bandpass', freq: [2400, 400], q: 0.7, time: 0.4 }, env: { a: 0.001, d: 0.35, s: 0, r: 0.1 }, pan: [-0.5, 0.5] },
+      { src: 'white', gain: 0.22, filter: { type: 'bandpass', freq: [3000, 3000], q: 2 }, env: { a: 0.001, d: 0.02, s: 0, r: 0.01 }, delay: 0.25, grains: { count: 22, spread: 0.9, jitter: 0.9, pitchJitter: 0.5, gainJitter: 0.6, fade: 0.7 }, pan: [-0.6, 0.6] },
+      sparkle(0.3, 0.8, 10, 0.05),
+    ],
+  },
+  // 遅延ドロー：山札の札が光る「シャラーン」と、カードが飛び出す「シュッ」
+  se_lasting_draw: {
+    gain: 0.75,
+    layers: [
+      { src: 'sine', gain: 0.3, partials: [1, 2.76, 5.4], env: { a: 0.002, d: 0.5, s: 0, r: 0.3 }, notes: [{ t: 0, f: N.E6, d: 0.3 }, { t: 0.08, f: N.B5, d: 0.3 }, { t: 0.16, f: N.G6, d: 0.45 }], reverb: 0.45, reverbLong: true },
+      { src: 'white', gain: 0.3, filter: { type: 'bandpass', freq: [1200, 5200], q: 1.2, time: 0.18 }, env: { a: 0.01, d: 0.16, s: 0, r: 0.04 }, delay: 0.22, pan: [0.3, -0.3] },
+      sparkle(0.02, 0.4, 10, 0.06),
+    ],
+  },
+  // ベンチに戻って持続効果が消える：泡が「しゅわっ」とはじける
+  se_lasting_clear: {
+    gain: 0.7,
+    layers: [
+      { src: 'sine', gain: 0.22, freq: [700, 2100], freqTime: 0.03, env: { a: 0.001, d: 0.035, s: 0, r: 0.01 }, grains: { count: 20, spread: 0.45, jitter: 0.9, pitchJitter: 0.6, gainJitter: 0.6, fade: 0.6 }, pan: [-0.4, 0.4] },
+      { src: 'white', gain: 0.25, filter: { type: 'highpass', freq: [6000, 3000], time: 0.5 }, env: { a: 0.02, d: 0.45, s: 0, r: 0.08 } },
+    ],
+  },
   // きぜつ：紙をくしゃくしゃに丸める → 最後に「ポスッ」
   se_ko: {
     gain: 0.9,

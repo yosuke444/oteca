@@ -11,7 +11,7 @@ import { CardArt } from './CardArt';
 import { local } from '../../i18n';
 import { useLang, useT } from '../../i18n/useT';
 import { effectLabel, faceLabel, sortedEffects } from './cardText';
-import { LastingMarks } from './LastingMarks';
+import { BenchBomb } from './LastingMarks';
 import { FitLine } from './FitLine';
 import { FitText, ItemArt, itemArtUrl } from './ItemArt';
 import './card.css';
@@ -211,8 +211,8 @@ function OtegeFace({
           )}
         </div>
       )}
-      {/* 持続効果の印（どく・あとから回復・ばくだん。SPEC §8-5） */}
-      {onField && view && <LastingMarks view={view} uid={card.uid} />}
+      {/* ベンチのおてあげは、ばくだんの札だけを小さく（バトル場の持続効果は、カードの横の表。v2.5） */}
+      {onField && view && size === 'bench' && <BenchBomb view={view} uid={card.uid} />}
       {/* 出したばかり（このターンは交代でバトル場に出せない。SPEC §8-3・v1.4） */}
       {onField && view && justPlaced(view, card) && (
         <Sticky seed={`just-${card.uid}`} color="yellow" angle={-8} className="just-placed">

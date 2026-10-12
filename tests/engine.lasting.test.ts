@@ -89,7 +89,7 @@ describe('E23 持続ダメージ（相手のターンの終わり・攻撃を受
     const r1 = end(s, 1);
     expect(hp(r1.state, target)).toBe(140);
     expect(r1.state.lasting).toEqual([
-      { owner: 'p1', kind: 'damage', amount: 10, targetUid: target, timing: 'opponentTurnEnd', skip: 0, sourceUid: act(s, 'p1'), createdTurn: 1 },
+      { seq: 1, owner: 'p1', holder: 'p2', kind: 'damage', amount: 10, targetUid: target, turns: 1, sourceUid: act(s, 'p1'), createdTurn: 1 },
     ]);
     // 相手のターンの始めには発動しない
     expect(eventsOf(r1.events, 'LastingFired')).toEqual([]);
@@ -107,10 +107,10 @@ describe('E23 持続ダメージ（相手のターンの終わり・攻撃を受
     let r = end(s, 1);
     expect(eventsOf(r.events, 'Damaged')).toEqual([]);
     expect(r.state.lasting).toHaveLength(1);
-    expect(r.state.lasting[0]).toMatchObject({ amount: 60, skip: 1 });
+    expect(r.state.lasting[0]).toMatchObject({ amount: 60, turns: 2 });
     r = end(r.state, 4); // 1回後：まだ（4はダメージ20だが、むつあしは自分に打たないので p1 に）
     expect(eventsOf(r.events, 'LastingFired')).toEqual([]);
-    expect(r.state.lasting[0].skip).toBe(0);
+    expect(r.state.lasting[0].turns).toBe(1);
     r = end(r.state, 4); // p1：おおとろ 4 は1枚ドロー
     r = end(r.state, 1); // 2回後の相手のターン終わり：60
     expect(eventsOf(r.events, 'LastingFired')).toHaveLength(1);
@@ -121,7 +121,7 @@ describe('E23 持続ダメージ（相手のターンの終わり・攻撃を受
     let s = game([['dokusage', 15]], [['mutsuashi', 15]], { active: 'dokusage', bench: ['dokusage'] }, { active: 'mutsuashi' });
     const target = act(s, 'p2');
     let r = end(s, 1); // 160-10
-    expect(r.state.lasting.map((l) => l.skip)).toEqual([0, 1, 2]);
+    expect(r.state.lasting.map((l) => l.turns)).toEqual([1, 2, 3]);
     const fired: number[] = [];
     for (let i = 0; i < 3; i++) {
       r = end(r.state, 1); // p2：むつあし 1 は回復10
@@ -145,7 +145,7 @@ describe('E24 持続回復・自分への持続ダメージ・持続ドロー（
     s = patchCard(s, me, { hp: 50 });
     let r = end(s, 4);
     expect(hp(r.state, me)).toBe(60);
-    expect(r.state.lasting[0]).toMatchObject({ kind: 'heal', amount: 10, targetUid: me, timing: 'ownerTurnEnd', skip: 0 });
+    expect(r.state.lasting[0]).toMatchObject({ kind: 'heal', amount: 10, targetUid: me, holder: 'p1', turns: 1 });
     r = end(r.state, 1); // p2 のターン終わり：発動しない
     expect(eventsOf(r.events, 'LastingFired')).toEqual([]);
     r = end(r.state, 1); // p1：ゆきだるま 1 は相手に20 → そのあと持続の回復10
@@ -163,9 +163,9 @@ describe('E24 持続回復・自分への持続ダメージ・持続ドロー（
     let s = startMain({ cardDb: db, decks: { p1: Array(15).fill(901), p2: deckOf([['mutsuashi', 15]]) } });
     const me = act(s, 'p1');
     let r = end(s, 1);
-    expect(r.state.lasting.map((l) => [l.kind, l.timing, l.skip])).toEqual([
-      ['selfDamage', 'ownerTurnEnd', 0],
-      ['draw', 'ownerTurnEnd', 1],
+    expect(r.state.lasting.map((l) => [l.kind, l.holder, l.turns])).toEqual([
+      ['selfDamage', 'p1', 1],
+      ['draw', 'p1', 2],
     ]);
     r = end(r.state, 1); // p2
     expect(eventsOf(r.events, 'LastingFired')).toEqual([]);
@@ -174,23 +174,25 @@ describe('E24 持続回復・自分への持続ダメージ・持続ドロー（
     expect(eventsOf(r.events, 'LastingFired').map((e) => e.lasting.kind)).toEqual(['selfDamage']);
     expect(hp(r.state, me)).toBe(70);
     r = end(r.state, 1); // p2
-    r = end(r.state, 1); // p1：2回後のドロー2枚（＋1回目の技の自分への30）
-    expect(eventsOf(r.events, 'LastingFired').map((e) => e.lasting.kind)).toEqual(['draw', 'selfDamage']);
+    r = end(r.state, 1); // p1：2回後のドロー2枚（＋2回目の技の自分への30）。持続ダメージが先、ドローは最後（v2.5）
+    expect(eventsOf(r.events, 'LastingFired').map((e) => e.lasting.kind)).toEqual(['selfDamage', 'draw']);
     expect(eventsOf(r.events, 'Drew').filter((d) => d.player === 'p1')).toHaveLength(2);
     expect(r.state.players.p1.hand.length).toBeGreaterThanOrEqual(hand + 2);
   });
 });
 
-describe('E25 付く先：ベンチに下がっても続く・きぜつで消える・ドローはプレイヤーに', () => {
-  it('持続ダメージを受けたおてあげがベンチに下がっても、ベンチのそのおてあげに発動する', () => {
+describe('E25 付く先：ベンチに戻ると消える・きぜつで消える・ドローはプレイヤーに', () => {
+  it('持続ダメージを受けたおてあげがベンチに戻ったら、持続ダメージは消える（v2.5）', () => {
     let s = game([['hasami', 15]], [['mutsuashi', 15]], { active: 'hasami' }, { active: 'mutsuashi', bench: ['mutsuashi'] });
     const hit = act(s, 'p2');
     let r = end(s, 1);
     const other = r.state.players.p2.bench[0];
     r = ok(r.state, { type: 'SWAP', player: 'p2', benchUid: other });
+    expect(eventsOf(r.events, 'LastingCleared')).toEqual([{ type: 'LastingCleared', uid: hit, seqs: [1] }]);
+    expect(r.state.lasting).toEqual([]);
     r = end(r.state);
-    const d = eventsOf(r.events, 'Damaged');
-    expect(d).toEqual([{ type: 'Damaged', uid: hit, amount: 10, hpAfter: 130, big: false }]);
+    expect(eventsOf(r.events, 'Damaged')).toEqual([]);
+    expect(hp(r.state, hit)).toBe(140);
     expect(r.state.players.p2.bench).toContain(hit);
   });
 
@@ -204,14 +206,14 @@ describe('E25 付く先：ベンチに下がっても続く・きぜつで消え
     expect(eventsOf(r.events, 'Fainted')).toEqual([{ type: 'Fainted', uid: hit, by: 'p1', koCount: 1 }]);
     expect(r.state.lasting).toEqual([]);
 
-    // 別の方法できぜつしても消える：どくが付いたまま、次の攻撃できぜつ
+    // ベンチに戻すと、どくは発動しない（v2.5）
     let t = game([['hasami', 15]], [['mutsuashi', 15]], { active: 'hasami' }, { active: 'mutsuashi', bench: ['mutsuashi'] });
     const hit2 = act(t, 'p2');
     t = patchCard(t, hit2, { hp: 45 });
     let q = end(t, 1); // 45-20=25、どく10（p2 のターン終わり）
     q = ok(q.state, { type: 'SWAP', player: 'p2', benchUid: q.state.players.p2.bench[0] });
-    q = end(q.state); // どく10 → 15（ベンチで）
-    expect(hp(q.state, hit2)).toBe(15);
+    q = end(q.state); // ベンチに戻ったので どくは消えている
+    expect(hp(q.state, hit2)).toBe(25);
     expect(q.state.lasting).toEqual([]);
   });
 
@@ -221,7 +223,7 @@ describe('E25 付く先：ベンチに下がっても続く・きぜつで消え
     let r = end(s, 1);
     expect(eventsOf(r.events, 'Fainted')).toEqual([{ type: 'Fainted', uid: box, by: 'p2', koCount: 1 }]);
     expect(r.state.lasting).toEqual([
-      { owner: 'p1', kind: 'draw', amount: 4, targetUid: null, timing: 'ownerTurnEnd', skip: 8, sourceUid: box, createdTurn: 1 },
+      { seq: 1, owner: 'p1', holder: 'p1', kind: 'draw', amount: 4, targetUid: null, turns: 9, sourceUid: box, createdTurn: 1 },
     ]);
     // 自分のターンの終わりを8回見送り、9回目に4枚
     let firedAt = -1;
@@ -244,14 +246,14 @@ describe('E26 ばくだん（時限）', () => {
     let r = end(s, 6);
     expect(hp(r.state, hit)).toBe(140);
     expect(r.state.lasting).toEqual([
-      { owner: 'p1', kind: 'faint', amount: 0, targetUid: hit, timing: 'opponentTurnEnd', skip: 2, sourceUid: act(s, 'p1'), createdTurn: 1 },
+      { seq: 1, owner: 'p1', holder: 'p2', kind: 'faint', amount: 0, targetUid: hit, turns: 3, sourceUid: act(s, 'p1'), createdTurn: 1 },
     ]);
     r = end(r.state, 1); // 1回後（p2 のターン終わり）
-    expect(r.state.lasting[0].skip).toBe(1);
+    expect(r.state.lasting[0].turns).toBe(2);
     r = end(r.state, 1); // p1：ばくだん 1 は 0（何も起きない）
     expect(eventsOf(r.events, 'Damaged')).toEqual([]);
     r = end(r.state, 1); // 2回後
-    expect(r.state.lasting[0].skip).toBe(0);
+    expect(r.state.lasting[0].turns).toBe(1);
     r = end(r.state, 1);
     // p2 はばくだんの付いたおてあげをベンチへ下げる
     r = ok(r.state, { type: 'SWAP', player: 'p2', benchUid: r.state.players.p2.bench[0] });

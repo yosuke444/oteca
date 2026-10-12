@@ -4,7 +4,7 @@ import type { BattleMode } from '../../battle/setup';
 import type { Action, GameState, Side } from '../../engine/types';
 import { BattleCard, CARD_SIZE } from '../../ui/card/BattleCard';
 import { CardBack } from '../../ui/card/CardBack';
-import { DrawMarks } from '../../ui/card/LastingMarks';
+import { DrawTags, LastingTable } from '../../ui/card/LastingMarks';
 import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
@@ -172,7 +172,7 @@ export function BattleBoard(p: Props) {
         ) : (
           <span className="battle-pile__empty" />
         )}
-        {kind === 'deck' && <DrawMarks view={view} side={side} />}
+        {kind === 'deck' && <DrawTags view={view} side={side} />}
         <span className="battle-pile__label">
           {kind === 'deck' ? tr.battle.deck : tr.battle.discard} <b className="num">{n}</b>
         </span>
@@ -267,6 +267,8 @@ export function BattleBoard(p: Props) {
       {/* ---------------- あいての場 ---------------- */}
       {benchSlot(opp, 0)}
       {activeSlot(opp)}
+      {/* バトル場のおてあげが変わったら作り直す（「+N」の窓を閉じる） */}
+      <LastingTable key={`lt-${opp}-${view.players[opp].active ?? ''}`} view={view} side={opp} mine={false} />
       {benchSlot(opp, 1)}
       {pile(opp, 'deck')}
       {pile(opp, 'discard')}
@@ -291,6 +293,7 @@ export function BattleBoard(p: Props) {
       {/* ---------------- じぶんの場 ---------------- */}
       {benchSlot(me, 0)}
       {activeSlot(me)}
+      <LastingTable key={`lt-${me}-${view.players[me].active ?? ''}`} view={view} side={me} mine />
       {benchSlot(me, 1)}
       {pile(me, 'deck')}
       {pile(me, 'discard')}

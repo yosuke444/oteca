@@ -157,3 +157,26 @@
   font-size: 22px;
   white-space: nowrap;
 }
+
+/* あとから くる こうか（v2.5）：カードの横の表と、山札の青い札の みほん */
+.rules-art--lasting {
+  position: relative;
+  gap: 10px;
+}
+.rules-lasting__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rules-lasting__row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 46px;
+  align-items: center;
+}
+.rules-lasting__draw {
+  position: absolute;
+  right: 0;
+  top: -6px;
+}

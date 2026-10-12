@@ -164,22 +164,28 @@ export type PlayerState = {
 };
 
 /**
- * 持続効果・時限の1件（SPEC §4-5 ①②。v2.0）
- * timing は効果を付けた人（owner）から見たタイミング。skip 回だけ見送ってから発動し、消える。
+ * 持続効果・時限の1件（SPEC §4-5 ①②。v2.0。v2.5 で作り直し）
+ * holder のターンの終わり1回を「1ターン」と数える。turns が 1 のものは、次に来る holder のターンの終わりに発動する。
+ * - 持続ダメージ・持続回復・自分への持続ダメージ・ばくだん：付いたおてあげ（targetUid）の持ち主が holder
+ * - 遅延ドロー：プレイヤー（targetUid は null）が holder
  */
 export type Lasting = {
+  /** 受けた順番（試合の中で1から。小さいほど古い） */
+  seq: number;
+  /** 効果を付けた人（倒した数はこの人に） */
   owner: Side;
+  /** このプレイヤーのターンの終わりに数え、発動する */
+  holder: Side;
   kind: 'damage' | 'heal' | 'selfDamage' | 'draw' | 'faint';
   /** ダメージ・回復の量、ドローの枚数（faint では 0） */
   amount: number;
   /** 付いているおてあげ。null はプレイヤーに付く（ドロー） */
   targetUid: string | null;
-  timing: 'ownerTurnEnd' | 'opponentTurnEnd';
-  /** 発動までに見送る回数（0 なら次に来たタイミングで発動） */
-  skip: number;
+  /** 何ターン後に発動するか（1 なら次に来る holder のターンの終わり。遅延ドローでは「あと」の数） */
+  turns: number;
   /** 効果を出したおてあげ */
   sourceUid: string;
-  /** 登録された通算ターン番号（同じターンには発動しない） */
+  /** 登録された通算ターン番号（そのターンの終わりは数えない） */
   createdTurn: number;
 };
 
@@ -260,8 +266,10 @@ export type GameState = {
   pendingPromote: Side[];
   resumeAfterPromote: Resume | null;
   scheduled: ScheduledEffect[];
-  /** 持続効果・時限（登録された順。v2.0） */
+  /** 持続効果・時限（受けた順。v2.0） */
   lasting: Lasting[];
+  /** 最後に付けた持続効果の受けた順番（v2.5） */
+  lastingSeq: number;
   /** カードを選ぶ待ち（phase が choose の時） */
   pendingChoice: PendingChoice | null;
   winner: Side | null;
@@ -309,8 +317,12 @@ export type GameEvent =
   // ↓ v2.0（UPDATE_v2 §4）
   /** 持続効果・時限が付いた */
   | { type: 'LastingAdded'; lasting: Lasting }
-  /** 持続効果・時限が発動する（このあとに Damaged・Healed・Drew・Fainted が続く） */
+  /** 持続効果・時限が発動する（このあとに Damaged・Healed・Drew・Fainted が続く）。同じターンの中では新しいものから1つずつ */
   | { type: 'LastingFired'; lasting: Lasting }
+  /** player のターンの終わりで、残りの持続効果が1ターン進んだ（seqs のものの turns が1減った。v2.5） */
+  | { type: 'LastingTicked'; player: Side; seqs: number[] }
+  /** バトル場からベンチに戻ったので、持続ダメージ・持続回復が消えた（ばくだんは残る。v2.5） */
+  | { type: 'LastingCleared'; uid: string; seqs: number[] }
   /** 捨てた。fromDeck なら山札の一番上から */
   | { type: 'Discarded'; player: Side; uids: string[]; fromDeck: boolean }
   /** 山札から選んで手札に加えた（相手には何を取ったか見せない） */

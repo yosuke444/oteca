@@ -12,7 +12,7 @@ import {
   promote,
   rollDie,
 } from './core';
-import { applyChoice, fireLasting, runEffect, runQueue } from './effects';
+import { applyChoice, clearLastingOnBench, fireLasting, runEffect, runQueue } from './effects';
 import type {
   Action,
   ApplyResult,
@@ -260,6 +260,8 @@ function doSwap(ctx: Ctx, player: Side, benchUid: string): void {
   const ps = ctx.s.players[player];
   const oldActive = ps.active as string;
   const i = ps.bench.indexOf(benchUid);
+  // ベンチに戻るおてあげの持続ダメージ・持続回復は消える（ばくだんは残る。v2.5）
+  clearLastingOnBench(ctx, oldActive);
   ps.bench[i] = oldActive;
   ps.active = benchUid;
   ctx.s.cards[benchUid].benchedOnTurn = null;
@@ -407,25 +409,32 @@ function attack(ctx: Ctx, player: Side): boolean {
 }
 
 /**
- * 持続効果・時限（SPEC §4-5 ①②）：player のターンの終わりに、当てはまるものを登録順に処理する。
- * 見送る回数（skip）が残っていれば1減らすだけ。発動したものは消える。
+ * 持続効果・時限（SPEC §4-5 ①②。v2.5）：player のターンの終わりに1ターン進める。
+ * 1. 持続ダメージ・持続回復・ばくだんのうち、このターンに来るもの（turns が 1）を、新しく受けたものから1つずつ発動する
+ *    （途中で気絶したら、そのおてあげに残っているものは消える）
+ * 2. 残りを1ターン進める（turns を1減らす。LastingTicked）
+ * 3. 遅延ドローのうち 0 になったものを、新しいものから引く（同じターンなら、持続ダメージ・回復の後）
+ * 登録されたターンの終わりは数えない。
  */
 function processLasting(ctx: Ctx, player: Side): void {
   const { s } = ctx;
-  const due: Lasting[] = [];
-  for (const l of s.lasting) {
-    if (l.createdTurn >= s.turnNumber) continue;
-    const timing = l.owner === player ? 'ownerTurnEnd' : 'opponentTurnEnd';
-    if (l.timing !== timing) continue;
-    if (l.skip > 0) l.skip -= 1;
-    else due.push(l);
-  }
-  if (due.length === 0) return;
-  s.lasting = s.lasting.filter((l) => !due.includes(l));
-  for (const l of due) {
-    fireLasting(ctx, l);
-    if (isOver(s)) return;
-  }
+  const counts = (l: Lasting) => l.holder === player && l.createdTurn < s.turnNumber;
+  const newestFirst = (a: Lasting, b: Lasting) => b.seq - a.seq;
+  const fire = (list: Lasting[]) => {
+    for (const l of list) {
+      // 前に発動したもので気絶して、消えていれば行わない
+      if (!s.lasting.includes(l)) continue;
+      s.lasting = s.lasting.filter((x) => x !== l);
+      fireLasting(ctx, l);
+      if (isOver(s)) return;
+    }
+  };
+  fire(s.lasting.filter((l) => counts(l) && l.kind !== 'draw' && l.turns <= 1).sort(newestFirst));
+  if (isOver(s)) return;
+  const ticked = s.lasting.filter(counts);
+  for (const l of ticked) l.turns -= 1;
+  if (ticked.length > 0) ctx.events.push({ type: 'LastingTicked', player, seqs: ticked.map((l) => l.seq) });
+  fire(s.lasting.filter((l) => counts(l) && l.kind === 'draw' && l.turns <= 0).sort(newestFirst));
 }
 
 /**

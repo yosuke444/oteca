@@ -496,3 +496,57 @@
   white-space: nowrap;
   font-family: var(--font-hand);
 }
+
+/* ---------- 持続効果（v2.5。fx/presets/lasting.ts） ---------- */
+/* 赤いインクのしずく */
+.fx-lasting-drop {
+  z-index: 7;
+  filter: drop-shadow(1px 2px 0 var(--note-shadow));
+}
+.fx-lasting-drop > svg {
+  display: block;
+}
+.fx-lasting-splat {
+  z-index: 5;
+}
+/* 緑の光の粒（札がほどけてカードの足もとへ） */
+.fx-lasting-mote {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pen-green);
+  box-shadow: 0 0 10px 4px var(--fx-heal-light);
+  z-index: 6;
+}
+/* カードの下から立ちのぼる光の柱 */
+.fx-lasting-pillar {
+  height: 0;
+  translate: -50% -100%;
+  border-radius: 40px 40px 8px 8px;
+  background: linear-gradient(to top, var(--fx-heal-light), transparent);
+  z-index: 5;
+}
+/* ばくだんの煙 */
+.fx-lasting-smoke {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, var(--fx-smoke), transparent 70%);
+  z-index: 6;
+}
+/* 遅延ドロー：山札のまわりに広がる青い輪 */
+.fx-lasting-ring {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 4px solid var(--pen-blue);
+  z-index: 6;
+}
+/* 遅延ドローの「あと」：前の数字が落ちる */
+.fx-lasting-left {
+  font-family: var(--font-num);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--pen-blue);
+  z-index: 7;
+}

@@ -146,15 +146,19 @@ export const hira = {
       /** ひきかえカードで、灰色のスーパーおてあげ（v2.4） */
       noSuper: 'スーパーおてあげ は えらべません',
     },
+    /** 持続効果の表・札（v2.5） */
     lasting: {
-      poison: (n: number, times: number) => `${n} ×${times}`,
-      healNext: (n: number) => `+${n} つぎ`,
-      healLater: (n: number, after: number) => `+${n} あと${after}`,
-      selfNext: (n: number) => `-${n} つぎ`,
-      selfLater: (n: number, after: number) => `-${n} あと${after}`,
-      draw: (n: number, after: number) => `+${n}まい あと${after}`,
-      poisonAria: (n: number, times: number) => `どく：つぎに ${n}、あと ${times}かい`,
-      bombAria: (n: number) => `ばくだん：あと ${n}かいで きぜつ`,
+      damageAria: (n: number, turns: number) => `${turns}ターン あとに ${n}ダメージ`,
+      healAria: (n: number, turns: number) => `${turns}ターン あとに ${n}かいふく`,
+      bombAria: (turns: number) => `ばくだん：${turns}ターン あとに きぜつ`,
+      drawCount: (n: number) => `+${n}まい`,
+      drawLeft: 'あと ',
+      drawAria: (n: number, turns: number) => `あと ${turns}ターンで ${n}まい ひく`,
+      more: (n: number) => `+${n}`,
+      moreAria: (n: number) => `ほかに ${n}こ。おすと ぜんぶ みられるよ`,
+      allTitle: 'あとから くる こうか',
+      rowLabel: (r: number) => (r === 1 ? 'つぎ' : `${r}ターンご`),
+      close: 'おすと とじるよ',
     },
     reason: {
       over: 'もう けっちゃく したよ',
@@ -213,6 +217,7 @@ export const hira = {
       shuffle: (name: string) => `・${name} が やまふだを きった`,
       chooseWait: (name: string) => `・${name} が カードを えらんでいる…`,
       lasting: (card: string) => `・${card} の じかんさ こうかが はつどう！`,
+      lastingCleared: (card: string) => `・${card} が ベンチに もどったので、あとから くる ダメージと かいふくが きえた`,
       join: '、',
     },
     draw: {
@@ -257,6 +262,10 @@ export const hira = {
     damageUnit: 'ダメ',
     faceJoin: '・',
     itemKind: 'アイテム（つかいきり）',
+    /** カードのくわしく：あとから くる こうかの ちゅうい（v2.5） */
+    lastingNote: '「+」の あとの すうじは、あとから くる こうか。もちぬしの ターンの おわりに くるよ（ベンチに もどると きえる）。',
+    bombNote: 'ばくだんは、ベンチに もどっても きえないよ。',
+    drawLaterNote: 'あとから ひく カードは、きぜつしても こうたいしても きえないよ（やまふだの うえに でる）。',
   },
 
   cpu: {
@@ -1123,6 +1132,16 @@ export const hira = {
       ],
       more: 'くりだしは「こうたい」とは ちがうので、つぎの じぶんの ターンに ふつうに こうげき できるよ。',
     },
+    /** あとから くる こうか（持続効果。v2.5） */
+    p7: {
+      title: 'あとから くる こうか',
+      body: () => [
+        'わざの「**+**」の あとの すうじは、あとから くる こうか（「20+10ダメ」は いま 20、あとで 10）。',
+        'カードの よこに ふだが ならび、もちぬしの **ターンの おわり** ごとに **うえの ぎょうから** くるよ。',
+        'ベンチに もどると、あかと みどりの ふだは **きえる**（ばくだんは のこる）。',
+      ],
+      more: 'あかは ダメージ、みどりは かいふく、くろは ばくだん。おなじ ぎょうは みぎ（あたらしい もの）から 1つずつ。きぜつしたら のこりは きえるよ。たからばこの ドローは やまふだの あおい ふだ。きぜつしても こうたいしても きえず、0で ひくよ。',
+    },
   },
 
   fx: {
@@ -1139,6 +1158,11 @@ export const hira = {
     peel: 'ペリッ',
     tape: 'ペタッ',
     gurgle: 'ゴポゴポ',
+    lastingDrip: 'ジュワッ',
+    lastingRise: 'ふわぁ',
+    lastingBoom: 'ボカーン！',
+    lastingFizz: 'しゅわっ',
+    lastingDraw: 'シャラーン',
     slash: 'シャキーン',
     land: 'ドン',
   },
@@ -1263,6 +1287,12 @@ export const hira = {
         se_hit_small: 'ダメージ（50いか）',
         se_hit_big: 'ダメージ（60いじょう）',
         se_heal: 'かいふく',
+        se_lasting_damage: 'あとから ダメージ（インクの しずく）',
+        se_lasting_heal: 'あとから かいふく（ひかりの つぶ）',
+        se_lasting_fuse: 'ばくだんの どうかせん',
+        se_lasting_bomb: 'ばくだんが ばくはつ',
+        se_lasting_draw: 'あとから ドロー',
+        se_lasting_clear: 'ベンチで あとからの こうかが きえる',
         se_ko: 'きぜつ',
         se_item_kusuri: 'かいふく アイテム',
         se_item_yaiba: 'こうげき アイテム',

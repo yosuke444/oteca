@@ -1,87 +1,232 @@
-/* 持続効果の印（SPEC §8-5）。844×390 でも読めるよう、文字は 19px 以上（舞台の縮み 0.54 倍でも 10px 以上） */
-.lasting-marks {
+/*
+ * 持続効果の見た目（SPEC §8-5。v2.5 で作り直し）
+ * 844×390 では舞台が 0.54 倍に縮むので、札の数字は 17px 以上（縮んでも 9px 以上）、ふつうは 24px（13px）
+ */
+
+/* ---------- バトル場のおてあげの横の表（ベンチとバトル場の間。自分も相手も、カードの左に置く） ---------- */
+.lasting-table {
   position: absolute;
-  left: -10px;
-  top: 34%;
-  z-index: 6;
+  left: 408px;
+  width: 150px;
+  z-index: 7;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  gap: 6px;
   pointer-events: none;
 }
-.battle-card--bench .lasting-marks,
-.battle-card--hand .lasting-marks {
-  top: 28%;
+.lasting-table--opp {
+  top: 62px;
 }
-.lasting-mark {
-  display: inline-flex;
+.lasting-table--me {
+  top: 344px;
+}
+.lasting-row {
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 1px 6px 1px 4px;
-  border: 2px solid currentColor;
-  border-radius: 10px 12px 9px 13px;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 46px;
+}
+
+/* ---------- 札 ---------- */
+.lasting-tag {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   background: var(--paper);
-  font-size: 19px;
-  line-height: 1.1;
-  white-space: nowrap;
+  border: 2.5px solid currentColor;
   box-shadow: 1px 2px 0 var(--note-shadow);
-  transform: rotate(-4deg);
+  line-height: 1;
+  white-space: nowrap;
 }
-.lasting-mark .num {
-  font-size: 21px;
+.lasting-tag .num {
+  font-weight: bold;
+  letter-spacing: -0.5px;
 }
-.lasting-mark--poison {
-  color: var(--pen-purple);
+/* 持続ダメージ：赤い丸 */
+.lasting-tag--damage {
+  color: var(--pen-red);
+  border-radius: 48% 52% 46% 54% / 52% 46% 54% 48%;
 }
-.lasting-mark--heal {
+/* 持続回復：緑の四角 */
+.lasting-tag--heal {
   color: var(--pen-green);
+  border-radius: 9px 12px 8px 11px;
 }
-.lasting-mark--self {
-  color: var(--pen-red);
-}
-.lasting-mark--bomb {
+/* ばくだん：黒い札 */
+.lasting-tag--bomb {
   color: var(--ink);
-  padding: 0 7px 0 2px;
-  transform: rotate(5deg);
+  border-radius: 10px 8px 12px 9px;
 }
-.lasting-mark__count {
-  font-size: 25px;
-  color: var(--pen-red);
-}
-.lasting-mark--draw {
-  color: var(--pen-blue);
-}
-.lasting-mark__spark {
+.lasting-bomb__spark {
   animation: lasting-spark calc(600ms / var(--fx-speed)) ease-in-out infinite alternate;
 }
 @keyframes lasting-spark {
   from {
-    opacity: 0.4;
+    opacity: 0.35;
   }
   to {
     opacity: 1;
   }
 }
-/* 発動する時に光る（演出で付ける） */
-.lasting-mark.is-fire {
+/* 発動する札が光ってふくらむ（演出で付ける） */
+.lasting-tag.is-fire,
+.lasting-draw.is-fire {
+  z-index: 2;
   background: var(--marker-yellow);
-  transform: rotate(-4deg) scale(1.35);
-  transition: transform calc(150ms / var(--fx-speed)) ease-out;
+  scale: 1.45;
+  box-shadow:
+    0 0 0 4px var(--marker-yellow),
+    0 0 18px 6px currentColor;
+  transition:
+    scale calc(160ms / var(--fx-speed)) ease-out,
+    box-shadow calc(160ms / var(--fx-speed)) ease-out;
 }
-/* あとからドロー：山札の左横 */
-.lasting-draws {
+/* ばくだんが赤く点滅（演出で付ける） */
+.lasting-tag.is-blink {
+  background: var(--pen-red);
+}
+
+/* 入りきらない時の「+2」（押すと全部が見られる） */
+.lasting-more {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 2px solid var(--pencil);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.lasting-more:hover {
+  background: var(--marker-yellow);
+}
+
+/* 全部を見る（「+2」を押した時） */
+.lasting-all {
   position: absolute;
-  right: calc(100% + 4px);
-  top: 30px;
+  left: -40px;
+  top: -6px;
+  z-index: 40;
+  min-width: 280px;
+  padding: 8px 14px 6px;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px 9px 14px 10px;
+  background: var(--paper);
+  box-shadow: 3px 4px 0 var(--note-shadow);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.lasting-all__title {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+.lasting-all__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+.lasting-all__when {
+  min-width: 82px;
+  font-size: 19px;
+}
+.lasting-all__close {
+  margin: 2px 0 0;
+  font-size: 16px;
+  text-align: right;
+}
+
+/* ---------- ベンチ：ばくだんの札だけ小さく ---------- */
+.lasting-bench {
+  position: absolute;
+  left: -14px;
+  top: 26%;
   z-index: 6;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+  gap: 3px;
   pointer-events: none;
 }
+.lasting-bench__bomb {
+  position: relative;
+}
+.lasting-bench__left {
+  position: absolute;
+  right: -8px;
+  bottom: -6px;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--pen-red);
+  color: var(--pen-red);
+  font-size: 19px;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* ---------- 遅延ドロー：山札の上の青い札（古いものが左） ---------- */
+.lasting-draws {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  z-index: 6;
+  display: flex;
+  gap: 4px;
+  translate: -50% 0;
+  pointer-events: none;
+}
+.lasting-draw {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 3px 5px 4px;
+  box-sizing: border-box;
+  color: var(--pen-blue);
+  background: var(--paper);
+  border: 2.5px solid currentColor;
+  border-radius: 10px 13px 9px 12px;
+  box-shadow: 1px 2px 0 var(--note-shadow);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.lasting-draw__count {
+  font-size: 26px;
+}
+.lasting-draw__left {
+  font-size: 18px;
+}
+.lasting-draw__left .num {
+  display: inline-block;
+  font-size: 21px;
+}
+.lasting-draws--many .lasting-draw {
+  min-width: 62px;
+  padding: 3px 3px 4px;
+}
+/* 2つ以上：山札の右端にそろえて、左（ベンチとの間の空き）へのばす（すてふだ に重ねない） */
+.lasting-draws--many {
+  left: auto;
+  right: 4px;
+  translate: none;
+}
+.lasting-draws--many .lasting-draw__count {
+  font-size: 22px;
+}
+
 /* 演出をへらす：火花を光らせない */
-html[data-reduce-fx] .lasting-mark__spark {
+html[data-reduce-fx] .lasting-bomb__spark {
   animation: none;
 }

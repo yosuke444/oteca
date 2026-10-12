@@ -4,6 +4,7 @@ import { DEFAULT_RULES } from '../../engine';
 import type { CardDef, OtegeCardDef } from '../../engine/types';
 import { useNav } from '../../router';
 import { CardMini } from '../../ui/card/CardMini';
+import { BombIcon } from '../../ui/card/LastingMarks';
 import { DiceDoodle, StarDoodle } from '../../ui/common/Doodles';
 import { OtegeArt } from '../../ui/common/OtegeArt';
 import { turnPage } from '../../ui/common/PageTurn';
@@ -16,7 +17,7 @@ import './rules.css';
 
 /**
  * S07 ルールせつめい（SPEC §7。P1）
- * ノートのページをめくる形式で6ページ。§4 の内容を子ども向けの言葉とイラストで。
+ * ノートのページをめくる形式で7ページ（v2.5 で「あとから くる こうか」を足した）。§4 の内容を子ども向けの言葉とイラストで。
  * 各ページの下に「もっと くわしく」の小さな注記。
  * ルールの数（15まい・3たい など）は RuleSet から、アイテムの名前と説明は cards.json から読む（コードに直接書かない）。
  */
@@ -44,6 +45,37 @@ function stackRules(tr: Dict): string[] {
 }
 
 type Page = { title: string; body: ReactNode; art: ReactNode; more: ReactNode };
+
+/** あとから くる こうかの みほん：カードの横の表（3行）と、山札の青い札（対戦画面と同じ見た目。v2.5） */
+function LastingSample({ tr }: { tr: Dict }) {
+  const L = tr.battle.lasting;
+  const tag = (kind: 'damage' | 'heal' | 'bomb', n: number) => (
+    <span className={`lasting-tag lasting-tag--${kind}`} style={{ width: 42, height: 42, fontSize: 23 }}>
+      {kind === 'bomb' ? <BombIcon size={32} /> : <span className="num">{n}</span>}
+    </span>
+  );
+  return (
+    <div className="rules-art rules-art--lasting">
+      <div className="rules-lasting__rows">
+        <div className="rules-lasting__row">
+          {tag('damage', 10)}
+          {tag('heal', 20)}
+          {tag('damage', 30)}
+        </div>
+        <div className="rules-lasting__row">{tag('damage', 10)}</div>
+        <div className="rules-lasting__row">{tag('bomb', 0)}</div>
+      </div>
+      {otege[0] && <CardMini def={otege[0]} seed="rules-lasting" variant="tile" />}
+      <span className="lasting-draw rules-lasting__draw">
+        <b className="lasting-draw__count num">{L.drawCount(4)}</b>
+        <span className="lasting-draw__left">
+          {L.drawLeft}
+          <span className="num">9</span>
+        </span>
+      </span>
+    </div>
+  );
+}
 
 const Mark = ({ children }: { children: ReactNode }) => <span className="rules-mark">{children}</span>;
 
@@ -151,6 +183,12 @@ function buildPages(tr: Dict, lang: Lang): Page[] {
         </div>
       ),
       more: P.p6.more,
+    },
+    {
+      title: P.p7.title,
+      body: <Paragraphs lines={P.p7.body()} />,
+      art: <LastingSample tr={tr} />,
+      more: P.p7.more,
     },
   ];
 }
