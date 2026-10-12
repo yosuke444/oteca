@@ -200,8 +200,10 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
         sandbox: setup.sandbox,
         forcedDice: setup.forcedDice,
         noShuffle: setup.noShuffle,
-        // カードを ためす：準備を飛ばして p1 から始めるので、先攻1ターン目の攻撃禁止は使わない
-        rules: setup.sandbox ? { p1: { firstPlayerFirstTurnNoAttack: false }, p2: { firstPlayerFirstTurnNoAttack: false } } : setup.rules,
+        // カードを ためす：準備を飛ばして p1 から始めるので、先攻1ターン目の攻撃禁止は使わない（ほかのルールはそのまま。ボス戦の確かめ用。v2.7）
+        rules: setup.sandbox
+          ? { p1: { ...setup.rules?.p1, firstPlayerFirstTurnNoAttack: false }, p2: { ...setup.rules?.p2, firstPlayerFirstTurnNoAttack: false } }
+          : setup.rules,
       },
       controllers,
     );

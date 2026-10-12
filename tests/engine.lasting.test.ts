@@ -317,7 +317,7 @@ describe('E27 1つの技の中の処理順', () => {
     expect(hp(r.state, act(s, 'p1'))).toBe(70);
   });
 
-  it('はたあげ：相手に15、回復20／777ほん：相手に20 → 自分に100', () => {
+  it('はたあげ：相手に15、回復20／777ほん：相手に20 → 自分に50（v2.7）', () => {
     let s = game([['hataage', 15]], [['mutsuashi', 15]], { active: 'hataage' }, { active: 'mutsuashi' });
     s = patchCard(s, act(s, 'p1'), { hp: 30 });
     let r = end(s, 1);
@@ -327,11 +327,11 @@ describe('E27 1つの技の中の処理順', () => {
     r = end(s, 1);
     expect(eventsOf(r.events, 'Damaged').map((d) => [d.uid, d.amount])).toEqual([
       [act(s, 'p2'), 20],
-      [act(s, 'p1'), 100],
+      [act(s, 'p1'), 50],
     ]);
-    // 777ほん 6：自分に10 だけ（相手にはダメージなし）
+    // 777ほん 6：相手に30 → 自分に10（v2.7）
     r = end(game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' }), 6);
-    expect(eventsOf(r.events, 'Damaged').map((d) => d.amount)).toEqual([10]);
+    expect(eventsOf(r.events, 'Damaged').map((d) => d.amount)).toEqual([30, 10]);
   });
 });
 
@@ -374,7 +374,7 @@ describe('E29 ダメージを上げる効果が効く範囲', () => {
     t = ok(t, { type: 'USE_ITEM', player: 'p1', uid: t.players.p1.hand[0], targetUid: act(t, 'p1') }).state;
     expect(eventsOf(end(t, 1).events, 'Damaged')).toEqual([]);
 
-    // ルール補正（ボスの火力アップ）も同じ
+    // ルール補正（ボスの火力アップ）も、今すぐ0の技には足さない（持続ダメージの1回ごとには足す。v2.7：tests/v27.test.ts ④）
     const u = startMain({ decks: { p1: deckOf([['ootoro', 15]]), p2: deckOf([['mutsuashi', 15]]) }, rules: { p1: { attackBonus: 20 } } });
     expect(eventsOf(end(u, 1).events, 'Damaged')).toEqual([]);
     const v = startMain({ decks: { p1: deckOf([['oteage', 15]]), p2: deckOf([['mutsuashi', 15]]) }, rules: { p1: { attackBonus: 20 } } });
@@ -519,8 +519,8 @@ describe('E34 999回復・自分に999', () => {
     let s = game([['hosoage', 15]], [['mutsuashi', 15]], { active: 'hosoage', bench: ['hosoage'] }, { active: 'mutsuashi' });
     s = patchCard(s, act(s, 'p1'), { hp: 1 });
     let r = end(s, 1);
-    expect(hp(r.state, act(s, 'p1'))).toBe(50);
-    expect(eventsOf(r.events, 'Healed')[0].amount).toBe(49);
+    expect(hp(r.state, act(s, 'p1'))).toBe(60);
+    expect(eventsOf(r.events, 'Healed')[0].amount).toBe(59);
     r = end(game([['hosoage', 15]], [['mutsuashi', 15]], { active: 'hosoage', bench: ['hosoage'] }, { active: 'mutsuashi' }), 6);
     expect(eventsOf(r.events, 'Fainted')[0]).toMatchObject({ by: 'p2' });
   });

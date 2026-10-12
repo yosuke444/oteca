@@ -715,6 +715,9 @@ html[data-reduce-fx] .card-art__wait::after {
   gap: 2px 10px;
   flex: 1;
   min-width: 0;
+  /* ことばの途中（「こうた／い」）で折り返さず、すきまで折り返す。入りきらない時だけ途中でも（v2.7） */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 /* 技が4つ以上のカード（すりむ・しかく など）：絵を小さくして技表を入れる */
 .battle-card__art.is-many {

@@ -351,7 +351,7 @@ async function damageAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Damaged' }
   const at = cardCenter(env, e.uid);
   const max = env.view().cards[e.uid]?.maxHp ?? 0;
   const before = (ctx.flags.hpBefore as number | undefined) ?? e.hpAfter + e.amount;
-  await Promise.all([burstNumber(env, { x: at.x + 70, y: at.y - 30 }, `${e.amount}`, e.big), hpBarChange(env, e.uid, before, e.hpAfter, max, 'damage')]);
+  await Promise.all([burstNumber(env, { x: at.x + 70, y: at.y - 30 }, `${e.amount}`, e.big, e.bonus ?? 0), hpBarChange(env, e.uid, before, e.hpAfter, max, 'damage')]);
 }
 
 // ---------------------------------------------------------------- 回復（技・くすり・スポドリ）

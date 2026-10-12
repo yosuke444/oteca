@@ -28,9 +28,11 @@ export const effectHandlers: { [T in EffectType]: Handler<T> } = {
   damage(ctx, effect, src) {
     const target = ctx.s.players[other(src.player)].active;
     if (!target) return;
-    const amount = src.kind === 'move' ? moveDamage(ctx.s, ctx.s.cards[src.sourceUid], effect.amount) : effect.amount;
+    const attacker = ctx.s.cards[src.sourceUid];
+    const amount = src.kind === 'move' ? moveDamage(ctx.s, attacker, effect.amount) : effect.amount;
     if (amount <= 0) return;
-    dealDamage(ctx, target, amount, src.player);
+    const bonus = src.kind === 'move' ? ruleBonus(ctx.s, attacker.owner, attacker.attackOverride ?? effect.amount) : 0;
+    dealDamage(ctx, target, amount, src.player, false, bonus);
   },
 
   /** 回復（技なら自分自身、アイテムなら選んだ対象）。999 は最大まで（最大HPを超えないので同じ） */
@@ -204,10 +206,12 @@ export function fireLasting(ctx: Ctx, l: Lasting): void {
   if (l.targetUid !== null && !isInPlay(s, l.targetUid)) return;
   ctx.events.push({ type: 'LastingFired', lasting: { ...l } });
   switch (l.kind) {
-    case 'damage':
-      // 倒した数は付けたプレイヤーに
-      dealDamage(ctx, l.targetUid as string, l.amount, l.owner);
+    case 'damage': {
+      // 倒した数は付けたプレイヤーに。ルール補正（ボスの +10）は1回発動するごとに足す（v2.7）
+      const bonus = ruleBonus(s, l.owner, l.amount);
+      dealDamage(ctx, l.targetUid as string, l.amount + bonus, l.owner, false, bonus);
       break;
+    }
     case 'heal':
       heal(ctx, l.targetUid as string, l.amount);
       break;
@@ -262,14 +266,22 @@ export function applyChoice(ctx: Ctx, uids: string[]): void {
 
 /**
  * 技のダメージ計算（SPEC §4-5 ④）
- * 1. 基本値（今すぐの分）→ 2. 基本値が1以上なら + このターンの加算（やいば・ドリンク）→ 3. 基本値が1以上なら + ルール補正
+ * 1. 基本値（今すぐの分）→ 2. 基本値が1以上なら + このターンの加算（きみょうなドリンク +50・ひみつのやいば +20）→ 3. 基本値が1以上なら + ルール補正（ボスの +10）
  * （置き換え attackOverride は予約。どのカードも使わない）
  * 画面の「このターン出る数値」の表示にも使う。
  */
 export function moveDamage(s: GameState, attacker: CardInstance, base: number): number {
   const b = attacker.attackOverride ?? base;
   if (b <= 0) return 0;
-  return Math.max(0, b + attacker.attackAdd + s.rules[attacker.owner].attackBonus);
+  return Math.max(0, b + attacker.attackAdd + ruleBonus(s, attacker.owner, b));
+}
+
+/**
+ * ルール補正（RuleSet.attackBonus。ボスの火力アップ）：owner のおてあげが相手に与えるダメージ base が1以上の時だけ足す（v2.7）。
+ * 技の今すぐのダメージと、持続ダメージの1回ごとに使う。「相手に0」は0のまま
+ */
+export function ruleBonus(s: GameState, owner: Side, base: number): number {
+  return base > 0 ? s.rules[owner].attackBonus : 0;
 }
 
 function requestChoice(ctx: Ctx, c: Omit<PendingChoice, 'rest' | 'after'>): void {

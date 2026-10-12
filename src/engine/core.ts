@@ -125,13 +125,14 @@ export function discardCards(ctx: Ctx, player: Side, uids: string[], fromDeck: b
 /**
  * ダメージを与える。HPが0以下になったら、きぜつの判定まで行う。
  * deferFaint：HPが0になっても、きぜつを後回しにする（GameState.deferredFaint。v2.6）
+ * bonus：amount のうち、ルール補正で足した分（演出の「+10」の印のため。v2.7）
  */
-export function dealDamage(ctx: Ctx, uid: string, amount: number, by: Side, deferFaint = false): void {
+export function dealDamage(ctx: Ctx, uid: string, amount: number, by: Side, deferFaint = false, bonus = 0): void {
   const c = ctx.s.cards[uid];
   if (!c || !isInPlay(ctx.s, uid) || isOver(ctx.s)) return;
   const dmg = Math.max(0, amount);
   c.hp = Math.max(0, c.hp - dmg);
-  ctx.events.push({ type: 'Damaged', uid, amount: dmg, hpAfter: c.hp, big: dmg >= BIG_DAMAGE });
+  ctx.events.push(bonus > 0 ? { type: 'Damaged', uid, amount: dmg, hpAfter: c.hp, big: dmg >= BIG_DAMAGE, bonus } : { type: 'Damaged', uid, amount: dmg, hpAfter: c.hp, big: dmg >= BIG_DAMAGE });
   if (c.hp > 0) return;
   if (deferFaint) ctx.s.deferredFaint = { uid, by };
   else faint(ctx, uid, by);

@@ -1,4 +1,4 @@
-import { moveDamage } from '../engine/effects';
+import { moveDamage, ruleBonus } from '../engine/effects';
 import { DICE_FACES } from '../engine/rules';
 import type { GameState, OtegeCardDef, Side } from '../engine/types';
 
@@ -49,7 +49,8 @@ export function outcomes(s: GameState, uid: string, extraAdd = 0): Outcome[] {
       switch (e.type) {
         case 'damage':
           o.damage += moveDamage(s, { ...c, attackAdd: c.attackAdd + extraAdd }, e.amount);
-          o.later += sum(e.then);
+          // 持続ダメージにも、1回ごとにルール補正（ボスの +10。v2.7）
+          o.later += (e.then ?? []).reduce((t, x) => t + (x > 0 ? x + ruleBonus(s, c.owner, x) : 0), 0);
           break;
         case 'heal':
           o.heal += e.amount;
@@ -108,7 +109,7 @@ export function threat(s: GameState, side: Side, targetUid: string, margin = 0, 
   const base = { ...s, cards: { ...s.cards, [a]: { ...s.cards[a], attackAdd: 0, attackOverride: null } } };
   // 付いている持続ダメージ・時限も、このおてあげを倒す原因になる
   if (!withLasting) return koChance(base, a, s.cards[targetUid].hp - margin);
-  const pending = s.lasting.filter((l) => l.targetUid === targetUid && l.owner === opp && l.kind === 'damage' && l.turns === 1).reduce((t, l) => t + l.amount, 0);
+  const pending = s.lasting.filter((l) => l.targetUid === targetUid && l.owner === opp && l.kind === 'damage' && l.turns === 1).reduce((t, l) => t + l.amount + ruleBonus(s, l.owner, l.amount), 0);
   const bombNow = s.lasting.some((l) => l.targetUid === targetUid && l.kind === 'faint' && l.turns === 1);
   if (bombNow) return 1;
   return koChance(base, a, s.cards[targetUid].hp - margin - pending);

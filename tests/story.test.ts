@@ -215,20 +215,21 @@ describe('F03 ボスルール4種がエンジンで効く', () => {
     expect(draws[PLAYER]).toEqual([3, 6]);
   });
 
-  it('おてあげザムライ：ボスのダメージ技は +20（0ダメージ・回復には付かない。プレイヤーには付かない）', () => {
+  it('おてあげザムライ：ボスのおてあげが相手に与えるダメージ +10（0ダメージ・回復には付かない。プレイヤーには付かない。v2.7）', () => {
     const s = sandboxGame(stageRules(stageByNo(bossNo('zamurai'))!), { p1: 'oteage', p2: 'oteage' }, []);
     const boss = s.cards[s.players[ENEMY].active!];
     const me = s.cards[s.players[PLAYER].active!];
-    expect(moveDamage(s, boss, 30)).toBe(50);
+    expect(moveDamage(s, boss, 30)).toBe(40);
     expect(moveDamage(s, boss, 0)).toBe(0);
     expect(moveDamage(s, me, 30)).toBe(30);
-    // 実際に攻撃しても +20：自分の攻撃（目1：30ダメ）→ ボスの攻撃（目2：30 → 50）
+    // 実際に攻撃しても +10：自分の攻撃（目1：30ダメ）→ ボスの攻撃（目2：30 → 40）
     const g = sandboxGame(stageRules(stageByNo(bossNo('zamurai'))!), { p1: 'oteage', p2: 'oteage' }, [1, 2]);
     const r1 = applyAction(g, { type: 'END_TURN', player: PLAYER });
     expect(r1.events.find((e) => e.type === 'Damaged')).toMatchObject({ amount: 30 });
     const r2 = applyAction(r1.state, { type: 'END_TURN', player: ENEMY });
     const dmg = r2.events.find((e): e is Extract<GameEvent, { type: 'Damaged' }> => e.type === 'Damaged' && r2.state.cards[e.uid].owner === PLAYER);
-    expect(dmg?.amount).toBe(50);
+    expect(dmg?.amount).toBe(40);
+    expect(dmg?.bonus).toBe(10);
   });
 
   it('おてあげドラゴン：プレイヤーはボスのおてあげを4体倒さないと勝てない。ボスは3体で勝ち', () => {

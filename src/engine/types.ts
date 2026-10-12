@@ -18,7 +18,10 @@ export type RuleSet = {
   benchMax: number;
   benchPlacePerTurn: number;
   superMaxPerDeck: number;
-  /** ダメージ技に常に足す値 */
+  /**
+   * このプレイヤーのおてあげが相手に与えるダメージに足す値（ボスの火力アップ。v2.7）。
+   * 技の今すぐのダメージが1以上の時と、持続ダメージが1回発動するごと。自分へのダメージ・回復・ばくだんには足さない
+   */
   attackBonus: number;
   /** 初手におてあげがいなければ引き直し */
   mulliganIfNoOtege: boolean;
@@ -311,7 +314,8 @@ export type GameEvent =
   | { type: 'ItemUsed'; player: Side; itemUid: string; targetUid: string | null }
   | { type: 'BuffChanged'; uid: string; attackAdd: number; attackOverride: number | null }
   | { type: 'MoveSelected'; uid: string; moveIndex: number }
-  | { type: 'Damaged'; uid: string; amount: number; hpAfter: number; big: boolean }
+  /** bonus：amount のうち、ルール補正（ボスの +10 など）で足した分（0 なら書かない。数字の横に「+10」と出す。v2.7） */
+  | { type: 'Damaged'; uid: string; amount: number; hpAfter: number; big: boolean; bonus?: number }
   | { type: 'Healed'; uid: string; amount: number; hpAfter: number }
   | { type: 'HpSet'; uid: string; hpAfter: number }
   | { type: 'Fainted'; uid: string; by: Side; koCount: number }

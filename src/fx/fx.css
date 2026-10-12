@@ -215,6 +215,25 @@
 .fx-burst--big .fx-burst__num {
   font-size: 80px;
 }
+/* ボスの火力アップで足した分（v2.7）：数字の右上に小さく */
+.fx-burst__bonus {
+  grid-area: 1 / 1;
+  align-self: start;
+  justify-self: end;
+  margin: 18% 4% 0 0;
+  padding: 0 6px;
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--paper);
+  background: var(--pen-red);
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  rotate: 8deg;
+}
+.fx-burst--big .fx-burst__bonus {
+  font-size: 28px;
+}
 
 /* ---------- 画面全体 ---------- */
 .fx-flash {

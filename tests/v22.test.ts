@@ -7,16 +7,16 @@ import { TROPHY_ICONS_MAX, trophyDisplay } from '../src/ui/common/trophyBadge';
 
 /** 遊んでみての修正（v2.2。SPEC §16-2k） */
 
-describe('K02 もやすの技（v2.2 で両方20下げた）', () => {
-  it('1-3：相手に60＋手札を1枚捨てる／4-6：相手に100＋手札を1枚捨てる。プロトコル版数9', () => {
+describe('K02 もやすの技（v2.2 で両方20下げた。v2.7 で 4-6 を80に）', () => {
+  it('1-3：相手に60＋手札を1枚捨てる／4-6：相手に80＋手札を1枚捨てる', () => {
     const m = cardById('moyasu')!;
     if (m.kind !== 'otege') throw new Error('もやす');
     expect(m.moves.map((mv) => [mv.faces, mv.effects])).toEqual([
       [[1, 2, 3], [{ type: 'damage', amount: 60 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
-      [[4, 5, 6], [{ type: 'damage', amount: 100 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
+      [[4, 5, 6], [{ type: 'damage', amount: 80 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
     ]);
-    // v2.4：すりむ がスーパー・ひきかえカード・切断の決まりが変わったので 10。v2.5：持続効果の決まりが変わったので 11。v2.6：自爆で両方が気絶する順番が変わったので 12
-    expect(protocolVersion).toBe(12);
+    // v2.4：すりむ がスーパー・ひきかえカード・切断の決まりが変わったので 10。v2.5：持続効果の決まりが変わったので 11。v2.6：自爆で両方が気絶する順番が変わったので 12。v2.7：カードの数値とザムライのボスルールが変わったので 13
+    expect(protocolVersion).toBe(13);
   });
 });
 

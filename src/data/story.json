@@ -79,7 +79,7 @@
     {
       "no": 14, "kind": "boss", "name": "おてあげザムライ", "parents": [13], "pos": { "x": 5, "y": 5 }, "boss": "zamurai", "card": "oteage_zamurai",
       "theme": { "hira": "こうげきがた：きって きって きりまくる", "kanji": "攻撃型：斬って斬って斬りまくる" },
-      "bossRule": { "text": { "hira": "ボスの ダメージわざは いつも +20", "kanji": "ボスのダメージ技は常に+20" }, "boss": { "attackBonus": 20 } },
+      "bossRule": { "text": { "hira": "ボスの おてあげが あいてに あたえる ダメージ +10", "kanji": "ボスのおてあげが相手に与えるダメージ+10" }, "boss": { "attackBonus": 10 } },
       "deck": [["oteage_zamurai",1], ["otesage",2], ["yatsuashi",2], ["sanbon",2], ["shovelcar",2], ["toriashi",2], ["himitsu_yaiba",2], ["kusuri",2]]
     },
     {

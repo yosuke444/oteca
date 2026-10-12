@@ -815,6 +815,9 @@ html[data-reduce-fx] .choose-panel__warn.is-shake {
   padding: 0 8px;
   font-size: 20px;
   line-height: 1.4;
+  /* 長いボスルール：ことばの途中で折り返さない（v2.7） */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   pointer-events: none;
   background: linear-gradient(transparent 60%, var(--marker-pink) 60%);
   rotate: -1deg;

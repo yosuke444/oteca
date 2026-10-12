@@ -155,8 +155,8 @@ export async function stamp(env: FxEnv, at: Point, text: string, cls = '', keepM
   el.remove();
 }
 
-/** 数字を書いて、赤ペンの爆発線で囲む（ダメージ） */
-export async function burstNumber(env: FxEnv, at: Point, text: string, big: boolean): Promise<void> {
+/** 数字を書いて、赤ペンの爆発線で囲む（ダメージ）。bonus があれば、数字の横に小さく「+10」（ボスの火力アップ。v2.7） */
+export async function burstNumber(env: FxEnv, at: Point, text: string, big: boolean, bonus = 0): Promise<void> {
   const spikes: string[] = [];
   const n = big ? 16 : 12;
   const R = big ? 86 : 64;
@@ -167,10 +167,12 @@ export async function burstNumber(env: FxEnv, at: Point, text: string, big: bool
     const ri = R * 0.62;
     spikes.push(`${i === 0 ? 'M' : 'L'}${Math.cos(a0) * ro} ${Math.sin(a0) * ro} L${Math.cos(a1) * ri} ${Math.sin(a1) * ri}`);
   }
-  const box = spawn(env, `fx-burst ${big ? 'fx-burst--big' : ''}`, at, `<svg viewBox="-${R * 1.4} -${R * 1.4} ${R * 2.8} ${R * 2.8}" width="${R * 2.8}" height="${R * 2.8}"><path d="${spikes.join(' ')} Z" fill="var(--paper)" stroke="var(--pen-red)" stroke-width="4" stroke-linejoin="round"/></svg><span class="fx-burst__num">${text}</span>`);
+  const box = spawn(env, `fx-burst ${big ? 'fx-burst--big' : ''}`, at, `<svg viewBox="-${R * 1.4} -${R * 1.4} ${R * 2.8} ${R * 2.8}" width="${R * 2.8}" height="${R * 2.8}"><path d="${spikes.join(' ')} Z" fill="var(--paper)" stroke="var(--pen-red)" stroke-width="4" stroke-linejoin="round"/></svg><span class="fx-burst__num">${text}</span>${bonus > 0 ? `<span class="fx-burst__bonus">+${bonus}</span>` : ''}`);
   const path = box.querySelector('path')!;
   gsap.set(box, { rotate: rand(-10, 10) });
   const num = box.querySelector('.fx-burst__num')!;
+  const plus = box.querySelector('.fx-burst__bonus');
+  if (plus) gsap.fromTo(plus, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, delay: 0.2, ease: 'back.out(3)' });
   await Promise.all([
     drawPaths([path as SVGPathElement], 0.22),
     play(gsap.fromTo(num, { clipPath: 'inset(0 100% 0 0)', scale: 1.4 }, { clipPath: 'inset(0 0% 0 0)', scale: 1, duration: 0.25, ease: 'none' })),

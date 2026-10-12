@@ -177,8 +177,8 @@
       ], "image": "cards/ootoro.webp", "flavor": "" },
 
     {"no":31,"id":"bunbunbun","name":"ぶんぶんぶん","kind":"otege","rarity":"normal","hp":30, "moves": [
-        {"faces":[1,2],"effects":[{"type":"damage","amount":20}]},
-        {"faces":[3,4,5,6],"effects":[{"type":"damage","amount":40},{"type":"switchWithBench"}]}
+        {"faces":[1],"effects":[{"type":"damage","amount":20}]},
+        {"faces":[2,3,4,5,6],"effects":[{"type":"damage","amount":50},{"type":"switchWithBench"}]}
       ], "image": "cards/bunbunbun.webp", "flavor": "" },
 
     {"no":32,"id":"takarabako","name":"たからばこ","kind":"otege","rarity":"normal","hp":100, "moves": [
@@ -199,9 +199,9 @@
       ], "image": "cards/pakarapakara.webp", "flavor": "" },
 
     {"no":35,"id":"hon777","name":"777ほん","kind":"otege","rarity":"normal","hp":300, "moves": [
-        {"faces":[1],"effects":[{"type":"damage","amount":20},{"type":"selfDamage","amount":100}]},
-        {"faces":[2,3,4,5],"effects":[{"type":"damage","amount":30},{"type":"selfDamage","amount":50}]},
-        {"faces":[6],"effects":[{"type":"selfDamage","amount":10}]}
+        {"faces":[1],"effects":[{"type":"damage","amount":20},{"type":"selfDamage","amount":50}]},
+        {"faces":[2,3,4,5],"effects":[{"type":"damage","amount":30},{"type":"selfDamage","amount":20}]},
+        {"faces":[6],"effects":[{"type":"damage","amount":30},{"type":"selfDamage","amount":10}]}
       ], "image": "cards/hon777.webp", "flavor": "" },
 
     {"no":36,"id":"piero","name":"ぴえろ","kind":"otege","rarity":"normal","hp":40, "moves": [
@@ -217,7 +217,7 @@
 
     {"no":38,"id":"moyasu","name":"もやす","kind":"otege","rarity":"normal","hp":70, "moves": [
         {"faces":[1,2,3],"effects":[{"type":"damage","amount":60},{"type":"discard","count":1,"deckIfNoHand":true}]},
-        {"faces":[4,5,6],"effects":[{"type":"damage","amount":100},{"type":"discard","count":1,"deckIfNoHand":true}]}
+        {"faces":[4,5,6],"effects":[{"type":"damage","amount":80},{"type":"discard","count":1,"deckIfNoHand":true}]}
       ], "image": "cards/moyasu.webp", "flavor": "" },
 
     {"no":39,"id":"dokusage","name":"どくさげ","kind":"otege","rarity":"normal","hp":80, "moves": [
@@ -231,7 +231,7 @@
         {"faces":[5,6],"effects":[{"type":"damage","amount":30},{"type":"heal","amount":20}]}
       ], "image": "cards/tomodachi.webp", "flavor": "" },
 
-    {"no":41,"id":"hosoage","name":"ほそあげ","kind":"otege","rarity":"normal","hp":50, "moves": [
+    {"no":41,"id":"hosoage","name":"ほそあげ","kind":"otege","rarity":"normal","hp":60, "moves": [
         {"faces":[1,2,3,4,5],"effects":[{"type":"damage","amount":10},{"type":"heal","amount":999}]},
         {"faces":[6],"effects":[{"type":"selfDamage","amount":999}]}
       ], "image": "cards/hosoage.webp", "flavor": "" },
@@ -251,9 +251,9 @@
       ], "image": "cards/oteage_ningen.webp", "flavor": "" },
 
     {"no":44,"id":"oteage_zamurai","name":"おてあげザムライ","kind":"otege","rarity":"super","hp":120, "moves": [
-        {"faces":[1,2],"effects":[{"type":"damage","amount":40}]},
-        {"faces":[3,4],"effects":[{"type":"damage","amount":60}]},
-        {"faces":[5,6],"effects":[{"type":"damage","amount":80}]}
+        {"faces":[1,2],"effects":[{"type":"damage","amount":30}]},
+        {"faces":[3,4],"effects":[{"type":"damage","amount":50}]},
+        {"faces":[5,6],"effects":[{"type":"damage","amount":70}]}
       ], "image": "cards/oteage_zamurai.webp", "flavor": "" },
 
     {"no":45,"id":"oteage_dragon","name":"おてあげドラゴン","kind":"otege","rarity":"super","hp":200, "moves": [
