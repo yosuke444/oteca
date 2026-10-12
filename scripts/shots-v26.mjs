@@ -1,5 +1,5 @@
 // v2.6 の確認とスクリーンショット（1280×720・844×390）。npm run dev（ポート 5175）のまま node scripts/shots-v26.mjs
-// - 札がベンチにかぶった場面（ベンチを元の位置に戻した）：かぶった札だけ不透明度0.85、ほかははっきり。数字が読める
+// - 札がベンチにかぶった場面（ベンチを元の位置に戻した）：かぶった札だけ不透明度 --lasting-over-opacity（theme.css。v2.7 から 0.65）、ほかははっきり。数字が読める
 // - 自爆の動き（ふつう・自分に999）
 // - 自爆で両方が気絶する流れ（相手の気絶 → 相手のくりだし → 自爆した側の気絶 → 自爆した側のくりだし）
 // ONLY=名前 で1つの場面だけ。REDUCE=1 で「演出をへらす」
@@ -62,7 +62,7 @@ async function openBattle(page, sb, dice = []) {
   await idle(page);
 }
 
-/** 札の表：かぶった札だけ 0.85、かぶっていない札は 1。バトル場のカード（自分の絵・HP）には重ならない。数字は 9px 以上 */
+/** 札の表：かぶった札だけ --lasting-over-opacity、かぶっていない札は 1。バトル場のカード（自分の絵・HP）には重ならない。数字は 9px 以上 */
 async function tagCheck(page) {
   return page.evaluate(() => {
     const out = [];
@@ -70,6 +70,8 @@ async function tagCheck(page) {
     const k = stage.getBoundingClientRect().width / 1280;
     const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
     const others = [...stage.querySelectorAll('.battle-slot .battle-card, .battle-pile, .battle-name, .battle-turn, .battle-dice, .battle-draw')].map((e) => ({ e, r: e.getBoundingClientRect() }));
+    const want = Number(getComputedStyle(document.documentElement).getPropertyValue('--lasting-over-opacity'));
+    if (!(want > 0 && want < 1)) out.push(`--lasting-over-opacity が読めない（${want}）`);
     let over = 0;
     let clear = 0;
     for (const tag of stage.querySelectorAll('.lasting-table .lasting-row .lasting-tag, .lasting-table .lasting-row .lasting-more')) {
@@ -79,7 +81,7 @@ async function tagCheck(page) {
       const op = Number(getComputedStyle(tag).opacity);
       if (on.length > 0) {
         over++;
-        if (Math.abs(op - 0.85) > 0.01) out.push(`かぶった札の不透明度が ${op}`);
+        if (Math.abs(op - want) > 0.01) out.push(`かぶった札の不透明度が ${op}（${want} のはず）`);
       } else {
         clear++;
         if (op < 0.99) out.push(`かぶっていない札が透けている（${op}）`);

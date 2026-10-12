@@ -86,10 +86,10 @@
     scale calc(160ms / var(--fx-speed)) ease-out,
     box-shadow calc(160ms / var(--fx-speed)) ease-out;
 }
-/* ほかの物（ベンチのカードなど）にかぶっている札は、下が少し透けて見える（v2.6） */
+/* ほかの物（ベンチのカードなど）にかぶっている札は、下が透けて見える（v2.6。値は theme.css の --lasting-over-opacity） */
 .lasting-tag.is-over,
 .lasting-more.is-over {
-  opacity: 0.85;
+  opacity: var(--lasting-over-opacity);
 }
 /* ばくだんが赤く点滅（演出で付ける） */
 .lasting-tag.is-blink {
