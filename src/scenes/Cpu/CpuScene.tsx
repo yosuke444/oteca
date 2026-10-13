@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { type BattleSetup, randomSeed } from '../../battle/setup';
 import { CPU_LEVELS, type CpuLevel } from '../../cpu/brains';
+import { cycleKeyAt } from '../../daily/daily';
+import { cpuRewardsLeft } from '../../economy/rewards';
 import { usableDecks } from '../../save/collection';
 import { DeckPicker } from '../../ui/deck/DeckPicker';
 import { useNav } from '../../router';
@@ -27,6 +29,8 @@ export function CpuScene() {
   const [level, setLevel] = useState<CpuLevel>('normal');
   const [mine, setMine] = useState(-1);
   const usable = usableDecks(save);
+  // CPU対戦のコインの残り（1日5回まで。デイリーミッションと同じ時刻に戻る。v2.7）
+  const coinsLeft = cpuRewardsLeft(save, cycleKeyAt(Date.now()));
 
   const back = () => {
     if (step === 'cpu') setStep('mine');
@@ -70,6 +74,11 @@ export function CpuScene() {
         ))}
       </ol>
 
+      {step === 'level' && (
+        <p className={`cpu-scene__coins ${coinsLeft > 0 ? '' : 'pencil'}`} data-testid="cpu-coins-left">
+          {coinsLeft > 0 ? tr.cpu.coinsLeft(coinsLeft) : tr.cpu.coinsDone}
+        </p>
+      )}
       {step === 'level' && (
         <div className="cpu-scene__levels">
           {CPU_LEVELS.map((lv, i) => {

@@ -46,6 +46,21 @@
   font-size: 26px;
 }
 
+/* CPU対戦のコインの残り（v2.7）：強さのボタンの上 */
+.cpu-scene__coins {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 144px;
+  margin: 0;
+  text-align: center;
+  font-size: 22px;
+  color: var(--pen-blue);
+}
+.cpu-scene__coins.pencil {
+  color: var(--pencil);
+}
+
 /* 強さ：4つの大きいボタン */
 .cpu-scene__levels {
   position: absolute;

@@ -89,7 +89,8 @@ try {
   await until(() => c1.closed && c2.closed);
   check('組めたら受付係との接続が切れる', c1.closed && c2.closed);
 
-  // 直前の相手とは組まない：A(前=B)・B(前=A) → 組まれない。C が来たら A と C
+  // ⑤ 待っているのが2人だけなら、直前の相手どうしでも組む（v2.7）：A(前=B)・B(前=A) → 組まれる
+  //    （3人以上いる時に直前の相手を避けることは、tests/ranking.logic.test.ts ⑥ で確かめる）
   const a = connectLobby(B, P[0]);
   const b = connectLobby(B, P[1]);
   const c = connectLobby(B, P[2]);
@@ -97,18 +98,15 @@ try {
   join(a, P[0], { lastOpponentId: P[1].id });
   await sleep(50);
   join(b, P[1], { lastOpponentId: P[0].id });
-  await until(() => b.lastCount() === 2);
-  await sleep(300);
-  check('直前の相手どうしは組まれない（2にん まっている）', !a.paired() && !b.paired() && b.lastCount() === 2);
+  await until(() => a.paired() && b.paired());
+  check('⑤ 待っているのが2人だけなら、直前の相手どうしでも組む', a.paired()?.opponent.userId === P[1].id && b.paired()?.opponent.userId === P[0].id && a.paired()?.matchId === b.paired()?.matchId);
   join(c, P[2]);
-  await until(() => a.paired() && c.paired());
-  check('ほかの人が来たら、先に待っていた人と組む', a.paired()?.opponent.userId === P[2].id && c.paired()?.opponent.userId === P[0].id && !b.paired());
-  await until(() => b.lastCount() === 1);
-  check('人数が変わったら知らせる（1にんに もどる）', b.lastCount() === 1);
+  await until(() => c.lastCount() === 1);
+  check('人数が届く（C だけが待っている：1にん）', c.lastCount() === 1 && !c.paired());
 
-  // やめる：B は「やめる」。D が来ても B とは組まない
-  b.leave();
-  await until(() => b.closed);
+  // やめる：C は「やめる」。D が来ても C とは組まない
+  c.leave();
+  await until(() => c.closed);
   const d = connectLobby(B, P[3]);
   await d.waitOpen();
   join(d, P[3]);
@@ -181,10 +179,10 @@ try {
   const r2 = await report(P[1], p1.matchId, P[0].id);
   check('2人の報告が一致したら記録（record）', r2.json?.state === 'record');
   check('記録した試合への報告は done', (await report(P[1], p1.matchId, P[1].id)).json?.state === 'done');
-  // 食い違い：A-C の試合で、2人とも自分の勝ち
+  // 食い違い：2試合目の A-B（直前の相手どうし）で、2人とも自分の勝ち
   const ac = a.paired().matchId;
   await report(P[0], ac, P[0].id);
-  const r3 = await report(P[2], ac, P[2].id);
+  const r3 = await report(P[1], ac, P[1].id);
   check('食い違ったら記録しない（drop）', r3.json?.state === 'drop');
   // D-E：片方だけ（10分たつまでは記録しない）
   const de = d.paired().matchId;
@@ -241,7 +239,7 @@ try {
   const lk = await api(B, '/admin/lookup', { method: 'POST', admin: ADMIN, origin: null, body: { name: 'みど' } });
   check('名前でユーザーID を探せる', lk.json?.players?.[0]?.id === P[2].id);
 
-  // 7日の非表示・1日3試合：時刻を指定して結果を入れる
+  // 7日の非表示・同じ2人もすべて数える（v2.7）：時刻を指定して結果を入れる
   const now = Date.now();
   const old = pid(200);
   const fresh = pid(201);
@@ -252,17 +250,17 @@ try {
   for (let i = 0; i < 5; i++) S.push({ a: pid(300), b: pid(301), winner: pid(300), at: now + i });
   const sd = await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, body: { players: [pid(300), pid(301)], results: S } });
   const b5 = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
-  check('同じ2人は1日3試合まで（5試合のうち3試合）', sd.json?.lobby?.inserted === 5 && b5.json.counted === 3 && b5.json.skipped === 2, JSON.stringify(b5.json));
+  check('⑦ 同じ2人の試合は、5試合とも すべて数える（v2.7）', sd.json?.lobby?.inserted === 5 && b5.json.counted === 5 && b5.json.skipped === 0, JSON.stringify(b5.json));
   const m300 = (await api(B, '/ranking')).json.top.find((r) => r.key === key(pid(300)));
-  check('（3勝が数えられた）', m300?.wins === 3);
-  // 1日2回の更新をまたいでも、同じ2人は1日3試合まで（日本時間の同じ日の試合）
+  check('（5勝が数えられた）', m300?.wins === 5);
+  // 1日2回の更新をまたいでも、同じ2人の試合はすべて数える（日本時間の同じ日の試合）
   const S2 = [0, 1].map((i) => ({ a: pid(310), b: pid(311), winner: pid(310), at: now + 100 + i }));
   await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, body: { players: [pid(310), pid(311)], results: S2 } });
   const am = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
   const S3 = [2, 3, 4].map((i) => ({ a: pid(311), b: pid(310), winner: pid(310), at: now + 100 + i }));
   await api(B, '/admin/seed', { method: 'POST', admin: ADMIN, origin: null, body: { results: S3 } });
   const pm = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
-  check('1日2回の更新をまたいでも、同じ2人は1日3試合まで（2試合 ＋ 1試合）', am.json.counted === 2 && pm.json.counted === 1 && pm.json.skipped === 2, JSON.stringify([am.json, pm.json]));
+  check('⑦ 1日2回の更新をまたいでも、同じ2人の試合はすべて数える（2試合 ＋ 3試合）', am.json.counted === 2 && pm.json.counted === 3 && pm.json.skipped === 0, JSON.stringify([am.json, pm.json]));
 
   // 7日以上レートが変わっていない人は表示から外す（データは残す）。次に遊べば戻る
   const later = now + 8 * 24 * 3600e3;

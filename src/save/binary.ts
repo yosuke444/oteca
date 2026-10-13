@@ -39,12 +39,16 @@ import {
  * 7＝v2.0-I（印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt）／
  * 8＝v2.0-J（印に userIdRegistered、末尾に userId と ranking.lastMatchId。直前の相手・レート対戦中の相手はユーザーID）／
  * 9＝v2.0-J（末尾にトロフィーの一覧）／
- * 10＝v2.4（末尾に レート対戦中の印の試合ID と「始まったか」、フレンド対戦中の印）
+ * 10＝v2.4（末尾に レート対戦中の印の試合ID と「始まったか」、フレンド対戦中の印）／
+ * 11＝v2.7（末尾に CPU対戦のコインの区切りと回数）
  */
-export const FORMAT_VERSION = 10;
+export const FORMAT_VERSION = 11;
+
+/** 形式版数10の形（CPU対戦のコインの回数が無い） */
+export type SaveDataV10 = Omit<SaveData, 'cpuReward'>;
 
 /** 形式版数9の形（レート対戦中の印に試合ID・始まったか が無い。フレンド対戦中の印が無い） */
-export type SaveDataV9 = Omit<SaveData, 'pendingRateMatch' | 'pendingFriendMatch'> & { pendingRateMatch: { opponentId: string; opponentRate: number } | null };
+export type SaveDataV9 = Omit<SaveDataV10, 'pendingRateMatch' | 'pendingFriendMatch'> & { pendingRateMatch: { opponentId: string; opponentRate: number } | null };
 
 /** 形式版数8の形（トロフィーが無い） */
 export type SaveDataV8 = Omit<SaveDataV9, 'trophies'>;
@@ -194,9 +198,9 @@ export class ByteReader {
 /** 印のビット（形式版数4） */
 const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16, rankingProvisional: 32, userIdRegistered: 64 } as const;
 
-/** 最新の形式（形式版数10）でバイト列にする */
+/** 最新の形式（形式版数11）でバイト列にする */
 export function encodeSave(data: SaveData): Uint8Array {
-  return encodeBody(data, FORMAT_VERSION as 10);
+  return encodeBody(data, FORMAT_VERSION as 11);
 }
 
 /**
@@ -204,7 +208,7 @@ export function encodeSave(data: SaveData): Uint8Array {
  * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く。6 は 5 と同じ並び（ステージ番号の付け替えの印）。
  * 7 は 6 と同じ並びで、印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt が付く
  */
-export function encodeBody(data: SaveData | SaveDataV9 | SaveDataV8 | SaveDataV7 | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7 | 8 | 9 | 10): Uint8Array {
+export function encodeBody(data: SaveData | SaveDataV10 | SaveDataV9 | SaveDataV8 | SaveDataV7 | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11): Uint8Array {
   /** 形式版数8から、相手の ID はユーザーID（数を16進数にして8バイトの場所に入れる） */
   const oppId = (id: string) => (version >= 8 ? userIdToHex(id) : id);
   const w = new ByteWriter();
@@ -322,11 +326,22 @@ export function encodeBody(data: SaveData | SaveDataV9 | SaveDataV8 | SaveDataV7
       w.byte(0);
     }
   }
+  if (version >= 11) {
+    const d = data as SaveData;
+    w.uint(d.cpuReward.cycleKey);
+    w.uint(d.cpuReward.count);
+  }
   return w.toBytes();
 }
 
+/** 形式版数11の本体を読む（形式版数10 の並び ＋ 末尾の CPU対戦のコインの区切りと回数。v2.7） */
+export function readSaveV11(r: ByteReader): SaveData {
+  const v10 = readSaveV10(r);
+  return { ...v10, cpuReward: { cycleKey: r.uint(), count: r.uint() } };
+}
+
 /** 形式版数10の本体を読む（形式版数9 の並び ＋ 末尾の レート対戦中の印の続き・フレンド対戦中の印） */
-export function readSaveV10(r: ByteReader): SaveData {
+export function readSaveV10(r: ByteReader): SaveDataV10 {
   const v9 = readSaveV9(r);
   const p = v9.pendingRateMatch;
   let pendingRateMatch: SaveData['pendingRateMatch'] = null;

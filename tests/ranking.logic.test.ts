@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canPair, cleanJoin, pickPairs, waitingCounts, type Waiter } from '../worker/src/logic/queue';
 import { acceptReport, cleanReport, decide, MATCH_EXPIRE_MS, SINGLE_REPORT_MS, type MatchInfo, type Report } from '../worker/src/logic/results';
-import { HIDE_AFTER_MS, isVisible, jstDay, lastBatchAt, nextBatchAt, pairKey, PAIR_DAILY_LIMIT, runBatch, type Player } from '../worker/src/logic/batch';
+import { HIDE_AFTER_MS, isVisible, jstDay, lastBatchAt, nextBatchAt, fallbackKey, runBatch, type Player } from '../worker/src/logic/batch';
 import { nextRate } from '../src/online/rateMath';
 import { RANKING, RATING } from '../src/config/rating';
 import { readFileSync } from 'node:fs';
@@ -42,8 +42,27 @@ describe('I01 受付係の待ち行列', () => {
     expect(canPair(waiter(1), waiter(2, { lastOpponentId: pid(1) }))).toBe(false);
   });
 
-  it('待っているのが直前の相手だけなら、組まずに待つ', () => {
-    expect(pickPairs([waiter(1, { lastOpponentId: pid(2) }), waiter(2, { lastOpponentId: pid(1) })])).toEqual([]);
+  it('⑤ 待っているのが2人だけなら、直前の相手どうしでも組む（v2.7）', () => {
+    expect(pickPairs([waiter(1, { lastOpponentId: pid(2) }), waiter(2, { lastOpponentId: pid(1) })]).map((p) => [p.a.id, p.b.id])).toEqual([['w1', 'w2']]);
+    // 片方だけが覚えていても同じ
+    expect(pickPairs([waiter(1, { lastOpponentId: pid(2) }), waiter(2)])).toHaveLength(1);
+    // 2人だけでも、同じ playerId（同じセーブの別のタブ）とは組まない
+    expect(pickPairs([waiter(1), waiter(2, { playerId: pid(1) })])).toEqual([]);
+    // 2人だけかは、同じプロトコル版数で数える（ほかの版数の人は数えない）
+    expect(pickPairs([waiter(1, { lastOpponentId: pid(2) }), waiter(2, { lastOpponentId: pid(1) }), waiter(3, { protocol: 99 })])).toHaveLength(1);
+  });
+
+  it('⑥ 3人以上なら、今までどおり直前の相手を避ける', () => {
+    // 1と2は直前の相手どうし。3が来たら、1は3と組み、2は待つ
+    const ws = [waiter(1, { lastOpponentId: pid(2) }), waiter(2, { lastOpponentId: pid(1) }), waiter(3)];
+    expect(pickPairs(ws).map((p) => [p.a.id, p.b.id])).toEqual([['w1', 'w3']]);
+    // 4人で 1-2・3-4 が直前の相手どうしなら、1-3・2-4 で組む
+    const four = [waiter(1, { lastOpponentId: pid(2) }), waiter(2, { lastOpponentId: pid(1) }), waiter(3, { lastOpponentId: pid(4) }), waiter(4, { lastOpponentId: pid(3) })];
+    expect(pickPairs(four).map((p) => [p.a.id, p.b.id])).toEqual([['w1', 'w3'], ['w2', 'w4']]);
+    // 3人の直前の相手がひと回り（1→2・2→3・3→1）なら、だれも組まずに待つ。1人抜けて2人になれば組む
+    const ring = [waiter(1, { lastOpponentId: pid(2) }), waiter(2, { lastOpponentId: pid(3) }), waiter(3, { lastOpponentId: pid(1) })];
+    expect(pickPairs(ring)).toEqual([]);
+    expect(pickPairs(ring.slice(0, 2)).map((p) => [p.a.id, p.b.id])).toEqual([['w1', 'w2']]);
   });
 
   it('同じ playerId（同じセーブの別のタブ）とは組まない', () => {
@@ -202,17 +221,18 @@ describe('I03 まとめ処理', () => {
     expect(players.get(A)!.rate).toBe(150);
   });
 
-  it('同じ2人は日本時間の1日に3試合まで（日が変われば また数える）', () => {
+  it('⑦ 同じ2人の試合も、1日に何試合でも すべて数える（v2.7 で「1日3試合まで」をやめた）', () => {
     const rs = [];
     for (let i = 0; i < 5; i++) rs.push(res(i % 2 ? B : A, i % 2 ? A : B, A, DAY + i));
     rs.push(res(A, B, A, DAY + 24 * 60 * 60 * 1000)); // 次の日
     rs.push(res(A, C, A, DAY + 10)); // ほかの人とは別に数える
     const out = runBatch(new Map(), rs, NOW + 24 * 60 * 60 * 1000);
-    expect(PAIR_DAILY_LIMIT).toBe(3);
-    expect(out.counted).toBe(5);
-    expect(out.skipped).toBe(2);
+    expect(out.counted).toBe(7);
+    expect(out.skipped).toBe(0);
     const a = out.changed.find((p) => p.id === A)!;
-    expect(a.wins).toBe(5);
+    expect(a.wins).toBe(7);
+    // 同じ2人だけの数も残さない（数えるのは予備の待合所の試合だけ）
+    expect([...out.counts.keys()].every((k) => k.includes(':f:'))).toBe(true);
   });
 
   it('7日以上遊んでいない人は表示から外す。次に遊べば戻る', () => {
@@ -348,7 +368,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     expect(swapped.changed.map((p) => p.rate)).not.toEqual(one.changed.map((p) => p.rate));
   });
 
-  it('同じ2人の「1日3試合」は、2回の まとめ処理をまたいでも数える（日本時間 0:00〜24:00）', async () => {
+  it('⑦ 同じ2人の試合は、2回の まとめ処理にまたがっても すべて数える（v2.7）', async () => {
     const { runBatchJob } = await import('../worker/src/ranking');
     // 2026-10-04（日本時間）の 1:00・3:00（4:00 の更新で数える）と 10:00・12:00・13:00（16:00 の更新で数える）
     const at = (h: number) => Date.UTC(2026, 9, 3, 15 + h, 0);
@@ -357,13 +377,12 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     const lobby = fakeLobby([mk(1, 1), mk(2, 3)]);
     const r1 = await runBatchJob(db as never, lobby, at(4));
     expect(r1.counted).toBe(2);
-    expect(lobby.day.get(pairKey(20261004, A, B))).toBe(2);
     for (const x of [mk(3, 10), mk(4, 12), mk(5, 13)]) (lobby.rows as unknown[]).push(x);
     const r2 = await runBatchJob(db as never, lobby, at(16));
-    // 午前の2試合と合わせて3試合まで：午後は1試合だけ
-    expect(r2.counted).toBe(1);
-    expect(r2.skipped).toBe(2);
-    expect(db.players.get(A)).toMatchObject({ wins: 3, losses: 0 });
+    // 午後の3試合も すべて数える（同じ日に5試合）
+    expect(r2.counted).toBe(3);
+    expect(r2.skipped).toBe(0);
+    expect(db.players.get(A)).toMatchObject({ wins: 5, losses: 0 });
     // 次の日（日本時間 0:00 を過ぎた試合）は また数える
     (lobby.rows as unknown[]).push(mk(6, 24 + 1));
     const r3 = await runBatchJob(db as never, lobby, at(24 + 4));
@@ -373,12 +392,13 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
   it('D1 に書いた後に止まっても、その日に数えた数は次の まとめ処理で書かれる', async () => {
     const { runBatchJob } = await import('../worker/src/ranking');
     const db = fakeDb();
-    const lobby = fakeLobby([row(1, A, B, A)]);
+    // 数えた数を残すのは予備の待合所の試合（known: false。v2.7 から同じ2人の数は残さない）
+    const lobby = fakeLobby([{ ...row(1, A, B, A), known: false }]);
     lobby.ackFailsOnce();
     await expect(runBatchJob(db as never, lobby, 1_800_000_100_000)).rejects.toThrow();
     expect(lobby.day.size).toBe(0);
     await runBatchJob(db as never, lobby, 1_800_000_200_000);
-    expect(lobby.day.get(pairKey(jstDay(1_800_000_000_001), A, B))).toBe(1);
+    expect(lobby.day.get(fallbackKey(jstDay(1_800_000_000_001), A))).toBe(1);
   });
 
   it('予備の待合所の試合は、1人1日10試合まで（日の区切りは日本時間 0:00）', () => {
@@ -386,7 +406,7 @@ describe('I03 まとめ処理が途中で止まっても、二重に数えない
     const rs = [];
     for (let i = 0; i < 12; i++) rs.push({ id: i, matchId: mid(9000 + i), a: A, b: i % 2 ? B : C, winner: A, at: Date.UTC(2026, 9, 4, 3, 0) + i, known: false });
     const out = runBatch(new Map(), rs, Date.UTC(2026, 9, 4, 19, 0));
-    expect(out.counted).toBe(6); // A-B 3試合・A-C 3試合（同じ2人は3試合まで）
+    expect(out.counted).toBe(10); // A の10試合まで（v2.7 から同じ2人の制限は無い）
     const many = [];
     for (let i = 0; i < 15; i++) many.push({ matchId: mid(9100 + i), a: A, b: pid(100 + i), winner: A, at: Date.UTC(2026, 9, 4, 3, 0) + i, known: false });
     expect(runBatch(new Map(), many, 0).counted).toBe(10);

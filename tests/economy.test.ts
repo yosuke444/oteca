@@ -9,6 +9,8 @@ import { createDefaultSave } from '../src/save/saveData';
 /** コインと報酬（SPEC §7 S11・§16-2c。UPDATE_v2 §5） */
 
 const DAY1 = 20261002;
+/** CPU対戦のコインの回数を数える区切り（デイリーミッションと同じ。v2.7） */
+const CYCLE = 20261002;
 const DAY2 = 20261003;
 const turns = (p1: number, p2: number) => ({ p1, p2 });
 const friend = (p1 = 2, p2 = 2, win = true): MatchInfo => ({ kind: 'friend', win, turnCounts: turns(p1, p2) });
@@ -82,23 +84,23 @@ describe('D01 ログインボーナス（v2.1-L：受け取ってから24時間�
 });
 
 describe('D02 CPU対戦の報酬', () => {
-  it('勝った時だけ、強さごと（よわい20・ふつう30・つよい50・さいきょう80）', () => {
-    const levels = { weak: 20, normal: 30, strong: 50, strongest: 80 } as const;
+  it('勝った時だけ、強さごと（よわい20・ふつう30・つよい40・さいきょう50。v2.7）', () => {
+    const levels = { weak: 20, normal: 30, strong: 40, strongest: 50 } as const;
     for (const [level, coins] of Object.entries(levels)) {
       const s = createDefaultSave();
-      const r = applyMatchReward(s, { kind: 'cpu', cpuLevel: level as keyof typeof levels, win: true, turnCounts: turns(1, 1) }, DAY1);
+      const r = applyMatchReward(s, { kind: 'cpu', cpuLevel: level as keyof typeof levels, win: true, turnCounts: turns(1, 1) }, DAY1, CYCLE);
       expect(r).toEqual({ coins, status: 'ok' });
       expect(s.coins).toBe(200 + coins);
-      // CPU対戦は1日の数に入らない
+      // CPU対戦はフレンド・レートの1日の数に入らない（CPU対戦の回数は別に数える。v2.7）
       expect(rewardedToday(s, DAY1)).toBe(0);
-      const lose = applyMatchReward(s, { kind: 'cpu', cpuLevel: level as keyof typeof levels, win: false, turnCounts: turns(5, 5) }, DAY1);
+      const lose = applyMatchReward(s, { kind: 'cpu', cpuLevel: level as keyof typeof levels, win: false, turnCounts: turns(5, 5) }, DAY1, CYCLE);
       expect(lose).toEqual({ coins: 0, status: 'lose' });
     }
   });
 
   it('デバッグ対戦・カードを ためす・チュートリアルは 0', () => {
     const s = createDefaultSave();
-    expect(applyMatchReward(s, { kind: 'none', win: true, turnCounts: turns(9, 9) }, DAY1)).toEqual({ coins: 0, status: 'none' });
+    expect(applyMatchReward(s, { kind: 'none', win: true, turnCounts: turns(9, 9) }, DAY1, CYCLE)).toEqual({ coins: 0, status: 'none' });
     expect(s.coins).toBe(200);
   });
 });
@@ -108,7 +110,7 @@ describe('D03 フレンド・レートの報酬：両者2ターン以上', () =>
     for (const kind of ['friend', 'rate'] as const) {
       for (const win of [true, false]) {
         const s = createDefaultSave();
-        expect(applyMatchReward(s, { kind, win, turnCounts: turns(2, 2) }, DAY1)).toEqual({ coins: 50, status: 'ok' });
+        expect(applyMatchReward(s, { kind, win, turnCounts: turns(2, 2) }, DAY1, CYCLE)).toEqual({ coins: 50, status: 'ok' });
         expect(s.coins).toBe(250);
         expect(s.dailyReward).toEqual({ date: DAY1, count: 1 });
       }
@@ -123,7 +125,7 @@ describe('D03 フレンド・レートの報酬：両者2ターン以上', () =>
       [0, 0],
     ]) {
       const s = createDefaultSave();
-      expect(applyMatchReward(s, friend(a, b), DAY1)).toEqual({ coins: 0, status: 'short' });
+      expect(applyMatchReward(s, friend(a, b), DAY1, CYCLE)).toEqual({ coins: 0, status: 'short' });
       expect(s.coins).toBe(200);
       expect(rewardedToday(s, DAY1)).toBe(0);
     }
@@ -135,24 +137,24 @@ describe('D04 フレンド・レートの報酬：1日20試合まで', () => {
     const s = createDefaultSave();
     for (let i = 0; i < 20; i++) {
       const kind = i % 2 === 0 ? 'friend' : 'rate';
-      expect(applyMatchReward(s, { kind, win: i % 3 === 0, turnCounts: turns(3, 2) }, DAY1).status, `${i + 1}試合め`).toBe('ok');
+      expect(applyMatchReward(s, { kind, win: i % 3 === 0, turnCounts: turns(3, 2) }, DAY1, CYCLE).status, `${i + 1}試合め`).toBe('ok');
     }
     expect(s.coins).toBe(200 + 20 * 50);
     expect(rewardedToday(s, DAY1)).toBe(20);
-    expect(applyMatchReward(s, friend(), DAY1)).toEqual({ coins: 0, status: 'limit' });
-    expect(applyMatchReward(s, { kind: 'rate', win: false, turnCounts: turns(4, 4) }, DAY1)).toEqual({ coins: 0, status: 'limit' });
+    expect(applyMatchReward(s, friend(), DAY1, CYCLE)).toEqual({ coins: 0, status: 'limit' });
+    expect(applyMatchReward(s, { kind: 'rate', win: false, turnCounts: turns(4, 4) }, DAY1, CYCLE)).toEqual({ coins: 0, status: 'limit' });
     expect(s.coins).toBe(1200);
     // 上限の後でも CPU の報酬は出る
-    expect(applyMatchReward(s, { kind: 'cpu', cpuLevel: 'weak', win: true, turnCounts: turns(1, 1) }, DAY1).status).toBe('ok');
+    expect(applyMatchReward(s, { kind: 'cpu', cpuLevel: 'weak', win: true, turnCounts: turns(1, 1) }, DAY1, CYCLE).status).toBe('ok');
     // 次の日
     expect(rewardedToday(s, DAY2)).toBe(0);
-    expect(applyMatchReward(s, friend(), DAY2)).toEqual({ coins: 50, status: 'ok' });
+    expect(applyMatchReward(s, friend(), DAY2, CYCLE)).toEqual({ coins: 50, status: 'ok' });
     expect(s.dailyReward).toEqual({ date: DAY2, count: 1 });
   });
 
   it('見積もり（matchReward）は保存しない', () => {
     const s = createDefaultSave();
-    expect(matchReward(s, friend(), DAY1)).toEqual({ coins: 50, status: 'ok' });
+    expect(matchReward(s, friend(), DAY1, CYCLE)).toEqual({ coins: 50, status: 'ok' });
     expect(s.coins).toBe(200);
     expect(s.dailyReward).toEqual({ date: 0, count: 0 });
   });
@@ -162,15 +164,15 @@ describe('D05 上限と日付のまたぎ', () => {
   it('報酬はコインの上限を超えない（足せた分だけ返す）', () => {
     const s = createDefaultSave();
     s.coins = 99970;
-    expect(applyMatchReward(s, friend(), DAY1)).toEqual({ coins: 29, status: 'ok' });
+    expect(applyMatchReward(s, friend(), DAY1, CYCLE)).toEqual({ coins: 29, status: 'ok' });
     expect(s.coins).toBe(99999);
   });
 
   it('前の日の数は、日付が変わると数え直す（20試合に達していても）', () => {
     const s = createDefaultSave();
     s.dailyReward = { date: DAY1, count: 20 };
-    expect(matchReward(s, friend(), DAY1).status).toBe('limit');
-    expect(matchReward(s, friend(), DAY2).status).toBe('ok');
+    expect(matchReward(s, friend(), DAY1, CYCLE).status).toBe('limit');
+    expect(matchReward(s, friend(), DAY2, CYCLE).status).toBe('ok');
   });
 });
 
@@ -204,19 +206,19 @@ describe('D07 「両者2ターン以上」は、終えたターンを数える',
   it('相手が1ターン目に降参：1・0 → もらえない（すぐ降参をくり返しても増えない）', () => {
     const { stats } = play(['e', 's2']);
     expect(stats.turnCounts).toEqual({ p1: 1, p2: 0 });
-    expect(matchReward(createDefaultSave(), { kind: 'friend', win: true, turnCounts: stats.turnCounts }, DAY1).status).toBe('short');
+    expect(matchReward(createDefaultSave(), { kind: 'friend', win: true, turnCounts: stats.turnCounts }, DAY1, CYCLE).status).toBe('short');
   });
 
   it('2ターン目の始めに降参：2・1 → もらえない（始まっただけのターンは数えない）', () => {
     const { stats } = play(['e', 'e', 'e', 's2']);
     expect(stats.turnCounts).toEqual({ p1: 2, p2: 1 });
-    expect(matchReward(createDefaultSave(), { kind: 'friend', win: true, turnCounts: stats.turnCounts }, DAY1).status).toBe('short');
+    expect(matchReward(createDefaultSave(), { kind: 'friend', win: true, turnCounts: stats.turnCounts }, DAY1, CYCLE).status).toBe('short');
   });
 
   it('両者が2ターンずつ終えてから決着：2・2 → もらえる', () => {
     const { stats } = play(['e', 'e', 'e', 'e', 's1']);
     expect(stats.turnCounts).toEqual({ p1: 2, p2: 2 });
-    expect(matchReward(createDefaultSave(), { kind: 'friend', win: false, turnCounts: stats.turnCounts }, DAY1)).toEqual({ coins: 50, status: 'ok' });
+    expect(matchReward(createDefaultSave(), { kind: 'friend', win: false, turnCounts: stats.turnCounts }, DAY1, CYCLE)).toEqual({ coins: 50, status: 'ok' });
   });
 });
 

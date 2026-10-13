@@ -77,8 +77,8 @@ export class Matchmaker extends DurableObject<Env> {
     this.exec(`DROP TABLE IF EXISTS results`);
     // まとめ処理の途中の印（D1 に書く直前に、処理する試合ID を1行で覚える。失敗した時に二重に数えないように）
     this.exec(`CREATE TABLE IF NOT EXISTS batch_state (id TEXT PRIMARY KEY, match_ids TEXT NOT NULL) WITHOUT ROWID`);
-    // その日に数えた数（v2.0-J。1日2回の まとめ処理をまたいで「同じ2人は1日3試合まで」を数える）。
-    // 1日16行（キーの散らし先ごとに JSON。キーは 日付:p:2人 か 日付:f:人）。書き込み行を試合の数で増やさず、1行も大きくしない
+    // その日に数えた数（v2.0-J。1日2回の まとめ処理をまたいで「予備の待合所の試合は1人1日10試合まで」を数える。
+    // v2.7 で「同じ2人は1日3試合まで」はやめた）。1日16行（キーの散らし先ごとに JSON。キーは 日付:f:人）。書き込み行を試合の数で増やさず、1行も大きくしない
     this.exec(`DROP TABLE IF EXISTS day_counts`);
     this.exec(`DROP TABLE IF EXISTS day_counts2`);
     this.exec(`CREATE TABLE IF NOT EXISTS day_counts3 (day INTEGER NOT NULL, bucket INTEGER NOT NULL, counts TEXT NOT NULL, PRIMARY KEY (day, bucket)) WITHOUT ROWID`);
@@ -247,7 +247,7 @@ export class Matchmaker extends DurableObject<Env> {
     }
     if (m.t === 'leave') {
       this.drop(ws);
-      this.broadcastCounts(this.conns());
+      this.broadcastCounts(this.match(this.conns()));
       return;
     }
     if (m.t !== 'join') return;
@@ -286,11 +286,11 @@ export class Matchmaker extends DurableObject<Env> {
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
-    if (this.drop(ws)) this.broadcastCounts(this.conns());
+    if (this.drop(ws)) this.broadcastCounts(this.match(this.conns()));
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
-    if (this.drop(ws)) this.broadcastCounts(this.conns());
+    if (this.drop(ws)) this.broadcastCounts(this.match(this.conns()));
   }
 
   /**

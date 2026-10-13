@@ -45,6 +45,8 @@ export function guideNumbers() {
     },
     cpu: {
       levels: CPU_LEVELS.map((l: CpuLevel) => ({ level: l, coins: ECONOMY.cpuWinReward[l] })),
+      /** コインをもらえる勝ちは1日この回数まで（v2.7） */
+      dailyLimit: ECONOMY.cpuDailyLimit,
     },
     story: {
       stages: STORY.stages.length,
@@ -66,7 +68,7 @@ export function guideNumbers() {
       slots: DECK_SLOTS,
     },
     trade: { kinds: TRADE_MAX_KINDS, cards: TRADE_MAX_CARDS },
-    ranking: { rateStart: RATING.initial, hours: RANKING.batchHoursJst, pair: RANKING.pairDailyLimit, hideDays: RANKING.hideAfterDays, top: RANKING.top },
+    ranking: { rateStart: RATING.initial, hours: RANKING.batchHoursJst, hideDays: RANKING.hideAfterDays, top: RANKING.top },
     daily: {
       resetHour: DAILY.resetHour,
       pick: DAILY.pick,

@@ -3,7 +3,8 @@
   "loginBonus": 50,
   "loginBonusHours": 24,
   "onlineReward": { "friend": 50, "rate": 50 },
-  "cpuWinReward": { "weak": 20, "normal": 30, "strong": 50, "strongest": 80 },
+  "cpuWinReward": { "weak": 20, "normal": 30, "strong": 40, "strongest": 50 },
+  "cpuDailyLimit": 5,
   "dailyRewardLimit": 20,
   "minTurnsEach": 2,
   "debugAddCoins": 1000

@@ -16,6 +16,8 @@ export type Economy = {
   loginBonusHours: number;
   onlineReward: { friend: number; rate: number };
   cpuWinReward: Record<CpuLevel, number>;
+  /** CPU対戦でコインをもらえる勝ちの数（1日。デイリーミッションの入れ替わりで0に戻る。v2.7） */
+  cpuDailyLimit: number;
   dailyRewardLimit: number;
   minTurnsEach: number;
   debugAddCoins: number;
@@ -101,7 +103,7 @@ export type MatchInfo = {
  * 報酬の結果。
  * - ok：もらえた
  * - short：フレンド・レートで、どちらかが2ターンに届かなかった
- * - limit：フレンド・レートで、今日の分（20試合）をもうもらった
+ * - limit：フレンド・レートで今日の分（20試合）、CPU対戦で今日の分（5回。v2.7）をもうもらった
  * - lose：CPU対戦で負けた
  * - none：報酬の無い対戦
  */
@@ -112,13 +114,24 @@ export function rewardedToday(save: Pick<SaveData, 'dailyReward'>, today: number
   return save.dailyReward.date === today ? save.dailyReward.count : 0;
 }
 
-/** その試合の報酬（まだ保存しない。見積もり） */
-export function matchReward(save: Pick<SaveData, 'dailyReward'>, info: MatchInfo, today: number): RewardResult {
+/**
+ * CPU対戦で、今日あと何回コインをもらえるか（v2.7）。cycle はデイリーミッションの区切り（daily.ts cycleKeyAt。画面の側で渡す）。
+ * 区切りが変わっていれば、まだ1回も もらっていない
+ */
+export function cpuRewardsLeft(save: Pick<SaveData, 'cpuReward'>, cycle: number): number {
+  const used = save.cpuReward.cycleKey === cycle ? save.cpuReward.count : 0;
+  return Math.max(0, ECONOMY.cpuDailyLimit - used);
+}
+
+/** その試合の報酬（まだ保存しない。見積もり）。cycle は CPU対戦の回数を数える区切り（デイリーミッションと同じ） */
+export function matchReward(save: Pick<SaveData, 'dailyReward' | 'cpuReward'>, info: MatchInfo, today: number, cycle: number): RewardResult {
   switch (info.kind) {
     case 'none':
       return { coins: 0, status: 'none' };
     case 'cpu':
       if (!info.win) return { coins: 0, status: 'lose' };
+      // 1日 cpuDailyLimit 回まで。6回目からも対戦はできるが、コインは0（v2.7）
+      if (cpuRewardsLeft(save, cycle) <= 0) return { coins: 0, status: 'limit' };
       return { coins: ECONOMY.cpuWinReward[info.cpuLevel ?? 'normal'] ?? 0, status: 'ok' };
     case 'friend':
     case 'rate': {
@@ -132,15 +145,19 @@ export function matchReward(save: Pick<SaveData, 'dailyReward'>, info: MatchInfo
 
 /**
  * 報酬を下書きに書く（勝敗の記録と同じ update の中で呼ぶ。SPEC §7 S11）。
- * フレンド・レートでもらえた時は、今日の試合数を1増やす。
+ * フレンド・レートでもらえた時は、今日の試合数を1増やす。CPU対戦でもらえた時は、今日の回数を1増やす（コインをもらえた勝ちだけ数える。v2.7）。
  */
-export function applyMatchReward(draft: Pick<SaveData, 'dailyReward' | 'coins'>, info: MatchInfo, today: number): RewardResult {
-  const r = matchReward(draft, info, today);
+export function applyMatchReward(draft: Pick<SaveData, 'dailyReward' | 'cpuReward' | 'coins'>, info: MatchInfo, today: number, cycle: number): RewardResult {
+  const r = matchReward(draft, info, today, cycle);
   if (r.status !== 'ok') return r;
   if (info.kind === 'friend' || info.kind === 'rate') {
     draft.dailyReward = { date: today, count: rewardedToday(draft, today) + 1 };
   }
-  return { coins: addCoins(draft, r.coins), status: 'ok' };
+  const used = ECONOMY.cpuDailyLimit - cpuRewardsLeft(draft, cycle);
+  const added = addCoins(draft, r.coins);
+  // CPU対戦は、本当にコインが増えた勝ちだけ数える（コインが上限で増えなかった時は数えない。v2.7）
+  if (info.kind === 'cpu' && added > 0) draft.cpuReward = { cycleKey: cycle, count: used + 1 };
+  return { coins: added, status: 'ok' };
 }
 
 /**
@@ -154,8 +171,9 @@ export function rewardKindFor(setup: { mode: 'online' | 'cpu' | 'local' | 'spect
   return 'none';
 }
 
-/** デバッグ「ログボの日付を 1日 すすめる」：受け取った時刻を24時間前に・報酬の日を1日前にずらす（次の日になったのと同じ） */
-export function debugNextDay(draft: Pick<SaveData, 'loginBonus' | 'dailyReward'>): void {
+/** デバッグ「ログボの日付を 1日 すすめる」：受け取った時刻を24時間前に・報酬の日を1日前にずらす（次の日になったのと同じ）。CPU対戦のコインの回数も0に */
+export function debugNextDay(draft: Pick<SaveData, 'loginBonus' | 'dailyReward' | 'cpuReward'>): void {
+  draft.cpuReward = { cycleKey: 0, count: 0 };
   draft.loginBonus.claimedAt = Math.max(0, draft.loginBonus.claimedAt - LOGIN_BONUS_MS);
   draft.dailyReward.date = prevDayKey(draft.dailyReward.date);
 }

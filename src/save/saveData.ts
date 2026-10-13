@@ -80,6 +80,11 @@ export type SaveData = {
   loginBonus: { claimedAt: number };
   /** その日（YYYYMMDD）にフレンド・レートで報酬を受けた試合数 */
   dailyReward: { date: number; count: number };
+  /**
+   * CPU対戦でコインをもらえた勝ちの数（v2.7。形式版数11）。cycleKey はデイリーミッションの入れ替わりの区切り（daily.ts cycleKeyAt）。
+   * 区切りが変わったら 0 から数え直す。1日 economy.json の cpuDailyLimit 回まで
+   */
+  cpuReward: { cycleKey: number; count: number };
   story: { stages: StoryStage[] };
   /** レート（初期値100） */
   rate: number;
@@ -233,6 +238,7 @@ export function normalizeSave(data: SaveData): SaveData {
     cpuStats: Array.from({ length: CPU_LEVEL_COUNT }, (_, i) => winLoss(data.cpuStats?.[i])),
     loginBonus: { claimedAt: clampInt(data.loginBonus?.claimedAt) },
     dailyReward: { date: clampInt(data.dailyReward?.date), count: clampInt(data.dailyReward?.count) },
+    cpuReward: { cycleKey: clampInt(data.cpuReward?.cycleKey), count: clampInt(data.cpuReward?.count) },
     story: { stages: [...stages.values()].sort((a, b) => a.no - b.no) },
     rate: clampInt(data.rate),
     rateStats: { ...winLoss(data.rateStats), best: clampInt(data.rateStats?.best) },
@@ -287,7 +293,7 @@ export function emptyDaily(): DailyState {
 /** 後の項目（D〜I）の枠の初期値。新しいセーブと、古いセーブからの移行で共通 */
 export function laterFieldsDefault(): Pick<
   SaveData,
-  'playerId' | 'userId' | 'userIdRegistered' | 'trophies' | 'loginBonus' | 'dailyReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'pendingFriendMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
+  'playerId' | 'userId' | 'userIdRegistered' | 'trophies' | 'loginBonus' | 'dailyReward' | 'cpuReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'pendingFriendMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
 > {
   return {
     playerId: '',
@@ -296,6 +302,7 @@ export function laterFieldsDefault(): Pick<
     trophies: [],
     loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
+    cpuReward: { cycleKey: 0, count: 0 },
     rate: RATE_START,
     rateStats: { wins: 0, losses: 0, best: RATE_START },
     lastRateOpponentId: '',

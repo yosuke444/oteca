@@ -1,4 +1,5 @@
 import { getRelaySockets, joinRoom, selfId, type Room } from 'trystero';
+import { markStart } from './startTiming';
 import { APP_ID, isMsg, type Msg } from './protocol';
 import type { NetTransport } from './transport';
 
@@ -39,6 +40,7 @@ export class TrysteroTransport implements NetTransport {
   }
 
   private open(roomId: string): void {
+    markStart('roomOpen');
     const room = joinRoom({ appId: APP_ID, rtcConfig: { iceServers: ICE_SERVERS } }, roomId, {
       // WebRTC でつながらなかった時など（TURN が無いと、一部の回線ではつながらない）
       onJoinError: (d) => this.onError(String(d.error)),

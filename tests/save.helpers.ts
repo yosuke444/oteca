@@ -32,6 +32,7 @@ export function randomSave(seed: number): SaveData {
   return {
     saveVersion: 1,
     saveCounter: bigOrSmall(),
+    cpuReward: { cycleKey: r.int(0, 20991231), count: r.int(0, 50) },
     playerName: text(0, 8),
     settings: {
       bgm: r.int(0, 10),

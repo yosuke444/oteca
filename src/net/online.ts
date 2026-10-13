@@ -87,6 +87,8 @@ export class OnlineLink {
       playerId: me.playerId ?? playerId(),
       ...(me.rate !== undefined ? { rate: me.rate } : {}),
       ...(me.userId ? { userId: me.userId } : {}),
+      // レート対戦の2人だけの部屋は、ほかの人が来ないので すぐ対戦者を決める（v2.7）
+      ...(place.kind === 'rate' ? { pickAfterMs: 0 } : {}),
     });
     this.session = s;
     s.onStatus = (v) => this.emit('status', v);

@@ -279,10 +279,15 @@ export const hira = {
     summaryLevel: (level: string) => `つよさ：${level}`,
     summaryMine: (deck: string) => `あなた：${deck}`,
     none: 'つかえる デッキが ないよ。デッキへんしゅうで つくるか、なおしてね',
+    /** CPU対戦のコインの残り（v2.7） */
+    coinsLeft: (n: number) => `きょうの コイン あと ${n}かい`,
+    coinsDone: 'きょうの コインは おしまい',
   },
 
   result: {
     rewardLimit: 'きょうの コインは もう もらったよ',
+    /** CPU対戦で、今日の5回をもうもらった（v2.7） */
+    rewardLimitCpu: 'きょうの コインは おしまい',
     rewardShort: '2ターン いじょう たたかうと コインが もらえるよ',
     reason: { ko: 'たおした かずで', noBench: 'ベンチが からっぽに なって', surrender: 'おてあげ（こうさん）で' },
     disagree: 'ふたりの けっかが ちがったので きろく しないよ',
@@ -855,7 +860,7 @@ export const hira = {
             title: 'レートの けいさん',
             lines: [
               `はじめの レートは ${n.ranking.rateStart}。つよい あいてに かつほど たくさん あがるよ`,
-              `おなじ あいてとは 1にち ${n.ranking.pair}しあい まで かぞえるよ`,
+              'おなじ あいてとの しあいも、ぜんぶ かぞえるよ',
               `たいせんの すぐあとは「かり」の レート。つぎの こうしん（${n.ranking.hours.map((h) => `${h}じ`).join('・')}）で ただしい レートに なるよ`,
             ],
           },
@@ -901,7 +906,7 @@ export const hira = {
         short: ['コンピューターと たいせん。つよさを えらべるよ', 'かつと コインが もらえる'],
         pages: [
           { title: `${n.cpu.levels.length}つの つよさ`, lines: n.cpu.levels.map((l) => `${w.levels[l.level]}：${w.levelNotes[l.level]}`) },
-          { title: 'もらえる コイン', lines: [...n.cpu.levels.map((l) => `${w.levels[l.level]}に かつ：${l.coins}コイン`), 'まけた ときは もらえないよ。なんかいでも あそべるよ'] },
+          { title: 'もらえる コイン', lines: [...n.cpu.levels.map((l) => `${w.levels[l.level]}に かつ：${l.coins}コイン`), `コインが もらえるのは 1日 ${n.cpu.dailyLimit}かい まで（デイリーミッションと おなじ じこくに もどるよ）`, 'まけた ときは もらえないよ。たいせんは なんかいでも できるよ'] },
         ],
       }),
       story: (n: GuideNumbers, _w: GuideWords) => ({

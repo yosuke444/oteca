@@ -1,8 +1,9 @@
 /**
  * 受付係の待ち行列（UPDATE_v2 §8-4・§10、SPEC §11-9）。Cloudflare に関係しない、ふつうの処理だけ（テストしやすいように）。
  * - レートは使わない。待ち始めた順（joinedAt → seq）に組む。
- * - 直前の相手（どちらかが覚えていれば）・同じ playerId（同じセーブの別のタブ）・プロトコル版数の違う人とは組まない。
- * - 待っているのが直前の相手だけなら、ほかの人が来るまで待つ。
+ * - 同じ playerId（同じセーブの別のタブ）・プロトコル版数の違う人とは組まない。
+ * - 直前の相手（どちらかが覚えていれば）とは組まない。ただし、同じプロトコル版数で待っているのが2人だけの時は、
+ *   直前の相手どうしでも組む（v2.7。3人以上いる時は今までどおり避ける）。
  */
 
 import { isUserId } from '../../../src/save/userId';
@@ -27,11 +28,18 @@ export type Waiter = {
   seq: number;
 };
 
-/** この2人は組めるか */
-export function canPair(a: Waiter, b: Waiter): boolean {
+/** 直前の相手どうしか（どちらかが覚えていれば） */
+export function isLastOpponents(a: Pick<Waiter, 'playerId' | 'lastOpponentId'>, b: Pick<Waiter, 'playerId' | 'lastOpponentId'>): boolean {
+  return a.playerId === b.lastOpponentId || b.playerId === a.lastOpponentId;
+}
+
+/**
+ * この2人は組めるか。onlyTwo：同じプロトコル版数で待っているのがこの2人だけ（その時は直前の相手どうしでも組む。v2.7）
+ */
+export function canPair(a: Waiter, b: Waiter, onlyTwo = false): boolean {
   if (a.protocol !== b.protocol) return false;
   if (a.playerId === b.playerId) return false;
-  if (a.playerId === b.lastOpponentId || b.playerId === a.lastOpponentId) return false;
+  if (!onlyTwo && isLastOpponents(a, b)) return false;
   return true;
 }
 
@@ -46,6 +54,8 @@ export function byJoin(a: Waiter, b: Waiter): number {
  */
 export function pickPairs(waiters: readonly Waiter[]): { a: Waiter; b: Waiter }[] {
   const list = [...waiters].sort(byJoin);
+  // 同じプロトコル版数で待っている人数（2人だけなら、直前の相手どうしでも組む。v2.7）
+  const counts = waitingCounts(list);
   const used = new Set<string>();
   const out: { a: Waiter; b: Waiter }[] = [];
   for (let i = 0; i < list.length; i++) {
@@ -53,7 +63,7 @@ export function pickPairs(waiters: readonly Waiter[]): { a: Waiter; b: Waiter }[
     if (used.has(a.id)) continue;
     for (let j = i + 1; j < list.length; j++) {
       const b = list[j];
-      if (used.has(b.id) || !canPair(a, b)) continue;
+      if (used.has(b.id) || !canPair(a, b, counts.get(a.protocol) === 2)) continue;
       used.add(a.id);
       used.add(b.id);
       out.push({ a, b });

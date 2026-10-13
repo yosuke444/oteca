@@ -10,7 +10,7 @@ const JST_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
-/** 日本時間の日付（YYYYMMDD）。「1日3試合」の1日はこれ（日本時間 0:00〜24:00） */
+/** 日本時間の日付（YYYYMMDD）。予備の待合所の試合の「1日10試合」の1日はこれ（日本時間 0:00〜24:00） */
 export function jstDay(ms: number): number {
   const d = new Date(ms + JST_MS);
   return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();

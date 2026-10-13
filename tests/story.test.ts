@@ -268,13 +268,13 @@ describe('F04 報酬', () => {
     expect(save.coins).toBe(c0 + 80);
   });
 
-  it('ボス：初クリア200 ＋ 限定カード1枚、2回目以降50（カードは増えない）', () => {
+  it('ボス：初クリア150（v2.7 で200から） ＋ 限定カード1枚、2回目以降50（カードは増えない）', () => {
     for (const n of [3, 11, 14, 15]) {
       const save = createDefaultSave();
       const st = stageByNo(n)!;
       const card = no(st.card!);
       const own = save.collection[card] ?? 0;
-      expect(applyStoryResult(save, n, true)).toEqual({ first: true, coins: 200, cardNo: card });
+      expect(applyStoryResult(save, n, true)).toEqual({ first: true, coins: 150, cardNo: card });
       expect(save.collection[card]).toBe(own + 1);
       expect(applyStoryResult(save, n, true)).toEqual({ first: false, coins: 50, cardNo: null });
       expect(save.collection[card]).toBe(own + 1);

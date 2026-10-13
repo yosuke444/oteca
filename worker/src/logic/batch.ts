@@ -8,14 +8,12 @@ import type { ResultRow } from './results';
 /**
  * まとめ処理（毎日 日本時間 4:00 と 16:00。UPDATE_v2 §10・SPEC §11-9）の計算。ふつうの処理だけ。
  * 1. 試合結果を時刻順に読み、§8-4 の式でレートを計算する（2人とも、試合の前のレートで計算）。
- * 2. 同じ2人の組み合わせは、1日（日本時間 0:00〜24:00。試合の時刻で）に3試合までしか数えない。予備の待合所の試合は1人1日10試合まで。
- *    1日2回の まとめ処理をまたいでも数えられるように、その日に数えた数（counts）を受け取り、足した数を返す。
+ * 2. 同じ2人の試合も、すべて数える（v2.7 で「同じ2人は1日3試合まで」をやめた）。予備の待合所の試合は1人1日10試合まで
+ *    （1日は日本時間 0:00〜24:00。試合の時刻で）。1日2回の まとめ処理をまたいでも数えられるように、その日に数えた数（counts）を受け取り、足した数を返す。
  * 3. 数えた試合のある人は「最後に遊んだ時刻」を、まとめ処理の時刻にする（7日以上たつと表示から外れる）。
  * 名前・載せる設定は /register・/profile で D1 に直接書く（ここでは変えない）。
  */
 
-/** 同じ2人が1日に数えられる試合の数 */
-export const PAIR_DAILY_LIMIT = RANKING.pairDailyLimit;
 /** 予備の待合所の試合（受付係の知らない試合）を、1人が1日に数えられる数（試合をしなくても報告を合わせれば作れてしまうので） */
 export const FALLBACK_DAILY_LIMIT = RANKING.fallbackDailyLimit;
 /** これだけレートが変わっていない（遊んでいない）人は、ランキングの表示から外す */
@@ -38,14 +36,13 @@ export type BatchResult = {
   changed: Player[];
   /** 数えた試合 */
   counted: number;
-  /** 1日3試合を超えて数えなかった試合 */
+  /** 数えなかった試合（予備の待合所の試合で、1人1日10試合を超えたもの） */
   skipped: number;
   /** その日に数えた数（受け取った counts に足したもの。次の まとめ処理に渡す） */
   counts: Map<string, number>;
 };
 
-/** その日に数えた数の名前：同じ2人（日付:p:小さい方-大きい方）・予備の試合（日付:f:人） */
-export const pairKey = (day: number, a: string, b: string) => `${day}:p:${a < b ? `${a}-${b}` : `${b}-${a}`}`;
+/** その日に数えた数の名前：予備の試合（日付:f:人） */
 export const fallbackKey = (day: number, id: string) => `${day}:f:${id}`;
 
 /** 新しく出てきた人（登録はあるはずだが、念のため） */
@@ -59,7 +56,7 @@ export function newPlayer(id: string): Player {
  * @param players 試合に出てきた人の今のデータ（無い人は新しく作る）
  * @param results 試合結果（並びは問わない。時刻順に並べ直す）
  * @param now まとめ処理の時刻
- * @param counts その日に、前の まとめ処理で数えた数（pairKey・fallbackKey。書き換えない）
+ * @param counts その日に、前の まとめ処理で数えた数（fallbackKey。書き換えない）
  */
 export function runBatch(players: ReadonlyMap<string, Player>, results: readonly ResultRow[], now: number, counts: ReadonlyMap<string, number> = new Map()): BatchResult {
   const cur = new Map<string, Player>();
@@ -81,15 +78,13 @@ export function runBatch(players: ReadonlyMap<string, Player>, results: readonly
   let skipped = 0;
   for (const r of sorted) {
     const day = jstDay(r.at);
-    const key = pairKey(day, r.a, r.b);
     const fa = fallbackKey(day, r.a);
     const fb = fallbackKey(day, r.b);
     const fallback = r.known === false;
-    if (get0(key) >= PAIR_DAILY_LIMIT || (fallback && Math.max(get0(fa), get0(fb)) >= FALLBACK_DAILY_LIMIT)) {
+    if (fallback && Math.max(get0(fa), get0(fb)) >= FALLBACK_DAILY_LIMIT) {
       skipped += 1;
       continue;
     }
-    n.set(key, get0(key) + 1);
     if (fallback) {
       n.set(fa, get0(fa) + 1);
       n.set(fb, get0(fb) + 1);

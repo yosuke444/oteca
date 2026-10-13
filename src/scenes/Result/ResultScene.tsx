@@ -33,7 +33,7 @@ import { type RateChange, applyRateResult, rateOutcome } from '../../online/rate
 import { markProvisional, queueReport, reportWinner } from '../../online/ranking';
 import { features } from '../../config/features';
 import { KariMark } from '../../ui/common/RateValue';
-import { type DailyMatchKind, addDailyProgress, dailyMatchKind, matchProgress } from '../../daily/daily';
+import { type DailyMatchKind, addDailyProgress, cycleKeyAt, dailyMatchKind, matchProgress } from '../../daily/daily';
 import { addDailyNotice } from '../../daily/noticeStore';
 import type { SaveData } from '../../save/saveData';
 import type { LobbyPayload } from '../Lobby/LobbyScene';
@@ -192,9 +192,11 @@ export function ResultScene() {
     // 対戦の報酬（SPEC §7 S11）：勝敗の記録と同じ保存で、コイン（と今日の試合数）を足す
     const kind = rewardKindFor(r.setup, settled);
     const today = todayKey(new Date());
+    // CPU対戦の回数の区切り（見積もりと保存で同じ値を使う。v2.7）
+    const cycle = cycleKeyAt(Date.now());
     const info: MatchInfo = { kind, cpuLevel: r.setup.cpuLevel, win, turnCounts: r.stats.turnCounts };
     // 表示用の見積もり（保存は下の update の中で、同じ計算で行う）
-    const got = matchReward(save, info, today);
+    const got = matchReward(save, info, today, cycle);
     const before = save.coins;
     // デイリーミッション：CPU・フレンド（デバッグ・ひとりで両方・切断・すぐ終わった試合は数えない。daily.ts dailyMatchKind）
     const daily = dailyFor(dailyKind());
@@ -204,7 +206,7 @@ export function ResultScene() {
         if (win) rec.wins += 1;
         else rec.losses += 1;
       }
-      applyMatchReward(d, info, today);
+      applyMatchReward(d, info, today, cycle);
       daily?.(d);
     });
     setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
@@ -221,8 +223,10 @@ export function ResultScene() {
     recorded.current = true;
     const { outcome } = decided;
     const today = todayKey(new Date());
+    // CPU対戦の回数の区切り（見積もりと保存で同じ値を使う。v2.7）
+    const cycle = cycleKeyAt(Date.now());
     const info: MatchInfo = { kind: decided.coins ? 'rate' : 'none', win, turnCounts: r.stats.turnCounts };
-    const got = matchReward(save, info, today);
+    const got = matchReward(save, info, today, cycle);
     const before = save.coins;
     // 「レート対戦中」の印が、この相手のものの時だけ書く（別のタブなどで先に計算していたら書かない）
     setRateChange(applyRateResult(structuredClone(save), rated.oppRate, outcome, rated.oppId) ?? { before: save.rate, after: save.rate, outcome: 'void' });
@@ -230,7 +234,7 @@ export function ResultScene() {
     const daily = dailyFor(dailyKind(decided.coins && !!applyRateResult(structuredClone(save), rated.oppRate, outcome, rated.oppId)));
     update((d) => {
       if (applyRateResult(d, rated.oppRate, outcome, rated.oppId)) {
-        applyMatchReward(d, info, today);
+        applyMatchReward(d, info, today, cycle);
         daily?.(d);
         if (features.ranking) {
           // ランキング（v2.0-I）：端末で計算したレートは「かり」。結果をサーバーへ送る（送れるまで セーブに残す）
@@ -467,7 +471,7 @@ export function ResultScene() {
               <span className="num">{tr.coin.plus(reward.coins)}</span>
             </div>
           )}
-          {reward.status === 'limit' && <p className="result__reward-note pencil">{tr.result.rewardLimit}</p>}
+          {reward.status === 'limit' && <p className="result__reward-note pencil">{r.setup.mode === 'cpu' ? tr.result.rewardLimitCpu : tr.result.rewardLimit}</p>}
           {reward.status === 'short' && <p className="result__reward-note pencil">{tr.result.rewardShort}</p>}
         </div>
       )}

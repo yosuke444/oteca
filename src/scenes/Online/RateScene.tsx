@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { markStart } from '../../net/startTiming';
+import { useFx, vsDur } from '../../fx/fxSettings';
+import { preloadCards } from '../../ui/imageLoader';
 import { audio } from '../../audio/audioManager';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
 import { opponentAllowed } from '../../online/status';
@@ -28,8 +31,8 @@ export type RatePayload = { autoSearch?: boolean } | null;
 
 type Phase = { kind: 'idle' } | { kind: 'searching' } | { kind: 'vs'; opp: RatePaired } | { kind: 'error'; text: string };
 
-/** VS 画面を出す時間 */
-const VS_MS = 2000;
+/** VS 画面を出す時間（v2.7 で 2000 → 1400。演出スピードに合わせる） */
+const VS_MS = 1400;
 /** 相手が決まってから、この時間たっても対戦が始まらなければ さがし直す */
 const START_TIMEOUT_MS = 20000;
 
@@ -41,6 +44,9 @@ export function RateScene() {
   const { go, payload } = useNav();
   const { save, update } = useSave();
   const tr = useT();
+  const fx = useFx();
+  /** 相手の停止の確認（種が決まったらすぐ始める。VS の間に済ませておく。v2.7） */
+  const allowedRef = useRef<{ game: number; opp: string; ok: Promise<boolean> } | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const [count, setCount] = useState(1);
   const [dots, setDots] = useState(0);
@@ -89,7 +95,9 @@ export function RateScene() {
     const oppSide = g.me === 'p1' ? 'p2' : 'p1';
     const badges = p && p.opponentId === g.oppPlayerId ? ({ [g.me]: p.me, [oppSide]: { rate: p.opponentRate, trophies: p.opponentTrophies } } as Record<'p1' | 'p2', PlayerBadge>) : undefined;
     // 相手のアカウントが停止中なら始めない（v2.0-J。予備の待合所で組んだ時など）
-    void opponentAllowed(g.oppPlayerId).then((ok) => {
+    const allowed = allowedRef.current?.game === g.game && allowedRef.current.opp === g.oppPlayerId ? allowedRef.current.ok : opponentAllowed(g.oppPlayerId);
+    void allowed.then((ok) => {
+      markStart('allowed');
       if (ok) {
         go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId, ...(matchId ? { matchId } : {}), ...(badges ? { badges } : {}) }));
         return;
@@ -146,6 +154,7 @@ export function RateScene() {
   };
   const onPaired = (p: RatePaired) => {
     {
+      markStart('found');
       stopLobby();
       pairedRef.current = p;
       audio.play('se_match_found');
@@ -158,7 +167,12 @@ export function RateScene() {
       // 聞き取りは、対戦へ進む時・画面を出る時に外す（リザルトで相手が出ていった時に、裏で さがし直さないように）
       offLink();
       linkOffs.current = [
-        link.on('start', () => tryGoRef.current()),
+        link.on('start', (g) => {
+          // VS の間に、相手の停止の確認と、2人のデッキのカードの絵の読み込みを始めておく（v2.7）
+          allowedRef.current = { game: g.game, opp: g.oppPlayerId, ok: opponentAllowed(g.oppPlayerId) };
+          void preloadCards([...new Set([...g.decks.p1, ...g.decks.p2])]);
+          tryGoRef.current();
+        }),
         link.on('status', (s) => {
           if (toBattle.current || mounted.current === 0) return;
           if (s.kind === 'version' || s.kind === 'error' || s.kind === 'aborted' || s.kind === 'full') {
@@ -200,13 +214,15 @@ export function RateScene() {
     if ((payload as RatePayload)?.autoSearch && deckOk && !lobbyRef.current) search();
   }, []);
 
-  // VS（2秒）→ 種が決まっていれば対戦へ。しばらく始まらなければ さがし直す
+  // VS（1.4秒。演出スピードに合わせる）→ 種が決まっていれば対戦へ。しばらく始まらなければ さがし直す
   useEffect(() => {
     if (phase.kind !== 'vs') return;
+    markStart('vs');
     const id = window.setTimeout(() => {
+      markStart('vsEnd');
       vsDone.current = true;
       tryGoRef.current();
-    }, VS_MS);
+    }, vsDur(fx, VS_MS));
     const giveUp = window.setTimeout(() => {
       if (toBattle.current) return;
       abandonRef.current();

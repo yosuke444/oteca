@@ -7,7 +7,7 @@ import { encodeSave } from '../src/save/binary';
 import { decodeSave } from '../src/save/migrate';
 import { createDefaultSave } from '../src/save/saveData';
 import { decide, SINGLE_REPORT_MS, type MatchInfo, type Report } from '../worker/src/logic/results';
-import { PAIR_DAILY_LIMIT, runBatch } from '../worker/src/logic/batch';
+import { runBatch } from '../worker/src/logic/batch';
 
 /**
  * C01〜C05 オンライン対戦で相手の通信が切れた時（v2.4。SPEC §11-7）。
@@ -16,6 +16,8 @@ import { PAIR_DAILY_LIMIT, runBatch } from '../worker/src/logic/batch';
 const OPP = '222223333344444';
 const ME = '111112222233333';
 const MATCH = '0123456789abcdef';
+
+const CYCLE = 20261011;
 
 describe('C01・C02 「まっています」から30秒：残った側の勝ち', () => {
   it('対戦が始まっていて自分がつながっていれば勝ち。自分がオフラインなら（切れたのは自分）勝ちにしない', () => {
@@ -31,13 +33,13 @@ describe('C01・C02 「まっています」から30秒：残った側の勝ち'
     // フレンド：相手が切れて勝った試合は「結果がそろった」と同じに数える（リザルトで agree の代わりに true を渡す）
     const friend = rewardKindFor({ mode: 'online', record: true }, true);
     expect(friend).toBe('friend');
-    const normalWin = matchReward(save, { kind: friend, win: true, turnCounts: enough }, today);
+    const normalWin = matchReward(save, { kind: friend, win: true, turnCounts: enough }, today, CYCLE);
     expect(normalWin.coins).toBeGreaterThan(0);
-    expect(matchReward(save, { kind: friend, win: true, turnCounts: short }, today).coins).toBe(0);
+    expect(matchReward(save, { kind: friend, win: true, turnCounts: short }, today, CYCLE).coins).toBe(0);
     // レート：切断の勝ちもコインあり（v2.4。前は無し）
     expect(rateOutcome({ reason: 'disconnect', agree: null, win: true, oppGone: true, online: true })).toEqual({ outcome: 'win', coins: true });
-    expect(matchReward(save, { kind: 'rate', win: true, turnCounts: enough }, today).coins).toBeGreaterThan(0);
-    expect(matchReward(save, { kind: 'rate', win: true, turnCounts: short }, today).coins).toBe(0);
+    expect(matchReward(save, { kind: 'rate', win: true, turnCounts: enough }, today, CYCLE).coins).toBeGreaterThan(0);
+    expect(matchReward(save, { kind: 'rate', win: true, turnCounts: short }, today, CYCLE).coins).toBe(0);
   });
 });
 
@@ -112,11 +114,10 @@ describe('C05 レート対戦のランキング（受付係の突き合わせ）
     expect(decide(match, [rep(ME, ME, 1000)], 1000 + SINGLE_REPORT_MS)).toMatchObject({ kind: 'record', row: { winner: ME } });
   });
 
-  it('同じ相手と1日3試合までの決まりはそのまま（4試合目は数えない）', () => {
-    expect(PAIR_DAILY_LIMIT).toBe(3);
+  it('同じ相手との試合は、4試合でも すべて数える（v2.7 で「1日3試合まで」をやめた）', () => {
     const at = Date.UTC(2026, 9, 11, 3, 0);
     const rows = Array.from({ length: 4 }, (_, i) => ({ id: i + 1, matchId: `00000000000000a${i}`, a: ME, b: OPP, winner: ME, at: at + i * 1000 }));
     const out = runBatch(new Map(), rows, at + 60 * 60 * 1000);
-    expect(out.counted).toBe(3);
+    expect(out.counted).toBe(4);
   });
 });

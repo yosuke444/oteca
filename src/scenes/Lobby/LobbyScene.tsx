@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { markStart } from '../../net/startTiming';
+import { useFx, vsDur } from '../../fx/fxSettings';
+import { preloadCards } from '../../ui/imageLoader';
 import { t } from '../../i18n';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
 import { opponentAllowed } from '../../online/status';
@@ -30,9 +33,10 @@ type Phase =
   | { kind: 'vs'; opp: string }
   | { kind: 'error'; text: string };
 
-/** VS 画面を出す時間（SPEC §7 S03） */
-const VS_MS = 2000;
-const FOUND_MS = 1000;
+/** VS 画面を出す時間（SPEC §7 S03。v2.7 で 2000 → 1400。演出スピードに合わせる） */
+const VS_MS = 1400;
+/** 「あいてが きた！」を出す時間（v2.7 で 1000 → 600。演出スピードに合わせる） */
+const FOUND_MS = 600;
 /** 相手が見つかってから、この時間がたっても対戦が始まらなければ「つながらなかった」 */
 const START_TIMEOUT_MS = 20000;
 /** この時間たっても相手が来なければ、番号の確認をうながす（SPEC §7 S03） */
@@ -66,6 +70,9 @@ export function LobbyScene() {
   const back = (payload as LobbyPayload)?.backToRoom ? currentOnline() : null;
   const { save, update } = useSave();
   const tr = useT();
+  const fx = useFx();
+  /** 相手の停止の確認（種が決まったらすぐ始める。VS の間に済ませておく。v2.7） */
+  const allowedRef = useRef<{ game: number; opp: string; ok: Promise<boolean> } | null>(null);
   const usable = usableDecks(save)
     .map((ok, i) => ({ ok, i }))
     .filter((u) => u.ok);
@@ -111,7 +118,9 @@ export function LobbyScene() {
     }
     toBattle.current = true;
     // 相手のアカウントが停止中なら始めない（v2.0-J。結果は10分覚えておく）
-    void opponentAllowed(g.oppUserId).then((ok) => {
+    const allowed = allowedRef.current?.game === g.game && allowedRef.current.opp === (g.oppUserId ?? '') ? allowedRef.current.ok : opponentAllowed(g.oppUserId);
+    void allowed.then((ok) => {
+      markStart('allowed');
       if (ok) go('battle', onlineSetup(g, isDebugMode()));
       else fail(t().suspension.opponent);
     });
@@ -143,6 +152,7 @@ export function LobbyScene() {
         if (text) fail(text);
       }),
       link.on('matched', (opp) => {
+        markStart('found');
         audio.play('se_match_found');
         setPhase({ kind: 'found', opp });
       }),
@@ -161,7 +171,12 @@ export function LobbyScene() {
         }
       }),
       link.on('joinLeave', (e) => say(e.kind === 'join' ? t().lobby.joined(safeName(e.name, t().lobby.nameless)) : t().lobby.left(safeName(e.name, t().lobby.nameless)))),
-      link.on('start', () => tryGo()),
+      link.on('start', (g) => {
+        // VS の間に、相手の停止の確認と、2人のデッキのカードの絵の読み込みを始めておく（v2.7）
+        allowedRef.current = { game: g.game, opp: g.oppUserId ?? '', ok: opponentAllowed(g.oppUserId) };
+        void preloadCards([...new Set([...g.decks.p1, ...g.decks.p2])]);
+        tryGo();
+      }),
       // 相手が見つかった後に、相手が消えてしまった
       link.on('connection', (c) => {
         if (c === 'lost') fail(errorText({ kind: 'error', reason: 'lost' })!);
@@ -170,10 +185,10 @@ export function LobbyScene() {
     return () => offs.forEach((f) => f());
   }, [link]);
 
-  // 「あいてが きた！」→ VS（2秒）→ 種が決まっていれば対戦へ
+  // 「あいてが きた！」→ VS（1.4秒。演出スピードに合わせる）→ 種が決まっていれば対戦へ
   useEffect(() => {
     if (phase.kind === 'found') {
-      const id = window.setTimeout(() => setPhase({ kind: 'vs', opp: phase.opp }), FOUND_MS);
+      const id = window.setTimeout(() => setPhase({ kind: 'vs', opp: phase.opp }), vsDur(fx, FOUND_MS));
       return () => window.clearTimeout(id);
     }
     if (phase.kind === 'vs') {
@@ -184,10 +199,12 @@ export function LobbyScene() {
         fail(text);
         return;
       }
+      markStart('vs');
       const id = window.setTimeout(() => {
+        markStart('vsEnd');
         vsDone.current = true;
         tryGo();
-      }, VS_MS);
+      }, vsDur(fx, VS_MS));
       // 相手とつながったのに、しばらくたっても種が決まらない
       const giveUp = window.setTimeout(() => {
         if (!toBattle.current) fail(errorText({ kind: 'error', reason: 'timeout' })!);

@@ -7,9 +7,10 @@ import { makeRandom } from './save.helpers';
 
 type P = { lobby: RateLobby; paired: RatePaired[]; playerId: string };
 
-function player(hub: MemoryHub, clock: FakeClock, n: number, lastOpponentId = ''): P {
+/** id：ユーザーID（書かなければ pl-n。同じ人の別のタブを作る時に同じものを渡す） */
+function player(hub: MemoryHub, clock: FakeClock, n: number, lastOpponentId = '', id?: string): P {
   const r = makeRandom(100 + n);
-  const playerId = `pl-${n}`;
+  const playerId = id ?? `pl-${n}`;
   const tr = hub.create(`lobby-${n}`);
   const lobby = new RateLobby(tr, {
     playerId,
@@ -56,19 +57,22 @@ describe('R05 レートの待合所（UPDATE_v2 §8-4）', () => {
   it('待っている人数が分かる', async () => {
     const hub = new MemoryHub();
     const clock = new FakeClock();
-    // 直前の相手どうしなので組まれない2人
-    const a = player(hub, clock, 1, 'pl-2');
-    const b = player(hub, clock, 2, 'pl-1');
+    // 同じ人（同じユーザーID の別のタブ）どうしなので組まれない2人を、別の人が数える
+    const a = player(hub, clock, 1);
+    const b = player(hub, clock, 2, '', 'pl-3');
+    const c = player(hub, clock, 3, '', 'pl-3');
     const counts: number[] = [];
     a.lobby.onWaiting = (n) => counts.push(n);
-    a.lobby.join();
     b.lobby.join();
+    c.lobby.join();
     await run(hub, clock, 3000);
-    expect(counts.at(-1)).toBe(2);
-    expect(a.paired).toHaveLength(0);
+    expect(b.paired).toHaveLength(0);
+    a.lobby.join();
+    await run(hub, clock, 300);
+    expect(counts).toContain(2);
   });
 
-  it('直前の相手とは組まない。待っているのが直前の相手だけなら、ほかの人が来るまで待つ', async () => {
+  it('⑤ 待っているのが2人だけなら、直前の相手どうしでも組む（v2.7）', async () => {
     const hub = new MemoryHub();
     const clock = new FakeClock();
     const a = player(hub, clock, 1, 'pl-2');
@@ -77,26 +81,37 @@ describe('R05 レートの待合所（UPDATE_v2 §8-4）', () => {
     clock.advance(10);
     b.lobby.join();
     await run(hub, clock, 6000);
-    expect(a.paired).toHaveLength(0);
-    expect(b.paired).toHaveLength(0);
+    expect(a.paired[0]?.opponentId).toBe('pl-2');
+    expect(b.paired[0]?.opponentId).toBe('pl-1');
+  });
+
+  it('⑥ 3人以上いる時は、直前の相手とは組まない', async () => {
+    const hub = new MemoryHub();
+    const clock = new FakeClock();
+    const a = player(hub, clock, 1, 'pl-2');
+    const b = player(hub, clock, 2, 'pl-1');
     const c = player(hub, clock, 3);
+    a.lobby.join();
+    b.lobby.join();
     c.lobby.join();
-    await run(hub, clock, 5000);
-    // c は先に待っていた a と組む。b は待ち続ける
+    await run(hub, clock, 6000);
+    // c は先に待っていた a と組む。b は待ち続ける（a とは組まない）
     expect(c.paired[0]?.opponentId).toBe('pl-1');
     expect(a.paired[0]?.opponentId).toBe('pl-3');
     expect(b.paired).toHaveLength(0);
   });
 
-  it('片方だけが直前の相手として覚えていても組まない', async () => {
+  it('⑥ 片方だけが直前の相手として覚えていても、3人以上いれば組まない', async () => {
     const hub = new MemoryHub();
     const clock = new FakeClock();
     const a = player(hub, clock, 1, 'pl-2');
     const b = player(hub, clock, 2, '');
+    const c = player(hub, clock, 3);
     a.lobby.join();
     b.lobby.join();
+    c.lobby.join();
     await run(hub, clock, 6000);
-    expect(a.paired).toHaveLength(0);
+    expect(a.paired[0]?.opponentId).toBe('pl-3');
     expect(b.paired).toHaveLength(0);
   });
 

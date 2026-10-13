@@ -1,4 +1,5 @@
 import type { Action, Side } from '../engine/types';
+import { markStart } from './startTiming';
 import { type MemberState, type Msg, type MsgBody, type Ticket, fromWire, makeMsg, roomName, toWire } from './protocol';
 import { fromHex, sha256, toHex } from './sha256';
 import type { NetTransport } from './transport';
@@ -75,15 +76,23 @@ export type SessionOptions = {
   userId?: string;
   clock?: Clock;
   randomBytes?: (n: number) => Uint8Array;
+  /**
+   * 最初に誰かを見つけてから、対戦者を決めるまで待つ時間（v2.7）。書かなければ PICK_AFTER_MS（フレンドの部屋）。
+   * レート対戦の2人だけの部屋は、ほかの人が来ないので 0（すぐ決める）
+   */
+  pickAfterMs?: number;
 };
 
 export type Clock = {
   now(): number;
   every(ms: number, fn: () => void): () => void;
+  /** 1回だけ ms 後に呼ぶ（v2.7。無ければ見張りの間隔で調べる） */
+  after?(ms: number, fn: () => void): void;
 };
 
 const realClock: Clock = {
   now: () => Date.now(),
+  after: (ms, fn) => void setTimeout(fn, ms),
   every: (ms, fn) => {
     const id = setInterval(fn, ms);
     return () => clearInterval(id);
@@ -105,8 +114,8 @@ const TICK_MS = 250;
 export const WAITING_AFTER_MS = 6000;
 /** 「まっています」になってから「きれた」にするまでの時間（v2.4：相手の通信が切れたら30秒待つ） */
 export const LOST_AFTER_MS = 30000;
-/** 最初に誰かを見つけてから、対戦者を決めるまで待つ時間（ほぼ同時に入った人の hello を集めるため） */
-export const PICK_AFTER_MS = 1000;
+/** 最初に誰かを見つけてから、対戦者を決めるまで待つ時間（ほぼ同時に入った人の hello を集めるため。v2.7 で 1000 → 300） */
+export const PICK_AFTER_MS = 300;
 /** 1部屋に入れる人数（v2.0-G。全員が全員とつながる方式のため） */
 export const ROOM_MAX = 8;
 /** 観戦者の数（部屋の人数とは別。v2.0-J） */
@@ -227,7 +236,10 @@ export class OnlineSession {
     this.clock = opts.clock ?? realClock;
     this.randomBytes = opts.randomBytes ?? realRandom;
     transport.onMessage = (m, from) => this.receive(m, from);
-    transport.onPeerJoin = (id) => this.sendHello(id);
+    transport.onPeerJoin = (id) => {
+      markStart('peerJoin');
+      this.sendHello(id);
+    };
     transport.onPeerLeave = (id) => this.peerLeft(id);
     transport.onError = (reason) => {
       // まだ誰ともつながっていない時だけ「つながらなかった」にする
@@ -254,6 +266,7 @@ export class OnlineSession {
     const r = this.randomBytes(4);
     this.ticket = { time: this.clock.now(), rand: ((r[0] << 24) | (r[1] << 16) | (r[2] << 8) | r[3]) >>> 0 };
     this.setStatus({ kind: 'waiting' });
+    markStart('join');
     this.transport.join(room);
     this.lastHeard = this.clock.now();
     this.joinedAt = this.clock.now();
@@ -402,6 +415,7 @@ export class OnlineSession {
     if (from === this.opponentPeer) this.heard();
     switch (m.t) {
       case 'hello':
+        markStart('hello');
         this.gotHello(m.body, from);
         return;
       case 'full':
@@ -710,7 +724,17 @@ export class OnlineSession {
 
   /** 少し待ってから、2人だけの部屋の対戦者を決める */
   private armPick(): void {
-    if (this.status.kind === 'waiting' && this.pickAt === 0) this.pickAt = this.clock.now() + PICK_AFTER_MS;
+    if (this.status.kind !== 'waiting' || this.pickAt !== 0) return;
+    const after = this.opts.pickAfterMs ?? PICK_AFTER_MS;
+    this.pickAt = this.clock.now() + after;
+    // 見張りの間隔（250ms）を待たずに、決める時刻ちょうどに決める（v2.7）。
+    // 待たなくてよい部屋（レート対戦の2人だけの部屋）は、今の処理（状態の知らせなど）が終わってから、マイクロタスクで
+    // 部屋を出た（見張りを止めた）後には決めない
+    const pick = () => {
+      if (this.stopTimer && this.pickAt !== 0 && this.clock.now() >= this.pickAt) this.pickPlayers();
+    };
+    if (after <= 0) queueMicrotask(pick);
+    else this.clock.after?.(after, pick);
   }
 
   /**
@@ -739,6 +763,7 @@ export class OnlineSession {
   private startMatchWith(peerId: string, game: number): void {
     const info = this.peers.get(peerId);
     if (!info || this.isSameUser(info)) return;
+    markStart('match');
     this.opponentPeer = peerId;
     this.opponentPlayerId = info.playerId;
     this.opponentUserId = info.userId ?? '';
@@ -825,6 +850,7 @@ export class OnlineSession {
       return;
     }
     if (m.t === 'deck') {
+      markStart('deckGot');
       neg.oppDeck = m.body.cards;
       neg.oppCommit = m.body.commit;
       if (!neg.revealed) {
@@ -856,6 +882,7 @@ export class OnlineSession {
         return;
       }
       neg.oppSeed = seed;
+      markStart('revealGot');
     }
     await this.maybeStart();
   }
@@ -878,6 +905,7 @@ export class OnlineSession {
     const before = this.lastOppDecks.get(oppId);
     this.lastOppDecks.set(oppId, deckKey);
     this.setStatus({ kind: 'playing' });
+    markStart('seed');
     this.onStart({
       game: neg.game,
       seed,
@@ -1183,6 +1211,7 @@ export class OnlineSession {
   private close(): void {
     this.stopTimer?.();
     this.stopTimer = null;
+    this.pickAt = 0;
     this.transport.leave();
   }
 }

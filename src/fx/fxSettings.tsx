@@ -55,3 +55,8 @@ export function useFx(): FxContextValue {
   if (!ctx) throw new Error(t().common.providerMissing('FxSettingsProvider'));
   return ctx;
 }
+
+/** 対戦の前の「あいてが きた！」・VS を出す時間：演出スピードに合わせ、「演出をへらす」なら半分（v2.7） */
+export function vsDur(fx: Pick<FxContextValue, 'dur' | 'reduceFx'>, ms: number): number {
+  return fx.dur(ms) * (fx.reduceFx ? 0.5 : 1);
+}

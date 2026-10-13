@@ -270,10 +270,13 @@ export const kanji: Dict = {
     summaryLevel: (level) => `強さ：${level}`,
     summaryMine: (deck) => `あなた：${deck}`,
     none: '使えるデッキがありません。デッキ編集で作るか、直してね',
+    coinsLeft: (n) => `今日のコイン あと${n}回`,
+    coinsDone: '今日のコインはおしまい',
   },
 
   result: {
     rewardLimit: '今日のコインはもうもらいました',
+    rewardLimitCpu: '今日のコインはおしまい',
     rewardShort: '2ターン以上戦うと、コインがもらえます',
     reason: { ko: '倒した数で', noBench: 'ベンチが空になって', surrender: 'おてあげ（降参）で' },
     disagree: '2人の結果が食い違ったので記録しません',
@@ -829,7 +832,7 @@ export const kanji: Dict = {
             title: 'レートの計算',
             lines: [
               `初めのレートは ${n.ranking.rateStart}。強い相手に勝つほどたくさん上がるよ`,
-              `同じ相手とは1日${n.ranking.pair}試合まで数えるよ`,
+              '同じ相手との試合も、全部数えるよ',
               `対戦のすぐ後は「仮」のレート。次の更新（${n.ranking.hours.map((h) => `${h}時`).join('・')}）で正しいレートになるよ`,
             ],
           },
@@ -857,7 +860,7 @@ export const kanji: Dict = {
         short: ['コンピューターと対戦。強さを選べるよ', '勝つとコインがもらえる'],
         pages: [
           { title: `${n.cpu.levels.length}つの強さ`, lines: n.cpu.levels.map((l) => `${w.levels[l.level]}：${w.levelNotes[l.level]}`) },
-          { title: 'もらえるコイン', lines: [...n.cpu.levels.map((l) => `${w.levels[l.level]}に勝つ：${l.coins}コイン`), '負けた時はもらえないよ。何回でも遊べるよ'] },
+          { title: 'もらえるコイン', lines: [...n.cpu.levels.map((l) => `${w.levels[l.level]}に勝つ：${l.coins}コイン`), `コインがもらえるのは1日${n.cpu.dailyLimit}回まで（デイリーミッションと同じ時刻に戻るよ）`, '負けた時はもらえないよ。対戦は何回でもできるよ'] },
         ],
       }),
       story: (n, _w) => ({

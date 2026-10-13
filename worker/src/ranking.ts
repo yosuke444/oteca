@@ -73,7 +73,7 @@ export type LobbyStore = {
   /** D1 に書く途中の印（まとめ処理の番号と、処理する試合ID）。null で消す */
   pending(): Pending | null;
   setPending(p: Pending | null): void;
-  /** その日に数えた数（同じ2人・予備の試合。1日2回の まとめ処理をまたいで数えるため） */
+  /** その日に数えた数（予備の試合。1日2回の まとめ処理をまたいで数えるため） */
   dayCounts(): Map<string, number>;
   /** 数えた数を書く（変わった分だけ）。古い日の分は消す */
   saveDayCounts(changed: [string, number][], now: number): void;
@@ -109,7 +109,7 @@ export async function writeSnapshot(c: Db, updatedAt: number | null): Promise<nu
 
 /**
  * まとめ処理（毎日 日本時間 4:00 と 16:00。UPDATE_v2 §10）：前回の まとめ処理より後に記録した
- * 受付係の結果を時刻順に読む → レートを計算（同じ2人は1日3試合まで）→ プレイヤー表を1人1行で更新 →
+ * 受付係の結果を時刻順に読む → レートを計算（同じ2人の試合もすべて数える。v2.7）→ プレイヤー表を1人1行で更新 →
  * 全員の順位（7日以上遊んでいない人は外す）→ 上位100人の写し → 処理した結果を消す
  */
 export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promise<Record<string, unknown>> {
@@ -178,7 +178,7 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
   }
   lobby.setPending(null);
   const top = await writeSnapshot(c, now);
-  // skipped：1日3試合を超えた試合 ＋ 停止中の人の試合
+  // skipped：予備の待合所の試合で1日10試合を超えたもの ＋ 停止中の人の試合
   return { ok: true, results: all.length, counted, skipped: skipped + (all.length - results.length), changed, top };
 }
 

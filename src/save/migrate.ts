@@ -17,6 +17,8 @@ import {
   readSaveV8,
   readSaveV9,
   readSaveV10,
+  readSaveV11,
+  type SaveDataV10,
   type SaveDataV8,
   type SaveDataV9,
 } from './binary';
@@ -47,6 +49,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   8: readSaveV8,
   9: readSaveV9,
   10: readSaveV10,
+  11: readSaveV11,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -76,8 +79,10 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
   9: (old) => {
     const d = old as SaveDataV9;
     const p = d.pendingRateMatch;
-    return { ...d, pendingRateMatch: p ? { ...p, matchId: '', begun: true } : null, pendingFriendMatch: null } satisfies SaveData;
+    return { ...d, pendingRateMatch: p ? { ...p, matchId: '', begun: true } : null, pendingFriendMatch: null } satisfies SaveDataV10;
   },
+  /** 10 → 11（v2.7）：CPU対戦のコインの回数を足す（まだ0回） */
+  10: (old) => ({ ...(old as SaveDataV10), cpuReward: { cycleKey: 0, count: 0 } }) satisfies SaveData,
 };
 
 /**

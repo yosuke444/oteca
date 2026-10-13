@@ -94,38 +94,55 @@ describe('I04 予備の待合所（8つの小部屋）', () => {
     a.l.leave();
   });
 
-  it('直前の相手しかいない小部屋は、だれもいないのと同じ（移る）', async () => {
+  it('⑤ 予備の待合所でも、待っているのが2人だけなら直前の相手どうしで組む（v2.7）', async () => {
     const hub = new MemoryHub();
     const clock = new FakeClock();
-    const log: string[] = [];
-    const tr1 = hub.create('x1');
-    const tr2 = hub.create('x2');
-    const mk = (tr: typeof tr1, me: number, last: number, l?: string[]) => {
-      const realJoin = tr.join.bind(tr);
-      tr.join = (room: string) => {
-        l?.push(room);
-        realJoin(room);
-      };
-      let first = true;
-      return new RateLobby(tr, {
-        playerId: ID(me),
-        name: 'x',
-        rate: 100,
-        lastOpponentId: ID(last),
-        protocol: 6,
-        clock,
-        randomBytes: (k) => (first && k === 1 ? ((first = false), new Uint8Array([2])) : new Uint8Array(k).fill(7)),
-      });
+    const mk = (tr: ReturnType<MemoryHub['create']>, me: number, last: number) => {
+      const l = new RateLobby(tr, { playerId: ID(me), name: 'x', rate: 100, lastOpponentId: ID(last), protocol: 6, clock, randomBytes: (k) => (k === 1 ? new Uint8Array([2]) : new Uint8Array(k).fill(me)) });
+      const paired: RatePaired[] = [];
+      l.onPaired = (x) => paired.push(x);
+      return { l, paired };
     };
-    const a = mk(tr1, 1, 2, log);
-    const b = mk(tr2, 2, 1);
-    a.join();
-    b.join();
-    await run(hub, clock, SUBROOM_HOP_MS + 1000);
-    expect(log.length).toBeGreaterThanOrEqual(2);
-    a.leave();
-    b.leave();
+    const a = mk(hub.create('x1'), 1, 2);
+    const b = mk(hub.create('x2'), 2, 1);
+    a.l.join();
+    b.l.join();
+    await run(hub, clock, 5000, () => a.paired.length > 0 && b.paired.length > 0);
+    expect(a.paired[0]?.roomId).toBe(b.paired[0]?.roomId);
+    expect(a.paired[0].opponentId).toBe(ID(2));
+    a.l.leave();
+    b.l.leave();
   });
+
+  it('⑥ 3人以上いる時は、今までどおり直前の相手を避ける', async () => {
+    const hub = new MemoryHub();
+    const clock = new FakeClock();
+    const mk = (id: string, me: number, last: number) => {
+      const l = new RateLobby(hub.create(id), { playerId: ID(me), name: 'x', rate: 100, lastOpponentId: ID(last), protocol: 6, clock, randomBytes: (k) => (k === 1 ? new Uint8Array([2]) : new Uint8Array(k).fill(me)) });
+      const paired: RatePaired[] = [];
+      l.onPaired = (x) => {
+        paired.push(x);
+        l.leave();
+      };
+      return { l, paired };
+    };
+    // a の直前の相手は b。c も a と対戦したばかり。3人いるので、a は b とも c とも組まず、b と c が組む
+    const a = mk('y1', 1, 2);
+    const b = mk('y2', 2, 1);
+    const c = mk('y3', 3, 1);
+    a.l.join();
+    clock.advance(10);
+    b.l.join();
+    clock.advance(10);
+    c.l.join();
+    await run(hub, clock, 5000, () => b.paired.length > 0 && c.paired.length > 0);
+    expect(b.paired[0]?.roomId).toBe(c.paired[0]?.roomId);
+    expect(b.paired[0].opponentId).toBe(ID(3));
+    expect(a.paired).toEqual([]);
+    a.l.leave();
+  });
+
+
 
 });
 

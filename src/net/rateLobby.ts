@@ -186,8 +186,8 @@ export class RateLobby {
         if (m.body.to !== this.selfId) return;
         const e = this.entries.get(from);
         const roomId = String(m.body.roomId ?? '');
-        // 待っている時だけ、最初に来た申し込みを受ける（直前の相手からの申し込みは受けない）
-        const ok = this.state === 'queue' && !!e && /^[0-9a-f]{8,32}$/.test(roomId) && !this.isLastOpponent(e);
+        // 待っている時だけ、最初に来た申し込みを受ける（直前の相手からの申し込みは受けない。ただし待っているのが2人だけなら受ける。v2.7）
+        const ok = this.state === 'queue' && !!e && /^[0-9a-f]{8,32}$/.test(roomId) && (this.entries.size === 1 || !this.isLastOpponent(e));
         this.send(makeMsg('pairAccept', this.opts.protocol, { to: from, roomId, accept: ok }), from);
         if (ok && e) this.paired(roomId, e);
         return;
@@ -230,8 +230,9 @@ export class RateLobby {
       this.state = 'queue';
     }
     if (this.state !== 'queue') return;
-    // 組める人がいるか（直前の相手・同じセーブだけなら、いないのと同じ）
-    for (const e of this.entries.values()) if (!this.isLastOpponent(e)) this.lastUseful = now;
+    // 組める人がいるか（直前の相手・同じセーブだけなら、いないのと同じ。ただし待っているのが自分と1人だけなら、直前の相手とも組む。v2.7）
+    const onlyTwo = this.entries.size === 1;
+    for (const e of this.entries.values()) if (onlyTwo || !this.isLastOpponent(e)) this.lastUseful = now;
     if (this.roomCount > 1 && now - this.lastUseful >= SUBROOM_HOP_MS) {
       this.hop(now);
       return;
@@ -248,12 +249,13 @@ export class RateLobby {
 
   /**
    * 待ち行列から組み合わせを作る（全員が同じ計算をする）：待ち始めた順に、まだ組んでいない人どうしを、
-   * 直前の相手でなければ組む。自分の相手と、自分の方が早いか
+   * 直前の相手でなければ組む（待っているのが2人だけなら、直前の相手どうしでも組む。v2.7）。自分の相手と、自分の方が早いか
    */
   private partner(now: number): { peerId: string; iAmFirst: boolean } | null {
     type Q = { peerId: string; playerId: string; ticket: Ticket; lastOpponentId: string };
     const me: Q = { peerId: this.selfId, playerId: this.opts.playerId, ticket: this.ticket, lastOpponentId: this.opts.lastOpponentId };
     const list: Q[] = [me, ...this.entries.values()].sort((a, b) => a.ticket.time - b.ticket.time || a.ticket.rand - b.ticket.rand || (a.peerId < b.peerId ? -1 : 1));
+    const onlyTwo = list.length === 2;
     const used = new Set<string>();
     for (let i = 0; i < list.length; i++) {
       const x = list[i];
@@ -261,7 +263,7 @@ export class RateLobby {
       for (let j = i + 1; j < list.length; j++) {
         const y = list[j];
         if (used.has(y.peerId)) continue;
-        if (x.playerId === y.playerId || x.playerId === y.lastOpponentId || y.playerId === x.lastOpponentId) continue;
+        if (x.playerId === y.playerId || (!onlyTwo && (x.playerId === y.lastOpponentId || y.playerId === x.lastOpponentId))) continue;
         // 自分がことわられたばかりの相手は、しばらく試さない（自分の計算だけ。ほかの人の組み合わせには影響しない）
         if ((x === me && (this.rejected.get(y.peerId) ?? 0) > now) || (y === me && (this.rejected.get(x.peerId) ?? 0) > now)) continue;
         used.add(x.peerId);

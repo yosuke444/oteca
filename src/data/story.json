@@ -4,7 +4,7 @@
   "levels": { "normal": "normal", "boss": "strong" },
   "rewards": {
     "normal": { "first": 50, "again": 30 },
-    "boss": { "first": 200, "again": 50 }
+    "boss": { "first": 150, "again": 50 }
   },
   "stages": [
     {
