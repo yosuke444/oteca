@@ -44,9 +44,9 @@ describe('G02 各パック10万袋のふだんの袋（v2.2）', () => {
   });
 });
 
-describe('G09 1万回の15まいガチャ（v2.2）', () => {
-  it('1回あたりのスーパーの数は平均約1.7枚、0枚の回が無い。最後の袋はいつもスーパー', () => {
-    const fifteen = offerById('fifteen')!;
+describe('G09 1万回の10まいガチャ（v2.2。v2.7 で15まい→10まい）', () => {
+  it('1回あたりのスーパーの数は平均約1.45枚（9袋 × 5% ＋ 確定1）、0枚の回が無い。最後の袋はいつもスーパー', () => {
+    const ten = offerById('ten')!;
     for (const pack of SHOP_PACKS) {
       const N = 10000;
       const r = rand(pack.id.length * 104729);
@@ -54,17 +54,17 @@ describe('G09 1万回の15まいガチャ（v2.2）', () => {
       let zero = 0;
       let lastSuper = 0;
       for (let i = 0; i < N; i++) {
-        const bags = drawOffer(pack, fifteen, r);
+        const bags = drawOffer(pack, ten, r);
         const n = bags.filter((b) => b.card.super).length;
         total += n;
         if (n === 0) zero += 1;
-        if (bags[14].card.super && bags[14].guaranteed) lastSuper += 1;
+        if (bags[9].card.super && bags[9].guaranteed) lastSuper += 1;
       }
       const avg = total / N;
-      console.log(`[G09] ${pack.name}：15まい1回あたりのスーパー 平均 ${avg.toFixed(3)}枚・0枚の回 ${zero}回`);
+      console.log(`[G09] ${pack.name}：10まい1回あたりのスーパー 平均 ${avg.toFixed(3)}枚・0枚の回 ${zero}回`);
       expect(zero).toBe(0);
       expect(lastSuper).toBe(N);
-      expect(Math.abs(avg - 1.7), `${pack.id} 平均 ${avg}`).toBeLessThan(0.03);
+      expect(Math.abs(avg - 1.45), `${pack.id} 平均 ${avg}`).toBeLessThan(0.03);
     }
   });
 });

@@ -101,7 +101,7 @@ try {
       });
       await page.evaluate(() => window.__otecaGo('gacha'));
       await page.getByTestId('gacha-scene').waitFor();
-      await page.getByTestId('gacha-buy-three').click();
+      await page.getByTestId('gacha-buy-two').click();
       await page.waitForTimeout(900);
       await page.getByTestId('gacha-bag-1').click({ force: true });
       await page.getByTestId('gacha-next').waitFor({ timeout: 20000 });
@@ -121,7 +121,7 @@ try {
 
       // ---------------- 15まい：ぜんぶ スキップ（袋の中のカード）→ まとめ（多い時は小さく・スクロール）
       await page.getByRole('button', { name: /パックを えらぶ|パックを選ぶ/ }).click();
-      await page.getByTestId('gacha-buy-fifteen').click();
+      await page.getByTestId('gacha-buy-ten').click();
       await page.waitForTimeout(1500);
       const skip = page.getByRole('button', { name: /ぜんぶ スキップ|全部スキップ/ });
       if (await skip.count()) {

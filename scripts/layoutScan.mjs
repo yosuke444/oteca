@@ -227,7 +227,7 @@ export const SCREENS = [
   }],
   ['gacha_summary', async (p) => {
     await p.evaluate(() => window.__otecaGo('gacha'));
-    await p.getByTestId('gacha-buy-fifteen').click();
+    await p.getByTestId('gacha-buy-ten').click();
     await p.waitForTimeout(800);
     await p.getByTestId('gacha-skip').click();
     await p.getByTestId('gacha-summary').waitFor();

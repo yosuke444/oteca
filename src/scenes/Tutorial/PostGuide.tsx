@@ -17,7 +17,7 @@ import './tutorial.css';
 
 /** チュートリアルで案内するパックと買い方（UPDATE_v2_1 §6-2 #17） */
 export const TUTORIAL_PACK = 'ganso';
-export const TUTORIAL_OFFER = 'fifteen';
+export const TUTORIAL_OFFER = 'ten';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -113,7 +113,7 @@ function PostGuideBody({ st }: { st: PostState }) {
     bags: offer?.bags ?? 0,
     price: offer?.price ?? 0,
     note: st.review ? postText('noteSample', lang) : '',
-    // 15まいの最後の1袋はスーパーレア確定（v2.2。packs.json の lastBagSuper）
+    // 10まいの最後の1袋はスーパーレア確定（v2.2。packs.json の lastBagSuper）
     guarantee: offer?.lastBagSuper ? postText('noteGuarantee', lang) : '',
     guaranteeOpen: offer?.lastBagSuper ? postText('noteGuaranteeOpen', lang) : '',
     deck: save.decks[0]?.name ?? '',

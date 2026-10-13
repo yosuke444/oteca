@@ -43,15 +43,15 @@ describe('① パックの枠はカードの種類（cards.json）と合って�
   });
 });
 
-describe('③ 15まいの かくていの袋で すりむ が出る', () => {
-  it('かくていの袋（15袋目）はスーパーの枠から同じ確率で選ぶ：すりむ を選ぶ乱数なら すりむ', () => {
+describe('③ 10まいの かくていの袋で すりむ が出る', () => {
+  it('かくていの袋（10袋目）はスーパーの枠から同じ確率で選ぶ：すりむ を選ぶ乱数なら すりむ', () => {
     const pack = packById('yoseatsume')!;
     const idx = pack.super.indexOf('surimu');
-    // 1〜14袋目はふつうの袋（通常の目）、15袋目のスーパーの中ですりむを選ぶ
-    const seq = [...Array.from({ length: 14 }, () => [0.99, 0.5, 0.99]).flat(), (idx + 0.5) / pack.super.length];
+    // 1〜9袋目はふつうの袋（通常の目）、10袋目のスーパーの中ですりむを選ぶ
+    const seq = [...Array.from({ length: 9 }, () => [0.99, 0.5, 0.99]).flat(), (idx + 0.5) / pack.super.length];
     let i = 0;
-    const bags = drawOffer(pack, offerById('fifteen')!, () => seq[i++]);
-    expect(bags[14]).toMatchObject({ guaranteed: true, card: { no: CARD_DB[42].no, super: true } });
-    expect(CARD_DB[bags[14].card.no].id).toBe('surimu');
+    const bags = drawOffer(pack, offerById('ten')!, () => seq[i++]);
+    expect(bags[9]).toMatchObject({ guaranteed: true, card: { no: CARD_DB[42].no, super: true } });
+    expect(CARD_DB[bags[9].card.no].id).toBe('surimu');
   });
 });

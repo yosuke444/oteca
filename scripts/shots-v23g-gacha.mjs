@@ -116,7 +116,7 @@ try {
     const { page, ctx, errors } = await start(size);
     // 3まい：1 光ってスーパー（かみ・NEW）、2 光ったのにノーマル、3 光らずスーパー（サプライズ）
     await forceLuck(page, [0.01, 0.0, 0.1, 0.5, 0.0, 0.01, 0.01, 0.0, 0.95]);
-    await page.getByTestId('gacha-buy-three').click();
+    await page.getByTestId('gacha-buy-two').click();
     await page.waitForTimeout(1200);
     await page.getByTestId('gacha-bag-0').click({ force: true });
     await watchReveal(page, tag, '01_super_new', 'super');
@@ -154,7 +154,7 @@ try {
     // ふつう ×2 → 15袋目の かくてい（ぜんぶ ふつうにして、最後だけ確定）
     await page.getByRole('button', { name: /パックを えらぶ|パックを選ぶ/ }).click();
     await forceLuck(page, Array.from({ length: 14 * 3 }, (_, i) => (i % 3 === 0 ? 0.9 : i % 3 === 1 ? 0.3 : 0.99)));
-    await page.getByTestId('gacha-buy-fifteen').click();
+    await page.getByTestId('gacha-buy-ten').click();
     await page.waitForTimeout(1500);
     await page.getByTestId('gacha-bag-0').click({ force: true });
     await watchReveal(page, tag, '05_normal', 'normal');
@@ -177,7 +177,7 @@ try {
     const size = SIZES[0];
     const { page, ctx } = await start(size, { reduceFx: true });
     await forceLuck(page, [0.01, 0.0, 0.1, 0.9, 0.3, 0.99, 0.9, 0.3, 0.99]);
-    await page.getByTestId('gacha-buy-three').click();
+    await page.getByTestId('gacha-buy-two').click();
     await page.waitForTimeout(800);
     await page.getByTestId('gacha-bag-0').click({ force: true });
     const r = await watchReveal(page, 'reduce', '08_super', 'super');
@@ -191,7 +191,7 @@ try {
     for (const fxSpeed of [0, 2]) {
       const { page, ctx } = await start(SIZES[0], { fxSpeed });
       await forceLuck(page, [0.9, 0.3, 0.99, 0.9, 0.3, 0.99, 0.9, 0.3, 0.99]);
-      await page.getByTestId('gacha-buy-three').click();
+      await page.getByTestId('gacha-buy-two').click();
       await page.waitForTimeout(1000);
       const t = Date.now();
       await page.getByTestId('gacha-bag-0').click({ force: true });

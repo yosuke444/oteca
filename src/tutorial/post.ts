@@ -57,9 +57,9 @@ const DECK_SIZE = DEFAULT_RULES.deckSize;
 export const POST_STEPS: PostStep[] = [
   // 16 コインとパックガチャ
   { id: 'coins', no: 16, kind: 'act', spot: ['[data-testid="menu-gacha"]'], at: 'left', until: (c) => c.route === 'gacha' && c.has('[data-testid="gacha-scene"]'), goTo: 'menu' },
-  // 17 パックの選び方・なかみ → 15まい
+  // 17 パックの選び方・なかみ → 10まい
   { id: 'packs', no: 17, kind: 'tap', spot: ['[data-testid="gacha-pack"]', '.gacha-scene__arrow'], at: 'bottomLeft' },
-  { id: 'buy', no: 17, kind: 'act', spot: ['[data-testid="gacha-buy-fifteen"]'], at: 'topLeft', until: (c) => c.has('[data-testid="gacha-opening"]') },
+  { id: 'buy', no: 17, kind: 'act', spot: ['[data-testid="gacha-buy-ten"]'], at: 'topLeft', until: (c) => c.has('[data-testid="gacha-opening"]') },
   // 18 袋の開け方・「つぎへ」
   {
     id: 'open',
@@ -135,7 +135,7 @@ export function stepForSave(index: number): number {
 export type PostState = {
   active: boolean;
   index: number;
-  /** 見本で進める（ガチャは見本、デッキは練習用の写し）：見返しの時と、初めてでも 15まい を引くコインが無い時 */
+  /** 見本で進める（ガチャは見本、デッキは練習用の写し）：見返しの時と、初めてでも 10まい を引くコインが無い時 */
   review: boolean;
   /** 初めて（まだチュートリアルを終えていない）：終えた・とばした時に本物のセーブに印を書く */
   first: boolean;

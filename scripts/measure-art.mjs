@@ -60,9 +60,9 @@ for (let run = 0; run < RUNS; run++) {
   await page.getByRole('button', { name: /^(とばす|飛ばす)$/ }).click();
   await page.getByTestId('menu-gacha').click();
   // 「パックを ひこう」の案内が出たら閉じる
-  await page.getByTestId('gacha-buy-three').waitFor();
+  await page.getByTestId('gacha-buy-two').waitFor();
   await page.waitForTimeout(500);
-  await page.getByTestId('gacha-buy-three').click();
+  await page.getByTestId('gacha-buy-two').click();
   const ok = page.getByRole('button', { name: /ひく|引く/ }).last();
   if (await ok.isVisible({ timeout: 1500 }).catch(() => false)) await ok.click();
   await page.getByTestId('gacha-opening').waitFor();

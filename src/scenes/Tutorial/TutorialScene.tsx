@@ -28,7 +28,7 @@ export function TutorialScene() {
   const { save, update } = useSave();
   const tr = useT();
   // 見返し（ルールせつめい・せってい から。もう終えた人）：延長のガチャは見本、デッキ編集は練習用の写し（UPDATE_v2_1 §6-3）。
-  // 初めてでも、15まい を引くコインが無い時（アップデートの おしらせ から来て コインを使っていた人）は、ガチャを見本にする
+  // 初めてでも、10まい を引くコインが無い時（アップデートの おしらせ から来て コインを使っていた人）は、ガチャを見本にする
   const [review] = useState(() => {
     const offer = offerById(TUTORIAL_OFFER);
     return save.tutorial.done || !offer || save.coins < offer.price;

@@ -36,13 +36,13 @@ describe('② 10万袋のスーパーの割合', () => {
     });
   }
 
-  it('かくていの袋（よせあつめ 15まい × 3万回）：すりむ・ぱわー・めでゅーさ が どれも 1/3', () => {
+  it('かくていの袋（よせあつめ 10まい × 3万回）：すりむ・ぱわー・めでゅーさ が どれも 1/3', () => {
     const pack = packById('yoseatsume')!;
     const r = rand('pack-rate-guaranteed');
     const count: Record<string, number> = {};
     const M = 30_000;
     for (let i = 0; i < M; i++) {
-      const last = drawOffer(pack, offerById('fifteen')!, r)[14];
+      const last = drawOffer(pack, offerById('ten')!, r)[9];
       expect(last.guaranteed && last.card.super).toBe(true);
       const id = CARD_DB[last.card.no].id;
       count[id] = (count[id] ?? 0) + 1;

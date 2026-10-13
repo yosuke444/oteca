@@ -24,7 +24,7 @@ describe('P01 延長の手順（#16〜#25）', () => {
 
   it('数は差し込む（コイン・パック・袋・値段・デッキの枚数・12時）。日本語の辞書は漢字を使う', () => {
     expect(postText('coins', 'hira', { coins: 200 })).toContain('200まい');
-    expect(postText('buy', 'kanji', { pack: '元祖パック', bags: 15, price: 200, note: '' })).toContain('15枚 200コイン');
+    expect(postText('buy', 'kanji', { pack: '元祖パック', bags: 10, price: 200, note: '' })).toContain('「10枚引く」（200コイン）');
     expect(postText('rules', 'hira', { size: 15, superMax: 1, superNote: '' })).toContain('15まい');
     expect(postText('tourDaily', 'kanji', { hour: 12 })).toContain('12時');
     expect(postText('back15', 'hira', { n: 16, size: 15 })).toContain('16まい');

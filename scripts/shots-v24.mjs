@@ -128,7 +128,7 @@ try {
     await go(page, 'gacha');
     await page.getByTestId('gacha-scene').waitFor();
     await forceLuck(page, [0.9, 0.3, 0.99]);
-    await page.getByTestId('gacha-buy-three').click();
+    await page.getByTestId('gacha-buy-two').click();
     await page.waitForTimeout(1000);
     await page.getByTestId('gacha-bag-0').click({ force: true });
     await page.getByTestId('gacha-next').waitFor({ timeout: 20000 });
@@ -139,7 +139,7 @@ try {
     for (let i = 0; i < 2; i++) await page.getByRole('button', { name: /つぎの パック|次のパック/ }).click();
     await page.waitForTimeout(600);
     await forceLuck(page, [0.01, 0.9, 0.1]);
-    await page.getByTestId('gacha-buy-three').click();
+    await page.getByTestId('gacha-buy-two').click();
     await page.waitForTimeout(1000);
     await page.getByTestId('gacha-bag-0').click({ force: true });
     await page.getByTestId('gacha-next').waitFor({ timeout: 20000 });

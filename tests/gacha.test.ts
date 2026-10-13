@@ -9,17 +9,17 @@ import { makeRandom } from './save.helpers';
 /** パックガチャ（SPEC §7 S09・§16-2d。UPDATE_v2 §6） */
 
 const ganso = packById('ganso')!;
-const three = offerById('three')!;
-const fifteen = offerById('fifteen')!;
+const two = offerById('two')!;
+const ten = offerById('ten')!;
 const rand = (seed: number) => makeRandom(seed).next;
 /** 1袋（光らない・確定でない） */
 const bag = (no: number, sr = false): Bag => ({ card: { no, super: sr }, glow: false, guaranteed: false });
 
-describe('G01 3袋・15袋：コインが減り、カードが増える', () => {
-  it('3袋は50コイン、15袋は200コイン。引いたカードの数だけ所持数が増える（コインとカードは同じ下書きに書く）', () => {
+describe('G01 2袋・10袋：コインが減り、カードが増える（v2.7 で 3袋・15袋 から）', () => {
+  it('2袋は50コイン、10袋は200コイン。引いたカードの数だけ所持数が増える（コインとカードは同じ下書きに書く）', () => {
     for (const [offer, price, bagsN] of [
-      [three, 50, 3],
-      [fifteen, 200, 15],
+      [two, 50, 2],
+      [ten, 200, 10],
     ] as const) {
       const s = createDefaultSave();
       s.coins = 1000;
@@ -45,7 +45,7 @@ describe('G01 3袋・15袋：コインが減り、カードが増える', () => 
     const s = createDefaultSave();
     const hasami = Object.values(CARD_DB).find((c) => c.id === 'hasami')!.no;
     const bags: Bag[] = [bag(hasami), bag(hasami), bag(1)];
-    const r = applyPull(s, three, bags)!;
+    const r = applyPull(s, two, bags)!;
     expect(r.map((x) => x.isNew)).toEqual([true, false, false]); // おてあげ（No1）は最初から持っている
     expect(r.map((x) => x.ownedAfter)).toEqual([1, 2, 6]);
   });
@@ -56,27 +56,27 @@ describe('G03 コインが足りない時は引けない', () => {
     const s = createDefaultSave();
     s.coins = 49;
     const before = structuredClone(s);
-    expect(canAfford(s, three)).toBe(false);
-    expect(applyPull(s, three, drawBags(ganso, 3, rand(1)))).toBeNull();
+    expect(canAfford(s, two)).toBe(false);
+    expect(applyPull(s, two, drawBags(ganso, 2, rand(1)))).toBeNull();
     expect(s).toEqual(before);
     s.coins = 199;
-    expect(canAfford(s, fifteen)).toBe(false);
+    expect(canAfford(s, ten)).toBe(false);
     s.coins = 200;
-    expect(canAfford(s, fifteen)).toBe(true);
-    expect(applyPull(s, fifteen, drawBags(ganso, 15, rand(2)))).not.toBeNull();
+    expect(canAfford(s, ten)).toBe(true);
+    expect(applyPull(s, ten, drawBags(ganso, 10, rand(2)))).not.toBeNull();
     expect(s.coins).toBe(0);
   });
 });
 
 describe('G04 パックの中身・確率は packs.json の値', () => {
   it('確率・値段・中身が packs.json と同じ。「なかみ」の確率の合計は100%', () => {
-    // v2.2：スーパー 1袋 5%・スーパーの袋の光る確率 80%・15まいは最後の袋が確定（それぞれ packs.json の1か所）
+    // v2.2：スーパー 1袋 5%・スーパーの袋の光る確率 80%・10まいは最後の袋が確定（それぞれ packs.json の1か所。v2.7）
     expect(DRAW.superRate).toBe(packsRaw.draw.superRate);
     expect(DRAW.superRate).toBe(0.05);
     expect(DRAW.glowRate).toBe(0.8);
     expect(DRAW.offers.map((o) => [o.bags, o.price, o.lastBagSuper])).toEqual([
-      [3, 50, false],
-      [15, 200, true],
+      [2, 50, false],
+      [10, 200, true],
     ]);
     expect(DRAW.superToCoins).toBe(50);
     // 2枚入り（ダブル）の設定は無い
@@ -116,7 +116,7 @@ describe('G05 スーパーレアの換金', () => {
   it('すでに持っていたスーパーレアだけ換金できる（同じ回で先に引いた分も数える）', () => {
     const s = createDefaultSave(); // レボリューションは1枚持っている、かみは持っていない
     const bags: Bag[] = [bag(revo, true), bag(kami, true), bag(kami, true)];
-    const r = applyPull(s, three, bags)!;
+    const r = applyPull(s, two, bags)!;
     expect(r.map((x) => [x.no, x.convertible, x.isNew])).toEqual([
       [revo, true, false],
       [kami, false, true],
@@ -141,7 +141,7 @@ describe('G06 上限', () => {
     const s = createDefaultSave();
     s.coins = 99990;
     s.collection[1] = 999;
-    applyPull(s, three, [bag(1)]);
+    applyPull(s, two, [bag(1)]);
     expect(s.collection[1]).toBe(999);
     const revo = Object.values(CARD_DB).find((c) => c.id === 'revolution')!.no;
     s.collection[revo] = 5;
@@ -157,21 +157,21 @@ describe('G06 上限', () => {
   });
 });
 
-describe('G08 15まいガチャの最後の袋は確定（v2.2）', () => {
-  it('15袋目は必ずスーパーおてあげ（そのパックのスーパーから）で、必ず光る。3まいガチャには確定が無い', () => {
+describe('G08 10まいガチャの最後の袋は確定（v2.2。v2.7 で15まい→10まい）', () => {
+  it('10袋目は必ずスーパーおてあげ（そのパックのスーパーから）で、必ず光る。2まいガチャには確定が無い', () => {
     for (const pack of SHOP_PACKS) {
       for (let seed = 1; seed <= 300; seed++) {
-        const bags = drawOffer(pack, fifteen, rand(seed * 31 + pack.id.length));
-        expect(bags).toHaveLength(15);
-        const last = bags[14];
+        const bags = drawOffer(pack, ten, rand(seed * 31 + pack.id.length));
+        expect(bags).toHaveLength(10);
+        const last = bags[9];
         expect(last.guaranteed).toBe(true);
         expect(last.glow).toBe(true);
         expect(last.card.super).toBe(true);
         expect(pack.super).toContain(CARD_DB[last.card.no].id);
         // それより前の袋は確定ではない
-        expect(bags.slice(0, 14).every((b) => !b.guaranteed)).toBe(true);
-        // 3まいには確定が無い
-        expect(drawOffer(pack, three, rand(seed)).every((b) => !b.guaranteed)).toBe(true);
+        expect(bags.slice(0, 9).every((b) => !b.guaranteed)).toBe(true);
+        // 2まいには確定が無い
+        expect(drawOffer(pack, two, rand(seed)).every((b) => !b.guaranteed)).toBe(true);
       }
     }
   });
@@ -180,7 +180,7 @@ describe('G08 15まいガチャの最後の袋は確定（v2.2）', () => {
     const count = new Map<number, number>();
     const N = 6000;
     for (let i = 0; i < N; i++) {
-      const last = drawOffer(ganso, fifteen, rand(i + 1))[14];
+      const last = drawOffer(ganso, ten, rand(i + 1))[9];
       count.set(last.card.no, (count.get(last.card.no) ?? 0) + 1);
     }
     expect(count.size).toBe(3);

@@ -77,7 +77,7 @@ export function drawBag(pack: PackDef, rand: Rand, rules: DrawRules = DRAW, opts
 }
 
 /**
- * bags 袋を引く。lastBagSuper：最後の袋をスーパーおてあげ確定にする（15まい）。
+ * bags 袋を引く。lastBagSuper：最後の袋をスーパーおてあげ確定にする（10まい）。
  * 売らないパック（デイリーパック）の袋は光らせない
  */
 export function drawBags(pack: PackDef, bags: number, rand: Rand, rules: DrawRules = DRAW, lastBagSuper = false): Bag[] {
@@ -101,7 +101,7 @@ export function revealKind(bag: Pick<Bag, 'glow' | 'guaranteed'>, isSuper: boole
   return isSuper ? 'surprise' : 'normal';
 }
 
-/** 買い方（3まい・15まい）で引く。15まいは最後の袋がスーパーレア確定（packs.json の lastBagSuper） */
+/** 買い方（2まい・10まい。v2.7）で引く。10まいは最後の袋がスーパーレア確定（packs.json の lastBagSuper） */
 export function drawOffer(pack: PackDef, offer: Offer, rand: Rand, rules: DrawRules = DRAW): Bag[] {
   return drawBags(pack, offer.bags, rand, rules, offer.lastBagSuper);
 }

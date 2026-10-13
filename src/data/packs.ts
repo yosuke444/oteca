@@ -27,7 +27,7 @@ export type PackDef = {
  * - superRate：ふだんの袋がスーパーおてあげの確率（どのパックも同じ。スーパーの中・ノーマルの中では、どのカードも同じ確率）
  * - glowRate：中身がスーパーの袋が光る確率。中身がノーマルの袋は glowRate × superRate ÷ (1 − superRate) で光る
  *   （光った袋のスーパー率が 50% になる）。確定の袋とデイリーパックは除く
- * - offers：買い方。lastBagSuper：最後の袋をスーパーおてあげ確定にする（15まい）
+ * - offers：買い方。lastBagSuper：最後の袋をスーパーおてあげ確定にする（10まい。v2.7 で15まい→10まい）
  * - superToCoins：スーパーレアの換金の枚数
  */
 export type DrawRules = {

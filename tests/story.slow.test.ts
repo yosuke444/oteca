@@ -33,13 +33,13 @@ function otegeScore(def: CardDef): number {
 const ITEM_ORDER = ['kusuri', 'himitsu_yaiba', 'supodori', 'kimyou_drink', 'hikikae', 'yabaitsubo'];
 
 /**
- * 「元祖パックを15まい引いた」人のデッキ：初期カードに元祖パック15袋（種付き乱数）を足し、
+ * 「元祖パックを10まい引いた」人のデッキ：初期カードに元祖パック10袋（v2.7 で15→10）（種付き乱数）を足し、
  * スーパーは強いもの1枚、おてあげ11枚・アイテム4枚を、強さの見積もりの高い順に入れる
  */
 function packDeck(): { deck: number[]; got: number[] } {
   const own: Record<number, number> = { ...starterCollection() };
-  // 15まい（v2.2：最後の袋はスーパー確定）
-  const got = drawOffer(packById('ganso')!, offerById('fifteen')!, seededRand(20261003)).map((b) => b.card.no);
+  // 10まい（v2.2：最後の袋はスーパー確定）
+  const got = drawOffer(packById('ganso')!, offerById('ten')!, seededRand(20261003)).map((b) => b.card.no);
   for (const n of got) own[n] = (own[n] ?? 0) + 1;
   const defs = Object.keys(own).map((n) => CARD_DB[Number(n)]);
   const otege = defs.filter((d) => d.kind === 'otege').sort((a, b) => otegeScore(b) - otegeScore(a));

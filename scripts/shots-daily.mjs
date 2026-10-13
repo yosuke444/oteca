@@ -149,7 +149,7 @@ for (const lang of ['hira', 'kanji']) {
   // 4. パックガチャを引くと gacha1 が進む
   await setSave(lang, { missions: [['draw20', 0, false], ['ko5', 0, false], ['gacha1', 0, false]], coins: 500 });
   await page.getByRole('button', { name: 'パックガチャ' }).click();
-  await page.getByTestId('gacha-buy-three').click();
+  await page.getByTestId('gacha-buy-two').click();
   const g = await readSave();
   if (g.daily.missions.find((m) => m.id === 'gacha1')?.progress !== 1) problems.push(`${lang} ガチャで gacha1 が進まない：${JSON.stringify(g.daily)}`);
   await page.getByTestId('gacha-skip').click();

@@ -38,7 +38,7 @@ describe('S01 すりむ はスーパーおてあげ', () => {
     expect(packById('yoseatsume')!.super).toContain('surimu');
     for (const p of PACK_DATA.packs) expect(p.normal).not.toContain('surimu');
     expect(PACK_DATA.draw.superRate).toBe(0.05);
-    expect(PACK_DATA.draw.offers.find((o) => o.id === 'fifteen')!.lastBagSuper).toBe(true);
+    expect(PACK_DATA.draw.offers.find((o) => o.id === 'ten')!.lastBagSuper).toBe(true);
   });
 
   it('引くとスーパーとして出る（すでに持っていれば換金できる）', () => {

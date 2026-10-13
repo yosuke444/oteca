@@ -193,7 +193,7 @@ async function doPost(id, lang, shots) {
       await page.getByTestId('menu-gacha').click();
       return;
     case 'buy':
-      await page.getByTestId('gacha-buy-fifteen').click();
+      await page.getByTestId('gacha-buy-ten').click();
       return;
     case 'open': {
       await page.waitForTimeout(900);

@@ -107,7 +107,7 @@ for (const lang of ['hira', 'kanji']) {
 
   // 3まい：コインが50減り、カードが3枚以上増える（読み込み直しても）
   const before = await readSave();
-  await page.getByTestId('gacha-buy-three').click();
+  await page.getByTestId('gacha-buy-two').click();
   const after = await readSave();
   if (after.coins !== before.coins - 50) problems.push(`${lang} 3まい：コイン ${before.coins} → ${after.coins}`);
   if (after.total < before.total + 3) problems.push(`${lang} 3まい：カード ${before.total} → ${after.total}`);
@@ -127,7 +127,7 @@ for (const lang of ['hira', 'kanji']) {
   // 光る袋（v2.2。乱数を決める。1袋に [スーパーか・どれか・光るか] の3つ）：
   // 1袋目 光ってスーパー（かみ）、2袋目 光ったのにノーマル（…ぺらっ）、3袋目 光らずスーパー（サプライズ）
   await forceLuck([0.01, 0.0, 0.1, 0.5, 0.0, 0.01, 0.01, 0.0, 0.95]);
-  await page.getByTestId('gacha-buy-three').click();
+  await page.getByTestId('gacha-buy-two').click();
   await page.waitForTimeout(1200);
   await snap(lang, '08_bags_glow');
   const glows = await page.locator('[data-testid^="gacha-bag-"][data-glow="1"]').count();
@@ -176,7 +176,7 @@ for (const lang of ['hira', 'kanji']) {
   await page.getByRole('button', { name: L.shop }).click();
 
   // 15まい：5×3 → 1袋目を開けて「つぎへ」で15袋を最後まで → まとめ画面（UPDATE_v2_1 §1-4）
-  await page.getByTestId('gacha-buy-fifteen').click();
+  await page.getByTestId('gacha-buy-ten').click();
   await page.waitForTimeout(1200);
   await snap(lang, '13_bags15');
   // 最後（15袋目）は金色の確定の袋（v2.2）
@@ -210,7 +210,7 @@ for (const lang of ['hira', 'kanji']) {
   if (got15 < 15) problems.push(`${lang} 15まい：まとめのカード ${got15}`);
   await page.getByRole('button', { name: L.shop }).click();
   // 15まい：ぜんぶ スキップ
-  await page.getByTestId('gacha-buy-fifteen').click();
+  await page.getByTestId('gacha-buy-ten').click();
   await page.waitForTimeout(800);
   await page.getByTestId('gacha-skip').click();
   await page.getByTestId('gacha-summary').waitFor();
@@ -218,7 +218,7 @@ for (const lang of ['hira', 'kanji']) {
 
   // 引いた直後に読み込み直す：コインとカードの両方が変わっている（片方だけにならない）
   const r0 = await readSave();
-  await page.getByTestId('gacha-buy-three').click();
+  await page.getByTestId('gacha-buy-two').click();
   await page.reload();
   await page.waitForTimeout(2000);
   const r1 = await readSave();
@@ -228,7 +228,7 @@ for (const lang of ['hira', 'kanji']) {
   await setSave(lang, { top: { coins: 30 } });
   await toGacha(lang);
   // 押せない（えんぴつ色の）ボタンも、押すと「コインが たりないよ」
-  await page.getByTestId('gacha-buy-three').click({ force: true });
+  await page.getByTestId('gacha-buy-two').click({ force: true });
   await snap(lang, '15_no_coins');
   if (!(await page.locator('.gacha-scene__msg').count())) problems.push(`${lang} コインが たりないよ が出ない`);
   const n0 = await readSave();

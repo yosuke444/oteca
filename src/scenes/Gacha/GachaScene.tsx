@@ -91,7 +91,7 @@ export function GachaScene() {
       noCoins();
       return;
     }
-    // 15まいは最後の袋がスーパーレア確定（v2.2。packs.json の lastBagSuper）
+    // 10まいは最後の袋がスーパーレア確定（v2.2。packs.json の lastBagSuper）
     const bags = drawOffer(packs[packIndex], offer, sample ? sampleRand() : cryptoRand);
     // チュートリアル：スーパーおてあげを2種類以上引いたら、#24 で「1まいまで。どれを つかうか えらんでね」
     // デイリーミッション「パックガチャを 1かい ひく」も同じ保存で数える（その日が変わっていたら入れ替え、前の日の報酬の知らせを置く）
@@ -254,7 +254,7 @@ export function GachaScene() {
           </RoughButton>
         }>
           <p className="gacha-contents__note">{tr.gacha.rateNote(pct(superRate(pack)))}</p>
-          {/* 15まいの確定と、光る袋（v2.2） */}
+          {/* 10まいの確定と、光る袋（v2.2） */}
           {DRAW.offers
             .filter((o) => o.lastBagSuper)
             .map((o) => (

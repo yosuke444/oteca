@@ -41,14 +41,14 @@
     "glowRate": 0.8,
     "offers": [
       {
-        "id": "three",
-        "bags": 3,
+        "id": "two",
+        "bags": 2,
         "price": 50,
         "lastBagSuper": false
       },
       {
-        "id": "fifteen",
-        "bags": 15,
+        "id": "ten",
+        "bags": 10,
         "price": 200,
         "lastBagSuper": true
       }

@@ -120,7 +120,7 @@ for (let i = 0; i < 40; i++) {
   if (id === 'gone') break;
   const pg = A.page;
   if (id === 'coins') await pg.getByTestId('menu-gacha').click();
-  else if (id === 'buy') await pg.getByTestId('gacha-buy-fifteen').click();
+  else if (id === 'buy') await pg.getByTestId('gacha-buy-ten').click();
   else if (id === 'open') {
     await pg.waitForTimeout(900);
     await pg.getByTestId('gacha-bag-7').click({ force: true });

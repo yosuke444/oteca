@@ -62,7 +62,7 @@ export function Summary({
           const def = CARD_DB[r.no];
           return (
             <div key={i} className={`gacha-summary__card ${r.super ? 'is-super' : ''}`} data-testid={`gacha-result-${i}`}>
-              <PrizeCard def={def} seed={`sum-${r.no}-${i}`} width={many ? 128 : 150} />
+              <PrizeCard def={def} seed={`sum-${r.no}-${i}`} width={many ? 112 : 150} />
               {r.isNew && (
                 <Sticky seed={`new-${i}`} color="red" angle={-10} className="gacha-summary__new">
                   {tr.gacha.newTag}

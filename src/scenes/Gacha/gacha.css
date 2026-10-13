@@ -622,7 +622,14 @@
   padding: 50px 0 16px;
 }
 .gacha-summary__grid--many {
-  gap: 40px 16px;
+  /* 10まい（v2.7）：5まいずつ2だん。下の段の「もっている」まで、スクロールしないで見える */
+  top: 112px;
+  bottom: 100px;
+  display: grid;
+  grid-template-columns: repeat(5, max-content);
+  justify-content: center;
+  gap: 34px 30px;
+  padding-top: 44px;
 }
 .gacha-summary__card {
   position: relative;
@@ -676,7 +683,7 @@
   margin: 0 0 8px;
   font-size: 17px;
 }
-/* 15まいの確定・光る袋（v2.2） */
+/* 10まいの確定・光る袋（v2.2） */
 .gacha-contents__note--big {
   font-size: 22px;
   background: linear-gradient(transparent 55%, var(--marker-yellow) 55%);
