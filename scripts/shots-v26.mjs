@@ -1,5 +1,5 @@
 // v2.6 の確認とスクリーンショット（1280×720・844×390）。npm run dev（ポート 5175）のまま node scripts/shots-v26.mjs
-// - 札がベンチにかぶった場面（ベンチを元の位置に戻した）：かぶった札だけ不透明度 --lasting-over-opacity（theme.css。v2.7 から 0.65）、ほかははっきり。数字が読める
+// - 札がベンチにかぶった場面（ベンチを元の位置に戻した）：札はかぶっていても いつも はっきり（不透明度1）、かぶった所は札が上。数字が読める（v2.7）
 // - 自爆の動き（ふつう・自分に999）
 // - 自爆で両方が気絶する流れ（相手の気絶 → 相手のくりだし → 自爆した側の気絶 → 自爆した側のくりだし）
 // ONLY=名前 で1つの場面だけ。REDUCE=1 で「演出をへらす」
@@ -62,7 +62,7 @@ async function openBattle(page, sb, dice = []) {
   await idle(page);
 }
 
-/** 札の表：かぶった札だけ --lasting-over-opacity、かぶっていない札は 1。バトル場のカード（自分の絵・HP）には重ならない。数字は 9px 以上 */
+/** 札の表：どの札も不透明度1。かぶった札は、札の真ん中で一番上に見えている（下のカードに隠れない）。バトル場のカード（自分の絵・HP）には重ならない。数字は 9px 以上 */
 async function tagCheck(page) {
   return page.evaluate(() => {
     const out = [];
@@ -70,21 +70,31 @@ async function tagCheck(page) {
     const k = stage.getBoundingClientRect().width / 1280;
     const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
     const others = [...stage.querySelectorAll('.battle-slot .battle-card, .battle-pile, .battle-name, .battle-turn, .battle-dice, .battle-draw')].map((e) => ({ e, r: e.getBoundingClientRect() }));
-    const want = Number(getComputedStyle(document.documentElement).getPropertyValue('--lasting-over-opacity'));
-    if (!(want > 0 && want < 1)) out.push(`--lasting-over-opacity が読めない（${want}）`);
     let over = 0;
     let clear = 0;
     for (const tag of stage.querySelectorAll('.lasting-table .lasting-row .lasting-tag, .lasting-table .lasting-row .lasting-more')) {
       const r = tag.getBoundingClientRect();
       const on = others.filter((o) => hit(r, o.r));
       if (on.some((o) => o.e.closest('.battle-slot--active'))) out.push('札がバトル場のカードに重なる');
-      const op = Number(getComputedStyle(tag).opacity);
+      // 札と、その上の物（表まで）が透けていない
+      for (let el = tag; el && el !== stage; el = el.parentElement) {
+        const op = Number(getComputedStyle(el).opacity);
+        if (op < 0.99) out.push(`札が透けている（${el.className} ${op}）`);
+      }
+      if (tag.classList.contains('is-over')) out.push('かぶりの印（is-over）が残っている');
       if (on.length > 0) {
         over++;
-        if (Math.abs(op - want) > 0.01) out.push(`かぶった札の不透明度が ${op}（${want} のはず）`);
+        // 札の真ん中で一番上に見えている物が、この札（の中）であること
+        // 表は押せない（pointer-events: none）ので、調べる間だけ押せるようにする（重なりの順は変わらない）
+        const table = tag.closest('.lasting-table');
+        table.style.pointerEvents = 'auto';
+        tag.style.pointerEvents = 'auto';
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        table.style.pointerEvents = '';
+        tag.style.pointerEvents = '';
+        if (!top || !tag.contains(top)) out.push(`かぶった札が下に隠れている（上：${top?.className}）`);
       } else {
         clear++;
-        if (op < 0.99) out.push(`かぶっていない札が透けている（${op}）`);
       }
       const num = tag.querySelector('.num');
       if (num && parseFloat(getComputedStyle(num).fontSize) * k < 9) out.push('札の数字が小さい');
