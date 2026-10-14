@@ -34,6 +34,8 @@ export type TradeView = {
   /** 自分・相手が最終確認で「こうかんする」を押した */
   myCommit: boolean;
   oppCommit: boolean;
+  /** 相手と版が違う時（status が version）：自分の方が古いか（v2.7） */
+  versionOlder?: boolean;
 };
 
 export type TradeOptions = {
@@ -85,6 +87,8 @@ export function textHash(s: string): string {
 
 export class TradeSession {
   onChange: (v: TradeView) => void = () => {};
+  /** 相手と版が違った時、自分の方が古いか（v2.7） */
+  private versionOlder = false;
   /** 交換が成立した：画面がセーブに書く（同じ交換IDなら何もしない） */
   onExecute: (t: { tradeId: string; give: Offer; get: Offer }) => void = () => {};
   /** commit を送る前：とちゅうの交換を覚えておいてもらう（null で消す） */
@@ -153,6 +157,7 @@ export class TradeSession {
       oppLock: this.oppLock === hash,
       myCommit: this.myCommit?.hash === hash,
       oppCommit: this.oppCommit?.hash === hash,
+      ...(this.status === 'version' ? { versionOlder: this.versionOlder } : {}),
     };
   }
 
@@ -235,6 +240,11 @@ export class TradeSession {
   // ---------------------------------------------------------------- 受け取り
 
   private receive(m: Msg, from: string): void {
+    // 受け取る側でも版を確かめる（v2.7）：tradeHello のほかは、同じプロトコル版数のものだけ
+    if (m.t !== 'tradeHello' && m.v !== this.opts.protocol) {
+      this.ignored.push(`${m.t} v${m.v} from ${from}`);
+      return;
+    }
     switch (m.t) {
       case 'tradeHello':
         this.gotHello(m.body, from);
@@ -365,6 +375,7 @@ export class TradeSession {
         return;
       }
       this.sendHello(from);
+      this.versionOlder = h.protocol > this.opts.protocol;
       this.setStatus('version');
       this.close();
       return;

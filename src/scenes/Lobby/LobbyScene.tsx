@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { markStart } from '../../net/startTiming';
+import { OutdatedGuard, ReloadButton } from '../../ui/common/UpdateNotice';
 import { useFx, vsDur } from '../../fx/fxSettings';
 import { preloadCards } from '../../ui/imageLoader';
 import { t } from '../../i18n';
@@ -31,7 +32,8 @@ type Phase =
   | { kind: 'found'; opp: string }
   /** VS 画面（2秒） */
   | { kind: 'vs'; opp: string }
-  | { kind: 'error'; text: string };
+  /** reload：「さいよみこみ」ボタンも出す（自分の版が古い。v2.7） */
+  | { kind: 'error'; text: string; reload?: boolean };
 
 /** VS 画面を出す時間（SPEC §7 S03。v2.7 で 2000 → 1400。演出スピードに合わせる） */
 const VS_MS = 1400;
@@ -51,7 +53,8 @@ function errorText(s: SessionStatus): string | null {
     case 'full':
       return t().lobby.full;
     case 'version':
-      return t().lobby.version;
+      // 自分の方が古いなら「さいよみこみ してね」、相手の方が古いなら「あいてに さいよみこみ してもらってね」（v2.7）
+      return s.older ? t().update.older : t().update.newer;
     case 'error':
       return t().lobby.failed;
     case 'aborted':
@@ -101,11 +104,11 @@ export function LobbyScene() {
 
   const canJoin = isValidRoomNumber(room) && deck >= 0;
 
-  const fail = (text: string) => {
+  const fail = (text: string, reload = false) => {
     endOnline();
     linkRef.current = null;
     setLink(null);
-    setPhase({ kind: 'error', text });
+    setPhase({ kind: 'error', text, reload });
   };
 
   /** VS 画面が終わっていて、種も決まっていれば対戦へ */
@@ -149,7 +152,7 @@ export function LobbyScene() {
     const offs = [
       link.on('status', (s) => {
         const text = errorText(s);
-        if (text) fail(text);
+        if (text) fail(text, s.kind === 'version' && s.older);
       }),
       link.on('matched', (opp) => {
         markStart('found');
@@ -234,6 +237,8 @@ export function LobbyScene() {
   useEffect(() => {
     if (phase.kind !== 'input') return;
     const onKey = (e: KeyboardEvent) => {
+      // 古い版のダイアログが出ている間は受け付けない（v2.7）
+      if (document.querySelector('[data-testid="update-dialog"]')) return;
       if (/^[0-9]$/.test(e.key)) setRoom((r) => (r.length < MAX_DIGITS ? r + e.key : r));
       else if (e.key === 'Backspace') setRoom((r) => r.slice(0, -1));
       else if (e.key === 'Enter') join();
@@ -423,6 +428,9 @@ export function LobbyScene() {
     <div className="lobby">
       {/* アカウント停止の確かめ（v2.0-J） */}
       <SuspensionGate />
+      {/* 古い版のままでは入れない（v2.7） */}
+      {/* 対戦のあとに部屋へ戻った時は出さない（部屋の途中では出さない） */}
+      {!back && <OutdatedGuard onBack={() => go('online')} />}
       <h1 className="lobby__title">{tr.lobby.title}</h1>
       <RoughButton seed="lobby-back" className="lobby__back" onClick={() => go('online')}>
         {tr.common.back}
@@ -469,10 +477,13 @@ export function LobbyScene() {
       {phase.kind === 'error' && (
         <div className="lobby__error" role="alert">
           <RoughBox seed="lobby-error" className="lobby__error-box" paper radius={10} stroke="var(--pen-red)" strokeWidth={3}>
-            <p className="lobby__error-text red-pen">{phase.text}</p>
-            <RoughButton seed="lobby-error-ok" className="lobby__error-ok" onClick={() => setPhase({ kind: 'input' })}>
-              {tr.common.ok}
-            </RoughButton>
+            <p className="lobby__error-text red-pen" data-testid="lobby-error">{phase.text}</p>
+            <div className="lobby__error-buttons">
+              <RoughButton seed="lobby-error-ok" className="lobby__error-ok" onClick={() => setPhase({ kind: 'input' })}>
+                {tr.common.ok}
+              </RoughButton>
+              {phase.reload && <ReloadButton seed="lobby-error-reload" className="lobby__error-ok" />}
+            </div>
           </RoughBox>
         </div>
       )}

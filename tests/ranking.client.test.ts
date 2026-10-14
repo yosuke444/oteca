@@ -227,6 +227,21 @@ describe('I01 受付係につなぐ（端末の側）', () => {
     expect(got.fallback).toBe(0);
   });
 
+  it('⑥ 受付係が「版が古い」と断ったら（version・4002）、予備の待合所へは行かずに知らせる（v2.7）', () => {
+    for (const how of ['error', 'close'] as const) {
+      const { s, sock, got, lobbies } = make();
+      let version = 0;
+      s.onVersion = () => (version += 1);
+      s.join();
+      sock.open();
+      if (how === 'error') sock.recv({ t: 'error', body: { reason: 'version' } });
+      sock.drop(4002);
+      expect(version, how).toBe(1);
+      expect(got.fallback, how).toBe(0);
+      expect(lobbies, how).toHaveLength(0);
+    }
+  });
+
   it(`${LOBBY_CONNECT_MS / 1000}秒つながらなければ、予備の待合所へ（画面に知らせる）`, () => {
     const { s, got, lobbies, fire, timers } = make();
     s.join();

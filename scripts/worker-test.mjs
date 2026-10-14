@@ -2,6 +2,7 @@
 // 手元の Worker（wrangler dev。まっさらな保存領域）で、登録・受付係・報告・まとめ処理・ランキング・CORS・管理キーを確かめる。
 // 受付係・結果・まとめ処理の細かい決まりは tests/ranking.logic.test.ts（npm test）で確かめている。
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { LOCAL_ADMIN_KEY as ADMIN, ORIGIN, api, connectLobby, newToken, pid, register, sleep, startWorker, until } from './worker-dev.mjs';
 
 const results = [];
@@ -16,7 +17,8 @@ function nextRate(me, opp, win) {
   return Math.max(0, Math.round(me + 20 * ((win ? 1 : 0) - e)));
 }
 
-const PROTOCOL = 6;
+// 今のプロトコル版数（v2.7：受付係は、これより古い版の申し込みを断る）
+const PROTOCOL = Number(/PROTOCOL_VERSION = ([0-9]+);/.exec(readFileSync(new URL('../src/config/version.ts', import.meta.url), 'utf8'))[1]);
 const w = await startWorker(8788);
 const B = w.base;
 try {
@@ -133,13 +135,23 @@ try {
   await sleep(500);
   check('タブを閉じた・切れた人は待ち行列から外れる', !h.paired() && h.lastCount() === 1);
 
-  // プロトコル版数の違い
+  // プロトコル版数の違い（新しい版の人：受け付けるが、今の版の人とは組まない）
   const v5 = connectLobby(B, V);
   await v5.waitOpen();
-  v5.join({ userId: pid(102), protocol: 5, lastOpponentId: '', name: 'old', rate: 100 });
+  v5.join({ userId: pid(102), protocol: PROTOCOL + 1, lastOpponentId: '', name: 'new', rate: 100 });
   await sleep(500);
-  check('プロトコル版数の違う人とは組まない', !v5.paired() && !h.paired());
+  check('⑥ プロトコル版数の違う人とは組まない', !v5.paired() && !h.paired());
   check('人数は版数ごとに数える', v5.lastCount() === 1 && h.lastCount() === 1);
+  // 今の版より古い人の申し込みは断る（v2.7。error version・4002 で切る。待っている人数にも数えない）
+  {
+    const Old = await register(B, pid(104), 'ふるい');
+    const o = connectLobby(B, Old);
+    await o.waitOpen();
+    o.join({ userId: Old.id, protocol: PROTOCOL - 1, lastOpponentId: '', name: 'old', rate: 100 });
+    await until(() => o.closed);
+    await sleep(200);
+    check('⑥ 今の版より古い人の申し込みは断る（version・4002）。組まれない・人数に数えない', o.closed && o.code === 4002 && o.msgs.some((m) => m.t === 'error' && m.body.reason === 'version') && !o.paired() && h.lastCount() === 1, JSON.stringify([o.code, o.msgs]));
+  }
   // 同じユーザーID の2つ目の接続（v2.2）：受け付けない（待っている人数にも数えない）
   const h2 = connectLobby(B, H);
   await h2.waitOpen();

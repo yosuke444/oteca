@@ -3,6 +3,7 @@ import { audio } from './audio/audioManager';
 import type { BgmKey, LoopBgmKey } from './audio/soundMap';
 import { ROUTE_BGM } from './audio/routeBgm';
 import { tabGuard } from './tabLock/tabGuard';
+import { cleanVersionParam, watchForUpdates } from './update/update';
 import type { BattleSetup } from './battle/setup';
 import { stageByNo } from './story/story';
 import { setPendingNotice } from './online/rate';
@@ -95,6 +96,11 @@ export function App() {
     setNav((cur) => ({ route: to, payload: payload ?? null, n: cur.n + 1 }));
   }, []);
   const value = useMemo<Nav>(() => ({ route: nav.route, payload: nav.payload, go }), [nav, go]);
+  // 新しい版のお知らせ（v2.7）：開いた時・タブが表に戻った時・10分ごとに version.json を確かめる。「さいよみこみ」で付いた ?v= は消す
+  useEffect(() => {
+    cleanVersionParam();
+    return watchForUpdates();
+  }, []);
   // デバッグ（?debug=1）の時だけ、確認用の自動操作（scripts/shots-*.mjs）が画面を直接開けるようにする
   useEffect(() => {
     if (!isDebugMode()) return;

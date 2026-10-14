@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { UpdateNote, useOnlineGate } from '../../ui/common/UpdateNotice';
+import { checkForUpdate } from '../../update/update';
 import { preloadCards } from '../../ui/imageLoader';
 import { flushSync } from 'react-dom';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
@@ -167,10 +169,18 @@ export function MenuScene() {
   };
   const dailyBadge = features.daily ? claimableCount(save.daily) : 0;
 
+  // 新しい版のお知らせ（v2.7）：メニューに戻った時にも確かめる
+  useEffect(() => {
+    void checkForUpdate();
+  }, []);
+  // 古い版のままではトレードに入れない（v2.7）
+  const onlineGate = useOnlineGate();
+
   const pressLocked = (id: LockedId) => {
     // 機能フラグが ON になったら、その画面へ進む
     if (features[id]) {
-      go(id);
+      if (id === 'trade') onlineGate.gate(() => go(id));
+      else go(id);
       return;
     }
     setShake((s) => ({ ...s, [id]: s[id] + 1 }));
@@ -180,6 +190,9 @@ export function MenuScene() {
     <div className="menu-scene">
       {/* アカウント停止の確かめ（v2.0-J） */}
       <SuspensionGate mode="notice" />
+      {/* 新しい版のお知らせ（v2.7）：上の ふせん と「さいよみこみ」 */}
+      <UpdateNote />
+      {onlineGate.dialog}
       {/* トロフィーが届いた（v2.0-J） */}
       <TrophyArrival />
       {/* 上の帯：小さいロゴ／コイン／なまえ／設定 */}

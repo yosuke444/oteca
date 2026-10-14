@@ -5,6 +5,7 @@ import type { Env } from './env';
 import { randomHex } from './util';
 import { Db, runBatchJob } from './ranking';
 import { jstDay } from './logic/batch';
+import { CLOSE_VERSION, VERSION_CACHE_MS, VERSION_FETCH_MS, currentProtocol, isTooOld, readProtocol } from './logic/version';
 
 /**
  * 受付係（Durable Object。SQLite 保存・休止機能。UPDATE_v2 §8-4・§10、SPEC §11-9）。
@@ -79,6 +80,8 @@ export class Matchmaker extends DurableObject<Env> {
     this.exec(`CREATE TABLE IF NOT EXISTS batch_state (id TEXT PRIMARY KEY, match_ids TEXT NOT NULL) WITHOUT ROWID`);
     // その日に数えた数（v2.0-J。1日2回の まとめ処理をまたいで「予備の待合所の試合は1人1日10試合まで」を数える。
     // v2.7 で「同じ2人は1日3試合まで」はやめた）。1日16行（キーの散らし先ごとに JSON。キーは 日付:f:人）。書き込み行を試合の数で増やさず、1行も大きくしない
+    // 公開している版（v2.7。version.json の protocol と読んだ時刻）
+    this.exec(`CREATE TABLE IF NOT EXISTS version_cache (id INTEGER PRIMARY KEY, protocol INTEGER, at INTEGER NOT NULL)`);
     this.exec(`DROP TABLE IF EXISTS day_counts`);
     this.exec(`DROP TABLE IF EXISTS day_counts2`);
     this.exec(`CREATE TABLE IF NOT EXISTS day_counts3 (day INTEGER NOT NULL, bucket INTEGER NOT NULL, counts TEXT NOT NULL, PRIMARY KEY (day, bucket)) WITHOUT ROWID`);
@@ -227,6 +230,27 @@ export class Matchmaker extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
+  /**
+   * 今の版（公開している version.json を5分ごとに読み直す。読めなければ前の値・Worker を作った時の版）。
+   * 読んだ値は受付係の保存（SQL）に書く（休止から戻っても、毎回読みに行かないように）
+   */
+  private async currentVersion(now = Date.now()): Promise<number> {
+    const url = this.env.GAME_VERSION_URL;
+    const row = this.sql.exec(`SELECT protocol, at FROM version_cache WHERE id = 1`).toArray()[0] as { protocol: number | null; at: number } | undefined;
+    let protocol = row?.protocol ?? null;
+    if (url && now - (row?.at ?? 0) >= VERSION_CACHE_MS) {
+      try {
+        const res = await fetch(`${url}?t=${now}`, { cache: 'no-store', signal: AbortSignal.timeout(VERSION_FETCH_MS) });
+        const p = res.ok ? readProtocol(await res.json()) : null;
+        if (p !== null) protocol = p;
+      } catch {
+        // 読めない：前の値のまま（5分は読み直さない）
+      }
+      this.exec(`INSERT INTO version_cache (id, protocol, at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET protocol = excluded.protocol, at = excluded.at`, protocol, now);
+    }
+    return currentProtocol(protocol);
+  }
+
   /** 待っている人（付け札から。1回の出来事で1回だけ作る） */
   private conns(): Conn[] {
     const out: Conn[] = [];
@@ -265,6 +289,14 @@ export class Matchmaker extends DurableObject<Env> {
       ws.close(1008, 'bad');
       return;
     }
+    // 今の版より古い人の申し込みは断る（v2.7）：端末は「さいよみこみ」を出す
+    if (isTooOld(j.protocol, await this.currentVersion())) {
+      ws.send(JSON.stringify({ t: 'error', body: { reason: 'version' } }));
+      ws.close(CLOSE_VERSION, 'version');
+      return;
+    }
+    // 版を待つ間に、同じ接続から別の join が来ていた
+    if (ws.deserializeAttachment()) return;
     // 同じユーザーID がもう待っている（v2.2。SPEC §7 S15）：
     // 同じタブの入り直し（前の接続が切れたのに残っていた）は前の接続を外す。ほかのタブ・端末なら2つ目は受け付けない（人数にも数えない）
     for (const other of this.conns()) {

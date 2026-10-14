@@ -20,7 +20,8 @@ export type SessionStatus =
   | { kind: 'matched' }
   | { kind: 'playing' }
   | { kind: 'full' }
-  | { kind: 'version' }
+  /** 相手とプロトコル版数が違う（older：自分の方が古い。v2.7） */
+  | { kind: 'version'; older: boolean }
   | { kind: 'error'; reason: string }
   /** 対戦を中止した（cheat＝種のハッシュが合わない、left＝相手が退室した） */
   | { kind: 'aborted'; reason: 'cheat' | 'left' };
@@ -412,6 +413,12 @@ export class OnlineSession {
   // ---------------------------------------------------------------- 受け取り
 
   private receive(m: Msg, from: string): void {
+    // 受け取る側でも版を確かめる（v2.7）：hello（版を知らせ合う）のほかは、同じプロトコル版数のものだけ受け取る。
+    // 古い版の人から来たデータで、こちらが壊れないように
+    if (m.t !== 'hello' && m.v !== this.opts.protocol) {
+      this.ignored.push(`${m.t} v${m.v} from ${from}`);
+      return;
+    }
     if (from === this.opponentPeer) this.heard();
     switch (m.t) {
       case 'hello':
@@ -599,7 +606,7 @@ export class OnlineSession {
       }
       // 両者に「バージョンがちがうよ」を出す（相手にも分かるように、自分の hello も返す）
       this.sendHello(from);
-      this.setStatus({ kind: 'version' });
+      this.setStatus({ kind: 'version', older: h.protocol > this.opts.protocol });
       this.close();
       return;
     }

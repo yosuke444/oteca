@@ -148,6 +148,8 @@ export class SpectatorSession {
   }
 
   private receive(m: Msg, from: string): void {
+    // 受け取る側でも版を確かめる（v2.7）：自分と違うプロトコル版数のものは受け取らない
+    if (m.v !== this.protocol) return;
     switch (m.t) {
       case 'specFull':
         this.full = true;

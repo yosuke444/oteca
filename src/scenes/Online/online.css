@@ -176,3 +176,19 @@
     font-size: 30px;
   }
 }
+
+/* 版が古い時の「さいよみこみ」（v2.7） */
+.rate-scene__reload {
+  position: absolute;
+  left: 50%;
+  top: 470px;
+  translate: -50% 0;
+  width: 220px;
+  height: 60px;
+  font-size: 24px;
+}
+/* 「さいよみこみ」と一緒の時は、ボタンの上に（下の説明の文に重ならない） */
+.rate-scene__error.rate-scene__error--reload {
+  top: 420px;
+  bottom: auto;
+}

@@ -11,6 +11,7 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './online.css';
+import { useOnlineGate } from '../../ui/common/UpdateNotice';
 
 /**
  * S14 オンラインたいせん（v2.0-G。UPDATE_v2 §8-1）：レートたいせん／フレンドたいせん を選ぶ。
@@ -21,6 +22,8 @@ export function OnlineScene() {
   const { save } = useSave();
   const tr = useT();
   const left = Math.max(0, ECONOMY.dailyRewardLimit - rewardedToday(save, todayKey(new Date())));
+  // 古い版のままでは レート対戦・フレンド対戦に入れない（v2.7）
+  const { gate, dialog } = useOnlineGate();
   return (
     <div className="online-scene" data-testid="online-scene">
       {/* アカウント停止の確かめ（v2.0-J） */}
@@ -33,13 +36,13 @@ export function OnlineScene() {
 
       <ModeGuide mode="online" className="online-scene__guide" />
 
-      <RoughButton seed="online-rate" className="online-scene__choice online-scene__choice--rate" strokeWidth={3} onClick={() => go('rate')} data-testid="online-rate">
+      <RoughButton seed="online-rate" className="online-scene__choice online-scene__choice--rate" strokeWidth={3} onClick={() => gate(() => go('rate'))} data-testid="online-rate">
         <span className="online-scene__label">
           {tr.online.rate}
           <small>{tr.online.rateSub}</small>
         </span>
       </RoughButton>
-      <RoughButton seed="online-friend" className="online-scene__choice online-scene__choice--friend" strokeWidth={3} onClick={() => go('lobby')} data-testid="online-friend">
+      <RoughButton seed="online-friend" className="online-scene__choice online-scene__choice--friend" strokeWidth={3} onClick={() => gate(() => go('lobby'))} data-testid="online-friend">
         <span className="online-scene__label">
           {tr.online.friend}
           <small>{tr.online.friendSub}</small>
@@ -56,6 +59,7 @@ export function OnlineScene() {
         <p className="online-scene__coins-left blue-pen">{tr.online.coinsLeft(left)}</p>
       </RoughBox>
       <OtegeArt width={170} className="online-scene__art" />
+      {dialog}
     </div>
   );
 }

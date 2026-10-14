@@ -1,0 +1,36 @@
+/* 新しい版のお知らせ（v2.7。SPEC §12-6）：メニューの上のふせんと「さいよみこみ」 */
+.update-note {
+  /* メニューの下のまんなかの あいている所（上の帯のコイン・なまえ、左下の「データを まもろう」、デバッグのボタンに重ならない） */
+  position: absolute;
+  left: 560px;
+  top: 622px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 470px;
+}
+.update-note .sticky {
+  flex: 1;
+}
+.update-note__text {
+  display: block;
+  padding: 2px 6px;
+  font-size: 16px;
+  line-height: 1.3;
+  /* ことばの途中で折り返さない（すきまで2行に） */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.update-note__btn {
+  flex: none;
+  min-width: 124px;
+  height: 52px;
+  font-size: 18px;
+}
+.update-dialog__text {
+  margin: 8px 0;
+  font-size: 22px;
+  line-height: 1.5;
+}

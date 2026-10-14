@@ -170,6 +170,8 @@ export class RateLobby {
 
   private receive(m: Msg, from: string): void {
     if (this.state === 'idle' || this.state === 'paired') return;
+    // 版の違う人のものは受け取らない（小部屋の名前にも版数が入っているが、念のため受け取る側でも。v2.7）
+    if (m.v !== this.opts.protocol) return;
     switch (m.t) {
       case 'queue': {
         const e = cleanQueue(m.body);

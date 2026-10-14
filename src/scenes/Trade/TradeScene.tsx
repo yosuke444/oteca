@@ -27,6 +27,7 @@ import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import { ModeGuide } from '../../ui/guide/ModeGuide';
 import './trade.css';
+import { OutdatedGuard, ReloadButton } from '../../ui/common/UpdateNotice';
 
 /** 受け取ったカードを並べる数（それより多い時は「+3」） */
 const RECEIVED_SHOWN = 8;
@@ -49,6 +50,8 @@ export function TradeScene() {
   const [room, setRoom] = useState(() => loadPendingTrade()?.room ?? '');
   const [phase, setPhase] = useState<Phase>('input');
   const [error, setError] = useState('');
+  /** 相手と版が違い、自分の方が古い：「さいよみこみ」も出す（v2.7） */
+  const [reloadable, setReloadable] = useState(false);
   const [view, setView] = useState<TradeView | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState<{ text: string; n: number } | null>(null);
@@ -94,6 +97,7 @@ export function TradeScene() {
       if (alive && ok) setOppChecked(oppUserId);
       if (!alive || ok) return;
       leave();
+      setReloadable(false);
       setError(tr.suspension.opponent);
       setPhase('error');
     });
@@ -118,7 +122,8 @@ export function TradeScene() {
       setView(v);
       if (v.status !== 'trading') setConfirm(false);
       if (v.status === 'full' || v.status === 'version' || v.status === 'error' || v.status === 'self') {
-        setError(v.status === 'full' ? tr.trade.full : v.status === 'version' ? tr.trade.version : v.status === 'self' ? tr.common.cannotPlay : tr.trade.failed);
+        setReloadable(v.status === 'version' && !!v.versionOlder);
+        setError(v.status === 'full' ? tr.trade.full : v.status === 'version' ? (v.versionOlder ? tr.update.older : tr.update.newer) : v.status === 'self' ? tr.common.cannotPlay : tr.trade.failed);
         setPhase('error');
         sessionRef.current = null;
       }
@@ -169,6 +174,8 @@ export function TradeScene() {
   useEffect(() => {
     if (phase !== 'input') return;
     const onKey = (e: KeyboardEvent) => {
+      // 古い版のダイアログが出ている間は受け付けない（v2.7）
+      if (document.querySelector('[data-testid="update-dialog"]')) return;
       if (/^[0-9]$/.test(e.key)) setRoom((r) => (r.length < MAX_DIGITS ? r + e.key : r));
       else if (e.key === 'Backspace') setRoom((r) => r.slice(0, -1));
       else if (e.key === 'Enter') join();
@@ -297,12 +304,15 @@ export function TradeScene() {
             seed="trade-error"
             onClose={() => setPhase('input')}
             actions={
-              <RoughButton seed="trade-error-ok" onClick={() => setPhase('input')}>
-                {tr.common.ok}
-              </RoughButton>
+              <>
+                <RoughButton seed="trade-error-ok" onClick={() => setPhase('input')}>
+                  {tr.common.ok}
+                </RoughButton>
+                {reloadable && <ReloadButton seed="trade-error-reload" />}
+              </>
             }
           >
-            <p className="red-pen">{error}</p>
+            <p className="red-pen" data-testid="trade-error">{error}</p>
           </Dialog>
         )}
       </div>
@@ -321,6 +331,8 @@ export function TradeScene() {
     <div className="trade-scene" data-testid="trade-scene" ref={tableRef}>
       {/* アカウント停止の確かめ（v2.0-J） */}
       <SuspensionGate />
+      {/* 古い版のままでは入れない（v2.7） */}
+      <OutdatedGuard onBack={() => go('menu')} />
       <h1 className="trade-scene__title">{tr.trade.title}</h1>
       <p className="trade-scene__room num">{tr.trade.room(room)}</p>
       {trading && (

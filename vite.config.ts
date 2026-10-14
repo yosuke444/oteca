@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { existsSync, readdirSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 
 /**
@@ -75,6 +76,47 @@ function battleBgm(): Plugin {
 }
 
 /**
+ * 版の番号（v2.7。SPEC §12-7）：ビルドID（git のコミットの短いハッシュ。GitHub Actions では GITHUB_SHA）と、通信のプロトコル版数。
+ * - ゲームの中には __OTECA_BUILD__ として埋め込む（src/config/version.ts の buildId）
+ * - 公開用ビルドでは dist/version.json（{ build, protocol }）を一緒に出す。古いページの人は、これを見て更新に気づく
+ * - 開発サーバーは /version.json に今の版を返す（ビルドID は dev）
+ */
+function buildInfo(command: string): Plugin {
+  const protocol = () => Number(/PROTOCOL_VERSION = ([0-9]+);/.exec(readFileSync(resolve(import.meta.dirname, 'src/config/version.ts'), 'utf8'))?.[1] ?? 0);
+  const buildId = (() => {
+    if (command !== 'build') return 'dev';
+    if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+    try {
+      return execSync('git rev-parse --short=7 HEAD', { encoding: 'utf8' }).trim() || 'local';
+    } catch {
+      return 'local';
+    }
+  })();
+  const json = () => {
+    const p = protocol();
+    // 読めなければ ビルドを止める（version.json の protocol が 0 だと、新しい版のお知らせが黙って効かなくなるため）
+    if (!(p >= 1)) throw new Error('src/config/version.ts の PROTOCOL_VERSION = <数>; が読めません');
+    return JSON.stringify({ build: buildId, protocol: p });
+  };
+  return {
+    name: 'oteca-build-info',
+    config: () => ({ define: { __OTECA_BUILD__: JSON.stringify(buildId) } }),
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: json() });
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? '').split('?')[0];
+        if (path !== '/version.json' && path !== '/oteca/version.json') return next();
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(json());
+      });
+    },
+  };
+}
+
+/**
  * 開発用の中継（v2.0-G）：?net=dev のページどうしを、開発サーバーの WebSocket（HMR の通り道）でつなぐ。
  * 別々のブラウザ（Playwright の別の窓）でも、ネットにつながずに3〜4人の部屋やレートの待合所を確かめられる。
  * 公開用ビルドには入らない（開発サーバーだけ）。届いたものを、ほかの全員にそのまま配るだけ。
@@ -93,7 +135,7 @@ export default defineConfig(({ command, isPreview }) => ({
   // 公開パス：GitHub Pages（https://<ユーザー名>.github.io/oteca/）用に、公開用ビルドと npm run preview は /oteca/。開発中は /
   // （preview は command が 'serve' になるので isPreview も見る。見ないと /oteca/ の中身が 404 になる）
   base: command === 'build' || isPreview ? '/oteca/' : '/',
-  plugins: [react(), battleBgm(), devRelay()],
+  plugins: [react(), battleBgm(), devRelay(), buildInfo(command)],
   test: {
     // テストは3つに分ける（CLAUDE.md・UPDATE_v2 §14）
     // - npm test：軽いテスト（tests/**/*.test.ts。1分以内）。作業中はこれ

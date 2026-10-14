@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { markStart } from '../../net/startTiming';
+import { OutdatedGuard, ReloadButton } from '../../ui/common/UpdateNotice';
+import { outdatedNow } from '../../update/update';
 import { useFx, vsDur } from '../../fx/fxSettings';
 import { preloadCards } from '../../ui/imageLoader';
 import { audio } from '../../audio/audioManager';
@@ -29,7 +31,7 @@ import './online.css';
 /** リザルトの「つぎの しあいへ」から来た時は、すぐ さがす */
 export type RatePayload = { autoSearch?: boolean } | null;
 
-type Phase = { kind: 'idle' } | { kind: 'searching' } | { kind: 'vs'; opp: RatePaired } | { kind: 'error'; text: string };
+type Phase = { kind: 'idle' } | { kind: 'searching' } | { kind: 'vs'; opp: RatePaired } | { kind: 'error'; text: string; reload?: boolean };
 
 /** VS 画面を出す時間（v2.7 で 2000 → 1400。演出スピードに合わせる） */
 const VS_MS = 1400;
@@ -146,6 +148,11 @@ export function RateScene() {
         stopRef.current();
         setPhase({ kind: 'error', text: t().common.cannotPlay });
       };
+      // 受付係に「版が古い」と断られた（v2.7）：「さいよみこみ」
+      lobby.onVersion = () => {
+        stopRef.current();
+        setPhase({ kind: 'error', text: t().update.older, reload: true });
+      };
       lobby.onPaired = onPaired;
       lobby.join();
     };
@@ -211,7 +218,8 @@ export function RateScene() {
 
   // つぎの しあいへ：すぐ さがす（StrictMode で2回呼ばれても、待合所には1回だけ入る）
   useEffect(() => {
-    if ((payload as RatePayload)?.autoSearch && deckOk && !lobbyRef.current) search();
+    // 古い版と分かっていれば、自動では さがさない（入れないダイアログを出す。v2.7）
+    if ((payload as RatePayload)?.autoSearch && deckOk && !lobbyRef.current && !outdatedNow()) search();
   }, []);
 
   // VS（1.4秒。演出スピードに合わせる）→ 種が決まっていれば対戦へ。しばらく始まらなければ さがし直す
@@ -291,6 +299,8 @@ export function RateScene() {
     <div className="rate-scene" data-testid="rate-scene">
       {/* アカウント停止の確かめ（v2.0-J） */}
       <SuspensionGate />
+      {/* 古い版のままでは入れない（v2.7） */}
+      <OutdatedGuard onBack={() => go('online')} />
       <h1 className="online-scene__title">{tr.rate.title}</h1>
       <RoughButton seed="rate-back" className="online-scene__back" onClick={() => (phase.kind === 'searching' ? stop() : go('online'))}>
         {tr.common.back}
@@ -328,7 +338,14 @@ export function RateScene() {
         )}
         <p className="rate-scene__note pencil">{tr.rate.note}</p>
       </RoughBox>
-      {phase.kind === 'error' && <p className="rate-scene__error red-pen">{phase.text}</p>}
+      {phase.kind === 'error' && (
+        <div className="rate-scene__error-box">
+          <p className={`rate-scene__error red-pen ${phase.reload ? 'rate-scene__error--reload' : ''}`} data-testid="rate-error">
+            {phase.text}
+          </p>
+          {phase.reload && <ReloadButton seed="rate-error-reload" className="rate-scene__reload" />}
+        </div>
+      )}
       {picking && (
         <DeckPickerDialog
           save={save}

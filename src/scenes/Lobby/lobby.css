@@ -113,6 +113,11 @@
   text-align: center;
   line-height: 1.5;
 }
+.lobby__error-buttons {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+}
 .lobby__error-ok {
   width: 220px;
   height: 66px;

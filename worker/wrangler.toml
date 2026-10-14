@@ -24,4 +24,8 @@ migrations_dir = "migrations"
 [triggers]
 crons = ["0 19 * * *", "0 7 * * *"]
 
+# 公開しているゲームの版（v2.7）：受付係がこれを読んで、古い版の人のレート対戦の申し込みを断る（ゲームをデプロイすると自動で新しくなる）
+[vars]
+GAME_VERSION_URL = "https://yosuke444.github.io/oteca/version.json"
+
 # 管理キーは wrangler secret put ADMIN_KEY で設定する（ここには書かない）

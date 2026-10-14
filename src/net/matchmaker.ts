@@ -27,6 +27,8 @@ export const LOBBY_RETRY_MS = 1000;
 export const CLOSE_REPLACED = 4000;
 /** 同じユーザーID がもう待っているので、受付係がこの接続を受け付けなかった（v2.2） */
 export const CLOSE_SAME_USER = 4001;
+/** 受付係が「版が古い」と断った時の閉じ方（v2.7。worker/src/logic/version.ts の CLOSE_VERSION と同じ） */
+export const CLOSE_VERSION = 4002;
 
 export type RateSearchDeps = {
   /** 受付係の WebSocket を開く（null は受付係を使わない：すぐ予備の待合所へ） */
@@ -64,6 +66,8 @@ export class RateSearch {
   onReplaced: () => void = () => {};
   /** 同じユーザーID がもう待っているので、さがせなかった（v2.2。画面は「この あいてとは あそべないよ」） */
   onSameUser: () => void = () => {};
+  /** 受付係が「この版は古い」と断った（v2.7。予備の待合所へは行かない。画面は「さいよみこみ」） */
+  onVersion: () => void = () => {};
 
   private mode: Mode = 'idle';
   private ws: SocketLike | null = null;
@@ -132,6 +136,7 @@ export class RateSearch {
       if (m.t === 'waiting' && Number.isInteger(m.body?.count)) this.onWaiting(m.body.count);
       else if (m.t === 'paired') this.paired(m.body);
       else if (m.t === 'error' && m.body?.reason === 'same-user') this.sameUser();
+      else if (m.t === 'error' && m.body?.reason === 'version') this.tooOld();
       else if (m.t === 'error') this.toFallback();
     };
     // つながる前に切れた：予備の待合所へ。待っている途中に切れた：1回だけ つなぎ直す（組めた後・やめた後は何もしない）
@@ -139,6 +144,10 @@ export class RateSearch {
       if (this.ws !== ws) return;
       if (ev?.code === CLOSE_SAME_USER) {
         this.sameUser();
+        return;
+      }
+      if (ev?.code === CLOSE_VERSION) {
+        this.tooOld();
         return;
       }
       if (ev?.code === CLOSE_REPLACED) {
@@ -172,6 +181,13 @@ export class RateSearch {
     }
     this.leave();
     this.onSameUser();
+  }
+
+  /** 版が古いと断られた（1回だけ知らせる） */
+  private tooOld(): void {
+    if (this.mode === 'idle') return;
+    this.leave();
+    this.onVersion();
   }
 
   /** 「やめる」・画面を出る・相手が決まった後 */
