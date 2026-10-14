@@ -1,0 +1,212 @@
+{
+ "3": {
+  "A": {
+   "games": 668,
+   "score": 445,
+   "inHand": 49,
+   "used": 279,
+   "inDeck": 36,
+   "onField": 304,
+   "items": 0,
+   "swaps": 1890,
+   "steps": 65095
+  },
+  "B": {
+   "games": 668,
+   "score": 402,
+   "inHand": 55,
+   "used": 226,
+   "inDeck": 168,
+   "onField": 219,
+   "items": 0,
+   "swaps": 1690,
+   "steps": 38792
+  },
+  "C": {
+   "games": 668,
+   "score": 485,
+   "inHand": 100,
+   "used": 238,
+   "inDeck": 0,
+   "onField": 330,
+   "items": 0,
+   "swaps": 1965,
+   "steps": 323949
+  }
+ },
+ "9": {
+  "A": {
+   "games": 668,
+   "score": 387,
+   "inHand": 0,
+   "used": 643,
+   "inDeck": 25,
+   "onField": 0,
+   "items": 643,
+   "swaps": 2107,
+   "steps": 85470
+  },
+  "B": {
+   "games": 668,
+   "score": 413,
+   "inHand": 0,
+   "used": 524,
+   "inDeck": 144,
+   "onField": 0,
+   "items": 524,
+   "swaps": 1697,
+   "steps": 42832
+  },
+  "C": {
+   "games": 668,
+   "score": 329.5,
+   "inHand": 0,
+   "used": 666,
+   "inDeck": 2,
+   "onField": 0,
+   "items": 666,
+   "swaps": 2289,
+   "steps": 409164
+  }
+ },
+ "15": {
+  "A": {
+   "games": 668,
+   "score": 418,
+   "inHand": 69,
+   "used": 290,
+   "inDeck": 32,
+   "onField": 277,
+   "items": 0,
+   "swaps": 1915,
+   "steps": 63908
+  },
+  "B": {
+   "games": 668,
+   "score": 346,
+   "inHand": 50,
+   "used": 289,
+   "inDeck": 153,
+   "onField": 176,
+   "items": 0,
+   "swaps": 1581,
+   "steps": 37391
+  },
+  "C": {
+   "games": 668,
+   "score": 438,
+   "inHand": 95,
+   "used": 277,
+   "inDeck": 3,
+   "onField": 293,
+   "items": 0,
+   "swaps": 2023,
+   "steps": 313904
+  }
+ },
+ "23": {
+  "A": {
+   "games": 668,
+   "score": 352,
+   "inHand": 638,
+   "used": 0,
+   "inDeck": 30,
+   "onField": 0,
+   "items": 0,
+   "swaps": 2181,
+   "steps": 81494
+  },
+  "B": {
+   "games": 668,
+   "score": 328,
+   "inHand": 505,
+   "used": 0,
+   "inDeck": 163,
+   "onField": 0,
+   "items": 0,
+   "swaps": 1739,
+   "steps": 41178
+  },
+  "C": {
+   "games": 668,
+   "score": 328,
+   "inHand": 666,
+   "used": 0,
+   "inDeck": 2,
+   "onField": 0,
+   "items": 0,
+   "swaps": 2455,
+   "steps": 401586
+  }
+ },
+ "31": {
+  "A": {
+   "games": 668,
+   "score": 314,
+   "inHand": 642,
+   "used": 0,
+   "inDeck": 26,
+   "onField": 0,
+   "items": 0,
+   "swaps": 2225,
+   "steps": 82926
+  },
+  "B": {
+   "games": 668,
+   "score": 339,
+   "inHand": 520,
+   "used": 0,
+   "inDeck": 148,
+   "onField": 0,
+   "items": 0,
+   "swaps": 1759,
+   "steps": 41121
+  },
+  "C": {
+   "games": 668,
+   "score": 329,
+   "inHand": 663,
+   "used": 0,
+   "inDeck": 5,
+   "onField": 0,
+   "items": 0,
+   "swaps": 2397,
+   "steps": 388542
+  }
+ },
+ "39": {
+  "A": {
+   "games": 668,
+   "score": 352,
+   "inHand": 47,
+   "used": 299,
+   "inDeck": 33,
+   "onField": 289,
+   "items": 0,
+   "swaps": 2042,
+   "steps": 66828
+  },
+  "B": {
+   "games": 668,
+   "score": 382,
+   "inHand": 63,
+   "used": 192,
+   "inDeck": 153,
+   "onField": 260,
+   "items": 0,
+   "swaps": 1751,
+   "steps": 40290
+  },
+  "C": {
+   "games": 668,
+   "score": 392,
+   "inHand": 104,
+   "used": 295,
+   "inDeck": 0,
+   "onField": 269,
+   "items": 0,
+   "swaps": 2156,
+   "steps": 348698
+  }
+ }
+}

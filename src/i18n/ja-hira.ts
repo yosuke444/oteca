@@ -430,7 +430,14 @@ export const hira = {
     codeGo: 'けってい',
     unknownCode: 'その コードは ないよ',
     // 管理者メニューのコード（どちらの表記でも同じ言葉。企画者の指示のとおり）
-    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング' },
+    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング', cards: 'カードのせいせき' },
+    /** カードの せいせき（v2.7）：実際の対戦で、そのカードが入っていたデッキの数と勝率 */
+    cardStats: {
+      ranges: { today: 'きょう', '7d': '7にち', all: 'ぜんぶ' } as Record<'today' | '7d' | 'all', string>,
+      games: (n: number) => `しあい ${n}`,
+      head: ['カード', 'つかわれた かいすう', 'はいっていた デッキの しょうりつ', 'かちまけが ついた しあい'],
+      none: 'まだ データが ないよ',
+    },
     /** ランキング（v2.7）：いま更新する・レート対戦が始まったか */
     rankingNow: 'ランキングを いま こうしん',
     rankingDone: (counted: number, at: string) => `こうしん したよ（${counted}しあい・${at}）`,

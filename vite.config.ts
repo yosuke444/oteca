@@ -141,9 +141,10 @@ export default defineConfig(({ command, isPreview }) => ({
     // - npm test：軽いテスト（tests/**/*.test.ts。1分以内）。作業中はこれ
     // - npm run test:slow：重いテスト（tests/**/*.slow.test.ts）。各回の最後のコミット前に動かす
     // - npm run ladder：CPU の強さの順番（tests-slow/。SLOW=1。とても時間がかかる）
-    include: process.env.SLOW ? ['tests-slow/**/*.test.ts'] : process.env.TEST_SLOW ? ['tests/**/*.slow.test.ts'] : ['tests/**/*.test.ts'],
-    exclude: process.env.SLOW || process.env.TEST_SLOW ? ['**/node_modules/**'] : ['**/node_modules/**', 'tests/**/*.slow.test.ts'],
+    // - npm run balance：カードのバランスのデータ集め（tests-balance/。BALANCE=1。とても時間がかかる。docs/balance/ に書く）
+    include: process.env.BALANCE ? ['tests-balance/**/*.test.ts'] : process.env.SLOW ? ['tests-slow/**/*.test.ts'] : process.env.TEST_SLOW ? ['tests/**/*.slow.test.ts'] : ['tests/**/*.test.ts'],
+    exclude: process.env.BALANCE || process.env.SLOW || process.env.TEST_SLOW ? ['**/node_modules/**'] : ['**/node_modules/**', 'tests/**/*.slow.test.ts'],
     passWithNoTests: true,
-    testTimeout: process.env.SLOW ? 6 * 60 * 60 * 1000 : process.env.TEST_SLOW ? 10 * 60 * 1000 : 30000,
+    testTimeout: process.env.BALANCE || process.env.SLOW ? 6 * 60 * 60 * 1000 : process.env.TEST_SLOW ? 10 * 60 * 1000 : 30000,
   },
 }));

@@ -410,7 +410,13 @@ export const kanji: Dict = {
     codeGo: '決定',
     unknownCode: 'そのコードはないよ',
     // 管理者メニューのコード（どちらの表記でも同じ言葉。企画者の指示のとおり）
-    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング' },
+    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング', cards: 'カードのせいせき' },
+    cardStats: {
+      ranges: { today: '今日', '7d': '7日', all: '全部' } as Record<'today' | '7d' | 'all', string>,
+      games: (n: number) => `試合 ${n}`,
+      head: ['カード', '使われた回数', '入っていたデッキの勝率', '勝ち負けが付いた試合'],
+      none: 'まだデータがありません',
+    },
     rankingNow: 'ランキングを今更新',
     rankingDone: (counted: number, at: string) => `更新しました（${counted}試合・${at}）`,
     rankingBusy: '今 更新中です。少し待ってね',

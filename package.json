@@ -12,7 +12,8 @@
     "ladder": "node scripts/ladder.mjs",
     "story:rates": "node scripts/test-slow.mjs tests/story.slow.test.ts",
     "test:worker": "vitest run tests/ranking.logic.test.ts && node scripts/worker-test.mjs",
-    "worker:load": "node scripts/worker-load.mjs"
+    "worker:load": "node scripts/worker-load.mjs",
+    "balance": "node scripts/balance.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",

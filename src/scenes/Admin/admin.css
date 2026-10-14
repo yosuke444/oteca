@@ -298,3 +298,18 @@
   background: var(--paper);
   font-size: 40px;
 }
+
+/* カードの せいせき（v2.7） */
+.admin-table--cards .admin-table__head,
+.admin-table--cards .admin-table__row {
+  grid-template-columns: 200px 150px 210px 1fr;
+}
+.admin-table--cards {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.admin-choices {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

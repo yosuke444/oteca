@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { type AdminFn, adminCodeList, findAdminCode } from '../../admin/codes';
-import { TROPHY, trophyDef } from '../../data/cards';
+import { CARD_DB, TROPHY, trophyDef } from '../../data/cards';
 import type { Dict } from '../../i18n';
 import { useT } from '../../i18n/useT';
 import { adminCall, isAdmin, logoutAdmin } from '../../online/adminApi';
@@ -107,6 +107,7 @@ export function AdminScene() {
           {fn === 'search' && <SearchPanel onTrophy={(id) => open('trophy', id)} onSuspend={(id) => open('suspend', id)} />}
           {fn === 'log' && <LogPanel />}
           {fn === 'ranking' && <RankingPanel />}
+          {fn === 'cards' && <CardStatsPanel />}
         </div>
       </RoughBox>
     </div>
@@ -634,6 +635,55 @@ function RankingPanel() {
       <p className="admin-note" data-testid="admin-starts">
         {starts ? tr.admin.starts(starts.started24h, starts.failed24h, starts.started, starts.failed) : startsFailed ? tr.admin.failed : tr.admin.working}
       </p>
+    </div>
+  );
+}
+
+/** カードの せいせき（v2.7）：実際の対戦（フレンド・レート）で、そのカードが入っていたデッキの数と勝率。期間を切りかえる */
+function CardStatsPanel() {
+  const tr = useT();
+  const S = tr.admin.cardStats;
+  type Row = { no: number; decks: number; wins: number; decided: number };
+  const [range, setRange] = useState<'today' | '7d' | 'all'>('7d');
+  const [data, setData] = useState<{ games: number; cards: Row[] } | null>(null);
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    setNote(tr.admin.working);
+    void adminCall<{ games: number; cards: Row[] }>('/admin/card-stats', { range }).then((r) => {
+      if (!r.ok) return setNote(r.status === 401 ? tr.admin.expired : tr.admin.failed);
+      setNote('');
+      setData(r.data);
+    });
+  }, [range]);
+  return (
+    <div className="admin-form" data-testid="admin-card-stats">
+      <div className="admin-choices">
+        {(['today', '7d', 'all'] as const).map((k) => (
+          <RoughButton key={k} seed={`admin-cs-${k}`} className="admin-choice admin-choice--small" highlight={range === k} onClick={() => setRange(k)} data-testid={`admin-cs-${k}`}>
+            {S.ranges[k]}
+          </RoughButton>
+        ))}
+        {data && <span className="pencil">{S.games(data.games)}</span>}
+      </div>
+      {note && <p className="admin-note">{note}</p>}
+      {data && data.cards.length === 0 && <p className="admin-note pencil">{S.none}</p>}
+      {data && data.cards.length > 0 && (
+        <div className="admin-table admin-table--cards">
+          <div className="admin-table__head pencil">
+            {S.head.map((h) => (
+              <span key={h}>{h}</span>
+            ))}
+          </div>
+          {data.cards.map((c) => (
+            <div key={c.no} className="admin-table__row" data-testid="admin-cs-row">
+              <span>{CARD_DB[c.no]?.name ?? c.no}</span>
+              <span className="num">{c.decks}</span>
+              <span className="num">{c.decided ? `${((c.wins / c.decided) * 100).toFixed(1)}%` : '-'}</span>
+              <span className="num">{c.decided}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

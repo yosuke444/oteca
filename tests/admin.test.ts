@@ -163,7 +163,8 @@ describe('接続元のまとめ方・コードの言葉', () => {
       // v2.7：ランキング（いま更新する・レート対戦が始まったか）
       expect(findAdminCode('らんきんぐ', w)).toBe('ranking');
       expect(findAdminCode('ちがう', w)).toBeNull();
-      expect(adminCodeList(w)).toHaveLength(7);
+      expect(findAdminCode('カードの せいせき', w)).toBe('cards');
+      expect(adminCodeList(w)).toHaveLength(8);
     }
   });
 

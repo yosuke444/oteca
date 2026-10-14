@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { buildMatchLog, sendMatchLog, shouldSendMatchLog } from '../../online/matchLog';
 import { preloadCards } from '../../ui/imageLoader';
 import { useEffect, useRef, useState } from 'react';
 import { audio } from '../../audio/audioManager';
@@ -245,6 +246,17 @@ export function ResultScene() {
     });
     setReward({ ...got, coins: Math.min(got.coins, ECONOMY.coinsMax - before), before });
   }, [agree, oppGone]);
+
+  // 実際の対戦のデータ（v2.7。カードのバランス）：フレンド対戦・レート対戦の結果がそろったら1回だけ Worker に送る（人が分かる情報は送らない）
+  const logged = useRef(false);
+  useEffect(() => {
+    if (logged.current || r.setup.mode !== 'online' || r.setup.debug) return;
+    const settled = r.reason === 'disconnect' ? true : agree;
+    if (settled === null) return;
+    logged.current = true;
+    if (!shouldSendMatchLog(me, r.reason)) return;
+    void sendMatchLog(buildMatchLog({ mode: r.setup.rated ? 'rate' : 'friend', decks: r.setup.decks, winner: r.winner, agree: settled === true, turns: r.stats.turns, reason: r.reason }));
+  }, [agree]);
 
   // ストーリー（SPEC §7 S08）：勝った時だけ、クリアの印・コイン・限定カードを1回の保存で。ステージ選びへ戻る時に、新しく開いたステージを渡す
   const story = r.setup.story;

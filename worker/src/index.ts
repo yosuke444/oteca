@@ -1,4 +1,6 @@
 import type { Env } from './env';
+import { MATCH_LOG_DAILY_MAX, cleanMatchLog, rangeSince } from './logic/matchLog';
+import { jstDay } from './logic/batch';
 import { rankingTiming } from './logic/schedule';
 import { isVisible } from './logic/batch';
 import { Db, type PlayerRow, rerank, writeSnapshot } from './ranking';
@@ -180,6 +182,23 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     return json(await res.json(), res.status);
   }
 
+  // 実際の対戦のデータ（v2.7。カードのバランス）：1試合1行。人が分かる情報は受け取らない。1日の上限に来たら記録しない
+  if (p === '/match-log' && req.method === 'POST') {
+    const log = cleanMatchLog(await body(req));
+    if (!log) return json({ error: 'bad' }, 400);
+    const day = jstDay(now);
+    const n = (await c.all<{ n: number }>(`SELECT n FROM match_log_days WHERE day = ?`, day))[0]?.n ?? 0;
+    if (n >= MATCH_LOG_DAILY_MAX) return json({ ok: false, full: true });
+    await c.batch([
+      { q: `INSERT INTO match_log_days (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1`, binds: [day] },
+      {
+        q: `INSERT INTO match_logs (day, at, mode, build, protocol, deck_a, deck_b, winner, turns, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        binds: [day, now, log.mode, log.build, log.protocol, JSON.stringify(log.deckA), JSON.stringify(log.deckB), log.winner, log.turns, log.reason],
+      },
+    ]);
+    return json({ ok: true });
+  }
+
   // レート対戦が始まった・つながらなかった（v2.7）
   if (p === '/match-state' && req.method === 'POST') {
     const b = await body(req);
@@ -269,6 +288,23 @@ async function route(req: Request, c: Ctx): Promise<Response> {
         // b.now（時刻を変える）は管理キーの時だけ（確かめ用）。管理画面（合言葉）からは今の時刻で（未来の時刻にして予定の更新が止まらないように。v2.7）
         const at = req.headers.get('x-admin-key') && Number.isSafeInteger(b.now) && (b.now as number) > 0 ? (b.now as number) : now;
         return json(await batchViaLobby(c, at));
+      }
+      case '/admin/card-stats': {
+        // カードの せいせき（v2.7）：期間（today・7d・all）の中で、そのカードが入っていたデッキの数と、そのデッキの勝ち
+        const since = rangeSince(b.range, now);
+        const rows = await c.all<{ no: number; decks: number; copies: number; wins: number; decided: number }>(
+          `WITH logs AS (
+             SELECT deck_a AS deck, CASE winner WHEN 0 THEN 1 WHEN 1 THEN 0 END AS win FROM match_logs WHERE at >= ?
+             UNION ALL
+             SELECT deck_b AS deck, CASE winner WHEN 1 THEN 1 WHEN 0 THEN 0 END AS win FROM match_logs WHERE at >= ?
+           )
+           SELECT json_extract(j.value, '$[0]') AS no, COUNT(*) AS decks, SUM(json_extract(j.value, '$[1]')) AS copies, SUM(win) AS wins, COUNT(win) AS decided
+           FROM logs, json_each(logs.deck) AS j GROUP BY no ORDER BY decks DESC`,
+          since,
+          since,
+        );
+        const games = (await c.all<{ n: number }>(`SELECT COUNT(*) AS n FROM match_logs WHERE at >= ?`, since))[0]?.n ?? 0;
+        return json({ since, games, cards: rows });
       }
       case '/admin/stats': {
         const res = await c.lobby(`/debug/stats${url.searchParams.get('reset') === '1' ? '?reset=1' : ''}`);

@@ -222,6 +222,20 @@ try {
     await api(B, '/result', { method: 'POST', body: { matchId: mid2, userId: Q1.id, token: Q1.token, winner: 'void' } });
     await api(B, '/result', { method: 'POST', body: { matchId: mid2, userId: Q3.id, token: Q3.token, winner: 'void' } });
   }
+  console.log('実際の対戦のデータ（v2.7・カードの せいせき）');
+  {
+    const log = { mode: 'rate', build: 'abc123', protocol: PROTOCOL, deckA: [[1, 3], [2, 12]], deckB: [[2, 15]], winner: 0, turns: 9, reason: 'ko', name: 'あお', userId: P[0].id, room: '1234' };
+    const ok = await api(B, '/match-log', { method: 'POST', body: log });
+    check('試合のデータを受け取る（1試合1回）', ok.status === 200 && ok.json?.ok === true, JSON.stringify(ok.json));
+    check('15枚でないデッキ・知らない終わり方は断る', (await api(B, '/match-log', { method: 'POST', body: { ...log, deckA: [[1, 3]] } })).status === 400 && (await api(B, '/match-log', { method: 'POST', body: { ...log, reason: 'x' } })).status === 400);
+    await api(B, '/match-log', { method: 'POST', body: { ...log, winner: 1 } });
+    const cs = (await api(B, '/admin/card-stats', { method: 'POST', admin: ADMIN, origin: null, body: { range: 'today' } })).json;
+    const c1 = cs?.cards?.find((c) => c.no === 1);
+    const c2 = cs?.cards?.find((c) => c.no === 2);
+    // カード1は2試合とも p1 のデッキ（1勝1敗）。カード2は両方のデッキ（4デッキ・2勝2敗）
+    check('管理画面で、カードごとの使われた回数と勝ちが見られる', cs?.games === 2 && c1?.decks === 2 && c1.wins === 1 && c1.decided === 2 && c2?.decks === 4 && c2.wins === 2, JSON.stringify(cs));
+    check('管理キーが無ければ カードの せいせき は 401', (await api(B, '/admin/card-stats', { method: 'POST', origin: null, body: { range: 'all' } })).status === 401);
+  }
   console.log('結果の報告');
   const report = (p, matchId, winner, token = p.token) => api(B, '/result', { method: 'POST', body: { matchId, userId: p.id, token, winner } });
   check('token が違えば 401', (await report(P[0], p1.matchId, P[0].id, 'f'.repeat(32))).status === 401);

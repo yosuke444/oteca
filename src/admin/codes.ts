@@ -3,7 +3,7 @@
  * コードの言葉は辞書（i18n の admin.codeWords。どちらの表記でも同じ言葉）にあり、ここは機能の並びだけ。
  * 入力は全角・半角・空白・カタカナとひらがなの違いを無視して比べる。
  */
-export const ADMIN_FNS = ['watch', 'trophy', 'suspend', 'unsuspend', 'search', 'log', 'ranking'] as const;
+export const ADMIN_FNS = ['watch', 'trophy', 'suspend', 'unsuspend', 'search', 'log', 'ranking', 'cards'] as const;
 
 export type AdminFn = (typeof ADMIN_FNS)[number];
 
