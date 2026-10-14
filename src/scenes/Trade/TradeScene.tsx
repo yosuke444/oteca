@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { prefetchTurn } from '../../net/iceServers';
 import { preloadCards } from '../../ui/imageLoader';
 import { useEffect, useRef, useState } from 'react';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
@@ -46,6 +47,10 @@ export function TradeScene() {
   const { go } = useNav();
   const { save, update } = useSave();
   const tr = useT();
+  // TURN の接続先を先にもらっておく（v2.7）
+  useEffect(() => {
+    void prefetchTurn(save);
+  }, []);
   const fx = useFx();
   const [room, setRoom] = useState(() => loadPendingTrade()?.room ?? '');
   const [phase, setPhase] = useState<Phase>('input');

@@ -38,7 +38,7 @@ export type GameConfig = {
 export type SandboxLasting = { kind: Lasting['kind']; amount: number; turns: number; at: 'active' | 'bench0' | 'bench1' | 'player' };
 
 /** カードを ためす：1人ぶんの置き方（カードNo） */
-export type SandboxSide = { active: number; bench: number[]; hand: number[]; deck: number[]; lasting?: SandboxLasting[]; /** バトル場のおてあげの HP（確認用。省略時は満タン） */ activeHp?: number };
+export type SandboxSide = { active: number; bench: number[]; hand: number[]; deck: number[]; lasting?: SandboxLasting[]; /** バトル場のおてあげの HP（確認用。省略時は満タン） */ activeHp?: number; /** ベンチのおてあげの HP（確認用。v2.7） */ benchHp?: number[] };
 
 /**
  * 試合の準備（SPEC §4-3）
@@ -64,7 +64,7 @@ export function createGame(config: GameConfig): { state: GameState; events: Game
       cardDefs[no] = def;
       const uid = `${side}-${i}`;
       const hp = def.kind === 'otege' ? def.hp : 0;
-      cards[uid] = { uid, no, owner: side, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [], benchedOnTurn: null };
+      cards[uid] = { uid, no, owner: side, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [], itemsUsed: [], benchedOnTurn: null };
     });
     players[side] = {
       deck: deck.map((_, i) => `${side}-${i}`),
@@ -174,6 +174,10 @@ function placeSandbox(ctx: Ctx, sandbox: Record<Side, SandboxSide>): GameState {
     const ps = s.players[side];
     const hp = sandbox[side].activeHp;
     if (hp !== undefined && ps.active) s.cards[ps.active].hp = Math.max(1, Math.min(hp, s.cards[ps.active].maxHp));
+    (sandbox[side].benchHp ?? []).forEach((h, i) => {
+      const c = ps.bench[i] ? s.cards[ps.bench[i]] : undefined;
+      if (c) c.hp = Math.max(1, Math.min(h, c.maxHp));
+    });
     for (const l of sandbox[side].lasting ?? []) {
       const targetUid = l.at === 'player' ? null : l.at === 'active' ? ps.active : (ps.bench[l.at === 'bench0' ? 0 : 1] ?? null);
       if (l.at !== 'player' && targetUid === null) continue;

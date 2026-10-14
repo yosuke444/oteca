@@ -1,10 +1,22 @@
 import { getRelaySockets, joinRoom, selfId, type Room } from 'trystero';
+import { turnServers } from './iceServers';
 import { markStart } from './startTiming';
 import { APP_ID, isMsg, type Msg } from './protocol';
 import type { NetTransport } from './transport';
 
 /** 接続を助ける無料の公開STUN（SPEC §11-1） */
 const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
+
+/**
+ * WebRTC の設定。開発・確かめ用（?debug=1）だけ ?ice=relay で「TURN だけを使う」にできる（v2.7。つながらない回線を試す）
+ */
+function rtcConfig(): RTCConfiguration {
+  const q = typeof location === 'undefined' ? null : new URLSearchParams(location.search);
+  const debug = q?.get('debug') === '1';
+  const relayOnly = debug && q?.get('ice') === 'relay';
+  // STUN ＋ もらえていれば TURN（v2.7。直接つながらない回線でも中継してつながる）
+  return { iceServers: [...ICE_SERVERS, ...turnServers()], ...(relayOnly ? { iceTransportPolicy: 'relay' as const } : {}) };
+}
 
 /**
  * 前の部屋を出る処理（Trystero の leave は非同期）。終わる前に同じ部屋名で入ると、
@@ -41,7 +53,7 @@ export class TrysteroTransport implements NetTransport {
 
   private open(roomId: string): void {
     markStart('roomOpen');
-    const room = joinRoom({ appId: APP_ID, rtcConfig: { iceServers: ICE_SERVERS } }, roomId, {
+    const room = joinRoom({ appId: APP_ID, rtcConfig: rtcConfig() }, roomId, {
       // WebRTC でつながらなかった時など（TURN が無いと、一部の回線ではつながらない）
       onJoinError: (d) => this.onError(String(d.error)),
     });

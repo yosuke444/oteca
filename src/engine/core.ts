@@ -22,7 +22,7 @@ export function cloneState(s: GameState): GameState {
   const cards: Record<string, CardInstance> = {};
   for (const uid in s.cards) {
     const c = s.cards[uid];
-    cards[uid] = { ...c, itemsThisTurn: [...c.itemsThisTurn] };
+    cards[uid] = { ...c, itemsThisTurn: [...c.itemsThisTurn], itemsUsed: [...c.itemsUsed] };
   }
   const players = {} as Record<Side, PlayerState>;
   for (const p of SIDES) {

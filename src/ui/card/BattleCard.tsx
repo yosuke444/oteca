@@ -127,6 +127,8 @@ function OtegeFace({
   const { w } = CARD_SIZE[size];
   // 使えない時もスーパーの金の縁と星は残す（§6-6）。えんぴつ色は透明度で表す
   const stroke = gold ? 'var(--super-gold)' : dim ? 'var(--pencil)' : selected ? 'var(--pen-blue)' : 'var(--ink)';
+  // 1つのおてあげに1回だけのアイテム（スポドリ）を使ってもらった印（v2.7。交代しても消えない）
+  const usedOnce = onField && view ? [...new Set(card.itemsUsed)].map((no) => view.cardDefs[no]).filter((d) => d?.kind === 'item' && d.oncePerOtege) : [];
   return (
     <>
       {isSuper && (
@@ -159,6 +161,11 @@ function OtegeFace({
             <small>HP</small>
             <span className="num">{onField ? card.hp : def.hp}</span>
           </span>
+          {usedOnce.map((d) => (
+            <span key={d.no} className="battle-card__used" data-testid="used-mark">
+              {tr.battle.usedMark(d.name)}
+            </span>
+          ))}
         </div>
         <ul className={`card-moves battle-card__moves ${def.moves.length >= 4 ? 'is-many' : ''}`}>
           {def.moves.map((m, i) => (

@@ -20,6 +20,7 @@ export function PrizeCard({ def, seed, width, className }: { def: CardDef; seed:
     attackAdd: 0,
     attackOverride: null,
     itemsThisTurn: [],
+    itemsUsed: [],
     benchedOnTurn: null,
   };
   return (

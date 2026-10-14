@@ -956,3 +956,23 @@ html[data-reduce-fx] .card-art__wait::after {
 .card-moves--big .card-moves__effect {
   white-space: normal;
 }
+
+/* 1つのおてあげに1回だけのアイテム（スポドリ）を使ってもらった印（v2.7）：絵の左下に小さく */
+.battle-card__used {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  z-index: 3;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--pen-blue);
+  background: var(--paper);
+  border: 1px solid var(--pen-blue);
+  border-radius: 4px;
+  rotate: -4deg;
+}
+.battle-card--active .battle-card__used {
+  font-size: 14px;
+}

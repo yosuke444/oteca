@@ -119,7 +119,7 @@ async function findPlayer(c: Db, id: string): Promise<PlayerBrief | null> {
 }
 
 /** 管理者メニューの道（管理の合言葉でも使える） */
-export const ADMIN_MENU_PATHS = new Set(['/admin/user', '/admin/trophy', '/admin/suspend', '/admin/unsuspend', '/admin/search', '/admin/log', '/admin/watch', '/admin/logout']);
+export const ADMIN_MENU_PATHS = new Set(['/admin/user', '/admin/trophy', '/admin/suspend', '/admin/unsuspend', '/admin/search', '/admin/log', '/admin/watch', '/admin/logout', '/admin/run-batch', '/admin/stats']);
 
 /** 管理者メニューの道（checkAdmin を通った後） */
 export async function adminRoute(p: string, b: Record<string, unknown>, c: Db, now: number, json: Json): Promise<Response | null> {

@@ -12,7 +12,7 @@ declare const __OTECA_BUILD__: string | undefined;
 export const buildId: string = devOverride('fakeBuild') ?? (typeof __OTECA_BUILD__ === 'string' ? __OTECA_BUILD__ : 'dev');
 
 /** 今のプロトコル版数（変える時は、ここの数を上げる。vite.config.ts が version.json に書く） */
-const PROTOCOL_VERSION = 15;
+const PROTOCOL_VERSION = 16;
 const fakeProtocol = devOverride('fakeProtocol');
 export const protocolVersion: number = fakeProtocol && /^[0-9]+$/.test(fakeProtocol) ? Number(fakeProtocol) : PROTOCOL_VERSION;
 

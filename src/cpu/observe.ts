@@ -43,7 +43,7 @@ export function determinize(state: GameState, side: Side, rand: Rand, db: CardDb
     const def = db[no];
     s.cardDefs[no] = def;
     const hp = def.kind === 'otege' ? def.hp : 0;
-    s.cards[uid] = { uid, no, owner: opp, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [], benchedOnTurn: null };
+    s.cards[uid] = { uid, no, owner: opp, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [], itemsUsed: [], benchedOnTurn: null };
   }
   // 引き直しの規則があるので、相手の手札におてあげが1枚も無いことはない（準備中だけ気にする）
   if (s.phase === 'setup' && op.setupChoice === null && op.hand.length > 0 && !op.hand.some((u) => s.cardDefs[s.cards[u].no].kind === 'otege')) {
@@ -52,7 +52,7 @@ export function determinize(state: GameState, side: Side, rand: Rand, db: CardDb
     const def = db[no];
     s.cardDefs[no] = def;
     const hp = def.kind === 'otege' ? def.hp : 0;
-    s.cards[uid] = { uid, no, owner: opp, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [], benchedOnTurn: null };
+    s.cards[uid] = { uid, no, owner: opp, hp, maxHp: hp, attackAdd: 0, attackOverride: null, itemsThisTurn: [], itemsUsed: [], benchedOnTurn: null };
   }
 
   shuffle(rand, s.players[side].deck.sort(byUid));

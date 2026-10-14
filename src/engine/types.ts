@@ -112,6 +112,8 @@ export type ItemCardDef = {
   useCondition?: ItemUseCondition;
   /** このカードを含めた手札がこの枚数未満なら使えない */
   minHand?: number;
+  /** 1回の対戦で、同じおてあげには1回だけ使える（スポドリ。v2.7）。交代しても使った記録は消えない */
+  oncePerOtege?: boolean;
   /**
    * 重ねがけ禁止（SPEC §4-7・v1.4）：このターンに、ここに書いた id のアイテムを使ったおてあげには使えない
    */
@@ -145,6 +147,11 @@ export type CardInstance = {
   attackOverride: number | null;
   /** このターンに、このおてあげに使われたアイテム（カードNo。重ねがけ禁止の判定用。ターン終了で空になる） */
   itemsThisTurn: number[];
+  /**
+   * この対戦で、このおてあげに使われたアイテム（カードNo。v2.7）。交代しても消えない。
+   * 「1つのおてあげに1回だけ」のアイテム（スポドリ。oncePerOtege）の判定と、カードの「スポドリ ずみ」の印に使う
+   */
+  itemsUsed: number[];
   /** 手札からベンチに出した時の、持ち主の自分ターン数（交代制限の判定用）。バトル場に出たら null */
   benchedOnTurn: number | null;
 };
@@ -361,6 +368,8 @@ export type RejectReason =
   | 'fullHp'
   /** 重ねがけ禁止（このターン、このおてあげには使えないアイテム） */
   | 'stackBlocked'
+  /** この対戦で、もうこのおてあげに使った（1つのおてあげに1回だけのアイテム。v2.7） */
+  | 'usedOnce'
   /** 出したばかりのおてあげは交代でバトル場に出せない */
   | 'justPlaced'
   | 'notPending'

@@ -1,4 +1,6 @@
 import { features } from '../../config/features';
+import { useEffect } from 'react';
+import { prefetchTurn } from '../../net/iceServers';
 import { RateValue } from '../../ui/common/RateValue';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
 import { ECONOMY, rewardedToday, todayKey } from '../../economy/rewards';
@@ -24,6 +26,10 @@ export function OnlineScene() {
   const left = Math.max(0, ECONOMY.dailyRewardLimit - rewardedToday(save, todayKey(new Date())));
   // 古い版のままでは レート対戦・フレンド対戦に入れない（v2.7）
   const { gate, dialog } = useOnlineGate();
+  // TURN の接続先を先にもらっておく（v2.7。部屋に入る時に待たない）
+  useEffect(() => {
+    void prefetchTurn(save);
+  }, []);
   return (
     <div className="online-scene" data-testid="online-scene">
       {/* アカウント停止の確かめ（v2.0-J） */}

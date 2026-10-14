@@ -106,6 +106,7 @@ export function AdminScene() {
           {fn === 'unsuspend' && <UnsuspendPanel key={`u-${presetId}`} initialId={presetId} />}
           {fn === 'search' && <SearchPanel onTrophy={(id) => open('trophy', id)} onSuspend={(id) => open('suspend', id)} />}
           {fn === 'log' && <LogPanel />}
+          {fn === 'ranking' && <RankingPanel />}
         </div>
       </RoughBox>
     </div>
@@ -597,6 +598,44 @@ function logDetail(tr: Dict, r: LogRow): string {
     }
   }
   return '';
+}
+
+/** ランキング（v2.7）：「ランキングを いま こうしん」（予定の時刻を待たずに、まとめ処理を動かす） */
+function RankingPanel() {
+  const tr = useT();
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  // レート対戦が始まった・つながらなかった件数（v2.7）
+  type Starts = { started: number; failed: number; started24h: number; failed24h: number };
+  const [starts, setStarts] = useState<Starts | null>(null);
+  const [startsFailed, setStartsFailed] = useState(false);
+  useEffect(() => {
+    void adminCall<{ lobby?: { starts?: Starts } }>('/admin/stats', {}).then((r) => {
+      if (r.ok && r.data.lobby?.starts) setStarts(r.data.lobby.starts);
+      else setStartsFailed(true);
+    });
+  }, []);
+  const run = async () => {
+    setBusy(true);
+    setNote(tr.admin.working);
+    const r = await adminCall<{ ok?: boolean; error?: string; counted?: number }>('/admin/run-batch', {});
+    setBusy(false);
+    if (!r.ok) return setNote(r.status === 409 ? tr.admin.rankingBusy : r.status === 401 ? tr.admin.expired : tr.admin.failed);
+    if (r.data.error === 'busy') return setNote(tr.admin.rankingBusy);
+    const d = new Date();
+    setNote(tr.admin.rankingDone(r.data.counted ?? 0, `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`));
+  };
+  return (
+    <div className="admin-form">
+      <RoughButton seed="admin-ranking-now" className="admin-form__go" highlight disabled={busy} onClick={() => void run()} data-testid="admin-ranking-now">
+        {tr.admin.rankingNow}
+      </RoughButton>
+      {note && <p className="admin-note blue-pen" data-testid="admin-ranking-note">{note}</p>}
+      <p className="admin-note" data-testid="admin-starts">
+        {starts ? tr.admin.starts(starts.started24h, starts.failed24h, starts.started, starts.failed) : startsFailed ? tr.admin.failed : tr.admin.working}
+      </p>
+    </div>
+  );
 }
 
 function LogPanel() {

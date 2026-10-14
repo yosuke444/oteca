@@ -112,7 +112,10 @@ export async function writeSnapshot(c: Db, updatedAt: number | null): Promise<nu
  * 受付係の結果を時刻順に読む → レートを計算（同じ2人の試合もすべて数える。v2.7）→ プレイヤー表を1人1行で更新 →
  * 全員の順位（7日以上遊んでいない人は外す）→ 上位100人の写し → 処理した結果を消す
  */
-export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promise<Record<string, unknown>> {
+/**
+ * @param chunk 1回で計算する試合の数（v2.7。多い時は古い方から。残りは remaining で返す。前の回の続きの片づけには使わない）
+ */
+export async function runBatchJob(c: Db, lobby: LobbyStore, now: number, chunk = Infinity): Promise<Record<string, unknown>> {
   // 前の まとめ処理が D1 に書いた後で止まっていたら、その分の結果を消してから始める（二重に数えない）
   const prev = lobby.pending();
   if (prev) {
@@ -127,7 +130,9 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
     }
     lobby.setPending(null);
   }
-  const all = lobby.exportResults(now);
+  const every = lobby.exportResults(now);
+  const all = every.slice(0, chunk);
+  const remaining = every.length - all.length;
   // 停止中の人（v2.0-J）の試合は数えない（結果は消す）
   const suspended = new Set(
     (await c.all<{ user_id: string }>(`SELECT user_id FROM suspensions WHERE until = 0 OR until > ?`, now)).map((r) => r.user_id),
@@ -179,7 +184,7 @@ export async function runBatchJob(c: Db, lobby: LobbyStore, now: number): Promis
   lobby.setPending(null);
   const top = await writeSnapshot(c, now);
   // skipped：予備の待合所の試合で1日10試合を超えたもの ＋ 停止中の人の試合
-  return { ok: true, results: all.length, counted, skipped: skipped + (all.length - results.length), changed, top };
+  return { ok: true, results: all.length, counted, skipped: skipped + (all.length - results.length), changed, top, remaining };
 }
 
 /** 全員の順位：7日以上遊んでいない人は外す（データは残す）。変わった人の行だけ書く */

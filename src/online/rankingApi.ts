@@ -124,6 +124,14 @@ async function registerAgain(save: SaveData, update: Update, id: Identity): Prom
  * 1つの報告を送る
  * @returns ok＝受け付けた、drop＝送り直しても意味がない（試合の2人でない・形が変）、retry＝あとで送り直す、auth＝token が使えない
  */
+/**
+ * レート対戦が始まった・つながらなかったを受付係に知らせる（v2.7。管理画面で件数を見る）。届かなくても気にしない
+ */
+export async function reportMatchState(save: Pick<SaveData, 'userId' | 'ranking'>, matchId: string, state: 'started' | 'failed'): Promise<void> {
+  if (!save.ranking.token || !/^[0-9a-f]{16}$/.test(matchId)) return;
+  await post('/match-state', { matchId, userId: save.userId, token: save.ranking.token, state });
+}
+
 export async function sendReport(save: Pick<SaveData, 'userId' | 'ranking'>, r: UnsentReport): Promise<'ok' | 'drop' | 'retry' | 'auth'> {
   if (!save.ranking.token) return 'retry';
   const res = await post('/result', { matchId: r.matchId, userId: save.userId, token: save.ranking.token, winner: r.winner });
@@ -253,7 +261,8 @@ function writeRankingCache(c: RankingCache): void {
 
 /** ランキングの一覧を聞く（つながらない時は null）。聞けたら保存する */
 export async function fetchRanking(save: SaveData): Promise<RankingCache | null> {
-  const res = await call(`/ranking${authQuery(save)}`);
+  // ブラウザの保存（キャッシュ）は使わない（v2.7）
+  const res = await call(`/ranking${authQuery(save)}`, { cache: 'no-store' });
   if (!res?.ok) return null;
   const body = (await res.json().catch(() => null)) as RankingData | null;
   if (!body || !Array.isArray(body.top)) return null;

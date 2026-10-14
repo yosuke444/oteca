@@ -144,6 +144,8 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
       if (!item.target.rarity.includes(targetDef.rarity)) return 'badTarget';
       if (item.useCondition === 'notFullHp' && target.hp >= target.maxHp) return 'fullHp';
       if (blockedItemOn(s, item.blockedIfUsedThisTurn, target.itemsThisTurn) !== null) return 'stackBlocked';
+      // 1回の対戦で、同じおてあげには1回だけ（スポドリ。v2.7）
+      if (item.oncePerOtege && target.itemsUsed.includes(item.no)) return 'usedOnce';
       return null;
     }
 
@@ -250,7 +252,10 @@ function doUseItem(ctx: Ctx, player: Side, itemUid: string, targetUid: string | 
   if (!item || item.kind !== 'item') return;
   ps.hand = ps.hand.filter((u) => u !== itemUid);
   ps.discard.push(itemUid);
-  if (targetUid !== undefined) ctx.s.cards[targetUid].itemsThisTurn.push(item.no);
+  if (targetUid !== undefined) {
+    ctx.s.cards[targetUid].itemsThisTurn.push(item.no);
+    ctx.s.cards[targetUid].itemsUsed.push(item.no);
+  }
   ctx.events.push({ type: 'ItemUsed', player, itemUid, targetUid: targetUid ?? null });
   // アイテムの効果はデータに書いた順（やばいつぼ：引く → 捨てる）。カードを選ぶ必要があれば止まる
   const src: EffectSourceData = targetUid !== undefined ? { kind: 'item', player, sourceUid: itemUid, targetUid } : { kind: 'item', player, sourceUid: itemUid };

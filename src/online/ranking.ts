@@ -100,7 +100,26 @@ export function markProvisional(draft: Pick<SaveData, 'ranking'>, now = Date.now
 export type RankingRow = { rank: number; key: string; name: string; rate: number; wins: number; losses: number };
 
 /** GET /ranking の答え */
-export type RankingData = { top: RankingRow[]; updatedAt: number; nextAt: number; me: ServerMe | null };
+/**
+ * GET /ranking の答え。nextAt：次の更新の予定の時刻（サーバーの時刻）。updating：予定の時刻を過ぎたのに まだ更新されていない（v2.7）。
+ * serverNow：答えた時のサーバーの時刻（端末の時計がずれていても、サーバーの時刻で数える）
+ */
+export type RankingData = { top: RankingRow[]; updatedAt: number; nextAt: number; me: ServerMe | null; updating?: boolean; serverNow?: number };
+
+/** 「こうしん ちゅう…」の間、聞き直す間隔（v2.7） */
+export const UPDATING_POLL_MS = 30 * 1000;
+
+/**
+ * 画面の「次の更新」（v2.7）：サーバーの時刻（受け取った時のずれを足す）で、次の更新の予定まで数える。
+ * 予定の時刻を過ぎたのに新しいデータが無い間は「こうしん ちゅう」（時間を延ばして見せない）
+ * @param receivedAt その答えを受け取った端末の時刻
+ */
+export function rankingClock(data: Pick<RankingData, 'nextAt' | 'updating' | 'serverNow'>, receivedAt: number, now: number): { kind: 'count'; text: string } | { kind: 'updating' } {
+  const offset = Number.isFinite(data.serverNow) ? (data.serverNow as number) - receivedAt : 0;
+  const serverNow = now + offset;
+  if (data.updating || serverNow >= data.nextAt) return { kind: 'updating' };
+  return { kind: 'count', text: countdown(data.nextAt, serverNow) };
+}
 
 /** 次の更新までの残り時間（時:分:秒。0 未満は 0） */
 export function countdown(nextAt: number, now: number): string {

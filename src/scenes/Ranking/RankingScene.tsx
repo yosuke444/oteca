@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RANKING } from '../../config/rating';
 import { useT } from '../../i18n/useT';
 import { safeName } from '../../online/names';
-import { applyServerRate, cacheFresh, countdown, type RankingRow } from '../../online/ranking';
+import { UPDATING_POLL_MS, applyServerRate, cacheFresh, countdown, rankingClock, type RankingRow } from '../../online/ranking';
 import { type RankingCache, fetchRanking, myRowKey, nextBatchAfter, readRankingCache } from '../../online/rankingApi';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
@@ -11,9 +11,6 @@ import { ModeGuide } from '../../ui/guide/ModeGuide';
 import { RoughBox } from '../../ui/rough/RoughBox';
 import { RoughButton } from '../../ui/rough/RoughButton';
 import './ranking.css';
-
-/** 更新の時刻を過ぎてから、聞き直すまでの時間（まとめ処理が終わるのを待つ） */
-const REFETCH_AFTER_MS = 60 * 1000;
 
 type View = { kind: 'loading' } | { kind: 'ok'; data: RankingCache; stale: boolean } | { kind: 'offline' };
 
@@ -61,16 +58,16 @@ export function RankingScene() {
     };
   }, []);
 
-  // 保存した一覧の「次の更新」が過ぎていたら（つながらない時）、次の更新（4:00 か 16:00）までを数える
-  const nextAt = view.kind === 'ok' && view.data.nextAt > now ? view.data.nextAt : nextBatchAfter(now);
-  // 画面を開いたまま更新の時刻を過ぎた：少し待ってから聞き直す（1回だけ）
-  const refetched = useRef(0);
+  // 次の更新（v2.7）：サーバーから受け取った予定の時刻を、サーバーの時刻で数える。予定を過ぎて新しいデータが無い間は「こうしん ちゅう…」
+  // （つながらず、保存した一覧を出している時も同じ。聞き直しは続ける。一覧が無い時だけ、端末の時計で次の 4:00・16:00 まで）
+  const clock = view.kind === 'ok' ? rankingClock(view.data, view.data.savedAt, now) : ({ kind: 'count', text: countdown(nextBatchAfter(now), now) } as const);
+  // 「こうしん ちゅう…」の間は30秒ごとに聞き直し、新しいデータが来たらすぐ入れ替える
+  const polled = useRef(0);
   useEffect(() => {
-    const due = view.kind === 'ok' ? view.data.nextAt : 0;
-    if (view.kind !== 'ok' || view.stale || now < due + REFETCH_AFTER_MS || refetched.current === due) return;
-    refetched.current = due;
+    if (clock.kind !== 'updating' || now - polled.current < UPDATING_POLL_MS) return;
+    polled.current = now;
     load();
-  }, [now, nextAt, view.kind]);
+  }, [now, clock.kind]);
 
   const nameless = tr.lobby.nameless;
   const showName = (n: string) => safeName(n, nameless) || nameless;
@@ -88,7 +85,7 @@ export function RankingScene() {
       <p className="ranking-scene__daily">
         <span className="blue-pen">{tr.ranking.daily(RANKING.batchHoursJst)}</span>
         <span className="ranking-scene__countdown num" data-testid="ranking-countdown">
-          {tr.ranking.next(countdown(nextAt, now))}
+          {clock.kind === 'updating' ? tr.ranking.updating : tr.ranking.next(clock.text)}
         </span>
       </p>
       <RoughButton seed="ranking-back" className="ranking-scene__back" onClick={() => go('menu')}>

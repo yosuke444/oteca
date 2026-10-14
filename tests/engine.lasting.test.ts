@@ -317,7 +317,7 @@ describe('E27 1つの技の中の処理順', () => {
     expect(hp(r.state, act(s, 'p1'))).toBe(70);
   });
 
-  it('はたあげ：相手に15、回復20／777ほん：相手に20 → 自分に50（v2.7）', () => {
+  it('はたあげ：相手に15、回復20／777ほん：相手に10 → 自分に60（v2.7 の2回目）', () => {
     let s = game([['hataage', 15]], [['mutsuashi', 15]], { active: 'hataage' }, { active: 'mutsuashi' });
     s = patchCard(s, act(s, 'p1'), { hp: 30 });
     let r = end(s, 1);
@@ -326,12 +326,12 @@ describe('E27 1つの技の中の処理順', () => {
     s = game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' });
     r = end(s, 1);
     expect(eventsOf(r.events, 'Damaged').map((d) => [d.uid, d.amount])).toEqual([
-      [act(s, 'p2'), 20],
-      [act(s, 'p1'), 50],
+      [act(s, 'p2'), 10],
+      [act(s, 'p1'), 60],
     ]);
-    // 777ほん 6：相手に30 → 自分に10（v2.7）
+    // 777ほん 6：相手に20 → 自分に20（v2.7 の2回目）
     r = end(game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' }), 6);
-    expect(eventsOf(r.events, 'Damaged').map((d) => d.amount)).toEqual([30, 10]);
+    expect(eventsOf(r.events, 'Damaged').map((d) => d.amount)).toEqual([20, 20]);
   });
 });
 

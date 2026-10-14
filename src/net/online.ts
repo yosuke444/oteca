@@ -255,13 +255,13 @@ function tabId(): string {
   }
 }
 
-export function createRateSearch(opts: { userId: string; name: string; rate: number; trophies: number; lastOpponentId: string; token: string }): RateSearch {
+export function createRateSearch(opts: { userId: string; name: string; rate: number; trophies: number; lastOpponentId: string; token: string; retryOf?: string }): RateSearch {
   // 受付係は token で本人を確かめる（token が無ければ予備の待合所）
   const base = opts.token ? lobbyUrl() : null;
   const url = base ? `${base}?userId=${opts.userId}&token=${opts.token}` : null;
   // 待合所の中では、ユーザーID を playerId として使う（予備の待合所の P2P も同じ）
   const full = { playerId: opts.userId, name: opts.name, rate: opts.rate, trophies: opts.trophies, lastOpponentId: opts.lastOpponentId, protocol: protocolVersion };
-  return new RateSearch({ ...full, tab: tabId() }, {
+  return new RateSearch({ ...full, tab: tabId(), ...(opts.retryOf ? { retryOf: opts.retryOf } : {}) }, {
     openSocket: url ? () => new WebSocket(url) as unknown as SocketLike : null,
     createLobby: () => new RateLobby(createTransport(), full),
   });

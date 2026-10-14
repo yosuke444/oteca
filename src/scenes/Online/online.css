@@ -192,3 +192,9 @@
   top: 420px;
   bottom: auto;
 }
+
+/* 組んでから15秒たっても始まらず、さがし直している（v2.7） */
+.rate-scene__retry {
+  margin: 6px 0 0;
+  font-size: 20px;
+}

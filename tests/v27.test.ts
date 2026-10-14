@@ -51,11 +51,12 @@ describe('① 5枚の新しい数値（v2.7）', () => {
       [[1, 2, 3, 4, 5], [{ type: 'damage', amount: 10 }, { type: 'heal', amount: 999 }]],
       [[6], [{ type: 'selfDamage', amount: 999 }]],
     ]);
-    expect(cardById('hon777')).toMatchObject({ hp: 300 });
+    // 777ほん は v2.7 の2回目でさらに変えた（HP250。自分に +10・相手に -10。tests/v27b.test.ts ④）
+    expect(cardById('hon777')).toMatchObject({ hp: 250 });
     expect(moves('hon777')).toEqual([
-      [[1], [{ type: 'damage', amount: 20 }, { type: 'selfDamage', amount: 50 }]],
-      [[2, 3, 4, 5], [{ type: 'damage', amount: 30 }, { type: 'selfDamage', amount: 20 }]],
-      [[6], [{ type: 'damage', amount: 30 }, { type: 'selfDamage', amount: 10 }]],
+      [[1], [{ type: 'damage', amount: 10 }, { type: 'selfDamage', amount: 60 }]],
+      [[2, 3, 4, 5], [{ type: 'damage', amount: 20 }, { type: 'selfDamage', amount: 30 }]],
+      [[6], [{ type: 'damage', amount: 20 }, { type: 'selfDamage', amount: 20 }]],
     ]);
     expect(moves('moyasu')).toEqual([
       [[1, 2, 3], [{ type: 'damage', amount: 60 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
@@ -91,9 +92,9 @@ describe('① 5枚の新しい数値（v2.7）', () => {
     expect(eventsOf(r.events, 'Healed')[0]).toMatchObject({ amount: 55, hpAfter: 60 });
   });
 
-  it('777ほん：1 は相手に20・自分に50／2-5 は相手に30・自分に20／6 は相手に30・自分に10', () => {
+  it('777ほん：1 は相手に10・自分に60／2-5 は相手に20・自分に30／6 は相手に20・自分に20（v2.7 の2回目）', () => {
     const s = game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' });
-    for (const [face, opp, self] of [[1, 20, 50], [2, 30, 20], [5, 30, 20], [6, 30, 10]]) {
+    for (const [face, opp, self] of [[1, 10, 60], [2, 20, 30], [5, 20, 30], [6, 20, 20]]) {
       const r = end(s, face);
       expect(hits(r.state, r.events, 'p2'), `目${face}`).toEqual([{ amount: opp, bonus: 0 }]);
       expect(hits(r.state, r.events, 'p1'), `目${face}`).toEqual([{ amount: self, bonus: 0 }]);
@@ -147,11 +148,11 @@ describe('② ザムライのステージでは、ボス側のダメージだけ
     expect(eventsOf(r.events, 'Damaged')[0]).not.toHaveProperty('bonus');
   });
 
-  it('自分へのダメージ・回復には付かない（777ほん 目1：相手に 20 → 30、自分に50 のまま）', () => {
+  it('自分へのダメージ・回復には付かない（777ほん 目1：相手に 10 → 20、自分に60 のまま）', () => {
     const s = bossGame('hon777');
     const r = end(s, 1);
-    expect(hits(r.state, r.events, PLAYER)).toEqual([{ amount: 30, bonus: 10 }]);
-    expect(hits(r.state, r.events, ENEMY)).toEqual([{ amount: 50, bonus: 0 }]);
+    expect(hits(r.state, r.events, PLAYER)).toEqual([{ amount: 20, bonus: 10 }]);
+    expect(hits(r.state, r.events, ENEMY)).toEqual([{ amount: 60, bonus: 0 }]);
     // 回復（むつあし 目1：10）も +10 されない
     let m = bossGame('mutsuashi');
     m = structuredClone(m);
@@ -306,9 +307,9 @@ describe('CPU も新しい数値で考える', () => {
     expect(outcomes(z, act(z, ENEMY)).map((o) => o.damage)).toEqual([40, 40, 60, 60, 80, 80]);
     const d = bossGame('dokusage');
     expect(outcomes(d, act(d, ENEMY)).map((o) => [o.damage, o.later])).toEqual([[20, 60], [20, 60], [20, 60], [20, 60], [30, 90], [30, 90]]);
-    // ルールの無い対戦では元の数値（777ほん：相手に20・自分に50 など）
+    // ルールの無い対戦では元の数値（777ほん：相手に10・自分に60 など。v2.7 の2回目）
     const h = game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' });
-    expect(outcomes(h, act(h, 'p1')).map((o) => [o.damage, o.self])).toEqual([[20, 50], [30, 20], [30, 20], [30, 20], [30, 20], [30, 10]]);
+    expect(outcomes(h, act(h, 'p1')).map((o) => [o.damage, o.self])).toEqual([[10, 60], [20, 30], [20, 30], [20, 30], [20, 30], [20, 20]]);
   });
 
   it('付いている持続ダメージの見積り（threat）にも +10', async () => {

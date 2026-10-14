@@ -182,6 +182,46 @@ try {
     check('K05 同じタブの入り直しは、前の接続を外して待つ（replaced・4000）', t1.closed && t1.code === 4000 && !t2.closed, JSON.stringify([t1.code, t2.closed, t2.msgs]));
     t2.ws.close();
   }
+  // ③ 組んでから始まらなかった2人（v2.7）：「つながらなかった」を記録し、もう一度さがす時は列の先頭に入る。レートは変わらない
+  {
+    const [Q1, Q2, Q3] = [await register(B, pid(110), 'いち'), await register(B, pid(111), 'に'), await register(B, pid(112), 'さん')];
+    const q1 = connectLobby(B, Q1);
+    const q2 = connectLobby(B, Q2);
+    await Promise.all([q1.waitOpen(), q2.waitOpen()]);
+    join(q1, Q1);
+    await sleep(50);
+    join(q2, Q2);
+    await until(() => q1.paired() && q2.paired());
+    const mid = q1.paired().matchId;
+    const st = (p2, state, m = mid) => api(B, '/match-state', { method: 'POST', body: { matchId: m, userId: p2.id, token: p2.token, state } });
+    const f1 = await st(Q1, 'failed');
+    check('③ 「つながらなかった」を記録できる（試合の2人だけ。ほかの人・token 違いは断る）', f1.status === 200 && (await st(Q3, 'failed')).status === 400 && (await api(B, '/match-state', { method: 'POST', body: { matchId: mid, userId: Q1.id, token: 'f'.repeat(32), state: 'failed' } })).status === 401);
+    // 端末と同じ順：「つながらなかった」→ 無効の報告（2人とも。試合の行は消える）→ もう一度さがす
+    await api(B, '/result', { method: 'POST', body: { matchId: mid, userId: Q1.id, token: Q1.token, winner: 'void' } });
+    await api(B, '/result', { method: 'POST', body: { matchId: mid, userId: Q2.id, token: Q2.token, winner: 'void' } });
+    check('③ 試合の行が消えた後に届いた2人目の「つながらなかった」も受け付ける', (await st(Q2, 'failed')).status === 200);
+    // もう一度さがす（retryOf 付き。列の先頭に入る順番は tests/ratestart.v27.test.ts で確かめる）：待っていた Q3 とすぐ組まれる
+    const q3 = connectLobby(B, Q3);
+    await q3.waitOpen();
+    join(q3, Q3);
+    await until(() => q3.lastCount() === 1);
+    const r1 = connectLobby(B, Q1);
+    await r1.waitOpen();
+    join(r1, Q1, { retryOf: mid });
+    await until(() => r1.paired() && q3.paired());
+    check('③ つながらなかった人は、もう一度さがすと すぐ組まれる', r1.paired()?.opponent.userId === Q3.id, JSON.stringify(r1.paired()));
+    const mid2 = r1.paired().matchId;
+    await st(Q1, 'started', mid2);
+    const s1 = (await api(B, '/admin/stats', { method: 'POST', admin: ADMIN, origin: null })).json?.lobby?.starts;
+    check('③ 管理画面で「始まった」「つながらなかった」の件数が見られる', s1?.failed24h >= 1 && s1?.started24h >= 1, JSON.stringify(s1));
+    // TURN の接続先（v2.7）：登録した人だけ。手元の Worker には TURN キーが無いので空
+    const t0 = await api(B, '/turn');
+    const t1 = await api(B, `/turn?userId=${Q1.id}&token=${Q1.token}`);
+    check('TURN の接続先は登録した人だけ（キーが無ければ空）。保存させない', t0.status === 401 && t1.status === 200 && Array.isArray(t1.json?.iceServers) && t1.json.iceServers.length === 0 && t1.headers.get('cache-control') === 'no-store', JSON.stringify([t0.status, t1.json]));
+    // 後片づけ：Q1-Q3 の試合も無効に（ほかの確かめの数に入れない）
+    await api(B, '/result', { method: 'POST', body: { matchId: mid2, userId: Q1.id, token: Q1.token, winner: 'void' } });
+    await api(B, '/result', { method: 'POST', body: { matchId: mid2, userId: Q3.id, token: Q3.token, winner: 'void' } });
+  }
   console.log('結果の報告');
   const report = (p, matchId, winner, token = p.token) => api(B, '/result', { method: 'POST', body: { matchId, userId: p.id, token, winner } });
   check('token が違えば 401', (await report(P[0], p1.matchId, P[0].id, 'f'.repeat(32))).status === 401);
@@ -291,10 +331,22 @@ try {
   const back = await api(B, `/ranking?userId=${P[0].id}&token=${P[0].token}`);
   check('次に遊べば一覧に戻る', back.json.top.length === 3 && back.json.top.some((r) => r.key === key(P[0].id)) && back.json.me?.wins === 2, JSON.stringify(back.json.top));
 
-  // まとめ処理が遅れている（最後の写しが前の 4:00 より古い）：一覧は5分後に聞き直してもらう
+  // まとめ処理が遅れている（最後の写しが前の 4:00 より古い）：時間を延ばさず「こうしん ちゅう」（v2.7。前は5分後に聞き直してもらっていた）
   await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null, body: { now: Date.now() - 2 * 24 * 3600e3 } });
   const late = await api(B, '/ranking');
-  check('まとめ処理が遅れている時は、次の更新の時刻を5分後にする（古い一覧を1日 覚えさせない）', late.json.nextAt - Date.now() <= 5 * 60e3 + 5000 && late.json.nextAt > Date.now(), JSON.stringify({ nextAt: late.json.nextAt }));
+  check('① まとめ処理が遅れている時は、時間を延ばさず「こうしん ちゅう」（updating・予定の時刻のまま）。保存させない（no-store）', late.json.updating === true && late.json.nextAt <= Date.now() && late.json.nextAt > Date.now() - 12 * 3600e3 && Math.abs(late.json.serverNow - Date.now()) < 60e3 && late.headers.get('cache-control') === 'no-store', JSON.stringify({ nextAt: late.json.nextAt, updating: late.json.updating }));
+  // ② 予定の更新（Cron。wrangler dev --test-scheduled の /__scheduled で手で動かす）：遅れていれば更新し、2回目は何もしない（結果が同じ）
+  {
+    const cron = async () => (await fetch(`${B}/__scheduled?cron=${encodeURIComponent('0 7 * * *')}`)).status;
+    const s1 = await cron();
+    await sleep(1500);
+    const r1 = await api(B, '/ranking');
+    const s2 = await cron();
+    await sleep(1500);
+    const r2 = await api(B, '/ranking');
+    check('② 予定の更新（Cron）を手で動かすと更新され、遅れが消える', s1 === 200 && r1.json.updating === false && r1.json.updatedAt > late.json.updatedAt && r1.json.nextAt > Date.now(), JSON.stringify([s1, r1.json.updatedAt, r1.json.updating]));
+    check('② もう一度 動かしても何もしない（一覧・更新の時刻が同じ）', s2 === 200 && r2.json.updatedAt === r1.json.updatedAt && JSON.stringify(r2.json.top) === JSON.stringify(r1.json.top), JSON.stringify([r1.json.updatedAt, r2.json.updatedAt]));
+  }
   const ok2 = await api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null });
   const busy = await Promise.all([api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null }), api(B, '/admin/run-batch', { method: 'POST', admin: ADMIN, origin: null })]);
   check('まとめ処理は同時に1つだけ（重なったら busy）', ok2.json?.ok && busy.some((x) => x.json?.ok), JSON.stringify(busy.map((x) => x.json)));
@@ -320,8 +372,9 @@ try {
     // IPv6 は /64 で数える（アドレスを変えながら試せない）
     for (let i = 0; i < 5; i++) await api(B, '/admin-login', { method: 'POST', body: { password: 'x' }, headers: { 'CF-Connecting-IP': `2001:db8:5:6::${i + 1}` } });
     check('IPv6 は /64 ごとに数える', (await api(B, '/admin-login', { method: 'POST', body: { password: ADMIN }, headers: { 'CF-Connecting-IP': '2001:db8:5:6:ffff::9' } })).status === 423);
-    // 管理の合言葉で使えるのは管理者メニューの道だけ（前からある強い道は管理キーだけ）
-    check('管理の合言葉では、まとめ処理・プレイヤーを消す などは使えない（401）', (await sess('/admin/run-batch')).status === 401 && (await sess('/admin/delete-players', { userIds: [] })).status === 401 && (await sess('/admin/stats')).status === 401);
+    // 管理の合言葉で使えるのは管理者メニューの道だけ（前からある強い道は管理キーだけ）。
+    // v2.7：管理画面の「ランキングを いま こうしん」・始まった件数のため、まとめ処理と数の確かめは合言葉でも使える
+    check('管理の合言葉では、プレイヤーを消す などは使えない（401）。まとめ処理・数の確かめは使える（v2.7）', (await sess('/admin/delete-players', { userIds: [] })).status === 401 && (await sess('/admin/seed', {})).status === 401 && (await sess('/admin/run-batch')).status === 200 && (await sess('/admin/stats')).status === 200);
     // メニューから出たら、サーバーの合言葉も消える
     const tmp = (await login(ADMIN, 6)).json?.session;
     const asTmp = (path, body = {}) => api(B, path, { method: 'POST', body, headers: { ...ip(6), 'x-admin-session': tmp } });

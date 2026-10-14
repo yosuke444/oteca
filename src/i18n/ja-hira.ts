@@ -67,6 +67,8 @@ export const hira = {
   },
 
   battle: {
+    /** 1つのおてあげに1回だけのアイテムを使ってもらった印（v2.7。例「スポドリ ずみ」） */
+    usedMark: (item: string) => `${item} ずみ`,
     /** トロフィあげの数（v2.2。絵が5個を超えた分） */
     trophyMore: (n: number) => `+${n}`,
     trophyCount: (n: number) => `トロフィあげ ${n}こ`,
@@ -175,6 +177,8 @@ export const hira = {
       benchFull: 'ベンチは いっぱいだよ',
       benchLimit: 'ベンチは このターン もう だしたよ',
       fullHp: 'HPが まんたんだよ',
+      /** v2.7：1つのおてあげに1回だけのアイテム（スポドリ） */
+      usedOnce: 'この おてあげには もう つかったよ（1たいせんで 1かいだけ）',
       badTarget: 'その おてあげには つかえないよ',
       notOtege: 'おてあげ じゃないよ',
       notItem: 'アイテム じゃないよ',
@@ -397,6 +401,8 @@ export const hira = {
     title: 'レートたいせん',
     search: 'さがす',
     searching: 'あいてを さがしています',
+    /** 組んでから15秒たっても始まらなかった（v2.7） */
+    retry: 'つながらなかったので もういちど さがします',
     waitingCount: (n: number) => `いま ${n}にん まっています`,
     stop: 'やめる',
     note: 'レートは つかわず、まっている じゅんに くむよ。まえの あいてとは ふたりきりの ときだけ くむよ',
@@ -424,7 +430,12 @@ export const hira = {
     codeGo: 'けってい',
     unknownCode: 'その コードは ないよ',
     // 管理者メニューのコード（どちらの表記でも同じ言葉。企画者の指示のとおり）
-    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ' },
+    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング' },
+    /** ランキング（v2.7）：いま更新する・レート対戦が始まったか */
+    rankingNow: 'ランキングを いま こうしん',
+    rankingDone: (counted: number, at: string) => `こうしん したよ（${counted}しあい・${at}）`,
+    rankingBusy: 'いま こうしん ちゅう。すこし まってね',
+    starts: (s24: number, f24: number, s: number, f: number) => `レートたいせん：この24じかん はじまった ${s24}・つながらなかった ${f24}（30にち：${s}・${f}）`,
     codes: (list: string) => `コード：${list}`,
     codeSep: '・',
     logout: 'でる',
@@ -549,6 +560,8 @@ export const hira = {
     title: 'ランキング',
     daily: (hours: readonly number[]) => `まいにち ${hours.map((h) => `${h}じ`).join(' と ')} に こうしん`,
     next: (s: string) => `つぎの こうしんまで ${s}`,
+    /** 予定の時刻を過ぎて、まだ新しいデータが無い（v2.7） */
+    updating: 'こうしん ちゅう…',
     hidden: '7にちいじょう レートたいせんを していない ひとは のらないよ',
     myRank: (n: number) => `あなたは ${n}い`,
     notYet: 'まだ のっていないよ。レートたいせんを すると つぎの こうしんで のるよ',

@@ -55,7 +55,10 @@ export function applyEventToView(view: GameState, e: GameEvent): GameState {
       ps.discard.push(e.itemUid);
       const item = v.cards[e.itemUid];
       const target = e.targetUid !== null ? v.cards[e.targetUid] : undefined;
-      if (item && target) target.itemsThisTurn = [...target.itemsThisTurn, item.no];
+      if (item && target) {
+        target.itemsThisTurn = [...target.itemsThisTurn, item.no];
+        target.itemsUsed = [...target.itemsUsed, item.no];
+      }
       break;
     }
     case 'BuffChanged': {

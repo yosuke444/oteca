@@ -160,8 +160,10 @@ describe('接続元のまとめ方・コードの言葉', () => {
       expect(findAdminCode('停止解除', w)).toBe('unsuspend');
       expect(findAdminCode('検索', w)).toBe('search');
       expect(findAdminCode('カンリログ', w)).toBe('log');
+      // v2.7：ランキング（いま更新する・レート対戦が始まったか）
+      expect(findAdminCode('らんきんぐ', w)).toBe('ranking');
       expect(findAdminCode('ちがう', w)).toBeNull();
-      expect(adminCodeList(w)).toHaveLength(6);
+      expect(adminCodeList(w)).toHaveLength(7);
     }
   });
 

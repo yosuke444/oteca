@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { prefetchTurn } from '../../net/iceServers';
 import { markStart } from '../../net/startTiming';
 import { OutdatedGuard, ReloadButton } from '../../ui/common/UpdateNotice';
 import { outdatedNow } from '../../update/update';
@@ -15,7 +16,7 @@ import type { RateSearch } from '../../net/matchmaker';
 import { type OnlineLink, createRateSearch, currentOnline, endOnline, startOnline } from '../../net/online';
 import type { RatePaired } from '../../net/rateLobby';
 import { safeName, startRateMatch } from '../../online/rate';
-import { type Identity, ensureIdentity, syncRanking } from '../../online/rankingApi';
+import { type Identity, ensureIdentity, reportMatchState, syncRanking } from '../../online/rankingApi';
 import { queueReport } from '../../online/ranking';
 import { RateValue } from '../../ui/common/RateValue';
 import { TrophyRow } from '../../ui/common/TrophyRow';
@@ -35,8 +36,11 @@ type Phase = { kind: 'idle' } | { kind: 'searching' } | { kind: 'vs'; opp: RateP
 
 /** VS 画面を出す時間（v2.7 で 2000 → 1400。演出スピードに合わせる） */
 const VS_MS = 1400;
-/** 相手が決まってから、この時間たっても対戦が始まらなければ さがし直す */
-const START_TIMEOUT_MS = 20000;
+/**
+ * 組んでから、この時間たっても対戦が始まらなければ、2人とも自動で待機に戻る（v2.7 で 20 → 15秒。受付係は列の先頭に入れる）。
+ * 勝ち負けは付けず、レートも変えない（試合は「無効」として報告）
+ */
+export const START_TIMEOUT_MS = 15000;
 
 /**
  * S15 レートたいせん（v2.0-G。UPDATE_v2 §8-4・SPEC §7 S15）
@@ -47,6 +51,10 @@ export function RateScene() {
   const { save, update } = useSave();
   const tr = useT();
   const fx = useFx();
+  // TURN の接続先を先にもらっておく（v2.7）
+  useEffect(() => {
+    void prefetchTurn(save);
+  }, []);
   /** 相手の停止の確認（種が決まったらすぐ始める。VS の間に済ませておく。v2.7） */
   const allowedRef = useRef<{ game: number; opp: string; ok: Promise<boolean> } | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
@@ -101,6 +109,8 @@ export function RateScene() {
     void allowed.then((ok) => {
       markStart('allowed');
       if (ok) {
+        // 始まった（v2.7。受付係に知らせる。管理画面の件数）
+        if (matchId && p?.viaLobby && features.ranking) void reportMatchState(saveRef.current, matchId, 'started');
         go('battle', onlineSetup(g, isDebugMode(), { oppRate, oppId: g.oppPlayerId, ...(matchId ? { matchId } : {}), ...(badges ? { badges } : {}) }));
         return;
       }
@@ -120,6 +130,10 @@ export function RateScene() {
     if (!p || toBattle.current || !features.ranking) return;
     update((d) => queueReport(d, { matchId: p.matchId, winner: 'void' }));
   };
+  /** つながらなかった試合の ID（次にさがす時に受付係へ。v2.7） */
+  const retryOfRef = useRef('');
+  /** 「つながらなかったので もういちど さがします」を出すか */
+  const [retryNote, setRetryNote] = useState(false);
   const abandonRef = useRef(abandonPair);
   abandonRef.current = abandonPair;
   /** 「さがす」を押している（token をもらう間に「やめる」を押したら、さがさない） */
@@ -127,6 +141,7 @@ export function RateScene() {
 
   const search = () => {
     if (!deckOk || lobbyRef.current || wantSearch.current) return;
+    setRetryNote(retryOfRef.current !== '');
     endOnline();
     setFallback(false);
     setPhase({ kind: 'searching' });
@@ -138,7 +153,10 @@ export function RateScene() {
       const cur = saveRef.current;
       // 相手の判別はユーザーID（v2.0-J）
       const userId = id?.userId ?? cur.userId;
-      const lobby = createRateSearch({ userId, name: cur.playerName, rate: cur.rate, trophies: cur.trophies.length, lastOpponentId: cur.lastRateOpponentId, token: id?.token ?? '' });
+      // つながらなかった後なら、その試合 ID を付けて列の先頭に入れてもらう（v2.7）
+      const retryOf = retryOfRef.current;
+      retryOfRef.current = '';
+      const lobby = createRateSearch({ userId, name: cur.playerName, rate: cur.rate, trophies: cur.trophies.length, lastOpponentId: cur.lastRateOpponentId, token: id?.token ?? '', ...(retryOf ? { retryOf } : {}) });
       lobbyRef.current = lobby;
       lobby.onWaiting = setCount;
       lobby.onFallback = () => setFallback(true);
@@ -233,10 +251,26 @@ export function RateScene() {
     }, vsDur(fx, VS_MS));
     const giveUp = window.setTimeout(() => {
       if (toBattle.current) return;
-      abandonRef.current();
+      // 組んでから15秒たっても始まらない（v2.7）：「つながらなかった」を受付係に知らせ、試合は無効（レートは変えない）。
+      // 列の先頭に入れてもらって、すぐ さがし直す
+      const p = pairedRef.current;
+      retryOfRef.current = p?.viaLobby ? p.matchId : '';
+      // 受付係が組んだ試合だけ：「つながらなかった」を先に知らせてから、無効の報告（試合の行が消える前に記録が残るように）
+      // （この試合の分を ここで決めておく。次に組んだ試合の印を消さないように）
+      pairedRef.current = null;
+      const failed = p && p.viaLobby && features.ranking ? reportMatchState(saveRef.current, p.matchId, 'failed') : Promise.resolve();
       endOnline();
       linkRef.current = null;
-      searchRef.current();
+      setPhase({ kind: 'searching' });
+      setRetryNote(true);
+      // 「つながらなかった」が受付係に届いてから さがし直す（列の先頭に入れてもらえるように）
+      void failed.finally(() => {
+        if (p && features.ranking) update((d) => queueReport(d, { matchId: p.matchId, winner: 'void' }));
+        if (mounted.current === 0) return;
+        searchRef.current();
+        // さがし直した後も「つながらなかったので…」を出す（予備の待合所の時も出す）
+        setRetryNote(true);
+      });
     }, START_TIMEOUT_MS);
     return () => {
       window.clearTimeout(id);
@@ -322,6 +356,11 @@ export function RateScene() {
             <p className="rate-scene__count blue-pen" data-testid="rate-count">
               {tr.rate.waitingCount(count)}
             </p>
+            {retryNote && (
+              <p className="rate-scene__retry red-pen" data-testid="rate-retry">
+                {tr.rate.retry}
+              </p>
+            )}
             {fallback && (
               <p className="rate-scene__busy pencil" data-testid="rate-fallback">
                 {tr.rate.busy}

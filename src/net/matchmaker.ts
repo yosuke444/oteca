@@ -78,7 +78,11 @@ export class RateSearch {
   private readonly setTimer: (fn: () => void, ms: number) => () => void;
 
   constructor(
-    private readonly opts: Pick<RateLobbyOptions, 'playerId' | 'name' | 'rate' | 'trophies' | 'lastOpponentId' | 'protocol'> & { tab?: string },
+    private readonly opts: Pick<RateLobbyOptions, 'playerId' | 'name' | 'rate' | 'trophies' | 'lastOpponentId' | 'protocol'> & {
+      tab?: string;
+      /** つながらなかった試合の ID（v2.7。受付係は待機の列の先頭に入れる） */
+      retryOf?: string;
+    },
     private readonly deps: RateSearchDeps,
   ) {
     this.setTimer = deps.setTimer ?? realTimer;
@@ -123,7 +127,7 @@ export class RateSearch {
       this.mode = 'lobby';
       const { playerId, protocol, lastOpponentId, name, rate } = this.opts;
       // 受付係には、ユーザーID（v2.0-J）を userId として送る。tab：このタブの印（v2.2。同じタブの入り直しは置き換え）
-      ws.send(JSON.stringify({ t: 'join', body: { userId: playerId, protocol, lastOpponentId, name, rate, ...(this.opts.tab ? { tab: this.opts.tab } : {}) } }));
+      ws.send(JSON.stringify({ t: 'join', body: { userId: playerId, protocol, lastOpponentId, name, rate, ...(this.opts.tab ? { tab: this.opts.tab } : {}), ...(this.opts.retryOf ? { retryOf: this.opts.retryOf } : {}) } }));
     };
     ws.onmessage = (ev) => {
       if (this.ws !== ws) return;

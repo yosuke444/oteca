@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { prefetchTurn } from '../../net/iceServers';
 import { markStart } from '../../net/startTiming';
 import { OutdatedGuard, ReloadButton } from '../../ui/common/UpdateNotice';
 import { useFx, vsDur } from '../../fx/fxSettings';
@@ -74,6 +75,10 @@ export function LobbyScene() {
   const { save, update } = useSave();
   const tr = useT();
   const fx = useFx();
+  // TURN の接続先を先にもらっておく（v2.7）
+  useEffect(() => {
+    void prefetchTurn(save);
+  }, []);
   /** 相手の停止の確認（種が決まったらすぐ始める。VS の間に済ませておく。v2.7） */
   const allowedRef = useRef<{ game: number; opp: string; ok: Promise<boolean> } | null>(null);
   const usable = usableDecks(save)

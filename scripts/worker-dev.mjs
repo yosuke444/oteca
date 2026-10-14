@@ -23,7 +23,7 @@ export async function startWorker(port = 8788) {
     env: { ...process.env, CI: '1' },
   });
   if (mig.status !== 0) throw new Error(`D1 の表を作れませんでした\n${mig.stdout}\n${mig.stderr}`);
-  const child = spawn('npx', ['wrangler', 'dev', '--port', String(port), '--persist-to', dir, '--var', 'METRICS:1', '--var', `ADMIN_KEY:${LOCAL_ADMIN_KEY}`], {
+  const child = spawn('npx', ['wrangler', 'dev', '--test-scheduled', '--port', String(port), '--persist-to', dir, '--var', 'METRICS:1', '--var', 'GAME_VERSION_URL:', '--var', `ADMIN_KEY:${LOCAL_ADMIN_KEY}`], {
     cwd: WORKER_DIR,
     shell: true,
     env: { ...process.env, CI: '1' },

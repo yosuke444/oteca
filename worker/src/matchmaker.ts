@@ -4,7 +4,9 @@ import { type MatchInfo, type Report, type ResultRow, acceptReport, cleanReport,
 import type { Env } from './env';
 import { randomHex } from './util';
 import { Db, runBatchJob } from './ranking';
-import { jstDay } from './logic/batch';
+import { jstDay, nextBatchAt } from './logic/batch';
+import { BATCH_CHUNK, BATCH_CONTINUE_MS, shouldRunScheduled } from './logic/schedule';
+import { START_KEEP_DAYS, type StartState, cleanStartReport, mergeStart, retryFront } from './logic/start';
 import { CLOSE_VERSION, VERSION_CACHE_MS, VERSION_FETCH_MS, currentProtocol, isTooOld, readProtocol } from './logic/version';
 
 /**
@@ -78,10 +80,15 @@ export class Matchmaker extends DurableObject<Env> {
     this.exec(`DROP TABLE IF EXISTS results`);
     // まとめ処理の途中の印（D1 に書く直前に、処理する試合ID を1行で覚える。失敗した時に二重に数えないように）
     this.exec(`CREATE TABLE IF NOT EXISTS batch_state (id TEXT PRIMARY KEY, match_ids TEXT NOT NULL) WITHOUT ROWID`);
-    // その日に数えた数（v2.0-J。1日2回の まとめ処理をまたいで「予備の待合所の試合は1人1日10試合まで」を数える。
-    // v2.7 で「同じ2人は1日3試合まで」はやめた）。1日16行（キーの散らし先ごとに JSON。キーは 日付:f:人）。書き込み行を試合の数で増やさず、1行も大きくしない
+    // レート対戦が始まった・つながらなかった（v2.7）。a・b：その試合の2人、created：組んだ時刻（試合の行が消えた後も、さがし直しの判定に使う）
+    this.exec(`CREATE TABLE IF NOT EXISTS match_starts (id TEXT PRIMARY KEY, state TEXT NOT NULL, at INTEGER NOT NULL, a TEXT NOT NULL, b TEXT NOT NULL, created INTEGER NOT NULL)`);
+    this.exec(`CREATE INDEX IF NOT EXISTS match_starts_at ON match_starts (at)`);
+    // まとめ処理の続きが残っているか（v2.7）
+    this.exec(`CREATE TABLE IF NOT EXISTS batch_more (id INTEGER PRIMARY KEY, more INTEGER NOT NULL)`);
     // 公開している版（v2.7。version.json の protocol と読んだ時刻）
     this.exec(`CREATE TABLE IF NOT EXISTS version_cache (id INTEGER PRIMARY KEY, protocol INTEGER, at INTEGER NOT NULL)`);
+    // その日に数えた数（v2.0-J。1日2回の まとめ処理をまたいで「予備の待合所の試合は1人1日10試合まで」を数える。
+    // v2.7 で「同じ2人は1日3試合まで」はやめた）。1日16行（キーの散らし先ごとに JSON。キーは 日付:f:人）。書き込み行を試合の数で増やさず、1行も大きくしない
     this.exec(`DROP TABLE IF EXISTS day_counts`);
     this.exec(`DROP TABLE IF EXISTS day_counts2`);
     this.exec(`CREATE TABLE IF NOT EXISTS day_counts3 (day INTEGER NOT NULL, bucket INTEGER NOT NULL, counts TEXT NOT NULL, PRIMARY KEY (day, bucket)) WITHOUT ROWID`);
@@ -104,8 +111,98 @@ export class Matchmaker extends DurableObject<Env> {
     return rows;
   }
 
+
+  /**
+   * まとめ処理（v2.7 で関数に）。scheduled：予定の更新（Cron・目覚まし）。その回が済んでいて続きも無ければ何もしない（2回動いても同じ）。
+   * 試合が多ければ BATCH_CHUNK ずつに分け、続きは1秒後の目覚ましで（途中で止まっても、次に動いた時に続きから）
+   */
+  private async batch(now: number, scheduled: boolean): Promise<Record<string, unknown>> {
+    const db = new Db(this.env.DB);
+    const more = (this.exec<{ more: number }>(`SELECT more FROM batch_more WHERE id = 1`)[0]?.more ?? 0) === 1;
+    if (scheduled) {
+      const updated = Number((await db.all<{ u: number | null }>(`SELECT json_extract(value, '$.updatedAt') AS u FROM meta WHERE key = 'ranking'`))[0]?.u ?? 0);
+      if (!shouldRunScheduled(updated, now, more)) return { ok: true, skipped: 'done' };
+    }
+    const out = await runBatchJob(db, {
+      exportResults: (n) => this.exportResults(n),
+      ack: (ids) => this.ack(ids),
+      pending: () => {
+        const r = this.exec<{ id: string; match_ids: string }>(`SELECT id, match_ids FROM batch_state`)[0];
+        if (!r) return null;
+        const v = JSON.parse(r.match_ids) as string[] | { matchIds: string[] };
+        return { id: r.id, matchIds: Array.isArray(v) ? v : v.matchIds };
+      },
+      setPending: (p) => {
+        this.exec(`DELETE FROM batch_state`);
+        if (p) this.exec(`INSERT INTO batch_state (id, match_ids) VALUES (?, ?)`, p.id, JSON.stringify({ matchIds: p.matchIds }));
+      },
+      dayCounts: () => {
+        const m = new Map<string, number>();
+        for (const r of this.exec<{ counts: string }>(`SELECT counts FROM day_counts3`)) for (const [k, v] of JSON.parse(r.counts) as [string, number][]) m.set(k, v);
+        return m;
+      },
+      saveDayCounts: (changed, at) => {
+        // 日と散らし先ごとにまとめて、その行だけを書き直す
+        const groups = new Map<string, { day: number; bucket: number; list: [string, number][] }>();
+        for (const [k, v] of changed) {
+          const day = Number(k.slice(0, k.indexOf(':')));
+          const bucket = bucketOf(k);
+          const g = groups.get(`${day}:${bucket}`) ?? { day, bucket, list: [] };
+          g.list.push([k, v]);
+          groups.set(`${day}:${bucket}`, g);
+        }
+        for (const { day, bucket, list } of groups.values()) {
+          const row = this.exec<{ counts: string }>(`SELECT counts FROM day_counts3 WHERE day = ? AND bucket = ?`, day, bucket)[0];
+          const m = new Map<string, number>(row ? (JSON.parse(row.counts) as [string, number][]) : []);
+          for (const [k, v] of list) m.set(k, v);
+          this.exec(
+            `INSERT INTO day_counts3 (day, bucket, counts) VALUES (?, ?, ?) ON CONFLICT(day, bucket) DO UPDATE SET counts = excluded.counts`,
+            day,
+            bucket,
+            JSON.stringify([...m]),
+          );
+        }
+        // 3日より古い日は消す（まとめ処理が止まっていて、遅れて届いた試合のために、3日分は残す）
+        this.exec(`DELETE FROM day_counts3 WHERE day < ?`, jstDay(at - DAY_COUNTS_KEEP_DAYS * 24 * 60 * 60 * 1000));
+      },
+    }, now, BATCH_CHUNK);
+    // 多ければ古い方から BATCH_CHUNK 試合だけ。続きは1秒後の目覚まし（v2.7）
+    const left = Number(out.remaining ?? 0) > 0;
+    // 始まった・つながらなかったの記録は30日分（まとめ処理の時に古いものを消す）
+    this.exec(`DELETE FROM match_starts WHERE at < ?`, now - START_KEEP_DAYS * 24 * 60 * 60 * 1000);
+    this.exec(`INSERT INTO batch_more (id, more) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET more = excluded.more`, left ? 1 : 0);
+    if (left) await this.ctx.storage.setAlarm(Date.now() + BATCH_CONTINUE_MS);
+    return { ...out, more: left, d1Read: db.read, d1Written: db.written };
+  }
+
+  /** 次の予定の更新の時刻に目覚ましをかける（かかっていなければ。v2.7） */
+  private async ensureAlarm(): Promise<void> {
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(nextBatchAt(Date.now()));
+  }
+
+  /** 目覚まし（v2.7）：予定の時刻ちょうどに まとめ処理（Cron が遅れても）。終わったら次の予定にかけ直す */
+  async alarm(): Promise<void> {
+    if (!this.batching) {
+      this.batching = true;
+      try {
+        await this.batch(Date.now(), true);
+      } finally {
+        this.batching = false;
+      }
+    } else {
+      // ほかの まとめ処理の途中：少し後でもう一度
+      await this.ctx.storage.setAlarm(Date.now() + BATCH_CONTINUE_MS);
+      return;
+    }
+    // 続きが無ければ、次の予定の時刻に かけ直す（目覚ましの途中では getAlarm が今の目覚ましを返すことがあるので、必ず かけ直す）
+    const more = (this.exec<{ more: number }>(`SELECT more FROM batch_more WHERE id = 1`)[0]?.more ?? 0) === 1;
+    if (!more) await this.ctx.storage.setAlarm(nextBatchAt(Date.now()));
+  }
+
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
+    // 予定の更新の目覚まし（かかっていなければ。v2.7）
+    await this.ensureAlarm();
     this.metrics = { rowsRead: 0, rowsWritten: 0 };
     let res: Response;
     switch (url.pathname) {
@@ -114,6 +211,30 @@ export class Matchmaker extends DurableObject<Env> {
       case '/report':
         res = await this.report(req);
         break;
+      case '/match-state': {
+        // レート対戦が始まった・つながらなかった（v2.7。index.ts で token を確かめた後）
+        const b = (await req.json().catch(() => null)) as { playerId?: string } | null;
+        const r = cleanStartReport(b);
+        // 2人目の知らせは、試合の行が（無効の報告で）消えた後に届くこともある：前の記録の2人で確かめる
+        const prev = r ? (this.exec<{ state: StartState; a: string; b: string; created: number }>(`SELECT state, a, b, created FROM match_starts WHERE id = ?`, r.matchId)[0] ?? null) : null;
+        const g = r ? this.game(r.matchId) : null;
+        const pair = prev ? { a: prev.a, b: prev.b, created: Number(prev.created) } : g && g.known === 1 ? { a: g.a, b: g.b, created: Number(g.created) } : null;
+        if (!r || !pair || (pair.a !== b?.playerId && pair.b !== b?.playerId)) {
+          res = Response.json({ ok: false, error: 'bad' }, { status: 400 });
+          break;
+        }
+        this.exec(
+          `INSERT INTO match_starts (id, state, at, a, b, created) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET state = excluded.state`,
+          r.matchId,
+          mergeStart(prev?.state ?? null, r.state),
+          Date.now(),
+          pair.a,
+          pair.b,
+          pair.created,
+        );
+        res = Response.json({ ok: true });
+        break;
+      }
       case '/batch': {
         // まとめ処理（毎日 日本時間 4:00 と 16:00。Worker の Cron・管理キーから）。D1 も受付係の中から書く。同時に1つだけ
         if (this.batching) {
@@ -122,56 +243,12 @@ export class Matchmaker extends DurableObject<Env> {
         }
         this.batching = true;
         try {
-          const body = (await req.json().catch(() => null)) as { now?: unknown } | null;
+          const body = (await req.json().catch(() => null)) as { now?: unknown; scheduled?: unknown } | null;
           const now = Number.isSafeInteger(body?.now) ? (body!.now as number) : Date.now();
-          const db = new Db(this.env.DB);
-          res = Response.json(
-            await runBatchJob(db, {
-              exportResults: (n) => this.exportResults(n),
-              ack: (ids) => this.ack(ids),
-              pending: () => {
-                const r = this.exec<{ id: string; match_ids: string }>(`SELECT id, match_ids FROM batch_state`)[0];
-                if (!r) return null;
-                const v = JSON.parse(r.match_ids) as string[] | { matchIds: string[] };
-                return { id: r.id, matchIds: Array.isArray(v) ? v : v.matchIds };
-              },
-              setPending: (p) => {
-                this.exec(`DELETE FROM batch_state`);
-                if (p) this.exec(`INSERT INTO batch_state (id, match_ids) VALUES (?, ?)`, p.id, JSON.stringify({ matchIds: p.matchIds }));
-              },
-              dayCounts: () => {
-                const m = new Map<string, number>();
-                for (const r of this.exec<{ counts: string }>(`SELECT counts FROM day_counts3`)) for (const [k, v] of JSON.parse(r.counts) as [string, number][]) m.set(k, v);
-                return m;
-              },
-              saveDayCounts: (changed, at) => {
-                // 日と散らし先ごとにまとめて、その行だけを書き直す
-                const groups = new Map<string, { day: number; bucket: number; list: [string, number][] }>();
-                for (const [k, v] of changed) {
-                  const day = Number(k.slice(0, k.indexOf(':')));
-                  const bucket = bucketOf(k);
-                  const g = groups.get(`${day}:${bucket}`) ?? { day, bucket, list: [] };
-                  g.list.push([k, v]);
-                  groups.set(`${day}:${bucket}`, g);
-                }
-                for (const { day, bucket, list } of groups.values()) {
-                  const row = this.exec<{ counts: string }>(`SELECT counts FROM day_counts3 WHERE day = ? AND bucket = ?`, day, bucket)[0];
-                  const m = new Map<string, number>(row ? (JSON.parse(row.counts) as [string, number][]) : []);
-                  for (const [k, v] of list) m.set(k, v);
-                  this.exec(
-                    `INSERT INTO day_counts3 (day, bucket, counts) VALUES (?, ?, ?) ON CONFLICT(day, bucket) DO UPDATE SET counts = excluded.counts`,
-                    day,
-                    bucket,
-                    JSON.stringify([...m]),
-                  );
-                }
-                // 3日より古い日は消す（まとめ処理が止まっていて、遅れて届いた試合のために、3日分は残す）
-                this.exec(`DELETE FROM day_counts3 WHERE day < ?`, jstDay(at - DAY_COUNTS_KEEP_DAYS * 24 * 60 * 60 * 1000));
-              },
-            }, now),
-          );
-          res.headers.set('x-d1-rows-read', String(db.read));
-          res.headers.set('x-d1-rows-written', String(db.written));
+          const out = await this.batch(now, body?.scheduled === true);
+          res = Response.json(out);
+          res.headers.set('x-d1-rows-read', String(out.d1Read ?? 0));
+          res.headers.set('x-d1-rows-written', String(out.d1Written ?? 0));
         } finally {
           this.batching = false;
         }
@@ -204,7 +281,11 @@ export class Matchmaker extends DurableObject<Env> {
         // 数える読み込みは、どちらの合計にも入れない（見積もりがずれないように）
         const totals = { ...this.totals };
         const n = (where: string) => Number(this.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM games WHERE ${where}`)[0]?.n ?? 0);
-        const body = { open: n('winner IS NULL'), results: n('winner IS NOT NULL'), waiting: this.conns().length, totals };
+        // レート対戦が始まった・つながらなかった（v2.7。30日分と、この24時間）
+        const st = (state: string, since: number) => Number(this.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM match_starts WHERE state = ? AND at >= ?`, state, since)[0]?.n ?? 0);
+        const day = Date.now() - 24 * 60 * 60 * 1000;
+        const starts = { started: st('started', 0), failed: st('failed', 0), started24h: st('started', day), failed24h: st('failed', day) };
+        const body = { open: n('winner IS NULL'), results: n('winner IS NOT NULL'), waiting: this.conns().length, totals, starts };
         this.totals = url.searchParams.get('reset') === '1' ? { wsMessages: 0, rowsRead: 0, rowsWritten: 0, paired: 0 } : { ...totals, ...this.totals, rowsRead: totals.rowsRead };
         res = Response.json(body);
         break;
@@ -312,7 +393,14 @@ export class Matchmaker extends DurableObject<Env> {
     this.seq = (this.seq + 1) % 1e9;
     // レートとトロフィーの数は、サーバーの記録（v2.2）。無ければ端末が送ってきたレート
     const rec = serverRecord(this.ctx.getTags(ws));
-    ws.serializeAttachment({ ...j, rate: rec?.rate ?? j.rate, trophies: rec?.trophies ?? 0, id: randomHex(8), joinedAt: Date.now(), seq: this.seq, state: 'waiting' } satisfies Attachment);
+    // つながらなかった2人（retryOf：その試合ID）は、待機の列の先頭に入れる（v2.7）
+    const retryOf = typeof (m.body as { retryOf?: unknown } | null)?.retryOf === 'string' ? String((m.body as { retryOf: string }).retryOf) : '';
+    // 試合の行は無効の報告で消えていることがあるので、「つながらなかった」の記録（2人と組んだ時刻）で確かめる
+    const rs = /^[0-9a-f]{16}$/.test(retryOf) ? (this.exec<{ state: StartState; a: string; b: string; created: number }>(`SELECT state, a, b, created FROM match_starts WHERE id = ?`, retryOf)[0] ?? null) : null;
+    const front = retryFront(rs ? { a: rs.a, b: rs.b, created: Number(rs.created) } : null, rs?.state ?? null, j.playerId, Date.now());
+    // つながらなかった相手は「直前の相手」として扱う（ほかに待っている人がいれば、その人と組む。2人だけなら また組む）
+    const failedOpp = front && rs ? (rs.a === j.playerId ? rs.b : rs.a) : '';
+    ws.serializeAttachment({ ...j, ...(failedOpp ? { lastOpponentId: failedOpp } : {}), rate: rec?.rate ?? j.rate, trophies: rec?.trophies ?? 0, id: randomHex(8), joinedAt: front ? 0 : Date.now(), seq: this.seq, state: 'waiting' } satisfies Attachment);
     const left = this.match(this.conns());
     this.broadcastCounts(left);
   }

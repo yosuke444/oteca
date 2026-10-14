@@ -1,8 +1,6 @@
 import type { Env } from './env';
-import { isVisible, lastBatchAt, nextBatchAt } from './logic/batch';
-
-/** まとめ処理が遅れている時に、端末が聞き直すまでの時間 */
-const LATE_RETRY_MS = 5 * 60 * 1000;
+import { rankingTiming } from './logic/schedule';
+import { isVisible } from './logic/batch';
 import { Db, type PlayerRow, rerank, writeSnapshot } from './ranking';
 import { sameText, sha256Hex } from './util';
 import { isUserId } from '../../src/save/userId';
@@ -182,6 +180,21 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     return json(await res.json(), res.status);
   }
 
+  // レート対戦が始まった・つながらなかった（v2.7）
+  if (p === '/match-state' && req.method === 'POST') {
+    const b = await body(req);
+    if (!(await authed(c, b.userId, b.token))) return json({ error: 'auth' }, 401);
+    const res = await c.lobby('/match-state', { method: 'POST', body: JSON.stringify({ matchId: b.matchId, playerId: b.userId, state: b.state }) });
+    return json(await res.json(), res.status);
+  }
+
+  // TURN の接続先（v2.7）：Cloudflare Realtime の TURN キーから、3時間使える合言葉を作る（30分は同じものを返す）。無ければ空。
+  // 登録した人（ユーザーID と token）だけに渡す（ほかの人に中継を使われないように）
+  if (p === '/turn' && req.method === 'GET') {
+    if (!(await authed(c, url.searchParams.get('userId'), url.searchParams.get('token')))) return json({ iceServers: [] }, 401, { 'cache-control': 'no-store' });
+    return json({ iceServers: await turnServers(c.env, now) }, 200, { 'cache-control': 'no-store' });
+  }
+
   if (p === '/profile' && req.method === 'POST') {
     const b = await body(req);
     if (b.userId === undefined && isLegacyId(b.playerId)) return json({ error: 'upgrade' }, 426);
@@ -206,14 +219,16 @@ async function route(req: Request, c: Ctx): Promise<Response> {
       const row = (await c.all<PlayerRow>(`SELECT * FROM players WHERE id = ?`, userId))[0];
       me = meOf(row, now);
     }
-    // 更新の時刻（4:00・16:00）を過ぎたのに まとめ処理がまだ終わっていない：5分後に聞き直してもらう（古い一覧を次の更新まで覚えさせない）
+    // 次の更新（v2.7）：済んでいれば次の予定の時刻。予定の時刻を過ぎたのに まだなら、その時刻と updating（時間を延ばして見せない）。
+    // serverNow：端末の時計がずれていても、サーバーの時刻で数えられるように。保存（キャッシュ）はさせない
     const updated = Number((await c.all<{ u: number | null }>(`SELECT json_extract(value, '$.updatedAt') AS u FROM meta WHERE key = 'ranking'`))[0]?.u ?? 0);
-    const next = updated < lastBatchAt(now) && updated > 0 ? now + LATE_RETRY_MS : nextBatchAt(now);
+    const timing = rankingTiming(updated, now);
+    const noStore = { 'cache-control': 'no-store' };
     // 最後に まとめ処理が終わった時刻（予定の 4:00 ではなく、本当に写しを作った時刻。遅れた時に古いデータを正式としないように）
-    if (p === '/me') return json({ me, updatedAt: updated, nextAt: next });
+    if (p === '/me') return json({ me, updatedAt: updated, ...timing, serverNow: now }, 200, noStore);
     const snap = (await c.all<{ value: string }>(`SELECT value FROM meta WHERE key = 'ranking'`))[0];
     const ranking = snap ? (JSON.parse(snap.value) as { top: unknown[]; updatedAt: number }) : { top: [], updatedAt: 0 };
-    return json({ ...ranking, me, nextAt: next });
+    return json({ ...ranking, me, ...timing, serverNow: now }, 200, noStore);
   }
 
   // 郵便受け（v2.0-J。届いたトロフィー）
@@ -251,7 +266,8 @@ async function route(req: Request, c: Ctx): Promise<Response> {
       }
       case '/admin/run-batch': {
         // 確かめる時用：b.now で まとめ処理の時刻を変えられる（7日の非表示を確かめる）
-        const at = Number.isSafeInteger(b.now) && (b.now as number) > 0 ? (b.now as number) : now;
+        // b.now（時刻を変える）は管理キーの時だけ（確かめ用）。管理画面（合言葉）からは今の時刻で（未来の時刻にして予定の更新が止まらないように。v2.7）
+        const at = req.headers.get('x-admin-key') && Number.isSafeInteger(b.now) && (b.now as number) > 0 ? (b.now as number) : now;
         return json(await batchViaLobby(c, at));
       }
       case '/admin/stats': {
@@ -316,8 +332,9 @@ async function route(req: Request, c: Ctx): Promise<Response> {
 }
 
 /** まとめ処理を受付係に頼む */
-async function batchViaLobby(c: Ctx, now: number): Promise<Record<string, unknown>> {
-  const res = await c.lobby('/batch', { method: 'POST', body: JSON.stringify({ now }) });
+/** まとめ処理を受付係に頼む。scheduled：予定の更新（済んでいれば何もしない）。そうでなければ今すぐ（管理画面・確かめ用） */
+async function batchViaLobby(c: Ctx, now: number, scheduled = false): Promise<Record<string, unknown>> {
+  const res = await c.lobby('/batch', { method: 'POST', body: JSON.stringify({ now, scheduled }) });
   return (await res.json()) as Record<string, unknown>;
 }
 
@@ -356,6 +373,33 @@ export default {
 
   async scheduled(_ev: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     // まとめ処理は受付係の中で（Worker は待つだけ。CPU 時間をほとんど使わない）
-    ctx.waitUntil(batchViaLobby(new Ctx(env), Date.now()).then(() => undefined));
+    // 予定の更新：その回が もう済んでいれば何もしない（受付係の目覚ましが先に動いた時など。v2.7）
+    ctx.waitUntil(batchViaLobby(new Ctx(env), Date.now(), true).then(() => undefined));
   },
 };
+
+/** TURN の合言葉（1時間は同じものを使う。Worker の入れ物ごと） */
+let turnCache: { at: number; servers: unknown[] } | null = null;
+const TURN_TTL_S = 3 * 60 * 60;
+/** 同じ合言葉を返す時間（端末も30分まで使う。合言葉は3時間使えるので、対戦の途中で切れない） */
+const TURN_REUSE_MS = 30 * 60 * 1000;
+
+async function turnServers(env: Env, now: number): Promise<unknown[]> {
+  if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return [];
+  if (turnCache && now - turnCache.at < TURN_REUSE_MS) return turnCache.servers;
+  try {
+    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ ttl: TURN_TTL_S }),
+      signal: AbortSignal.timeout(3000),
+    });
+    const b = res.ok ? ((await res.json()) as { iceServers?: unknown }) : null;
+    const list = Array.isArray(b?.iceServers) ? b.iceServers : b?.iceServers ? [b.iceServers] : [];
+    if (list.length) turnCache = { at: now, servers: list };
+    return list;
+  } catch {
+    // 作れなかった：前の合言葉が まだ新しければ それを（古ければ空）
+    return turnCache && now - turnCache.at < TURN_REUSE_MS * 2 ? turnCache.servers : [];
+  }
+}
