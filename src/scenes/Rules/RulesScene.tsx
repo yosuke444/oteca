@@ -170,7 +170,7 @@ function buildPages(tr: Dict, lang: Lang): Page[] {
           ))}
         </div>
       ),
-      more: [P.p5.moreFullHp, ...stackRules(tr).map((x) => x + P.sentenceEnd), P.p5.moreBench].join(''),
+      more: [P.p5.moreFullHp, ...items.filter((c) => c.kind === 'item' && c.blocksHeal).map((c) => P.p5.moreNoHeal(c.name)), ...stackRules(tr).map((x) => x + P.sentenceEnd), P.p5.moreBench].join(''),
     },
     {
       title: P.p6.title,

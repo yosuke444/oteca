@@ -5,6 +5,7 @@ import {
   defOf,
   drawOne,
   endGame,
+  healBlocked,
   isOver,
   faint,
   isInPlay,
@@ -14,7 +15,7 @@ import {
   promote,
   rollDie,
 } from './core';
-import { applyChoice, clearLastingOnBench, fireLasting, runEffect, runQueue } from './effects';
+import { applyChoice, clearLastingHeal, clearLastingOnBench, fireLasting, runEffect, runQueue } from './effects';
 import type {
   Action,
   ApplyResult,
@@ -142,6 +143,8 @@ export function validateAction(s: GameState, action: Action): RejectReason | nul
       const zone = ps.active === target.uid ? 'active' : ps.bench.includes(target.uid) ? 'bench' : null;
       if (!zone || !item.target.zones.includes(zone)) return 'badTarget';
       if (!item.target.rarity.includes(targetDef.rarity)) return 'badTarget';
+      // 回復できないおてあげ（きみょうなドリンクを使った。v2.7）には、回復のアイテムを使えない（「まんたん」より先に言う）
+      if (item.effects.some((e) => e.type === 'heal') && healBlocked(s, target.uid)) return 'healBlocked';
       if (item.useCondition === 'notFullHp' && target.hp >= target.maxHp) return 'fullHp';
       if (blockedItemOn(s, item.blockedIfUsedThisTurn, target.itemsThisTurn) !== null) return 'stackBlocked';
       // 1回の対戦で、同じおてあげには1回だけ（スポドリ。v2.7）
@@ -252,15 +255,21 @@ function doUseItem(ctx: Ctx, player: Side, itemUid: string, targetUid: string | 
   if (!item || item.kind !== 'item') return;
   ps.hand = ps.hand.filter((u) => u !== itemUid);
   ps.discard.push(itemUid);
+  // すでに回復できないおてあげには、このアイテムでも HP を上げない（v2.7。2本目のドリンクで HP5 → 10 にしない）
+  const wasBlocked = targetUid !== undefined && healBlocked(ctx.s, targetUid);
   if (targetUid !== undefined) {
     ctx.s.cards[targetUid].itemsThisTurn.push(item.no);
     ctx.s.cards[targetUid].itemsUsed.push(item.no);
   }
   ctx.events.push({ type: 'ItemUsed', player, itemUid, targetUid: targetUid ?? null });
+  // 回復できなくなる（きみょうなドリンク。v2.7）：付いている持続回復は、すぐ消える
+  if (item.blocksHeal && targetUid !== undefined) clearLastingHeal(ctx, targetUid);
   // アイテムの効果はデータに書いた順（やばいつぼ：引く → 捨てる）。カードを選ぶ必要があれば止まる
   const src: EffectSourceData = targetUid !== undefined ? { kind: 'item', player, sourceUid: itemUid, targetUid } : { kind: 'item', player, sourceUid: itemUid };
   const queue: QueuedEffect[] = item.effects.map((effect) => ({ effect, src, stage: 'act' }));
+  if (wasBlocked) ctx.noRaiseHp = targetUid;
   runQueue(ctx, queue, { kind: 'main' });
+  ctx.noRaiseHp = undefined;
 }
 
 function doSwap(ctx: Ctx, player: Side, benchUid: string): void {

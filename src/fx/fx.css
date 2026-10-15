@@ -151,6 +151,15 @@
   -webkit-text-stroke: 1px var(--paper);
   paint-order: stroke fill;
 }
+/* 回復できない（きみょうなドリンク。v2.7）：回復の数字の代わりの「×」 */
+.fx-write--noheal {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 64px;
+  color: var(--pen-purple);
+  -webkit-text-stroke: 1px var(--paper);
+  paint-order: stroke fill;
+}
 .fx-write--item {
   font-size: 30px;
 }

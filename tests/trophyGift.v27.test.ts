@@ -347,7 +347,7 @@ describe('⑦ 閉じていた人は、次に開いた時に受け取る', () => 
 });
 
 describe('全体', () => {
-  it('プロトコル版数を上げた（17）', () => {
-    expect(protocolVersion).toBe(17);
+  it('プロトコル版数を上げた（17 以上。v2.7 のバランス調整で 18）', () => {
+    expect(protocolVersion).toBeGreaterThanOrEqual(17);
   });
 });

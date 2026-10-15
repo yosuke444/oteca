@@ -1,4 +1,5 @@
 import { moveDamage, ruleBonus } from '../engine/effects';
+import { healBlocked } from '../engine/core';
 import { DICE_FACES } from '../engine/rules';
 import type { GameState, OtegeCardDef, Side } from '../engine/types';
 
@@ -42,6 +43,8 @@ export function outcomes(s: GameState, uid: string, extraAdd = 0): Outcome[] {
   const c = s.cards[uid];
   const def = otegeDef(s, uid);
   const out: Outcome[] = [];
+  // 回復できないおてあげ（きみょうなドリンクを使った。v2.7）は、回復の技でも回復しない
+  const noHeal = healBlocked(s, uid);
   for (let face = 1; face <= DICE_FACES; face++) {
     const move = def?.moves.find((m) => m.faces.includes(face));
     const o: Outcome = { damage: 0, later: 0, heal: 0, healLater: 0, self: 0, selfLater: 0, draw: 0, bomb: false, discard: 0 };
@@ -53,6 +56,7 @@ export function outcomes(s: GameState, uid: string, extraAdd = 0): Outcome[] {
           o.later += (e.then ?? []).reduce((t, x) => t + (x > 0 ? x + ruleBonus(s, c.owner, x) : 0), 0);
           break;
         case 'heal':
+          if (noHeal) break;
           o.heal += e.amount;
           o.healLater += sum(e.then);
           break;

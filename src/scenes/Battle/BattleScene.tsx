@@ -637,7 +637,7 @@ export function BattleScene({ setup: setupProp, guide }: { setup?: BattleSetup; 
         for (const t of [ps.active, ...ps.bench]) {
           if (!t) continue;
           const r = validateAction(v, { type: 'USE_ITEM', player: me, uid, targetUid: t });
-          if (r === 'stackBlocked' || r === 'usedOnce') return useItemReason(v, r, uid, t);
+          if (r === 'stackBlocked' || r === 'usedOnce' || r === 'healBlocked') return useItemReason(v, r, uid, t);
         }
         return R.noTarget;
       }

@@ -8,7 +8,8 @@ import type { CardDef, CardInstance, EndReason, GameEvent, GameState, OtegeCardD
  */
 
 /** 処理中の状態と、出たイベントの列 */
-export type Ctx = { s: GameState; events: GameEvent[] };
+/** noRaiseHp：この処理の間、HP を上げないおてあげ（すでに回復できないおてあげに、もう一度ドリンクを使った時。v2.7） */
+export type Ctx = { s: GameState; events: GameEvent[]; noRaiseHp?: string };
 
 export const SIDES: readonly Side[] = ['p1', 'p2'];
 
@@ -138,10 +139,23 @@ export function dealDamage(ctx: Ctx, uid: string, amount: number, by: Side, defe
   else faint(ctx, uid, by);
 }
 
-/** 回復する。最大HPは超えない */
+/** 回復できないおてあげか（この対戦で blocksHeal のアイテム＝きみょうなドリンクを使った。交代しても変わらない。v2.7） */
+export function healBlocked(s: GameState, uid: string): boolean {
+  const c = s.cards[uid];
+  return !!c && c.itemsUsed.some((no) => {
+    const d = s.cardDefs[no];
+    return d?.kind === 'item' && d.blocksHeal === true;
+  });
+}
+
+/** 回復する。最大HPは超えない。回復できないおてあげ（v2.7）には何もしない（HealBlocked だけ） */
 export function heal(ctx: Ctx, uid: string, amount: number): void {
   const c = ctx.s.cards[uid];
   if (!c || !isInPlay(ctx.s, uid) || isOver(ctx.s)) return;
+  if (healBlocked(ctx.s, uid)) {
+    ctx.events.push({ type: 'HealBlocked', uid });
+    return;
+  }
   const healed = Math.max(0, Math.min(amount, c.maxHp - c.hp));
   c.hp += healed;
   ctx.events.push({ type: 'Healed', uid, amount: healed, hpAfter: c.hp });
@@ -151,7 +165,9 @@ export function heal(ctx: Ctx, uid: string, amount: number): void {
 export function setHp(ctx: Ctx, uid: string, value: number): void {
   const c = ctx.s.cards[uid];
   if (!c || !isInPlay(ctx.s, uid) || isOver(ctx.s)) return;
-  c.hp = Math.max(0, Math.min(value, c.maxHp));
+  // すでに回復できないおてあげ（v2.7）は、HP を指定の値にする時も上がらない（下がるだけ）
+  const to = ctx.noRaiseHp === uid ? Math.min(value, c.hp) : value;
+  c.hp = Math.max(0, Math.min(to, c.maxHp));
   ctx.events.push({ type: 'HpSet', uid, hpAfter: c.hp });
   if (c.hp <= 0) faint(ctx, uid, other(c.owner));
 }

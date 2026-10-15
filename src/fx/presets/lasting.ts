@@ -291,7 +291,8 @@ export async function lastingTickedAfter(env: FxEnv, e: Ev<'LastingTicked'>, ctx
 
 export async function lastingClearedBefore(env: FxEnv, e: Ev<'LastingCleared'>): Promise<void> {
   const els = e.seqs.map((seq) => env.root.querySelector<HTMLElement>(`.lasting-table [data-seq="${seq}"]`)).filter((x): x is HTMLElement => !!x);
-  const more = env.root.querySelectorAll<HTMLElement>(`[data-lasting-uid="${e.uid}"] .lasting-more`);
+  // 回復だけが消える時（ドリンク。v2.7）は、ダメージの札が残るので「+N」は動かさない
+  const more = e.reason === 'noHeal' ? [] : env.root.querySelectorAll<HTMLElement>(`[data-lasting-uid="${e.uid}"] .lasting-more`);
   const all = [...els, ...more];
   if (all.length === 0) return;
   env.sound('se_lasting_clear');

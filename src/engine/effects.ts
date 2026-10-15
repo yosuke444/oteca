@@ -1,4 +1,4 @@
-import { type Ctx, dealDamage, discardCards, drawOne, heal, isInPlay, isOver, isSearchable, other, setHp } from './core';
+import { type Ctx, dealDamage, discardCards, drawOne, heal, healBlocked, isInPlay, isOver, isSearchable, other, setHp } from './core';
 import { shuffleInPlace } from './rng';
 import type {
   CardInstance,
@@ -37,6 +37,11 @@ export const effectHandlers: { [T in EffectType]: Handler<T> } = {
 
   /** 回復（技なら自分自身、アイテムなら選んだ対象）。999 は最大まで（最大HPを超えないので同じ） */
   heal(ctx, effect, src) {
+    // 回復できないおてあげ（v2.7）：今すぐの回復が0で「あとから」だけの目（すりむ など）でも「×」を出す
+    if (effect.amount <= 0 && (effect.then ?? []).some((n) => n > 0) && healBlocked(ctx.s, targetOf(src)) && isInPlay(ctx.s, targetOf(src))) {
+      ctx.events.push({ type: 'HealBlocked', uid: targetOf(src) });
+      return;
+    }
     if (effect.amount <= 0) return;
     heal(ctx, targetOf(src), effect.amount);
   },
@@ -173,7 +178,8 @@ export function registerLasting(ctx: Ctx, effect: Effect, src: EffectSource): vo
       if (onActive(hit)) each(effect.then, (a, t) => add('damage', a, hit, t));
       break;
     case 'heal':
-      if (onActive(src.sourceUid)) each(effect.then, (a, t) => add('heal', a, src.sourceUid, t));
+      // 回復できないおてあげ（v2.7）には持続回復を付けない
+      if (onActive(src.sourceUid) && !healBlocked(s, src.sourceUid)) each(effect.then, (a, t) => add('heal', a, src.sourceUid, t));
       break;
     case 'selfDamage':
       if (onActive(src.sourceUid)) each(effect.then, (a, t) => add('selfDamage', a, src.sourceUid, t));
@@ -187,6 +193,16 @@ export function registerLasting(ctx: Ctx, effect: Effect, src: EffectSource): vo
     default:
       break;
   }
+}
+
+/**
+ * 回復できなくなったおてあげ（きみょうなドリンク。v2.7）の持続回復を消す（泡になって消える。持続ダメージ・ばくだんは残る）
+ */
+export function clearLastingHeal(ctx: Ctx, uid: string): void {
+  const gone = ctx.s.lasting.filter((l) => l.targetUid === uid && l.kind === 'heal');
+  if (gone.length === 0) return;
+  ctx.s.lasting = ctx.s.lasting.filter((l) => !gone.includes(l));
+  ctx.events.push({ type: 'LastingCleared', uid, seqs: gone.map((l) => l.seq), reason: 'noHeal' });
 }
 
 /**

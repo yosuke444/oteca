@@ -78,7 +78,7 @@ describe('技・アイテム・きぜつ', () => {
     expect(eventsOf(endTurn(d.state, 1).events, 'Damaged')[0]).toMatchObject({ amount: 80 });
   });
 
-  it('E09 ドリンク中の回復技は回復のまま', () => {
+  it('E09 ドリンクを使ったおてあげは回復技でも回復しない（v2.7。数字の代わりに HealBlocked）', () => {
     let s = startMain({ decks: { p1: BUFF_DECK } });
     s = arrange(s, 'p1', { active: 'mitsume', hand: ['kimyou_drink'] });
     s = arrange(s, 'p2', { active: 'mutsuashi' });
@@ -86,7 +86,9 @@ describe('技・アイテム・きぜつ', () => {
 
     const r = endTurn(s, 1); // みつめ 目1：30回復
     expect(eventsOf(r.events, 'Damaged')).toEqual([]);
-    expect(eventsOf(r.events, 'Healed')).toEqual([{ type: 'Healed', uid: p1Active(s), amount: 30, hpAfter: 40 }]);
+    expect(eventsOf(r.events, 'Healed')).toEqual([]);
+    expect(eventsOf(r.events, 'HealBlocked')).toEqual([{ type: 'HealBlocked', uid: p1Active(s) }]);
+    expect(r.state.cards[p1Active(s)].hp).toBe(10);
   });
 
   it('E10 やいば・ドリンクの効果はターン終了で消える', () => {

@@ -18,11 +18,11 @@ const act = (s: GameState, side: Side) => s.players[side].active!;
 const hand = (s: GameState, side: Side, id: string) => s.players[side].hand.filter((u) => s.cardDefs[s.cards[u].no].id === id);
 const SUPODORI = cardById('supodori')!.no;
 
-describe('④ 777ほん の新しい数値どおりにダメージが入る（HP250）', () => {
-  it('1：相手に10・自分に60／2-5：相手に20・自分に30／6：相手に20・自分に20', () => {
+describe('④ 777ほん の新しい数値どおりにダメージが入る（HP250。v2.7 のバランス調整で自分へ さらに +10）', () => {
+  it('1：相手に10・自分に70／2-5：相手に20・自分に40／6：相手に20・自分に30', () => {
     const s = game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' });
     expect(s.cards[act(s, 'p1')].maxHp).toBe(250);
-    for (const [face, opp, self] of [[1, 10, 60], [2, 20, 30], [4, 20, 30], [5, 20, 30], [6, 20, 20]]) {
+    for (const [face, opp, self] of [[1, 10, 70], [2, 20, 40], [4, 20, 40], [5, 20, 40], [6, 20, 30]]) {
       const r = end(s, face);
       const dmg = eventsOf(r.events, 'Damaged');
       expect(dmg.map((d) => [r.state.cards[d.uid].owner, d.amount]), `目${face}`).toEqual([['p2', opp], ['p1', self]]);

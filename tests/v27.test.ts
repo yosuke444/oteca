@@ -41,10 +41,11 @@ const moves = (id: string) => {
 
 describe('① 5枚の新しい数値（v2.7）', () => {
   it('カードの数値が新しい値になっている', () => {
-    expect(cardById('bunbunbun')).toMatchObject({ hp: 30 });
+    // ぶんぶんぶん・777ほん・もやす は v2.7 のバランス調整でさらに変えた（tests/balance.v27.test.ts）
+    expect(cardById('bunbunbun')).toMatchObject({ hp: 10 });
     expect(moves('bunbunbun')).toEqual([
       [[1], [{ type: 'damage', amount: 20 }]],
-      [[2, 3, 4, 5, 6], [{ type: 'damage', amount: 50 }, { type: 'switchWithBench' }]],
+      [[2, 3, 4, 5, 6], [{ type: 'damage', amount: 40 }, { type: 'switchWithBench' }]],
     ]);
     expect(cardById('hosoage')).toMatchObject({ hp: 60 });
     expect(moves('hosoage')).toEqual([
@@ -54,13 +55,13 @@ describe('① 5枚の新しい数値（v2.7）', () => {
     // 777ほん は v2.7 の2回目でさらに変えた（HP250。自分に +10・相手に -10。tests/v27b.test.ts ④）
     expect(cardById('hon777')).toMatchObject({ hp: 250 });
     expect(moves('hon777')).toEqual([
-      [[1], [{ type: 'damage', amount: 10 }, { type: 'selfDamage', amount: 60 }]],
-      [[2, 3, 4, 5], [{ type: 'damage', amount: 20 }, { type: 'selfDamage', amount: 30 }]],
-      [[6], [{ type: 'damage', amount: 20 }, { type: 'selfDamage', amount: 20 }]],
+      [[1], [{ type: 'damage', amount: 10 }, { type: 'selfDamage', amount: 70 }]],
+      [[2, 3, 4, 5], [{ type: 'damage', amount: 20 }, { type: 'selfDamage', amount: 40 }]],
+      [[6], [{ type: 'damage', amount: 20 }, { type: 'selfDamage', amount: 30 }]],
     ]);
     expect(moves('moyasu')).toEqual([
       [[1, 2, 3], [{ type: 'damage', amount: 60 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
-      [[4, 5, 6], [{ type: 'damage', amount: 80 }, { type: 'discard', count: 1, deckIfNoHand: true }]],
+      [[4, 5, 6], [{ type: 'damage', amount: 80 }, { type: 'discard', count: 2, deckIfNoHand: true }]],
     ]);
     expect(cardById('oteage_zamurai')).toMatchObject({ hp: 120 });
     expect(moves('oteage_zamurai')).toEqual([
@@ -70,7 +71,7 @@ describe('① 5枚の新しい数値（v2.7）', () => {
     ]);
   });
 
-  it('ぶんぶんぶん：1 は相手に20だけ／2-6 は相手に50とベンチと交代', () => {
+  it('ぶんぶんぶん：1 は相手に20だけ／2-6 は相手に40とベンチと交代（バランス調整で 50 → 40）', () => {
     const s = game([['bunbunbun', 5], ['mutsuashi', 10]], [['mutsuashi', 15]], { active: 'bunbunbun', bench: ['mutsuashi'] }, { active: 'mutsuashi' });
     const me = act(s, 'p1');
     let r = end(s, 1);
@@ -78,7 +79,7 @@ describe('① 5枚の新しい数値（v2.7）', () => {
     expect(eventsOf(r.events, 'Swapped')).toEqual([]);
     for (const face of [2, 6]) {
       r = end(s, face);
-      expect(hits(r.state, r.events, 'p2')).toEqual([{ amount: 50, bonus: 0 }]);
+      expect(hits(r.state, r.events, 'p2')).toEqual([{ amount: 40, bonus: 0 }]);
       expect(eventsOf(r.events, 'Swapped')).toMatchObject([{ player: 'p1', toBench: me, byEffect: true }]);
     }
   });
@@ -92,16 +93,16 @@ describe('① 5枚の新しい数値（v2.7）', () => {
     expect(eventsOf(r.events, 'Healed')[0]).toMatchObject({ amount: 55, hpAfter: 60 });
   });
 
-  it('777ほん：1 は相手に10・自分に60／2-5 は相手に20・自分に30／6 は相手に20・自分に20（v2.7 の2回目）', () => {
+  it('777ほん：1 は相手に10・自分に70／2-5 は相手に20・自分に40／6 は相手に20・自分に30（バランス調整）', () => {
     const s = game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' });
-    for (const [face, opp, self] of [[1, 10, 60], [2, 20, 30], [5, 20, 30], [6, 20, 20]]) {
+    for (const [face, opp, self] of [[1, 10, 70], [2, 20, 40], [5, 20, 40], [6, 20, 30]]) {
       const r = end(s, face);
       expect(hits(r.state, r.events, 'p2'), `目${face}`).toEqual([{ amount: opp, bonus: 0 }]);
       expect(hits(r.state, r.events, 'p1'), `目${face}`).toEqual([{ amount: self, bonus: 0 }]);
     }
   });
 
-  it('もやす：4-6 は相手に80と手札を1枚捨てる（1-3 は60のまま）', () => {
+  it('もやす：4-6 は相手に80と手札を捨てる（手札が1枚なら1枚。1-3 は60のまま）', () => {
     const s = game([['moyasu', 5], ['kusuri', 10]], [['mutsuashi', 15]], { active: 'moyasu', hand: ['kusuri'] }, { active: 'mutsuashi' });
     for (const [face, dmg] of [[1, 60], [4, 80], [6, 80]]) {
       const r = end(s, face);
@@ -148,11 +149,11 @@ describe('② ザムライのステージでは、ボス側のダメージだけ
     expect(eventsOf(r.events, 'Damaged')[0]).not.toHaveProperty('bonus');
   });
 
-  it('自分へのダメージ・回復には付かない（777ほん 目1：相手に 10 → 20、自分に60 のまま）', () => {
+  it('自分へのダメージ・回復には付かない（777ほん 目1：相手に 10 → 20、自分に70 のまま）', () => {
     const s = bossGame('hon777');
     const r = end(s, 1);
     expect(hits(r.state, r.events, PLAYER)).toEqual([{ amount: 20, bonus: 10 }]);
-    expect(hits(r.state, r.events, ENEMY)).toEqual([{ amount: 60, bonus: 0 }]);
+    expect(hits(r.state, r.events, ENEMY)).toEqual([{ amount: 70, bonus: 0 }]);
     // 回復（むつあし 目1：10）も +10 されない
     let m = bossGame('mutsuashi');
     m = structuredClone(m);
@@ -307,9 +308,9 @@ describe('CPU も新しい数値で考える', () => {
     expect(outcomes(z, act(z, ENEMY)).map((o) => o.damage)).toEqual([40, 40, 60, 60, 80, 80]);
     const d = bossGame('dokusage');
     expect(outcomes(d, act(d, ENEMY)).map((o) => [o.damage, o.later])).toEqual([[20, 60], [20, 60], [20, 60], [20, 60], [30, 90], [30, 90]]);
-    // ルールの無い対戦では元の数値（777ほん：相手に10・自分に60 など。v2.7 の2回目）
+    // ルールの無い対戦では元の数値（777ほん：相手に10・自分に70 など。バランス調整）
     const h = game([['hon777', 15]], [['mutsuashi', 15]], { active: 'hon777' }, { active: 'mutsuashi' });
-    expect(outcomes(h, act(h, 'p1')).map((o) => [o.damage, o.self])).toEqual([[10, 60], [20, 30], [20, 30], [20, 30], [20, 30], [20, 20]]);
+    expect(outcomes(h, act(h, 'p1')).map((o) => [o.damage, o.self])).toEqual([[10, 70], [20, 40], [20, 40], [20, 40], [20, 40], [20, 30]]);
   });
 
   it('付いている持続ダメージの見積り（threat）にも +10', async () => {

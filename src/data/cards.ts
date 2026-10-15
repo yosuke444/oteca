@@ -68,6 +68,7 @@ export function parseCardData(data: unknown): CardData {
       check(c.color === undefined || NOTE_COLORS.includes(c.color as NoteColor), `${where}: color が不正です`);
       check(c.useCondition === undefined || c.useCondition === 'notFullHp' || c.useCondition === 'deckHasSearchable', `${where}: useCondition が不正です`);
       check(c.useCondition !== 'notFullHp' || c.target !== undefined, `${where}: notFullHp は target のあるアイテムだけ`);
+      check(c.blocksHeal === undefined || typeof c.blocksHeal === 'boolean', `${where}: blocksHeal が不正です`);
       check(c.minHand === undefined || (Number.isInteger(c.minHand) && (c.minHand as number) >= 1), `${where}: minHand が不正です`);
       const blocked = c.blockedIfUsedThisTurn;
       check(blocked === undefined || (Array.isArray(blocked) && blocked.every((b) => typeof b === 'string')), `${where}: blockedIfUsedThisTurn が不正です`);

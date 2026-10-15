@@ -168,9 +168,11 @@ describe('⑥ ベンチに戻ると赤と緑は消え、ばくだんは残って
   it('技の効果での交代（ぶんぶんぶん）でも消える', () => {
     let s = game([['hasami', 15]], [['bunbunbun', 15]], { active: 'hasami' }, { active: 'bunbunbun', bench: ['bunbunbun'] });
     const hit = act(s, 'p2');
+    // ぶんぶんぶん は HP10（v2.7）なので、はさみ の攻撃に耐えられるように HP を足しておく
+    s = patchCard(s, hit, { hp: 100, maxHp: 100 });
     let r = end(s, 1); // はさみ：20 + どく10
     expect(r.state.lasting).toHaveLength(1);
-    r = end(r.state, 3); // ぶんぶんぶん 3：40 → ベンチと交代
+    r = end(r.state, 3); // ぶんぶんぶん 3：相手に40 → ベンチと交代
     expect(eventsOf(r.events, 'LastingCleared')).toEqual([{ type: 'LastingCleared', uid: hit, seqs: [1] }]);
     expect(eventsOf(r.events, 'LastingFired')).toEqual([]);
     expect(r.state.lasting).toEqual([]);

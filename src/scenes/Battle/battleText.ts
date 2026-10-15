@@ -54,6 +54,8 @@ export function logLine(e: GameEvent, view: GameState, names: Record<Side, strin
       return L.damage(nm(e.uid), e.amount);
     case 'Healed':
       return L.heal(nm(e.uid), e.amount);
+    case 'HealBlocked':
+      return L.healBlocked(nm(e.uid));
     case 'HpSet':
       return L.hpSet(nm(e.uid), e.hpAfter);
     case 'Fainted':
@@ -79,7 +81,7 @@ export function logLine(e: GameEvent, view: GameState, names: Record<Side, strin
     case 'LastingFired':
       return e.lasting.targetUid !== null ? L.lasting(nm(e.lasting.targetUid)) : L.lasting(names[e.lasting.holder]);
     case 'LastingCleared':
-      return L.lastingCleared(nm(e.uid));
+      return e.reason === 'noHeal' ? L.lastingHealCleared(nm(e.uid)) : L.lastingCleared(nm(e.uid));
     default:
       return null;
   }

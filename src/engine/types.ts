@@ -115,6 +115,11 @@ export type ItemCardDef = {
   /** 1回の対戦で、同じおてあげには1回だけ使える（スポドリ。v2.7）。交代しても使った記録は消えない */
   oncePerOtege?: boolean;
   /**
+   * これを使ったおてあげは、その対戦が終わるまで どんな回復も受けない（きみょうなドリンク。v2.7）。
+   * 使った時に、付いている持続回復は消える。交代でベンチに下がっても消えない（itemsUsed で決める）
+   */
+  blocksHeal?: boolean;
+  /**
    * 重ねがけ禁止（SPEC §4-7・v1.4）：このターンに、ここに書いた id のアイテムを使ったおてあげには使えない
    */
   blockedIfUsedThisTurn?: string[];
@@ -324,6 +329,8 @@ export type GameEvent =
   /** bonus：amount のうち、ルール補正（ボスの +10 など）で足した分（0 なら書かない。数字の横に「+10」と出す。v2.7） */
   | { type: 'Damaged'; uid: string; amount: number; hpAfter: number; big: boolean; bonus?: number }
   | { type: 'Healed'; uid: string; amount: number; hpAfter: number }
+  /** 回復できないおてあげ（きみょうなドリンクを使った。v2.7）への回復は起きなかった（技の回復の目など。数字の代わりに「×」） */
+  | { type: 'HealBlocked'; uid: string }
   | { type: 'HpSet'; uid: string; hpAfter: number }
   | { type: 'Fainted'; uid: string; by: Side; koCount: number }
   | { type: 'NeedPromote'; player: Side }
@@ -338,7 +345,7 @@ export type GameEvent =
   /** player のターンの終わりで、残りの持続効果が1ターン進んだ（seqs のものの turns が1減った。v2.5） */
   | { type: 'LastingTicked'; player: Side; seqs: number[] }
   /** バトル場からベンチに戻ったので、持続ダメージ・持続回復が消えた（ばくだんは残る。v2.5） */
-  | { type: 'LastingCleared'; uid: string; seqs: number[] }
+  | { type: 'LastingCleared'; uid: string; seqs: number[]; /** noHeal：回復できなくなったので持続回復が消えた（きみょうなドリンク。v2.7） */ reason?: 'noHeal' }
   /** 捨てた。fromDeck なら山札の一番上から */
   | { type: 'Discarded'; player: Side; uids: string[]; fromDeck: boolean }
   /** 山札から選んで手札に加えた（相手には何を取ったか見せない） */
@@ -370,6 +377,8 @@ export type RejectReason =
   | 'stackBlocked'
   /** この対戦で、もうこのおてあげに使った（1つのおてあげに1回だけのアイテム。v2.7） */
   | 'usedOnce'
+  /** 回復できないおてあげには、回復のアイテムを使えない（きみょうなドリンクを使った。v2.7） */
+  | 'healBlocked'
   /** 出したばかりのおてあげは交代でバトル場に出せない */
   | 'justPlaced'
   | 'notPending'

@@ -69,6 +69,10 @@ export const hira = {
   battle: {
     /** 1つのおてあげに1回だけのアイテムを使ってもらった印（v2.7。例「スポドリ ずみ」） */
     usedMark: (item: string) => `${item} ずみ`,
+    /** きみょうなドリンクを使ったおてあげの印（v2.7。もう回復できない） */
+    noHealMark: 'かいふく できない',
+    /** 回復できないおてあげに回復が来た時、数字の代わりに出す（v2.7） */
+    noHealCross: '×',
     /** トロフィあげの数（v2.2。絵が5個を超えた分） */
     trophyMore: (n: number) => `+${n}`,
     trophyCount: (n: number) => `トロフィあげ ${n}こ`,
@@ -179,6 +183,8 @@ export const hira = {
       fullHp: 'HPが まんたんだよ',
       /** v2.7：1つのおてあげに1回だけのアイテム（スポドリ） */
       usedOnce: 'この おてあげには もう つかったよ（1たいせんで 1かいだけ）',
+      /** v2.7：きみょうなドリンクを使ったおてあげ */
+      healBlocked: 'ドリンクを のんだ おてあげは かいふく できないよ',
       badTarget: 'その おてあげには つかえないよ',
       notOtege: 'おてあげ じゃないよ',
       notItem: 'アイテム じゃないよ',
@@ -222,6 +228,8 @@ export const hira = {
       chooseWait: (name: string) => `・${name} が カードを えらんでいる…`,
       lasting: (card: string) => `・${card} の じかんさ こうかが はつどう！`,
       lastingCleared: (card: string) => `・${card} が ベンチに もどったので、あとから くる ダメージと かいふくが きえた`,
+      lastingHealCleared: (card: string) => `・${card} は かいふく できなく なったので、あとから くる かいふくが きえた`,
+      healBlocked: (card: string) => `・${card} は かいふく できない`,
       join: '、',
     },
     draw: {
@@ -1154,6 +1162,8 @@ export const hira = {
       title: 'アイテム',
       body: () => ['つかいきりの カード。じぶんの おてあげ 1たいに つかうよ。'],
       moreFullHp: 'HPが まんたんの おてあげには、かいふくの アイテムは つかえないよ。',
+      /** v2.7：きみょうなドリンク（blocksHeal のアイテム） */
+      moreNoHeal: (item: string) => `${item}を つかった おてあげは、その たいせんの あいだ どんな かいふくも うけないよ（こうたいしても そのまま）。`,
       moreBench: 'ベンチの おてあげに こうげきの アイテムを つかっても、その ターンは こうげきしないので むだに なるよ（つかう まえに おしえてくれる）。',
     },
     p6: {

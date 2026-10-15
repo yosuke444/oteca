@@ -753,3 +753,9 @@
 - [x] 性能：cards.json の trophy（HP100・30／40／回復20・通常扱い）。トレードは限定カードと同じ表示で出せない。パックから出ない。カードのくわしくに説明
 - [x] 届け係（Durable Object GiftHub・WebSocket の休止機能）・/gift-link・渡した時の知らせ・60秒ごとの予備・裏に回ったら切る・演出は LimitedCardFx（対戦中などは終わってから）・かんりログに枚数。プロトコル版数17
 - [x] 確かめ：tests/trophyGift.v27.test.ts（①〜⑧）・npm run test:worker・scripts/trophy-gift-e2e.mjs（Playwright。渡してから演出まで 約0.1秒）
+
+## v2.7 バランス調整（企画者の指示）
+
+- [x] 777ほん 自分に +10・もやす HP60 と 4-6 は2枚捨てる・おてさげ HP60・ぶんぶんぶん HP10 と 2-6 は40
+- [x] きみょうなドリンク：使ったおてあげは その対戦の間 回復しない（blocksHeal・HealBlocked・healBlocked。持続回復は泡で消える。印・選ぶ画面・「×」・CPU）。プロトコル版数18
+- [x] 確かめ：tests/balance.v27.test.ts（①〜⑥とレビューの直し）・scripts/shots-v27h.mjs（印と選ぶ画面）。docs/balance/ の測り直しは しない（企画者の指示）

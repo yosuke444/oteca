@@ -966,11 +966,17 @@ html[data-reduce-fx] .card-art__wait::after {
 }
 
 /* 1つのおてあげに1回だけのアイテム（スポドリ）を使ってもらった印（v2.7）：絵の左下に小さく */
-.battle-card__used {
+.battle-card__marks {
   position: absolute;
   left: 2px;
   bottom: 2px;
   z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.battle-card__used {
   padding: 0 4px;
   font-size: 11px;
   line-height: 1.4;
@@ -983,4 +989,18 @@ html[data-reduce-fx] .card-art__wait::after {
 }
 .battle-card--active .battle-card__used {
   font-size: 14px;
+}
+/* ベンチの小さいカード：印は小さく、右下の「+50」などの印より上に重ねる（読めるように。v2.7） */
+.battle-card--bench .battle-card__marks {
+  z-index: 6;
+}
+.battle-card--bench .battle-card__used {
+  font-size: 9px;
+  padding: 0 2px;
+}
+/* かいふく できない（きみょうなドリンク。v2.7）：むらさきのペン */
+.battle-card__used--noheal {
+  color: var(--pen-purple);
+  border-color: var(--pen-purple);
+  rotate: 3deg;
 }

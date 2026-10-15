@@ -20,7 +20,7 @@
         { "faces": [2,3,4,5,6], "effects": [{ "type": "damage", "amount": 30 }] }
       ], "image": "cards/mitsume.webp", "flavor": "" },
 
-    { "no": 3, "id": "otesage", "name": "おてさげ", "kind": "otege", "rarity": "normal", "hp": 70,
+    { "no": 3, "id": "otesage", "name": "おてさげ", "kind": "otege", "rarity": "normal", "hp": 60,
       "moves": [
         { "faces": [1,2,3], "effects": [{ "type": "damage", "amount": 40 }] },
         { "faces": [4,5,6], "effects": [{ "type": "damage", "amount": 60 }] }
@@ -72,12 +72,13 @@
     { "no": 11, "id": "kimyou_drink", "name": "きみょうなドリンク", "kind": "item", "color": "purple",
       "target": { "side": "self", "zones": ["active", "bench"], "rarity": ["normal", "super"] },
       "blockedIfUsedThisTurn": ["himitsu_yaiba", "kimyou_drink"],
+      "blocksHeal": true,
       "afterUseNote": { "hira": "ドリンクを のんだ おてあげには つかえないよ", "kanji": "ドリンクを飲んだおてあげには使えません" },
       "effects": [
         { "type": "setHp", "value": 10 },
         { "type": "addAttack", "amount": 50, "duration": "thisTurn" }
       ],
-      "text": { "hira": "HPが 10 になる。このターン、ダメージわざの ダメージ +50", "kanji": "HPが10になる。このターン、ダメージ技のダメージ+50" }, "image": "cards/kimyou_drink.webp" },
+      "text": { "hira": "HPが 10 になる。このターン、ダメージわざの ダメージ +50。のんだ おてあげは、この たいせんの あいだ かいふく できない", "kanji": "HPが10になる。このターン、ダメージ技のダメージ+50。飲んだおてあげは、この対戦の間 回復できない" }, "image": "cards/kimyou_drink.webp" },
 
     { "no": 12, "id": "supodori", "name": "スポドリ", "kind": "item", "color": "blue",
       "target": { "side": "self", "zones": ["bench"], "rarity": ["normal"] },
@@ -182,9 +183,9 @@
         {"faces":[4,5,6],"effects":[{"type":"draw","count":1}]}
       ], "image": "cards/ootoro.webp", "flavor": "" },
 
-    {"no":31,"id":"bunbunbun","name":"ぶんぶんぶん","kind":"otege","rarity":"normal","hp":30, "moves": [
+    {"no":31,"id":"bunbunbun","name":"ぶんぶんぶん","kind":"otege","rarity":"normal","hp":10, "moves": [
         {"faces":[1],"effects":[{"type":"damage","amount":20}]},
-        {"faces":[2,3,4,5,6],"effects":[{"type":"damage","amount":50},{"type":"switchWithBench"}]}
+        {"faces":[2,3,4,5,6],"effects":[{"type":"damage","amount":40},{"type":"switchWithBench"}]}
       ], "image": "cards/bunbunbun.webp", "flavor": "" },
 
     {"no":32,"id":"takarabako","name":"たからばこ","kind":"otege","rarity":"normal","hp":100, "moves": [
@@ -205,9 +206,9 @@
       ], "image": "cards/pakarapakara.webp", "flavor": "" },
 
     {"no":35,"id":"hon777","name":"777ほん","kind":"otege","rarity":"normal","hp":250, "moves": [
-        {"faces":[1],"effects":[{"type":"damage","amount":10},{"type":"selfDamage","amount":60}]},
-        {"faces":[2,3,4,5],"effects":[{"type":"damage","amount":20},{"type":"selfDamage","amount":30}]},
-        {"faces":[6],"effects":[{"type":"damage","amount":20},{"type":"selfDamage","amount":20}]}
+        {"faces":[1],"effects":[{"type":"damage","amount":10},{"type":"selfDamage","amount":70}]},
+        {"faces":[2,3,4,5],"effects":[{"type":"damage","amount":20},{"type":"selfDamage","amount":40}]},
+        {"faces":[6],"effects":[{"type":"damage","amount":20},{"type":"selfDamage","amount":30}]}
       ], "image": "cards/hon777.webp", "flavor": "" },
 
     {"no":36,"id":"piero","name":"ぴえろ","kind":"otege","rarity":"normal","hp":40, "moves": [
@@ -221,9 +222,9 @@
         {"faces":[5,6],"effects":[{"type":"damage","amount":40},{"type":"selfDamage","amount":50}]}
       ], "image": "cards/sarashiage.webp", "flavor": "" },
 
-    {"no":38,"id":"moyasu","name":"もやす","kind":"otege","rarity":"normal","hp":70, "moves": [
+    {"no":38,"id":"moyasu","name":"もやす","kind":"otege","rarity":"normal","hp":60, "moves": [
         {"faces":[1,2,3],"effects":[{"type":"damage","amount":60},{"type":"discard","count":1,"deckIfNoHand":true}]},
-        {"faces":[4,5,6],"effects":[{"type":"damage","amount":80},{"type":"discard","count":1,"deckIfNoHand":true}]}
+        {"faces":[4,5,6],"effects":[{"type":"damage","amount":80},{"type":"discard","count":2,"deckIfNoHand":true}]}
       ], "image": "cards/moyasu.webp", "flavor": "" },
 
     {"no":39,"id":"dokusage","name":"どくさげ","kind":"otege","rarity":"normal","hp":80, "moves": [

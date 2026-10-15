@@ -409,6 +409,17 @@ async function healAfter(env: FxEnv, e: Extract<GameEvent, { type: 'Healed' }>, 
   text.remove();
 }
 
+/** 回復できないおてあげ（きみょうなドリンク。v2.7）に回復が来た：回復の数字の代わりに、むらさきの「×」を書いて、カードが小さく首を振る */
+async function healBlockedAfter(env: FxEnv, e: Extract<GameEvent, { type: 'HealBlocked' }>): Promise<void> {
+  const card = env.cardEl(e.uid);
+  const at = cardCenter(env, e.uid);
+  if (card && !env.reduce()) gsap.fromTo(card, { x: -6 }, { x: 0, duration: 0.4, ease: 'elastic.out(1.2, 0.3)', clearProps: 'transform' });
+  const text = await penWrite(env, { x: at.x + 60, y: at.y - 40 }, t().battle.noHealCross, 'fx-write--noheal', 0.3);
+  await wait(500);
+  await play(gsap.to(text, { opacity: 0, y: '-=20', duration: 0.25 }));
+  text.remove();
+}
+
 // ---------------------------------------------------------------- アイテム（§9-2）
 
 async function itemBefore(env: FxEnv, e: Extract<GameEvent, { type: 'ItemUsed' }>, ctx: StepContext): Promise<void> {
@@ -760,6 +771,7 @@ export const PRESETS: PresetMap = {
   BuffChanged: { before: buffBefore, after: buffAfter },
   HpSet: { before: hpSetBefore, after: hpSetAfter },
   Healed: { before: healBefore, after: healAfter },
+  HealBlocked: { after: healBlockedAfter },
   MoveSelected: {
     async after(env, e) {
       // 技表の該当行に蛍光ペン

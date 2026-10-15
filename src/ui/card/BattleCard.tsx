@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from 'react';
 import { moveDamage } from '../../engine/effects';
+import { healBlocked } from '../../engine';
 import type { CardDef, CardInstance, GameState, OtegeCardDef } from '../../engine/types';
 import { DiceDoodle, StarDoodle } from '../common/Doodles';
 import { Sticky } from '../common/Sticky';
@@ -129,6 +130,8 @@ function OtegeFace({
   const stroke = gold ? 'var(--super-gold)' : dim ? 'var(--pencil)' : selected ? 'var(--pen-blue)' : 'var(--ink)';
   // 1つのおてあげに1回だけのアイテム（スポドリ）を使ってもらった印（v2.7。交代しても消えない）
   const usedOnce = onField && view ? [...new Set(card.itemsUsed)].map((no) => view.cardDefs[no]).filter((d) => d?.kind === 'item' && d.oncePerOtege) : [];
+  // きみょうなドリンクを使った：この対戦の間は回復できない（v2.7。交代しても消えない）
+  const noHeal = onField && !!view && healBlocked(view, card.uid);
   return (
     <>
       {isSuper && (
@@ -161,11 +164,20 @@ function OtegeFace({
             <small>HP</small>
             <span className="num">{onField ? card.hp : def.hp}</span>
           </span>
-          {usedOnce.map((d) => (
-            <span key={d.no} className="battle-card__used" data-testid="used-mark">
-              {tr.battle.usedMark(d.name)}
+          {(usedOnce.length > 0 || noHeal) && (
+            <span className="battle-card__marks">
+              {usedOnce.map((d) => (
+                <span key={d.no} className="battle-card__used" data-testid="used-mark">
+                  {tr.battle.usedMark(d.name)}
+                </span>
+              ))}
+              {noHeal && (
+                <span className="battle-card__used battle-card__used--noheal" data-testid="noheal-mark">
+                  {tr.battle.noHealMark}
+                </span>
+              )}
             </span>
-          ))}
+          )}
         </div>
         <ul className={`card-moves battle-card__moves ${def.moves.length >= 4 ? 'is-many' : ''}`}>
           {def.moves.map((m, i) => (

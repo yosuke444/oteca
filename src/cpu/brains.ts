@@ -2,7 +2,7 @@ import { decideCpuAction } from './normal';
 import { applyAction, getLegalActions } from '../engine';
 import type { Action, GameState, ItemCardDef, Side } from '../engine/types';
 import { cardValue, chooseAction } from './choose';
-import { koChance, expectedDamage, otegeValue, selfKoChance, threat } from './estimate';
+import { koChance, expectedDamage, otegeValue, outcomes, selfKoChance, threat } from './estimate';
 import { determinize } from './observe';
 import { type Rand, pick } from './random';
 
@@ -24,6 +24,12 @@ function itemDef(s: GameState, uid: string): ItemCardDef | null {
 }
 const healOf = (d: ItemCardDef) => d.effects.reduce((t, e) => t + (e.type === 'heal' ? e.amount : 0), 0);
 const addOf = (d: ItemCardDef) => d.effects.reduce((t, e) => t + (e.type === 'addAttack' ? e.amount : 0), 0);
+/** 回復の技・持続回復に頼るおてあげか（技の回復の平均が10以上、か 持続回復が付いている。v2.7） */
+function healReliant(s: GameState, uid: string): boolean {
+  const os = outcomes(s, uid);
+  const avgHeal = os.reduce((t, o) => t + o.heal + o.healLater, 0) / os.length;
+  return avgHeal >= 10 || s.lasting.some((l) => l.targetUid === uid && l.kind === 'heal');
+}
 const setHpOf = (d: ItemCardDef) => d.effects.find((e) => e.type === 'setHp') as { value: number } | undefined;
 
 /**
@@ -155,6 +161,8 @@ export function strongAction(s: GameState, side: Side, noSwap = false): Action |
         const cheap = s.cards[me].hp <= Math.max(hpTo.value, 30) || danger >= 0.67;
         const ok = (winOnKo && gain >= 0.3) || (gain >= 0.5 && (weakHitter || cheap)) || (gain >= 0.3 && cheap);
         if (!ok) continue;
+        // 使うと この対戦の間 回復できなくなる（v2.7）：回復の技・持続回復に頼るおてあげには、決着が近い時か、大きく上がる時だけ
+        if (d.blocksHeal && healReliant(s, me) && !(winOnKo && gain >= 0.3) && gain < 0.6) continue;
       } else if (!(gain >= 0.2 || (winOnKo && gain >= 0.1))) continue;
       if (!bestPower || gain > bestPower.gain) bestPower = { a, gain };
     }

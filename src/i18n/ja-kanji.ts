@@ -65,6 +65,8 @@ export const kanji: Dict = {
 
   battle: {
     usedMark: (item: string) => `${item}済み`,
+    noHealMark: '回復できない',
+    noHealCross: '×',
     trophyMore: (n) => `+${n}`,
     trophyCount: (n) => `トロフィあげ ${n}個`,
     nameRate: (n) => `レート ${n}`,
@@ -169,6 +171,7 @@ export const kanji: Dict = {
       benchLimit: 'ベンチにはこのターンもう出しました',
       fullHp: 'HPが満タンです',
       usedOnce: 'このおてあげにはもう使いました（1対戦で1回だけ）',
+      healBlocked: 'ドリンクを飲んだおてあげは回復できません',
       badTarget: 'そのおてあげには使えません',
       notOtege: 'おてあげではありません',
       notItem: 'アイテムではありません',
@@ -212,6 +215,8 @@ export const kanji: Dict = {
       chooseWait: (name) => `・${name} がカードを選んでいる…`,
       lasting: (card) => `・${card} の時間差効果が発動！`,
       lastingCleared: (card) => `・${card} がベンチに戻ったので、あとから来るダメージと回復が消えた`,
+      lastingHealCleared: (card) => `・${card} は回復できなくなったので、あとから来る回復が消えた`,
+      healBlocked: (card) => `・${card} は回復できない`,
       join: '、',
     },
     draw: {
@@ -1076,6 +1081,7 @@ export const kanji: Dict = {
       title: 'アイテム',
       body: () => ['使い切りのカード。自分のおてあげ1体に使います。'],
       moreFullHp: 'HPが満タンのおてあげには、回復のアイテムは使えません。',
+      moreNoHeal: (item) => `${item}を使ったおてあげは、その対戦の間どんな回復も受けません（交代してもそのまま）。`,
       moreBench: 'ベンチのおてあげに攻撃のアイテムを使っても、そのターンは攻撃しないので無駄になります（使う前に教えてくれます）。',
     },
     p6: {
