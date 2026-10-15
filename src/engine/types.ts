@@ -88,7 +88,7 @@ export type OtegeCardDef = {
   moves: Move[];
   image: string;
   flavor: string;
-  /** トロフィーのカード（v2.0-J。番号。性能は おてあげ と同じ。画面の見た目だけに使う） */
+  /** トロフィーのカード（v2.0-J。番号。性能は cards.json の trophy（v2.7）。画面の見た目だけに使う） */
   trophy?: number;
 };
 

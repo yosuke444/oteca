@@ -579,7 +579,8 @@ function logDetail(tr: Dict, r: LogRow): string {
   };
   switch (r.action) {
     case 'trophy':
-      return typeof d.number === 'number' ? L.number(d.number) : '';
+      // その人に渡した枚数（v2.7。前の記録には無い）
+      return typeof d.number === 'number' ? [L.number(d.number), typeof d.total === 'number' ? L.total(d.total) : ''].filter(Boolean).join(sep) : '';
     case 'suspend': {
       const parts = [tr.admin.suspend.days[Number(d.days)] ?? ''];
       if (typeof d.reason === 'string' && d.reason) parts.push(L.reason(d.reason));

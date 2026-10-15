@@ -266,6 +266,8 @@ export const hira = {
     damageUnit: 'ダメ',
     faceJoin: '・',
     itemKind: 'アイテム（つかいきり）',
+    /** トロフィあげ の説明（v2.7。カードのくわしく） */
+    trophyNote: 'たいかいの しょうひんの げんていカード。トレードには だせないよ。パックからは でないよ。',
     /** カードのくわしく：あとから くる こうかの ちゅうい（v2.5） */
     lastingNote: '「+」の あとの すうじは、あとから くる こうか。もちぬしの ターンの おわりに くるよ（ベンチに もどると きえる）。',
     bombNote: 'ばくだんは、ベンチに もどっても きえないよ。',
@@ -373,9 +375,9 @@ export const hira = {
     minus: 'へらす',
     plus: 'ふやす',
     cannotAdd: 'もう いれられないよ',
-    limitedNo: 'ストーリー げんてい は こうかん できません',
+    limitedNo: 'げんてい カード（ストーリー・トロフィあげ）は こうかん できません',
     limitedTag: 'げんてい',
-    rejectedLimited: 'あいてが ストーリー げんてい の カードを だしたので、こうかんを とりやめたよ',
+    rejectedLimited: 'あいてが げんてい カード（ストーリー・トロフィあげ）を だしたので、こうかんを とりやめたよ',
     empty: 'どちらも なにも だしていないよ',
     notEnough: 'もっている まいすうが たりないよ',
     changed: 'あいてが ないようを かえたよ。もういちど たしかめてね',
@@ -538,6 +540,7 @@ export const hira = {
       colTarget: 'だれに',
       colDetail: 'なかみ',
       number: (n: number) => `ばんごう ${n}`,
+      total: (n: number) => `この ひとに ぜんぶで ${n}まい`,
       reason: (r: string) => `りゆう：${r}`,
       cond: (label: string, v: string) => `${label}：${v}`,
       actions: { login: 'はいった', lock: 'まちがえすぎ', trophy: 'トロフィー', suspend: 'ていし', unsuspend: 'ていし とりけし', search: 'けんさく', watch: 'かんせん' } as Record<string, string>,
@@ -559,8 +562,6 @@ export const hira = {
   /** トロフィーが届いた（v2.0-J） */
   trophyGet: {
     title: 'トロフィーが とどいた！',
-    text: (n: number) => `「トロフィあげ（${n}）」を もらったよ。デッキに いれられるよ`,
-    ok: 'やったー！',
   },
 
   ranking: {

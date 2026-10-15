@@ -514,3 +514,10 @@ html[data-reduce-fx] .limited-fx__glow {
     font-size: 28px;
   }
 }
+
+/* トロフィあげが届いた（v2.7）：どの画面の上にも、限定カードと同じ演出を重ねる */
+.gift-arrival {
+  position: absolute;
+  inset: 0;
+  z-index: 150;
+}

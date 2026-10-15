@@ -96,10 +96,9 @@ export function useImage(url: string | null, priority: ImagePriority = 'high'): 
   return state;
 }
 
-/** カードの絵の場所（置いてある絵だけ。トロフィーのカードは仮の絵のままなので null） */
+/** カードの絵の場所（置いてある絵だけ。トロフィーのカードも v2.7 から絵を読む） */
 export function cardImageUrl(def: CardDef | undefined): string | null {
   if (!def?.image) return null;
-  if (def.kind === 'otege' && def.trophy) return null;
   return imageUrl(def.image);
 }
 

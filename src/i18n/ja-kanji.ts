@@ -256,6 +256,7 @@ export const kanji: Dict = {
     damageUnit: 'ダメ',
     faceJoin: '・',
     itemKind: 'アイテム（使い切り）',
+    trophyNote: '大会の賞品の限定カード。トレードには出せません。パックからは出ません。',
     lastingNote: '「+」のあとの数字は、あとから来る効果。持ち主のターンの終わりに来ます（ベンチに戻ると消えます）。',
     bombNote: 'ばくだんは、ベンチに戻っても消えません。',
     drawLaterNote: 'あとから引くカードは、気絶しても交代しても消えません（山札の上に出ます）。',
@@ -356,9 +357,9 @@ export const kanji: Dict = {
     minus: '減らす',
     plus: '増やす',
     cannotAdd: 'もう入れられないよ',
-    limitedNo: 'ストーリー限定は交換できません',
+    limitedNo: '限定カード（ストーリー・トロフィあげ）は交換できません',
     limitedTag: '限定',
-    rejectedLimited: '相手がストーリー限定のカードを出したので、交換をとりやめたよ',
+    rejectedLimited: '相手が限定カード（ストーリー・トロフィあげ）を出したので、交換をとりやめたよ',
     empty: 'どちらも何も出していないよ',
     notEnough: '持っている枚数が足りないよ',
     changed: '相手が内容を変えたよ。もう一度確かめてね',
@@ -516,6 +517,7 @@ export const kanji: Dict = {
       colTarget: '誰に',
       colDetail: '中身',
       number: (n) => `番号 ${n}`,
+      total: (n) => `この人に全部で${n}枚`,
       reason: (r) => `理由：${r}`,
       cond: (label, v) => `${label}：${v}`,
       actions: { login: '入った', lock: '間違えすぎ', trophy: 'トロフィー', suspend: '停止', unsuspend: '停止取り消し', search: '検索', watch: '観戦' },
@@ -535,8 +537,6 @@ export const kanji: Dict = {
 
   trophyGet: {
     title: 'トロフィーが届いた！',
-    text: (n) => `「トロフィあげ（${n}）」をもらったよ。デッキに入れられるよ`,
-    ok: 'やったー！',
   },
 
   ranking: {

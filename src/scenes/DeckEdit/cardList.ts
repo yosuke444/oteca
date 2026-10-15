@@ -21,10 +21,11 @@ export const LIST_SORTS: ListSort[] = ['no', 'name', 'hp', 'owned'];
  */
 export function listCards(save: Pick<SaveData, 'collection' | 'unlockAll' | 'trophies'>, filter: ListFilter, pack: string | null, sort: ListSort): CardDef[] {
   const own = (c: CardDef) => getOwnedCount(save, c.no);
-  // 持っているトロフィーのカード（v2.0-J）も一覧に出す（パックで絞った時は出さない）
-  const filtered = [...CARD_LIST, ...(pack ? [] : ownedTrophyDefs(save))].filter((c) => {
+  // 持っているトロフィーのカード（v2.0-J）も一覧に出す（パックで絞った時は出さない。v2.7：限定カード（げんてい）で絞った時は出す）
+  const trophies = pack === null || pack === 'limited' ? ownedTrophyDefs(save) : [];
+  const filtered = [...CARD_LIST, ...trophies].filter((c) => {
     if (own(c) <= 0) return false;
-    if (pack && !inPack(c.id, pack)) return false;
+    if (pack && !(pack === 'limited' && trophies.includes(c)) && !inPack(c.id, pack)) return false;
     if (filter === 'otege') return c.kind === 'otege';
     if (filter === 'item') return c.kind === 'item';
     if (filter === 'super') return c.kind === 'otege' && c.rarity === 'super';

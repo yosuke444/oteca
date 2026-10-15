@@ -53,7 +53,8 @@ function OtegeDetail({ def, seed }: { def: OtegeCardDef; seed: string }) {
         <span className="card-tape card-tape--big" aria-hidden />
         {isSuper && <span className="card-stamp card-stamp--big">S</span>}
         <div className="card-detail__head">
-          <span className="card-detail__name">{def.name}</span>
+          {/* トロフィあげ（番号）は長いので小さめ（v2.7。1行に収める） */}
+          <span className={`card-detail__name ${def.trophy !== undefined ? 'card-detail__name--long' : ''}`}>{def.name}</span>
           <span className="card-hp card-hp--big">
             <small>HP</small>
             <span className="num">{def.hp}</span>
@@ -82,9 +83,20 @@ function OtegeDetail({ def, seed }: { def: OtegeCardDef; seed: string }) {
           ))}
         </ul>
         <LastingNotes def={def} />
+        {def.trophy !== undefined && <TrophyNote />}
         {def.flavor && <p className="card-detail__flavor">{def.flavor}</p>}
       </RoughBox>
     </div>
+  );
+}
+
+/** トロフィあげ の説明（v2.7：大会の賞品の限定カード） */
+function TrophyNote() {
+  const tr = useT();
+  return (
+    <p className="card-detail__note" data-testid="card-trophy-note">
+      {tr.card.trophyNote}
+    </p>
   );
 }
 

@@ -84,7 +84,8 @@ describe('P01 絵の読み込み係', () => {
     vi.useRealTimers();
     pending.get(url)!.ok();
     expect(await waitCardImages([no], 2000)).toBe(true);
-    // トロフィーのカード・絵の無いカードは読まない
-    expect(cardImageUrl({ ...cardById('oteage')!, trophy: 3 } as never)).toBeNull();
+    // トロフィーのカードも絵を読む（v2.7）。絵の無いカードは読まない
+    expect(cardImageUrl({ ...cardById('oteage')!, trophy: 3, image: 'cards/trophy.webp' } as never)).toBe('/cards/trophy.webp');
+    expect(cardImageUrl({ ...cardById('oteage')!, image: '' } as never)).toBeNull();
   });
 });

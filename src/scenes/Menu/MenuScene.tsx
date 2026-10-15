@@ -4,8 +4,7 @@ import { checkForUpdate } from '../../update/update';
 import { preloadCards } from '../../ui/imageLoader';
 import { flushSync } from 'react-dom';
 import { SuspensionGate } from '../../ui/common/SuspensionGate';
-import { TrophyArrival } from './TrophyArrival';
-import { MAILBOX_EVERY_MS, checkMailbox } from '../../online/mailbox';
+import { giftMenuCheck } from '../../online/giftLink';
 import { audio } from '../../audio/audioManager';
 import { type DailyCarry, claimAllClear, claimMission, claimableCount, cycleKeyAt, drawDailyBags, rollDaily } from '../../daily/daily';
 import { addDailyNotice, clearDailyNotice, peekDailyNotice } from '../../daily/noticeStore';
@@ -51,14 +50,8 @@ export function MenuScene() {
   const { go } = useNav();
   const debug = isDebugMode();
   const { save, update, remindBackup } = useSave();
-  // トロフィーの郵便受け（v2.0-J）：メニューに来た時と、メニューにいる間10分おきに確かめる
-  const mailSave = useRef(save);
-  mailSave.current = save;
-  useEffect(() => {
-    void checkMailbox(mailSave.current, update);
-    const id = window.setInterval(() => void checkMailbox(mailSave.current, update), MAILBOX_EVERY_MS);
-    return () => window.clearInterval(id);
-  }, []);
+  // トロフィーの郵便受け（v2.7）：届け係につながっていない時は、メニューに来た時にも確かめる（つながっていれば知らせで すぐ届く）
+  useEffect(() => giftMenuCheck(), []);
   const tr = useT();
   // 🔒 じゅんびちゅう のふせんを揺らす合図（押した回数）
   const [shake, setShake] = useState<Record<LockedId, number>>({ story: 0, gacha: 0, trade: 0, ranking: 0 });
@@ -193,8 +186,6 @@ export function MenuScene() {
       {/* 新しい版のお知らせ（v2.7）：上の ふせん と「さいよみこみ」 */}
       <UpdateNote />
       {onlineGate.dialog}
-      {/* トロフィーが届いた（v2.0-J） */}
-      <TrophyArrival />
       {/* 上の帯：小さいロゴ／コイン／なまえ／設定 */}
       <Logo width={170} className="menu-scene__logo" />
       <div className="menu-scene__top-right">

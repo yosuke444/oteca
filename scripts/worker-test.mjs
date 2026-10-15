@@ -398,8 +398,33 @@ try {
 
     // トロフィー
     const T = await register(B, pid(500), 'もらう');
+    // 届け係（v2.7）：ゲームを開いている人は WebSocket でつないだまま。渡した瞬間に「gift」が届く
+    const giftWs = (who) => {
+      const ws = new WebSocket(`${B.replace(/^http/, 'ws')}/gift-link?userId=${who.id}&token=${who.token}`, { headers: { Origin: ORIGIN } });
+      const g = { ws, msgs: [], opened: false, closed: false };
+      ws.onopen = () => (g.opened = true);
+      ws.onmessage = (ev) => g.msgs.push({ at: Date.now(), data: String(ev.data) });
+      ws.onclose = () => (g.closed = true);
+      ws.onerror = () => {};
+      return g;
+    };
+    const gBad = giftWs({ id: T.id, token: '0'.repeat(32) });
+    const gT = giftWs(T);
+    const gOther = giftWs(P[0]);
+    await until(() => gT.opened && gOther.opened && gBad.closed);
+    check('届け係：token が違えば つながらない', !gBad.opened && gBad.closed);
+    // 待っている間は何も届かない
+    await sleep(300);
+    const quiet = gT.msgs.length === 0;
+    const sentAt = Date.now();
     const tr1 = await sess('/admin/trophy', { userId: T.id, number: 77 });
     check('J05 トロフィーを送れる（郵便受けに預ける）', tr1.status === 200);
+    await until(() => gT.msgs.length > 0, 5000).catch(() => {});
+    const giftMs = gT.msgs[0] ? gT.msgs[0].at - sentAt : -1;
+    check('届け係：渡した瞬間に本人にだけ「gift」が届く（待っている間は何も来ない）', quiet && gT.msgs.length === 1 && gT.msgs[0].data === '{"t":"gift"}' && giftMs >= 0 && giftMs < 5000 && gOther.msgs.length === 0, JSON.stringify({ quiet, giftMs, t: gT.msgs, o: gOther.msgs }));
+    console.log(`    （渡してから届くまで ${giftMs}ms）`);
+    gT.ws.close();
+    gOther.ws.close();
     check('J05 同じ番号は 409（その ばんごうは もう つかわれているよ）', (await sess('/admin/trophy', { userId: P[0].id, number: 77 })).status === 409);
     check('番号の範囲外・登録の無いユーザーID は送れない', (await sess('/admin/trophy', { userId: T.id, number: 10000 })).status === 400 && (await sess('/admin/trophy', { userId: pid(999999), number: 78 })).status === 404);
     const mb = await api(B, `/mailbox?userId=${T.id}&token=${T.token}`);
@@ -495,7 +520,9 @@ try {
     check('かんりログ：新しい順に、いつ・何を・誰に', actions[0] === 'search' && ['login', 'trophy', 'suspend', 'unsuspend', 'lock'].every((a) => actions.includes(a)) && log.json.rows[0].id > log.json.rows[1].id, JSON.stringify(actions.slice(0, 12)));
     check('ログインの記録に接続元。検索のページ送りは記録しない', log.json.rows.find((r) => r.action === 'login')?.target?.startsWith('10.0.0.') && log.json.rows.filter((r) => r.action === 'search' && JSON.parse(r.detail).page === 1).length === 0);
     const tLog = log.json.rows.find((r) => r.action === 'trophy' && JSON.parse(r.detail).number === 77);
-    check('トロフィーの記録に、相手と番号', tLog?.target === T.id && JSON.parse(tLog.detail).number === 77);
+    check('トロフィーの記録に、相手と番号と、その人に渡した枚数（v2.7）', tLog?.target === T.id && JSON.parse(tLog.detail).number === 77 && JSON.parse(tLog.detail).total === 1);
+    const t78 = log.json.rows.find((r) => r.action === 'trophy' && JSON.parse(r.detail).number === 78);
+    check('2枚目の記録は「ぜんぶで2まい」', JSON.parse(t78?.detail ?? '{}').total === 2, t78?.detail);
   }
 } catch (e) {
   check('とちゅうでエラー', false, e?.stack ?? String(e));

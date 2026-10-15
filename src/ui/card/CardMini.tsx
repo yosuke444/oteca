@@ -99,7 +99,7 @@ function OtegeMini({ def, seed, variant, dim }: { def: OtegeCardDef; seed: strin
       {isSuper && <span className="card-stamp">S</span>}
       <div className="card-mini__head">
         <span
-          className={`card-mini__name ${[...def.name].length >= 7 ? 'is-long' : ''}`}
+          className={`card-mini__name ${[...def.name].length >= 7 ? 'is-long' : ''} ${[...def.name].length >= 10 ? 'is-longer' : ''}`}
           // デッキ枠（幅100）では長い名前（7文字以上）を枠に収まる大きさまで小さくする
           style={variant === 'slot' && [...def.name].length >= 7 ? { fontSize: `${Math.floor(86 / [...def.name].length)}px` } : undefined}
         >

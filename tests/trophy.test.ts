@@ -6,22 +6,23 @@ import { createGame, validateDeck } from '../src/engine';
 import { checkDeckCards, getOwnedCount, ownedTrophyDefs } from '../src/save/collection';
 import { encodeSave } from '../src/save/binary';
 import { decodeSave } from '../src/save/migrate';
-import { MAILBOX_EVERY_MS, checkMailbox, forgetMailbox } from '../src/online/mailbox';
+import { checkMailbox, clearArrived } from '../src/online/mailbox';
 import { TROPHIES_MAX, TROPHY_CARD_NO_BASE, TROPHY_NUMBER_MAX, createDefaultSave, normalizeCollection, normalizeSave } from '../src/save/saveData';
 import { cleanOffer } from '../src/trade/trade';
 import { TROPHY_NUMBER_MAX as WORKER_TROPHY_MAX } from '../worker/src/logic/admin';
 
 /** トロフィーのカード（v2.0-J。SPEC §7 S20・テスト J05） */
 describe('J05 トロフィーのカード', () => {
-  it('性能は おてあげ と同じ。名前は「トロフィあげ（番号）」、カードNo は 50000＋番号', () => {
-    const base = cardById('oteage')!;
+  it('性能は cards.json の trophy（v2.7：HP100・30／40／回復20）。名前は「トロフィあげ（番号）」、カードNo は 50000＋番号', () => {
     const d = trophyDef(123);
     expect(d.name).toBe('トロフィあげ（123）');
     expect(d.no).toBe(50123);
     expect(d.kind).toBe('otege');
-    if (d.kind !== 'otege' || base.kind !== 'otege') throw new Error('おてあげ');
-    expect(d.hp).toBe(base.hp);
-    expect(d.moves).toEqual(base.moves);
+    if (d.kind !== 'otege') throw new Error('おてあげ');
+    const spec = (raw as { trophy: { hp: number; moves: unknown } }).trophy;
+    expect(d.hp).toBe(spec.hp);
+    expect(d.moves).toEqual(spec.moves);
+    expect(cardById('trophy_123')).toBe(d);
     expect(d.rarity).toBe('normal');
     expect(d.trophy).toBe(123);
     expect(d.image).toBe('cards/trophy.webp');
@@ -29,7 +30,6 @@ describe('J05 トロフィーのカード', () => {
     expect(TROPHY.noBase).toBe(TROPHY_CARD_NO_BASE);
     expect(TROPHY.numberMax).toBe(TROPHY_NUMBER_MAX);
     expect(TROPHY.numberMax).toBe(WORKER_TROPHY_MAX);
-    expect((raw as { trophy: { copyOf: string } }).trophy.copyOf).toBe('oteage');
     expect(trophyCardNo(1)).toBe(50001);
     expect(trophyNumberOf(50001)).toBe(1);
     expect(trophyNumberOf(50000)).toBeNull();
@@ -111,8 +111,8 @@ describe('J05 郵便受け', () => {
     return s;
   }
 
-  it('届いたトロフィーはセーブに入り、受け取ったと知らせる。10分たたないうちは確かめ直さない', async () => {
-    forgetMailbox();
+  it('届いたトロフィーはセーブに入り、受け取ったと知らせる。もう一度確かめても同じ番号は増えない', async () => {
+    clearArrived();
     const calls = stubMailbox([5, 9]);
     const save = registered();
     const update = (fn: (d: typeof save) => void) => fn(save);
@@ -120,18 +120,16 @@ describe('J05 郵便受け', () => {
     expect(await checkMailbox(save, update, t0)).toEqual([5, 9]);
     expect(save.trophies.map((t) => t.number)).toEqual([5, 9]);
     expect(JSON.parse(calls.find((c) => c.url.includes('/mailbox/ack'))!.body!).numbers).toEqual([5, 9]);
-    // メニューに戻っても（5分後）確かめない。10分後には確かめる（同じ番号は増えない）
+    // いつ確かめるかは giftLink（tests/trophyGift.v27.test.ts）。もう一度確かめても増えない
     const n = calls.length;
-    expect(await checkMailbox(save, update, t0 + 5 * 60e3)).toEqual([]);
-    expect(calls.length).toBe(n);
-    expect(await checkMailbox(save, update, t0 + MAILBOX_EVERY_MS)).toEqual([]);
+    expect(await checkMailbox(save, update, t0 + 60e3)).toEqual([]);
     expect(calls.length).toBeGreaterThan(n);
     expect(save.trophies).toHaveLength(2);
     vi.unstubAllGlobals();
   });
 
   it(`セーブに入るのは ${TROPHIES_MAX}個まで。入らない分は受け取ったと知らせない（郵便受けに残る）`, async () => {
-    forgetMailbox();
+    clearArrived();
     const save = registered();
     save.trophies = Array.from({ length: TROPHIES_MAX - 1 }, (_, i) => ({ number: i + 1, receivedAt: 1 }));
     const calls = stubMailbox([500, 501]);

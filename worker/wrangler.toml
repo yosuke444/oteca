@@ -13,6 +13,15 @@ class_name = "Matchmaker"
 tag = "v1"
 new_sqlite_classes = ["Matchmaker"]
 
+# 届け係（v2.7。ゲームを開いている人に、トロフィあげが届いたことを すぐ知らせる。WebSocket の休止機能）
+[[durable_objects.bindings]]
+name = "GIFT_HUB"
+class_name = "GiftHub"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["GiftHub"]
+
 # ランキングのデータベース
 [[d1_databases]]
 binding = "DB"

@@ -746,3 +746,10 @@
 
 - [x] 1〜3. 計算・1対1の総当たり（1000試合ずつ）・デッキに入れた時の効き目（CPU つよい・1枚 2004試合）。`npm run balance`（全部で約70分）・`node scripts/balance.mjs --summary`（まとめだけ）。結果は docs/balance/
 - [x] 4. 実際の対戦のデータ（フレンド・レート）を D1 の match_logs に記録（§11-9-b）。管理画面のコード「カードのせいせき」。D1 のマイグレーション 0004 を本番に当て、Worker をデプロイ済み
+
+## v2.7 トロフィあげ を カードとして（企画者の指示）
+
+- [x] 絵：public/cards/トロフィあげ.png（元の画像）→ assets-original/cards/ に移し、prepare-art で public/cards/trophy.webp（800×600）。仮の絵のままの決まりを外した（art_hold/ は無かった）
+- [x] 性能：cards.json の trophy（HP100・30／40／回復20・通常扱い）。トレードは限定カードと同じ表示で出せない。パックから出ない。カードのくわしくに説明
+- [x] 届け係（Durable Object GiftHub・WebSocket の休止機能）・/gift-link・渡した時の知らせ・60秒ごとの予備・裏に回ったら切る・演出は LimitedCardFx（対戦中などは終わってから）・かんりログに枚数。プロトコル版数17
+- [x] 確かめ：tests/trophyGift.v27.test.ts（①〜⑧）・npm run test:worker・scripts/trophy-gift-e2e.mjs（Playwright。渡してから演出まで 約0.1秒）

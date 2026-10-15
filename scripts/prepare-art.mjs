@@ -12,7 +12,8 @@
 //   3. 余白を切り取る
 //   4. 縦横の比率を変えずに、決まった大きさの中に収める（まわりに少しだけ余白。余った所は白。引き伸ばし・ゆがみなし）
 //   5. WebP（画質 0.92。白い背景は白のまま＝乗算でなじむ）で書き出す。300KB を超える時だけ画質を少しずつ下げる
-// トロフィあげ（trophy*.png）は まだ仮の絵のまま：作らない（元の画像は art_hold/ に置いておく）
+// トロフィあげ（v2.7）：assets-original/cards/ の「トロフィあげ.png」か「trophy.png」→ public/cards/trophy.webp（おてあげ 800×600）
+// 一部だけ作り直す時：node scripts/prepare-art.mjs トロフィあげ（元の画像のファイル名。拡張子なし。いくつでも）
 // ファイル名がカードの id でない時（「おてさげ.png」など）は、cards.json の名前から id に直す。
 // 使い方：node scripts/prepare-art.mjs
 import { chromium } from '@playwright/test';
@@ -57,8 +58,13 @@ function imageFileOf(file) {
   return ICON_NAMES[stem] ?? stem;
 }
 const webp = (name) => `${name}.webp`;
-const byId = new Map(cards.map((c) => [c.id, c]));
-const byName = new Map(cards.map((c) => [c.name.normalize('NFC'), c]));
+/** トロフィあげ（v2.7）：cards の一覧には無いので、絵を作るためだけに足す */
+const trophyJson = JSON.parse(readFileSync('src/data/cards.json', 'utf8')).trophy;
+const trophyArt = { id: 'trophy', name: 'トロフィあげ', kind: 'otege', image: trophyJson.image };
+const byId = new Map([...cards, trophyArt].map((c) => [c.id, c]));
+const byName = new Map([...cards, trophyArt].map((c) => [c.name.normalize('NFC'), c]));
+/** 作り直す元の画像（ファイル名。指定が無ければ全部） */
+const only = new Set(process.argv.slice(2).map((a) => a.normalize('NFC')));
 
 /** 元のファイル名 → カードの id（わからなければ null） */
 function cardIdOf(file) {
@@ -259,11 +265,10 @@ for (const f of pngs('assets-original/packs')) {
 }
 for (const f of pngs('assets-original/images')) {
   const stem = imageFileOf(f);
-  if (/^trophy/i.test(stem)) continue; // トロフィあげは まだ仮の絵のまま
   jobs.push({ src: join('assets-original/images', f), dst: join('public/images', webp(stem)), mode: ICONS.has(stem) ? 'icon' : 'image' });
 }
 
-for (const j of jobs) {
+for (const j of jobs.filter((j) => !only.size || only.has(basename(j.src, extname(j.src)).normalize('NFC')))) {
   const { bytes, info } = await rework(j.src, j.mode);
   mkdirSync(join(j.dst, '..'), { recursive: true });
   writeFileSync(j.dst, bytes);

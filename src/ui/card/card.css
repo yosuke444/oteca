@@ -243,6 +243,10 @@ html[data-reduce-fx] .card-art__wait::after {
   font-size: 14px;
   letter-spacing: -0.5px;
 }
+/* もっと長い名前（トロフィあげ（番号）など。v2.7） */
+.card-mini__name.is-longer {
+  font-size: 11.5px;
+}
 .card-mini--tile .card-mini__frame > .rough-box__content {
   gap: 3px;
   padding-top: 7px;
@@ -352,6 +356,10 @@ html[data-reduce-fx] .card-art__wait::after {
 }
 .card-detail__name {
   font-size: 30px;
+}
+.card-detail__name--long {
+  font-size: 22px;
+  white-space: nowrap;
 }
 .card-detail__flavor {
   margin: 0;

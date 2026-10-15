@@ -4,7 +4,7 @@
 //
 // 1. 空の部屋を観戦 →「まだ ひとは いません」→ 2人が入って対戦が始まると映る（両者の手札は裏）・対戦者に「かんせんちゅう」
 // 2. 途中から観戦に入る（2人目・3人目の観戦者）→ 4人目は「かんせんは 3にん まで」
-// 3. トロフィーを送る → 受け取る（降ってくる演出）→ デッキに入れられる → トレードに出せない
+// 3. トロフィーを送る → 受け取る（v2.7：限定カードと同じ演出）→ デッキに入れられる → トレードに出せない
 // 4. 停止 → オンラインに入れない → 停止解除で戻る
 // 5. スクリーンショット（両方の言語・2つの大きさ）：設定のユーザーID・管理者メニュー・観戦・トロフィーのカード
 //    （ランキングは scripts/shots-ranking.mjs。まとめ処理を2回動かす確認は npm run test:worker と PROGRESS の 1.）
@@ -212,10 +212,12 @@ try {
   await PA.page.waitForTimeout(1500);
   await PA.page.mouse.click(PA.size.width / 2, PA.size.height / 2);
   await PA.page.getByTestId('trophy-arrival').waitFor({ timeout: 20000 });
-  expect(true, 'トロフィーが届いて、降ってくる演出');
-  await PA.page.waitForTimeout(1500);
+  expect(true, 'トロフィーが届いて、限定カードと同じ演出（v2.7）');
+  await PA.page.waitForTimeout(2600);
   await shot(PA.page, 'trophy_1280x720_hira_03_arrival');
-  await PA.page.getByTestId('trophy-get-ok').click();
+  await PA.page.locator('.limited-fx__skip').waitFor({ timeout: 20000 });
+  await PA.page.getByTestId('limited-fx').click();
+  await PA.page.getByTestId('trophy-arrival').waitFor({ state: 'detached' });
   const owned = await PA.page.evaluate(async () => {
     const c = await import('/src/save/collection.ts');
     const cs = await import('/src/save/cookieStore.ts');

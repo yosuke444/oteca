@@ -7,10 +7,11 @@ import type { CardDb, CardDef, Effect, Move, NoteColor, Rarity, Timing, Zone } f
  */
 
 /**
- * トロフィーのカード（v2.0-J。SPEC §7 S20）：管理者が送る1枚だけのカード。性能は copyOf のカードと同じ。
+ * トロフィーのカード（v2.0-J。SPEC §7 S20）：管理者が送る1枚だけのカード（大会の賞品の限定カード）。
+ * v2.7 から自分の性能（rarity・hp・moves）を持つ（今までは おてあげ の写し）。通常のおてあげ扱い（スーパーの枠は使わない）。
  * カードNo は noBase＋番号（1〜numberMax）。名前・id の {n} に番号が入る
  */
-export type TrophySpec = { copyOf: string; noBase: number; numberMax: number; name: string; id: string; image: string };
+export type TrophySpec = { noBase: number; numberMax: number; name: string; id: string; image: string; rarity: Rarity; hp: number; moves: Move[] };
 
 export type CardData = { version: number; cards: CardDef[]; trophy: TrophySpec };
 
@@ -85,7 +86,13 @@ export function parseCardData(data: unknown): CardData {
   }
   const tr = (d as { trophy?: Record<string, unknown> }).trophy;
   check(!!tr && typeof tr === 'object', 'trophy がありません');
-  check(all.some((c) => c.id === tr!.copyOf && c.kind === 'otege'), 'trophy.copyOf は おてあげ の id にしてください');
+  check(tr!.rarity === 'normal', 'trophy.rarity は normal にしてください（スーパーの枠を使わない）');
+  check(Number.isInteger(tr!.hp) && (tr!.hp as number) > 0, 'trophy.hp が不正です');
+  check(Array.isArray(tr!.moves) && tr!.moves.length > 0, 'trophy.moves がありません');
+  for (const m of tr!.moves as Move[]) {
+    check(Array.isArray(m.faces) && m.faces.every((f) => Number.isInteger(f)), 'trophy: faces が不正です');
+    checkEffects(m.effects, 'trophy');
+  }
   check(Number.isInteger(tr!.noBase) && Number.isInteger(tr!.numberMax), 'trophy の noBase・numberMax が不正です');
   check((tr!.noBase as number) + (tr!.numberMax as number) <= 65535, 'trophy のカードNo がセーブに入る範囲（65535 まで）を超えます');
   check(all.every((c) => (c.no as number) <= (tr!.noBase as number)), 'trophy の noBase より大きい No のカードがあります');
@@ -163,12 +170,22 @@ export function isTrophyNo(no: number): boolean {
 
 const trophyCache = new Map<number, CardDef>();
 
-/** トロフィーのカードの定義（性能は copyOf と同じ。名前は「トロフィあげ（番号）」） */
+/** トロフィーのカードの定義（性能は cards.json の trophy。名前は「トロフィあげ（番号）」） */
 export function trophyDef(n: number): CardDef {
   let d = trophyCache.get(n);
   if (!d) {
-    const base = CARD_LIST.find((c) => c.id === TROPHY.copyOf)!;
-    d = { ...structuredClone(base), no: trophyCardNo(n), id: TROPHY.id.replace('{n}', String(n)), name: TROPHY.name.replace('{n}', String(n)), image: TROPHY.image, trophy: n } as CardDef;
+    d = {
+      kind: 'otege',
+      no: trophyCardNo(n),
+      id: TROPHY.id.replace('{n}', String(n)),
+      name: TROPHY.name.replace('{n}', String(n)),
+      rarity: TROPHY.rarity,
+      hp: TROPHY.hp,
+      moves: structuredClone(TROPHY.moves),
+      image: TROPHY.image,
+      flavor: '',
+      trophy: n,
+    } as CardDef;
     trophyCache.set(n, d);
   }
   return d;
@@ -200,5 +217,11 @@ export function cardByNo(no: number): CardDef | undefined {
 }
 
 export function cardById(id: string): CardDef | undefined {
-  return BY_ID.get(id);
+  const hit = BY_ID.get(id);
+  if (hit) return hit;
+  // トロフィーのカード（trophy_<番号>。v2.7）
+  const [head, tail] = TROPHY.id.split('{n}');
+  const num = id.startsWith(head) && id.endsWith(tail) ? id.slice(head.length, id.length - tail.length) : '';
+  const n = /^[0-9]+$/.test(num) ? trophyNumberOf(trophyCardNo(Number(num))) : null;
+  return n === null ? undefined : trophyDef(n);
 }

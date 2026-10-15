@@ -14,7 +14,7 @@ import { PrizeCard } from '../../ui/card/PrizeCard';
  * 「げんてい カード ゲット！」のはんこ → 紙吹雪と花火 → カードが小さくなって手元（所持）へ飛んでいく。
  * タップで飛ばせる（少し見せてから）。演出スピード・演出をへらす に従う。
  */
-export function LimitedCardFx({ cardNo, onDone }: { cardNo: number; onDone: () => void }) {
+export function LimitedCardFx({ cardNo, onDone, title }: { cardNo: number; onDone: () => void; /** はんこの文字（トロフィあげが届いた時。v2.7） */ title?: string }) {
   const tr = useT();
   const fx = useFx();
   const def = CARD_DB[cardNo];
@@ -83,7 +83,7 @@ export function LimitedCardFx({ cardNo, onDone }: { cardNo: number; onDone: () =
         fireworks(L, { x: 300, y: 220 }, 3);
         fireworks(L, { x: 980, y: 220 }, 3);
       }
-      cleanups.push(bigText(L, { x: 640, y: 92 }, tr.story.limitedGet, 'limited-stamp', -6));
+      cleanups.push(bigText(L, { x: 640, y: 92 }, title ?? tr.story.limitedGet, 'limited-stamp', -6));
       await play(gsap.fromTo(noteRef.current, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3 }));
       if (!alive) return;
       await wait(1800);

@@ -2,6 +2,8 @@
 export type Env = {
   DB: D1Database;
   MATCHMAKER: DurableObjectNamespace;
+  /** 届け係（v2.7。トロフィあげを渡した瞬間に知らせる） */
+  GIFT_HUB: DurableObjectNamespace;
   /** 管理キー（wrangler secret put ADMIN_KEY） */
   ADMIN_KEY?: string;
   /** 1 の時だけ、読み書きした行数をレスポンスのヘッダーに付ける（負荷の見積もり用。ローカルだけ） */

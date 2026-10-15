@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { useGiftHold } from '../../online/giftHold';
 import { prefetchTurn } from '../../net/iceServers';
 import { preloadCards } from '../../ui/imageLoader';
 import { useEffect, useRef, useState } from 'react';
@@ -6,7 +7,7 @@ import { SuspensionGate } from '../../ui/common/SuspensionGate';
 import { opponentAllowed } from '../../online/status';
 import { flushSync } from 'react-dom';
 import { audio } from '../../audio/audioManager';
-import { CARD_DB } from '../../data/cards';
+import { CARD_DB, isTrophyNo } from '../../data/cards';
 import { useFx } from '../../fx/fxSettings';
 import { bigText, confetti, confettiRain, flash } from '../../fx/paperFx';
 import { setFxSpeed } from '../../fx/timing';
@@ -54,6 +55,8 @@ export function TradeScene() {
   const fx = useFx();
   const [room, setRoom] = useState(() => loadPendingTrade()?.room ?? '');
   const [phase, setPhase] = useState<Phase>('input');
+  // 部屋に入っている間（トレードの途中）は、トロフィあげが届いた演出を出さない（v2.7。出たら すぐ）
+  useGiftHold('trade', phase === 'room');
   const [error, setError] = useState('');
   /** 相手と版が違い、自分の方が古い：「さいよみこみ」も出す（v2.7） */
   const [reloadable, setReloadable] = useState(false);
@@ -326,7 +329,7 @@ export function TradeScene() {
 
   const giveList = canonical(my);
   const getList = canonical(opp);
-  // 限定カードは一覧に出すが、灰色で選べない（v2.3。トロフィあげは出さない）
+  // 限定カードは一覧に出すが、灰色で選べない（v2.3。v2.7 からトロフィあげも同じ）
   const owned = giveCandidates(save);
   const hasLimited = owned.some((c) => c.limited);
   const warnings = confirm ? brokenDecks(save, my, opp) : [];
@@ -458,7 +461,7 @@ export function TradeScene() {
             <h2 className="trade-panel__title">{tr.trade.mine}</h2>
             <div className="trade-mine__grid">
               {owned.map(({ no, limited }) => {
-                const left = (save.collection[no] ?? 0) - (my[no] ?? 0);
+                const left = (isTrophyNo(no) ? 1 : (save.collection[no] ?? 0)) - (my[no] ?? 0);
                 return (
                   <div key={no} className={`trade-mine__item ${limited ? 'is-limited' : ''}`} data-testid={`trade-mine-${no}`} data-limited={limited || undefined}>
                     <CardMini

@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import { preloadCards } from '../../ui/imageLoader';
 import { useEffect, useRef, useState } from 'react';
+import { useGiftHold } from '../../online/giftHold';
 import { flushSync } from 'react-dom';
 import { audio } from '../../audio/audioManager';
 import { CARD_DB, cardById } from '../../data/cards';
@@ -50,6 +51,8 @@ export function GachaScene() {
   const [index, setIndex] = useState(() => (postState().active ? Math.max(0, packs.findIndex((p) => p.id === TUTORIAL_PACK)) : 0));
   const daily = guide?.daily ?? null;
   const [view, setView] = useState<'shop' | 'open' | 'summary'>(daily ? 'open' : 'shop');
+  // 袋を開けている間は、トロフィあげが届いた演出を出さない（v2.7。終わってから）
+  useGiftHold('gacha', view === 'open');
   const [run, setRun] = useState<Run | null>(() => (daily ? { pack: dailyPack(), packIndex: -1, offer: null, bags: daily.bags, results: daily.results } : null));
   /** デイリーパックの50コインは、まとめ画面に出てから飛んでくる。それまでコイン表示は前の枚数 */
   const [heldCoins, setHeldCoins] = useState<number | null>(daily ? daily.coinsBefore : null);

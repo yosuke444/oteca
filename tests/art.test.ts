@@ -79,11 +79,13 @@ describe('画像（v2.3）', () => {
     expect(big).toEqual([]);
   });
 
-  it('トロフィあげは仮の絵のまま：絵が置いてあっても読み込まない（public/ に置かない）', () => {
-    expect(files('public').filter((f) => /trophy/i.test(f))).toEqual([]);
+  it('トロフィあげの絵（v2.7）：public/cards/trophy.webp（800×600）を読み込む。番号を重ねる', () => {
+    const found = files('public').filter((f) => /trophy|トロフィ/i.test(f));
+    expect(found.map((f) => f.split('\\').join('/'))).toEqual(['public/cards/trophy.webp']);
+    expect(pngSize(found[0])).toEqual([800, 600]);
     const html = renderToStaticMarkup(createElement(CardArt, { def: trophyDef(3), seed: 't' }));
-    expect(html).not.toContain('<img');
-    expect(html).toContain('trophy-doodle');
+    expect(html).toContain('data-src="/cards/trophy.webp"');
+    expect(html).toContain('data-testid="trophy-no"');
     // ふつうのカードは絵を読み込む（v2.4：読み込み係で読み終わるまでは、絵の場所を空けて待つ）
     expect(renderToStaticMarkup(createElement(CardArt, { def: CARDS[0], seed: 't' }))).toContain(`data-src="/${CARDS[0].image}"`);
   });

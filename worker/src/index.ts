@@ -10,6 +10,7 @@ import { RATING } from '../../src/config/rating';
 import { ADMIN_MENU_PATHS, ackMailbox, adminLogin, adminRoute, checkAdmin, mailbox, suspendedUntil } from './admin';
 
 export { Matchmaker } from './matchmaker';
+export { GiftHub } from './giftHub';
 
 /**
  * oteca-api（UPDATE_v2 §10・SPEC §11-9）：レート対戦の受付係（Durable Object）とランキング（D1）。
@@ -50,6 +51,13 @@ class Ctx extends Db {
   /** 数えたもの（受付係の中で使った D1 もふくむ） */
   get count(): Count {
     return { ...this.doCount, d1Read: this.read + this.doCount.d1Read, d1Written: this.written + this.doCount.d1Written };
+  }
+
+  /** 届け係（1つだけ。v2.7）へ */
+  async giftHub(path: string, init?: RequestInit | Request): Promise<Response> {
+    const stub = this.env.GIFT_HUB.get(this.env.GIFT_HUB.idFromName('hub'));
+    this.doCount.doRequests += 1;
+    return stub.fetch(`https://gifthub${path}`, init);
   }
 
   /** 受付係（1つだけ）へ */
@@ -250,6 +258,15 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     return json({ ...ranking, me, ...timing, serverNow: now }, 200, noStore);
   }
 
+  // 届け係につなぐ（v2.7。WebSocket）：token で本人を確かめてから。トロフィあげを渡した瞬間に知らせが来る
+  if (p === '/gift-link') {
+    const userId = url.searchParams.get('userId');
+    if (!(await authed(c, userId, url.searchParams.get('token')))) return json({ error: 'auth' }, 401);
+    const fwd = new Request(req, { headers: new Headers(req.headers) });
+    fwd.headers.set('x-user-id', userId!);
+    return c.giftHub('/connect', fwd);
+  }
+
   // 郵便受け（v2.0-J。届いたトロフィー）
   if (p === '/mailbox' && req.method === 'GET') {
     const userId = url.searchParams.get('userId');
@@ -274,6 +291,14 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     if (denied) return denied;
     const b = req.method === 'POST' ? await body(req) : {};
     const done = await adminRoute(p, b, c, now, json);
+    // トロフィあげを渡した（v2.7）：ゲームを開いていれば、届け係から すぐ知らせる（届かなくても、次に開いた時に郵便受けで受け取る）
+    if (done && p === '/admin/trophy' && done.status === 200) {
+      try {
+        await c.giftHub('/notify', { method: 'POST', body: JSON.stringify({ userId: b.userId }) });
+      } catch (e) {
+        console.error(e);
+      }
+    }
     if (done) return done;
     switch (p) {
       case '/admin/hide-name': {

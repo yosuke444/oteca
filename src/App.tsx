@@ -46,7 +46,8 @@ import { AdminScene } from './scenes/Admin/AdminScene';
 import { SpectateScene } from './scenes/Admin/SpectateScene';
 import { features } from './config/features';
 import { flushReports, syncRanking } from './online/rankingApi';
-import { checkMailbox } from './online/mailbox';
+import { startGiftLink } from './online/giftLink';
+import { GiftArrival } from './scenes/Menu/GiftArrival';
 
 /**
  * ルーター：行き先 → 画面 の対応表（SPEC §3、§13-5）
@@ -133,18 +134,16 @@ export function App() {
   useEffect(() => {
     if (!features.ranking) return;
     // playerId は起動した時に作るので、少し待ってから
-    // 登録できたら、トロフィーの郵便受けも確かめる（v2.0-J。届いていればメニューで演出）
-    const id = window.setTimeout(
-      () =>
-        void syncRanking(() => saveRef.current, update).then((who) => {
-          if (!who) return;
-          const cur = saveRef.current;
-          void checkMailbox({ ...cur, userId: who.userId, userIdRegistered: true, ranking: { ...cur.ranking, token: who.token } }, update);
-        }),
-      1500,
-    );
+    const id = window.setTimeout(() => void syncRanking(() => saveRef.current, update), 1500);
     return () => window.clearTimeout(id);
   }, []);
+  // トロフィーの届け係（v2.7）：登録できているセーブの間は つないだまま（渡された瞬間に届く。届いていれば演出）。
+  // ユーザーID が変わったら（データを消した・引き継ぎコードで入れた）つなぎ直す（前の人あての物を今のセーブに入れない）
+  const giftUser = save.userIdRegistered && save.ranking.token ? `${save.userId}:${save.ranking.token}` : '';
+  useEffect(() => {
+    if (!features.ranking || !giftUser) return;
+    return startGiftLink({ getSave: () => saveRef.current, update });
+  }, [giftUser]);
   // 送れなかった報告が増えた（レート対戦が終わった）：すぐ送る。送れなければ次に開いた時・次の試合の後
   useEffect(() => {
     if (features.ranking && save.ranking.unsent.length) void flushReports(() => saveRef.current, update);
@@ -192,6 +191,8 @@ export function App() {
     <>
       <Scene key={`${nav.route}-${nav.n}`} />
       <PostGuide />
+      {/* トロフィあげが届いた（v2.7。対戦中などは終わってから） */}
+      <GiftArrival route={nav.route} hold={post.active} />
     </>
   );
   return (

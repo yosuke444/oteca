@@ -7,7 +7,7 @@ import './card.css';
  * カードのイラスト。public/cards/<id>.webp が無い・読めなかった時は、
  * ペン描きの「?」と名前を描いた仮イラストを出す（SPEC §5-3）。
  * 絵は読み込み係（imageLoader）で読み、読み終わってから出す（v2.4。読んでいる間は空いた枠。読めたら すぐ差し替わる）。
- * トロフィーのカード（v2.0-J）は、いつも金色のトロフィーの手描き（v2.3：絵が置いてあっても読み込まない。仮の絵のまま）。番号を大きく重ねる
+ * トロフィーのカード（v2.0-J）は public/cards/trophy.webp（v2.7 から読み込む）。無い・読めない時は金色のトロフィーの手描き。番号を大きく重ねる
  */
 export function CardArt({ def, seed }: { def: CardDef; seed: string }) {
   const url = cardImageUrl(def);
@@ -15,15 +15,15 @@ export function CardArt({ def, seed }: { def: CardDef; seed: string }) {
   const trophy = def.kind === 'otege' ? def.trophy : undefined;
   return (
     <RoughBox seed={`${seed}-art`} className={`card-art ${trophy ? 'card-art--trophy' : ''}`} strokeWidth={1.6} radius={4}>
-      {trophy ? (
-        <div className="card-art__placeholder card-art__placeholder--trophy">
-          <TrophyDoodle />
-        </div>
-      ) : url && state === 'ok' ? (
+      {url && state === 'ok' ? (
         <img className="card-art__img" src={url} alt={def.name} draggable={false} />
       ) : url && state === 'loading' ? (
         // 読んでいる間：空いた枠（読めたら すぐ絵に差し替わる）
         <div className="card-art__wait" data-src={url} aria-label={def.name} />
+      ) : trophy ? (
+        <div className="card-art__placeholder card-art__placeholder--trophy">
+          <TrophyDoodle />
+        </div>
       ) : (
         <div className="card-art__placeholder">
           <span className="card-art__q">?</span>
@@ -39,7 +39,7 @@ export function CardArt({ def, seed }: { def: CardDef; seed: string }) {
   );
 }
 
-/** 金色のトロフィーの手描き（仮の絵） */
+/** 金色のトロフィーの手描き（絵が無い時の仮の絵・届いた時の演出） */
 export function TrophyDoodle({ className }: { className?: string }) {
   return (
     <svg className={`trophy-doodle ${className ?? ''}`} viewBox="0 0 64 64" aria-hidden>

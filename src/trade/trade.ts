@@ -1,4 +1,4 @@
-import { CARD_DB, isTrophyNo } from '../data/cards';
+import { CARD_DB, isTrophyNo, trophyCardNo } from '../data/cards';
 import { PACK_DATA } from '../data/packs';
 import { validateDeck } from '../engine';
 import { OWN_MAX, type SaveData } from '../save/saveData';
@@ -43,9 +43,9 @@ export function isTradable(no: number): boolean {
   return !!CARD_DB[no] && !isTrophyNo(no) && !LIMITED_NOS.has(no);
 }
 
-/** ストーリーの限定カードか（v2.3：トレードの一覧で灰色にして理由を出す） */
+/** 限定カードか（v2.3：トレードの一覧で灰色にして理由を出す。v2.7 からトロフィあげ（大会の賞品）も同じ扱い・同じ表示） */
 export function isLimitedNo(no: number): boolean {
-  return LIMITED_NOS.has(no);
+  return LIMITED_NOS.has(no) || isTrophyNo(no);
 }
 
 /** 内容に、トレードに出せないカード（限定カード・トロフィあげ・知らないカード）が入っているか */
@@ -65,11 +65,15 @@ export function offerHasUntradable(x: unknown): boolean {
   });
 }
 
-/** トレードの一覧に出す自分のカード（v2.3：限定カードも出し、灰色・選べない。トロフィあげは出さない） */
-export function giveCandidates(save: Pick<SaveData, 'collection'>): { no: number; limited: boolean }[] {
-  return Object.keys(save.collection)
-    .map(Number)
-    .filter((no) => (save.collection[no] ?? 0) > 0 && !!CARD_DB[no] && !isTrophyNo(no))
+/** トレードの一覧に出す自分のカード（v2.3：限定カードも出し、灰色・選べない。v2.7：持っているトロフィあげも同じに出す） */
+export function giveCandidates(save: Pick<SaveData, 'collection'> & Partial<Pick<SaveData, 'trophies'>>): { no: number; limited: boolean }[] {
+  const trophies = (save.trophies ?? []).map((t) => trophyCardNo(t.number));
+  return [
+    ...Object.keys(save.collection)
+      .map(Number)
+      .filter((no) => (save.collection[no] ?? 0) > 0 && !!CARD_DB[no] && !isTrophyNo(no)),
+    ...trophies,
+  ]
     .filter((no) => isTradable(no) || isLimitedNo(no))
     .sort((a, b) => a - b)
     .map((no) => ({ no, limited: isLimitedNo(no) }));

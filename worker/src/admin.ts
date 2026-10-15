@@ -137,7 +137,9 @@ export async function adminRoute(p: string, b: Record<string, unknown>, c: Db, n
       if (!(await findPlayer(c, b.userId))) return json({ error: 'no-user' }, 404);
       const r = await c.run(`INSERT INTO trophies (number, user_id, created) VALUES (?, ?, ?) ON CONFLICT(number) DO NOTHING`, b.number, b.userId, now);
       if (!r.meta.changes) return json({ error: 'used' }, 409);
-      await adminLog(c, now, 'trophy', b.userId, { number: b.number });
+      // その人に渡した枚数（v2.7。かんりログに残す）
+      const total = (await c.all<{ n: number }>(`SELECT COUNT(*) AS n FROM trophies WHERE user_id = ?`, b.userId))[0]?.n ?? 1;
+      await adminLog(c, now, 'trophy', b.userId, { number: b.number, total });
       return json({ ok: true });
     }
     case '/admin/suspend': {

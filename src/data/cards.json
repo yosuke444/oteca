@@ -1,6 +1,11 @@
 {
   "version": 1,
-  "trophy": { "copyOf": "oteage", "noBase": 50000, "numberMax": 9999, "name": "トロフィあげ（{n}）", "id": "trophy_{n}", "image": "cards/trophy.webp" },
+  "trophy": { "noBase": 50000, "numberMax": 9999, "name": "トロフィあげ（{n}）", "id": "trophy_{n}", "image": "cards/trophy.webp", "rarity": "normal", "hp": 100,
+    "moves": [
+      { "faces": [1, 2], "effects": [{ "type": "damage", "amount": 30 }] },
+      { "faces": [3, 4], "effects": [{ "type": "damage", "amount": 40 }] },
+      { "faces": [5, 6], "effects": [{ "type": "heal", "amount": 20 }] }
+    ] },
   "cards": [
     { "no": 1, "id": "oteage", "name": "おてあげ", "kind": "otege", "rarity": "normal", "hp": 90,
       "moves": [

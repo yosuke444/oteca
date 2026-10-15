@@ -27,6 +27,7 @@ import { ECONOMY, type MatchInfo, type RewardResult, applyMatchReward, matchRewa
 import { CoinCounter, CoinIcon, centerIn, flyCoins } from '../../ui/coin/Coin';
 import { type StoryReward, applyStoryResult, opensAfter, stageByNo } from '../../story/story';
 import { LimitedCardFx } from '../Story/LimitedCardFx';
+import { useGiftHold } from '../../online/giftHold';
 import type { StoryPayload } from '../Story/StoryScene';
 import '../Story/story.css';
 import { DeckPickerDialog } from '../../ui/deck/DeckPicker';
@@ -300,6 +301,8 @@ export function ResultScene() {
     return () => window.clearTimeout(id);
   }, [storyGot, coinsLanded]);
   const [limitedDone, setLimitedDone] = useState(false);
+  // ストーリーの限定カードの演出が終わるまでは、トロフィあげが届いた演出を出さない（v2.7。重ねない）
+  useGiftHold('story-limited', !!storyGot?.cardNo && !limitedDone);
 
   // もらったコインが飛んでくる（勝ち・負けの演出が落ち着いてから）
   const rewardRef = useRef<HTMLDivElement>(null);
