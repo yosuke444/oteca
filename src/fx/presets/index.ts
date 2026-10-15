@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import type { GameEvent, Side } from '../../engine/types';
 import { dieSvg } from '../dice';
+import { clearDice, holdDie, releaseDie } from '../dieSlot';
 import type { FxEnv, FxPreset, StepContext } from '../env';
 import { ITEM_SOUND, type ItemFxKind, itemFxKind, noteColorOf } from '../itemFx';
 import { type Box, type Point, STAGE_CENTER, boxOf, centerOf, rand, spawn, spawnSvg } from '../overlay';
@@ -135,6 +136,8 @@ async function orderDice(env: FxEnv, ctx: StepContext): Promise<void> {
     const pair = pairs[n];
     const dl = spawn(env, 'fx-die2', { x: -120, y }, dieSvg(1));
     const dr = spawn(env, 'fx-die2', { x: 1400, y }, dieSvg(1));
+    // サイコロ専用の入れ物へ（途中で止められても残らない。v2.7）
+    holdDie(dl, dr);
     env.sound('se_dice_roll');
     const roll = (el: HTMLElement, toX: number, dir: number) =>
       play(
@@ -162,15 +165,18 @@ async function orderDice(env: FxEnv, ctx: StepContext): Promise<void> {
       await wait(350);
       await play(gsap.to([dl, dr, same], { opacity: 0, duration: 0.2 }));
       [dl, dr, same].forEach((e) => e.remove());
+      releaseDie(dl, dr);
       continue;
     }
     // 大きい方の目を赤ペンで囲む →「せんこう！」はんこ
     const winLeft = pair[left] > pair[right];
     const winAt = { x: winLeft ? 500 : 780, y };
     const circle = await redCircle(env, winAt, 64, 60);
+    holdDie(circle);
     await stamp(env, { x: winAt.x, y: y - 110 }, t().fx.orderWin, winLeft ? 'fx-stamp--blue' : '', 650);
     await play(gsap.to([dl, dr, circle, title, ...labels], { opacity: 0, duration: 0.25 }));
     [dl, dr, circle, title, ...labels].forEach((e) => e.remove());
+    releaseDie(dl, dr, circle);
     await unveil(cover);
     return;
   }
@@ -245,7 +251,7 @@ async function revealAfter(env: FxEnv, e: Extract<GameEvent, { type: 'ActivesRev
 
 // ---------------------------------------------------------------- 攻撃のサイコロ（§9-2）
 
-async function attackDie(env: FxEnv, value: number, ctx: StepContext): Promise<void> {
+async function attackDie(env: FxEnv, value: number): Promise<void> {
   const at = zoneCenter(env, 'dice', { x: 640, y: 300 });
   const start = { x: 1360, y: at.y - 40 };
   // 鉛筆の軌跡線
@@ -254,6 +260,8 @@ async function attackDie(env: FxEnv, value: number, ctx: StepContext): Promise<v
   const trailPath = trail.querySelector('path')!;
   const len = trailPath.getTotalLength();
   const die = spawn(env, 'fx-die2', start, dieSvg(1));
+  // サイコロ専用の入れ物へ（次の操作・ターンの変わり目・画面を離れた時・止められた時に消える。v2.7）
+  holdDie(die, trail);
   env.sound('se_dice_roll');
   const proxy = { p: 0 };
   const mask = { off: len };
@@ -281,16 +289,14 @@ async function attackDie(env: FxEnv, value: number, ctx: StepContext): Promise<v
   gsap.set(die, { rotate: rand(-8, 8) });
   env.sound('se_dice_land');
   await play(gsap.fromTo(die, { scale: 1.2 }, { scale: 1, duration: 0.14, ease: 'back.out(3)' }));
-  gsap.to(trail, { opacity: 0, duration: 0.3, onComplete: () => trail.remove() });
+  gsap.to(trail, { opacity: 0, duration: 0.3, onComplete: () => (releaseDie(trail), trail.remove()) });
   const circle = await redCircle(env, at, 58, 54, 0.3);
-  ctx.flags.die = [die, circle];
+  holdDie(circle);
 }
 
-function clearDie(ctx: StepContext): void {
-  const els = ctx.flags.die as Element[] | undefined;
-  if (!els) return;
-  ctx.flags.die = undefined;
-  gsap.to(els, { opacity: 0, duration: 0.3, onComplete: () => els.forEach((e) => e.remove()) });
+/** サイコロを片づける（サイコロ専用の入れ物だけ。ほかの演出には触らない） */
+function clearDie(): void {
+  clearDice({ fade: true });
 }
 
 // ---------------------------------------------------------------- ダメージ（§9-2）
@@ -660,7 +666,9 @@ export const PRESETS: PresetMap = {
         await orderDice(env, ctx);
         return;
       }
-      await attackDie(env, e.value, ctx);
+      // 前のサイコロが残っていたら、振る前に消す（サイコロだけ）
+      clearDice();
+      await attackDie(env, e.value);
     },
   },
   Mulligan: {
@@ -680,6 +688,8 @@ export const PRESETS: PresetMap = {
   TurnStarted: {
     async after(env, e) {
       env.markMove(null, null);
+      // ターンが変わった：前のターンのサイコロは残さない
+      clearDie();
       // 「あなたの ターン」がペンで書かれ、定規で引いたような二重下線（0.7秒）
       const label = env.turnLabel(e.player);
       env.sound('se_turn_start');
@@ -784,14 +794,14 @@ export const PRESETS: PresetMap = {
   Fainted: { before: faintBefore, after: faintAfter },
   Promoted: { before: promoteBefore, after: promoteAfter },
   TurnEnded: {
-    async after(env, _e, ctx) {
+    async after(env) {
       env.markMove(null, null);
-      clearDie(ctx);
+      clearDie();
     },
   },
   GameOver: {
-    async after(env, _e, ctx) {
-      clearDie(ctx);
+    async after(env) {
+      clearDie();
       // 決着：画面が白くフラッシュ → リザルトへ
       env.slowMo(1);
       if (env.reduce()) await wait(500);

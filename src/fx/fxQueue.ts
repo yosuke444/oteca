@@ -4,6 +4,7 @@ import { lastingInEffect } from './lastingContext';
 import { PRESETS } from './presets';
 import { wait } from './timing';
 import { applyEventToView } from './viewReducer';
+import { clearDice } from './dieSlot';
 
 /** 演出する1かたまり（1つの操作ぶん） */
 export type FxStep = {
@@ -48,6 +49,8 @@ export class FxQueue {
   dispose(): void {
     this.disposed = true;
     this.steps.length = 0;
+    // 画面を離れた：サイコロだけを すぐ消す（ほかの演出は層ごと画面と一緒に消える）
+    clearDice({ root: this.env.overlay });
   }
 
   private async run(): Promise<void> {
@@ -78,6 +81,8 @@ export class FxQueue {
   private async playStep(step: FxStep): Promise<void> {
     const over = step.events.some((e) => e.type === 'GameOver');
     const ctx: StepContext = { actor: step.actor, events: step.events, index: 0, attackerUid: null, finalBlow: over, flags: {} };
+    // 次の操作の演出が始まった：前の操作のサイコロ（カードを選ぶ間などに残っていたもの）を片づける。サイコロだけ
+    clearDice({ fade: true });
     for (let i = 0; i < step.events.length; i++) {
       if (this.disposed) return;
       const e = step.events[i];
@@ -90,6 +95,8 @@ export class FxQueue {
       try {
         if (preset?.before) await preset.before(this.env, e, ctx);
       } catch (err) {
+        // 演出が途中で止められた：サイコロだけは残さない
+        clearDice();
         // 画面を離れた後（演出の層が無い）に途中の演出が失敗したのは、知らせなくてよい
         if (!this.disposed) console.error('[fx]', e.type, err);
       }
@@ -99,6 +106,7 @@ export class FxQueue {
       try {
         if (preset?.after) await preset.after(this.env, e, ctx);
       } catch (err) {
+        clearDice();
         if (!this.disposed) console.error('[fx]', e.type, err);
       }
     }
