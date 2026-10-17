@@ -102,7 +102,7 @@ describe('V10 所持数が減ったデッキ（トレードなど）', () => {
 
 describe('パックの中身（packs.json。デッキ編集の絞り込み）', () => {
   it('どのパックのカードも cards.json にあり、ノーマルとスーパーの分け方が正しい', () => {
-    expect(PACK_DATA.packs.map((p) => p.id)).toEqual(['ganso', 'shin', 'yoseatsume', 'daily']);
+    expect(PACK_DATA.packs.map((p) => p.id)).toEqual(['ganso', 'shin', 'yoseatsume', 'daily', 'taikai']);
     // 売るのは3つ（デイリーパックは売らない。v2.1-M）
     expect(SHOP_PACKS.map((p) => p.id)).toEqual(['ganso', 'shin', 'yoseatsume']);
     expect(inPack('kami', 'ganso')).toBe(true);

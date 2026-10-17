@@ -271,12 +271,12 @@ async function route(req: Request, c: Ctx): Promise<Response> {
   if (p === '/mailbox' && req.method === 'GET') {
     const userId = url.searchParams.get('userId');
     if (!(await authed(c, userId, url.searchParams.get('token')))) return json({ error: 'auth' }, 401);
-    return json({ trophies: await mailbox(c, userId!, now) });
+    return json(await mailbox(c, userId!, now));
   }
   if (p === '/mailbox/ack' && req.method === 'POST') {
     const b = await body(req);
     if (!(await authed(c, b.userId, b.token))) return json({ error: 'auth' }, 401);
-    return json({ ok: true, changed: await ackMailbox(c, b.userId as string, b.numbers) });
+    return json({ ok: true, changed: await ackMailbox(c, b.userId as string, b.numbers, b.giftIds, now) });
   }
   // 停止中か（v2.0-J。自分・対戦相手・トレード相手。ユーザーID をカンマ区切りで10件まで）
   if (p === '/status' && req.method === 'GET') {
@@ -292,12 +292,17 @@ async function route(req: Request, c: Ctx): Promise<Response> {
     const b = req.method === 'POST' ? await body(req) : {};
     const done = await adminRoute(p, b, c, now, json);
     // トロフィあげを渡した（v2.7）：ゲームを開いていれば、届け係から すぐ知らせる（届かなくても、次に開いた時に郵便受けで受け取る）
-    if (done && p === '/admin/trophy' && done.status === 200) {
-      try {
-        await c.giftHub('/notify', { method: 'POST', body: JSON.stringify({ userId: b.userId }) });
-      } catch (e) {
-        console.error(e);
-      }
+    // まとめて贈った時（v2.7）も、贈った人それぞれに知らせる
+    if (done && done.status === 200 && (p === '/admin/trophy' || p === '/admin/trophy-batch' || p === '/admin/gift')) {
+      const res = (await done.clone().json().catch(() => null)) as { sent?: { id: string }[] } | null;
+      const ids = p === '/admin/trophy' ? [b.userId as string] : (res?.sent ?? []).map((s) => s.id);
+      // 何人でも届け係への知らせは1回（v2.7）
+      if (ids.length)
+        try {
+          await c.giftHub('/notify', { method: 'POST', body: JSON.stringify({ userIds: ids }) });
+        } catch (e) {
+          console.error(e);
+        }
     }
     if (done) return done;
     switch (p) {

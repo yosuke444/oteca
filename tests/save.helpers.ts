@@ -33,6 +33,9 @@ export function randomSave(seed: number): SaveData {
     saveVersion: 1,
     saveCounter: bigOrSmall(),
     cpuReward: { cycleKey: r.int(0, 20991231), count: r.int(0, 50) },
+    // もっている パック・受け取った贈り物の番号（v2.7。形式版数12）
+    ownedPacks: r.next() < 0.5 ? {} : { taikai: r.int(1, 999), ...(r.next() < 0.3 ? { daily: r.int(1, 5) } : {}) },
+    giftIds: Array.from({ length: r.int(0, 5) }, (_, i) => i + 1 + r.int(0, 2 ** 40)),
     playerName: text(0, 8),
     settings: {
       bgm: r.int(0, 10),

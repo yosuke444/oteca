@@ -1,6 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { type AdminFn, adminCodeList, findAdminCode } from '../../admin/codes';
 import { CARD_DB, TROPHY, trophyDef } from '../../data/cards';
+import { PACK_DATA, packName } from '../../data/packs';
+import { giftKind } from '../../gift/gifts';
+import { PackArt } from '../Gacha/PackArt';
+import { useLang } from '../../i18n/useT';
+import { currentLang } from '../../i18n';
 import type { Dict } from '../../i18n';
 import { useT } from '../../i18n/useT';
 import { adminCall, isAdmin, logoutAdmin } from '../../online/adminApi';
@@ -102,6 +107,7 @@ export function AdminScene() {
         <div className="admin-panel__inner" data-testid={`admin-panel-${fn ?? 'none'}`}>
           {fn === 'watch' && <WatchPanel />}
           {fn === 'trophy' && <TrophyPanel key={`t-${presetId}`} initialId={presetId} />}
+          {fn === 'giftpack' && <GiftPackPanel kind="pack_taikai" />}
           {fn === 'suspend' && <SuspendPanel key={`s-${presetId}`} initialId={presetId} />}
           {fn === 'unsuspend' && <UnsuspendPanel key={`u-${presetId}`} initialId={presetId} />}
           {fn === 'search' && <SearchPanel onTrophy={(id) => open('trophy', id)} onSuspend={(id) => open('suspend', id)} />}
@@ -193,49 +199,144 @@ function WatchPanel() {
   );
 }
 
+// ---------------------------------------------------------------- まとめて おくる（v2.7）
+
+/** サーバーで確かめた相手（見つかった人・見つからないID・停止中・形の正しくないもの） */
+type Checked = { users: { id: string; name: string; rate: number }[]; missing: string[]; suspended: { id: string; until: number }[]; bad: string[]; tooMany: boolean };
+
+/** ユーザーID をまとめて入れて（改行・カンマ・スペースで区切る。- は有っても無くても）、サーバーで確かめる */
+function useBatchUsers(initialId: string) {
+  const tr = useT();
+  const [idsText, setIdsText] = useState(initialId ? formatUserId(initialId) : '');
+  const [checked, setChecked] = useState<Checked | null>(null);
+  const [note, setNote] = useState('');
+  const check = async (): Promise<Checked | null> => {
+    setNote(tr.admin.working);
+    const r = await adminCall<Checked>('/admin/check-users', { userIds: idsText });
+    if (!r.ok) {
+      setNote(r.status === 401 ? tr.admin.expired : tr.admin.failed);
+      return null;
+    }
+    setChecked(r.data);
+    if (r.data.tooMany) {
+      setNote(tr.admin.batch.tooMany(BATCH_MAX));
+      return null;
+    }
+    if (r.data.users.length === 0) {
+      setNote(tr.admin.batch.none);
+      return r.data;
+    }
+    setNote('');
+    return r.data;
+  };
+  return { idsText, setIdsText, checked, setChecked, note, setNote, check };
+}
+
+/** 一度にまとめて贈れる人数（Worker の GIFT_BATCH_MAX と同じ） */
+const BATCH_MAX = 100;
+
+/** ユーザーID をまとめて入れる欄 */
+function IdsField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const tr = useT();
+  return (
+    <Field label={tr.admin.batch.ids}>
+      <textarea className="pen-input admin-field__input admin-field__ids" rows={3} value={value} onChange={(e) => onChange(e.target.value)} data-testid="admin-userid" />
+    </Field>
+  );
+}
+
+/** 確かめた結果：おくる相手の人数と、飛ばすID の一覧 */
+function BatchProblems({ checked }: { checked: Checked }) {
+  const tr = useT();
+  const B = tr.admin.batch;
+  const list = (title: string, ids: string[], testId: string) =>
+    ids.length > 0 && (
+      <div className="admin-batch__problem red-pen" data-testid={testId}>
+        <span>{title}</span>
+        <span className="num">{ids.map((id) => (/^[1-9][0-9]{14}$/.test(id) ? formatUserId(id) : id)).join(tr.admin.codeSep)}</span>
+      </div>
+    );
+  return (
+    <div className="admin-batch">
+      {list(B.missing, checked.missing, 'admin-batch-missing')}
+      {list(B.suspended, checked.suspended.map((x) => x.id), 'admin-batch-suspended')}
+      {list(B.bad, checked.bad, 'admin-batch-bad')}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- ギフトトロフィあげ
 
+/**
+ * トロフィあげを おくる。1人の時は今までどおり番号を決めて（使われていれば「もう つかわれているよ」）、
+ * 2人以上の時は「さいしょの ばんごう」から順に、空いている番号を配る（v2.7）
+ */
 function TrophyPanel({ initialId }: { initialId: string }) {
   const tr = useT();
-  const u = useUserLookup(initialId);
+  const b = useBatchUsers(initialId);
   const [step, setStep] = useState<'id' | 'number' | 'confirm' | 'done'>('id');
   const [numText, setNumText] = useState('');
+  const [sentList, setSentList] = useState<{ id: string; number: number }[]>([]);
+  const [noNumber, setNoNumber] = useState<string[]>([]);
   const num = Number(numText);
   const numOk = /^[0-9]{1,6}$/.test(numText) && num >= 1 && num <= TROPHY.numberMax;
+  const users = b.checked?.users ?? [];
+  const single = users.length === 1;
+  const who = (u: { id: string; name: string; rate: number }) => `${formatUserId(u.id)} ${tr.admin.userLine(safeName(u.name, '') || tr.admin.search.dash, u.rate)}`;
+  const [sending, setSending] = useState(false);
   const send = async () => {
-    u.setNote(tr.admin.working);
-    const r = await adminCall('/admin/trophy', { userId: u.user!.id, number: num });
-    if (r.ok) {
-      u.setNote('');
-      setStep('done');
+    // 二度押しで2回贈らない
+    if (sending) return;
+    setSending(true);
+    try {
+      await sendOnce();
+    } finally {
+      setSending(false);
+    }
+  };
+  const sendOnce = async () => {
+    b.setNote(tr.admin.working);
+    if (single) {
+      const r = await adminCall('/admin/trophy', { userId: users[0].id, number: num });
+      if (r.ok) {
+        b.setNote('');
+        setSentList([{ id: users[0].id, number: num }]);
+        setStep('done');
+        return;
+      }
+      b.setNote(r.status === 409 ? tr.admin.trophy.used : r.status === 404 ? tr.admin.noUser : r.status === 401 ? tr.admin.expired : tr.admin.failed);
+      if (r.status === 409) setStep('number');
       return;
     }
-    u.setNote(r.status === 409 ? tr.admin.trophy.used : r.status === 404 ? tr.admin.noUser : r.status === 401 ? tr.admin.expired : tr.admin.failed);
-    if (r.status === 409) setStep('number');
+    const r = await adminCall<{ sent: { id: string; number: number }[]; noNumber: string[] }>('/admin/trophy-batch', { userIds: users.map((u) => u.id), start: num });
+    if (!r.ok) return b.setNote(r.status === 401 ? tr.admin.expired : tr.admin.failed);
+    b.setNote('');
+    setSentList(r.data.sent);
+    setNoNumber(r.data.noNumber);
+    setStep('done');
   };
   return (
     <div className="admin-form">
       {step === 'id' && (
         <>
-          <Field label={tr.admin.trophy.userId}>
-            <input className="pen-input admin-field__input" value={u.idText} onChange={(e) => u.setIdText(e.target.value)} data-testid="admin-userid" />
-          </Field>
-          <RoughButton seed="admin-trophy-id" className="admin-form__go" highlight onClick={() => void u.lookup().then((ok) => ok && setStep('number'))} data-testid="admin-next">
+          <IdsField value={b.idsText} onChange={b.setIdsText} />
+          <RoughButton seed="admin-trophy-id" className="admin-form__go" highlight onClick={() => void b.check().then((c) => c && c.users.length > 0 && setStep('number'))} data-testid="admin-next">
             {tr.admin.next}
           </RoughButton>
+          {b.checked && <BatchProblems checked={b.checked} />}
         </>
       )}
       {step === 'number' && (
         <>
-          <p className="admin-form__who">{tr.admin.trophy.to(u.who)}</p>
-          <Field label={tr.admin.trophy.number}>
+          <p className="admin-form__who">{single ? tr.admin.trophy.to(who(users[0])) : tr.admin.trophy.to(tr.admin.batch.people(users.length))}</p>
+          <Field label={single ? tr.admin.trophy.number : tr.admin.trophy.start}>
             <input className="pen-input admin-field__input" inputMode="numeric" value={numText} onChange={(e) => setNumText(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} data-testid="admin-trophy-number" />
           </Field>
           <RoughButton
             seed="admin-trophy-num"
             className="admin-form__go"
             highlight={numOk}
-            onClick={() => (numOk ? (u.setNote(''), setStep('confirm')) : u.setNote(tr.admin.trophy.badNumber))}
+            onClick={() => (numOk ? (b.setNote(''), setStep('confirm')) : b.setNote(tr.admin.trophy.badNumber))}
             data-testid="admin-next"
           >
             {tr.admin.next}
@@ -248,13 +349,22 @@ function TrophyPanel({ initialId }: { initialId: string }) {
             <CardDetail def={trophyDef(num)} seed={`admin-trophy-${num}`} />
           </div>
           <div className="admin-confirm__side">
-            <p className="admin-form__who">{tr.admin.trophy.to(u.who)}</p>
-            <p>{tr.admin.trophy.confirm}</p>
+            {single ? (
+              <>
+                <p className="admin-form__who">{tr.admin.trophy.to(who(users[0]))}</p>
+                <p>{tr.admin.trophy.confirm}</p>
+              </>
+            ) : (
+              <p className="admin-form__who" data-testid="admin-batch-confirm">
+                {tr.admin.trophy.batchConfirm(users.length, num)}
+              </p>
+            )}
+            {b.checked && <BatchProblems checked={b.checked} />}
             <div className="admin-form__buttons">
               <RoughButton seed="admin-trophy-back" onClick={() => setStep('number')}>
                 {tr.admin.cancel}
               </RoughButton>
-              <RoughButton seed="admin-trophy-send" highlight onClick={() => void send()} data-testid="admin-trophy-send">
+              <RoughButton seed="admin-trophy-send" highlight disabled={sending} onClick={() => void send()} data-testid="admin-trophy-send">
                 {tr.admin.trophy.send}
               </RoughButton>
             </div>
@@ -262,13 +372,115 @@ function TrophyPanel({ initialId }: { initialId: string }) {
         </div>
       )}
       {step === 'done' && (
-        <p className="admin-done blue-pen" data-testid="admin-done">
-          {tr.admin.trophy.sent}
+        <div className="admin-done blue-pen" data-testid="admin-done">
+          <p>{single ? tr.admin.trophy.sent : tr.admin.trophy.sentList(sentList.length)}</p>
+          {!single && (
+            <p className="admin-batch__list num" data-testid="admin-trophy-sent-list">
+              {sentList.map((x) => tr.admin.trophy.sentLine(formatUserId(x.id), x.number)).join(tr.admin.codeSep)}
+            </p>
+          )}
+          {noNumber.length > 0 && (
+            <p className="red-pen">
+              {tr.admin.trophy.noNumberList(noNumber.map(formatUserId).join(tr.admin.codeSep))}
+            </p>
+          )}
+        </div>
+      )}
+      {b.note && (
+        <p className="admin-note red-pen" data-testid="admin-note">
+          {b.note}
         </p>
       )}
-      {u.note && (
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- ギフトたいかいパック（v2.7）
+
+/** 贈り物（gifts.json の種類。今は大会パック）を、まとめて入れたユーザーID に いくつずつ贈る */
+function GiftPackPanel({ kind }: { kind: string }) {
+  const tr = useT();
+  const lang = useLang();
+  const G = tr.admin.giftPack;
+  const def = giftKind(kind)!;
+  const pack = PACK_DATA.packs.find((x) => x.id === def.pack);
+  const b = useBatchUsers('');
+  const [countText, setCountText] = useState(String(def.defaultCount));
+  const [step, setStep] = useState<'input' | 'confirm' | 'done'>('input');
+  const [sent, setSent] = useState(0);
+  const count = Number(countText);
+  const countOk = /^[0-9]{1,2}$/.test(countText) && count >= 1 && count <= def.maxCount;
+  const next = async () => {
+    if (!countOk) return b.setNote(G.badCount(def.maxCount));
+    const c = await b.check();
+    if (c && c.users.length > 0) setStep('confirm');
+  };
+  const [sending, setSending] = useState(false);
+  const send = async () => {
+    // 二度押しで2回贈らない
+    if (sending) return;
+    setSending(true);
+    try {
+      await sendOnce();
+    } finally {
+      setSending(false);
+    }
+  };
+  const sendOnce = async () => {
+    b.setNote(tr.admin.working);
+    const r = await adminCall<{ sent: { id: string }[]; missing: string[]; suspended: { id: string; until: number }[]; bad: string[] }>('/admin/gift', {
+      kind,
+      count,
+      userIds: (b.checked?.users ?? []).map((u) => u.id),
+    });
+    if (!r.ok) return b.setNote(r.status === 401 ? tr.admin.expired : tr.admin.failed);
+    b.setNote('');
+    setSent(r.data.sent.length);
+    setStep('done');
+  };
+  return (
+    <div className="admin-form admin-gift" data-testid="admin-giftpack">
+      {pack && (
+        <div className="admin-gift__art" aria-label={packName(pack, lang)}>
+          <PackArt pack={pack} className="pack-art--thumb" />
+        </div>
+      )}
+      {step === 'input' && (
+        <>
+          <IdsField value={b.idsText} onChange={b.setIdsText} />
+          <Field label={G.count(def.maxCount)}>
+            <input className="pen-input admin-field__input admin-field__count" inputMode="numeric" value={countText} onChange={(e) => setCountText(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} data-testid="admin-gift-count" />
+          </Field>
+          <RoughButton seed="admin-gift-next" className="admin-form__go" highlight onClick={() => void next()} data-testid="admin-next">
+            {tr.admin.next}
+          </RoughButton>
+          {b.checked && <BatchProblems checked={b.checked} />}
+        </>
+      )}
+      {step === 'confirm' && b.checked && (
+        <>
+          <p className="admin-form__who" data-testid="admin-gift-confirm">
+            {G.confirm(b.checked.users.length, count)}
+          </p>
+          <BatchProblems checked={b.checked} />
+          <div className="admin-form__buttons">
+            <RoughButton seed="admin-gift-back" onClick={() => setStep('input')}>
+              {tr.admin.cancel}
+            </RoughButton>
+            <RoughButton seed="admin-gift-send" highlight disabled={sending} onClick={() => void send()} data-testid="admin-gift-send">
+              {G.send}
+            </RoughButton>
+          </div>
+        </>
+      )}
+      {step === 'done' && (
+        <p className="admin-done blue-pen" data-testid="admin-done">
+          {G.sent(sent, count)}
+        </p>
+      )}
+      {b.note && (
         <p className="admin-note red-pen" data-testid="admin-note">
-          {u.note}
+          {b.note}
         </p>
       )}
     </div>
@@ -560,7 +772,12 @@ function CopyButton({ text, label, done }: { text: string; label: string; done: 
 
 // ---------------------------------------------------------------- かんりログ
 
-type LogRow = { id: number; at: number; action: string; target: string; detail: string };
+type LogRow = { id: number; at: number; action: string; target: string; detail: string; received?: boolean };
+
+/** 受け取ったか（v2.7。サーバーが今の状態を付ける。前の記録の時は付かない） */
+function receivedText(L: Dict['admin']['log'], r: LogRow): string {
+  return r.received === undefined ? '' : r.received ? L.received : L.notReceived;
+}
 
 /** かんりログの「なかみ」を文にする（サーバーには JSON で残っている） */
 function logDetail(tr: Dict, r: LogRow): string {
@@ -579,8 +796,15 @@ function logDetail(tr: Dict, r: LogRow): string {
   };
   switch (r.action) {
     case 'trophy':
-      // その人に渡した枚数（v2.7。前の記録には無い）
-      return typeof d.number === 'number' ? [L.number(d.number), typeof d.total === 'number' ? L.total(d.total) : ''].filter(Boolean).join(sep) : '';
+      // その人に渡した枚数（v2.7。前の記録には無い）・受け取ったか（v2.7）
+      return typeof d.number === 'number' ? [L.number(d.number), typeof d.total === 'number' ? L.total(d.total) : '', receivedText(L, r)].filter(Boolean).join(sep) : '';
+    case 'gift': {
+      // 贈り物（v2.7）：何を・いくつ・受け取ったか
+      const k = typeof d.kind === 'string' ? giftKind(d.kind) : undefined;
+      const pk = k?.pack ? PACK_DATA.packs.find((x) => x.id === k.pack) : undefined;
+      const name = pk ? packName(pk, currentLang()) : String(d.kind ?? '');
+      return [L.gift(name, Number(d.count) || 0), receivedText(L, r)].filter(Boolean).join(sep);
+    }
     case 'suspend': {
       const parts = [tr.admin.suspend.days[Number(d.days)] ?? ''];
       if (typeof d.reason === 'string' && d.reason) parts.push(L.reason(d.reason));

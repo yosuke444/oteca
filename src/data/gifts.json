@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "kinds": [
+    { "id": "trophy", "type": "trophy", "defaultCount": 1, "maxCount": 1, "arrival": "trophy" },
+    { "id": "pack_taikai", "type": "pack", "pack": "taikai", "defaultCount": 3, "maxCount": 10, "arrival": "taikai" }
+  ]
+}

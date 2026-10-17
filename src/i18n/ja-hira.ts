@@ -440,7 +440,7 @@ export const hira = {
     codeGo: 'けってい',
     unknownCode: 'その コードは ないよ',
     // 管理者メニューのコード（どちらの表記でも同じ言葉。企画者の指示のとおり）
-    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング', cards: 'カードのせいせき' },
+    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', giftpack: 'ギフトたいかいパック', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング', cards: 'カードのせいせき' },
     /** カードの せいせき（v2.7）：実際の対戦で、そのカードが入っていたデッキの数と勝率 */
     cardStats: {
       ranges: { today: 'きょう', '7d': '7にち', all: 'ぜんぶ' } as Record<'today' | '7d' | 'all', string>,
@@ -491,6 +491,29 @@ export const hira = {
       send: 'おくる',
       sent: 'おくったよ！ あいてが ゲームを ひらくと とどくよ',
       used: 'その ばんごうは もう つかわれているよ',
+      /** まとめて おくる（v2.7） */
+      start: 'さいしょの ばんごう（1〜9999。つかわれている ばんごうは とばすよ）',
+      batchConfirm: (n: number, start: number) => `${n}にんに トロフィあげを 1まいずつ おくります（ばんごうは ${start} から じゅんに）`,
+      sentList: (n: number) => `${n}にんに おくったよ！ ゲームを ひらいている ひとには すぐ とどくよ`,
+      sentLine: (id: string, n: number) => `${id} → ばんごう ${n}`,
+      noNumberList: (ids: string) => `ばんごうが たりなくて おくれなかった：${ids}`,
+    },
+    /** まとめて おくる（v2.7。ギフトたいかいパック・ギフトトロフィあげ） */
+    batch: {
+      ids: 'あいての ユーザーID（なんにんでも。かいぎょう・カンマ・スペースで くぎる）',
+      missing: 'みつからない ユーザーID（とばすよ）',
+      suspended: 'ていし ちゅうの アカウント（とばすよ）',
+      bad: 'ユーザーID の かたちに なっていない（とばすよ）',
+      none: 'おくれる あいてが いないよ',
+      tooMany: (n: number) => `いちどに ${n}にん まで だよ`,
+      people: (n: number) => `${n}にん`,
+    },
+    giftPack: {
+      count: (max: number) => `1にんに おくる かず（1〜${max}）`,
+      badCount: (max: number) => `かずは 1〜${max} だよ`,
+      confirm: (n: number, c: number) => `${n}にんに ${c}こずつ おくります`,
+      send: 'おくる',
+      sent: (n: number, c: number) => `${n}にんに ${c}こずつ おくったよ！ ゲームを ひらいている ひとには すぐ とどくよ`,
     },
     suspend: {
       userId: 'ていし する ユーザーID',
@@ -549,9 +572,13 @@ export const hira = {
       colDetail: 'なかみ',
       number: (n: number) => `ばんごう ${n}`,
       total: (n: number) => `この ひとに ぜんぶで ${n}まい`,
+      /** 贈り物（v2.7） */
+      gift: (name: string, n: number) => `${name} ×${n}`,
+      received: 'うけとった',
+      notReceived: 'まだ うけとって いない',
       reason: (r: string) => `りゆう：${r}`,
       cond: (label: string, v: string) => `${label}：${v}`,
-      actions: { login: 'はいった', lock: 'まちがえすぎ', trophy: 'トロフィー', suspend: 'ていし', unsuspend: 'ていし とりけし', search: 'けんさく', watch: 'かんせん' } as Record<string, string>,
+      actions: { login: 'はいった', lock: 'まちがえすぎ', trophy: 'トロフィー', gift: 'プレゼント', suspend: 'ていし', unsuspend: 'ていし とりけし', search: 'けんさく', watch: 'かんせん' } as Record<string, string>,
     },
   },
 
@@ -570,6 +597,19 @@ export const hira = {
   /** トロフィーが届いた（v2.0-J） */
   trophyGet: {
     title: 'トロフィーが とどいた！',
+  },
+
+  /** 贈り物（v2.7。大会パックなど） */
+  gift: {
+    title: 'プレゼントが とどいた！',
+    taikaiTitle: 'たいかいの さんかしょう',
+    packNote: (name: string, n: number) => `「${name}」が ${n}つ とどいたよ！ ガチャの がめんで あけられるよ`,
+    note: (n: number) => `${n}こ とどいたよ！`,
+    times: (n: number) => `×${n}`,
+    /** 大会パックの袋に大きく書く文字 */
+    taikaiBag: 'たいかい',
+    /** パックの絵が無い贈り物の印 */
+    boxMark: 'プレゼント',
   },
 
   ranking: {
@@ -709,6 +749,10 @@ export const hira = {
   },
 
   gacha: {
+    /** もっている パック（v2.7。大会パックなど） */
+    ownedTitle: 'もっている パック',
+    ownedPacks: (n: number) => `×${n}`,
+    ownedOpen: 'あける',
     title: 'パックガチャ',
     prev: 'まえの パック',
     next: 'つぎの パック',

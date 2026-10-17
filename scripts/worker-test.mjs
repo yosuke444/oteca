@@ -523,6 +523,59 @@ try {
     check('トロフィーの記録に、相手と番号と、その人に渡した枚数（v2.7）', tLog?.target === T.id && JSON.parse(tLog.detail).number === 77 && JSON.parse(tLog.detail).total === 1);
     const t78 = log.json.rows.find((r) => r.action === 'trophy' && JSON.parse(r.detail).number === 78);
     check('2枚目の記録は「ぜんぶで2まい」', JSON.parse(t78?.detail ?? '{}').total === 2, t78?.detail);
+    check('トロフィーの記録に、受け取ったか（v2.7。77 は受け取った・78 はまだ）', tLog?.received === true && t78?.received === false, JSON.stringify([tLog, t78]));
+
+    // 贈り物（v2.7。大会パック）：ユーザーID をまとめて入れて贈る。見つからないID・停止中は飛ばす
+    console.log('贈り物（大会パック）');
+    const G = [await register(B, pid(701), "さんかA"), await register(B, pid(702), "さんかB"), await register(B, pid(703), "さんかC")];
+    const stopped = await register(B, pid(704), "さんかZ");
+    await sess('/admin/suspend', { userId: stopped.id, days: 7, reason: 'test' });
+    const fmt = (id) => `${id.slice(0, 5)}-${id.slice(5, 10)}-${id.slice(10)}`;
+    const text = `${fmt(G[0].id)}\n${G[1].id}, ${G[2].id}  ${pid(799)} ${stopped.id} abc`;
+    const chk = (await sess('/admin/check-users', { userIds: text })).json;
+    check('⑥ まとめて入れたIDを確かめる（見つからないID・停止中・形の正しくないものを分ける）', chk?.users?.length === 3 && chk.missing.join() === pid(799) && chk.suspended[0]?.id === stopped.id && chk.bad.join() === 'abc', JSON.stringify(chk));
+    // 届け係につないでおく（開いている人には すぐ届く）
+    const g0 = giftWs(G[0]);
+    await until(() => g0.opened);
+    const gt0 = Date.now();
+    const gift = await sess('/admin/gift', { kind: 'pack_taikai', count: 3, userIds: text });
+    check('② 3人まとめて大会パックを3つずつ贈れる（見つからないID・停止中は飛ばして知らせる）', gift.status === 200 && gift.json.sent.length === 3 && gift.json.missing.join() === pid(799) && gift.json.suspended.length === 1, JSON.stringify(gift.json));
+    await until(() => g0.msgs.length > 0, 5000);
+    check('③ 開いている人には届け係から すぐ知らせが届く', g0.msgs[0]?.data === '{"t":"gift"}' && g0.msgs[0].at - gt0 < 5000, JSON.stringify(g0.msgs));
+    console.log(`    （大会パックを贈ってから知らせが届くまで ${g0.msgs[0] ? g0.msgs[0].at - gt0 : -1}ms）`);
+    g0.ws.close();
+    let allGot = true;
+    for (const u of G) {
+      const mb = (await api(B, `/mailbox?userId=${u.id}&token=${u.token}`)).json;
+      if (!(mb?.gifts?.length === 1 && mb.gifts[0].kind === 'pack_taikai' && mb.gifts[0].count === 3 && mb.trophies.length === 0)) allGot = false;
+    }
+    check("② 3人とも郵便受けに大会パック3つ", allGot);
+    check('停止中の人には贈っていない', (await api(B, `/mailbox?userId=${stopped.id}&token=${stopped.token}`)).json?.gifts?.length === 0);
+    check('数が範囲外・知らない種類は 400', (await sess('/admin/gift', { kind: 'pack_taikai', count: 11, userIds: text })).status === 400 && (await sess('/admin/gift', { kind: 'nope', count: 1, userIds: text })).status === 400);
+    // 受け取った → 渡し済み（ほかの人の番号は変えられない）
+    const gid = gift.json.sent[0].giftId;
+    await api(B, '/mailbox/ack', { method: 'POST', body: { userId: G[1].id, token: G[1].token, giftIds: [gid] } });
+    check('ほかの人の贈り物の番号では渡し済みにならない', (await api(B, `/mailbox?userId=${G[0].id}&token=${G[0].token}`)).json?.gifts?.length === 1);
+    await api(B, '/mailbox/ack', { method: 'POST', body: { userId: G[0].id, token: G[0].token, giftIds: [gid] } });
+    check('受け取ったら郵便受けから出る（贈り物）', (await api(B, `/mailbox?userId=${G[0].id}&token=${G[0].token}`)).json?.gifts?.length === 0);
+    // トロフィあげも まとめて（最初の番号から、使われている番号は飛ばす）
+    await sess('/admin/trophy', { userId: G[0].id, number: 301 });
+    const tb = await sess('/admin/trophy-batch', { userIds: `${G[1].id} ${G[2].id}`, start: 300 });
+    check('⑦ トロフィあげも まとめて贈れる（301 は使われているので 300・302）', tb.status === 200 && tb.json.sent.map((x) => x.number).join() === '300,302', JSON.stringify(tb.json));
+    await sess('/admin/unsuspend', { userId: stopped.id });
+    // 贈り物の記録（v2.7）：誰に・何を・いくつ・いつ・受け取ったか
+    const log2 = await sess('/admin/log', { page: 0 });
+    const gLogs = log2.json.rows.filter((r) => r.action === 'gift');
+    const gOk = gLogs.find((r) => JSON.parse(r.detail).giftId === gid);
+    const gNo = gLogs.find((r) => JSON.parse(r.detail).giftId === gift.json.sent[1].giftId);
+    check('かんりログに贈り物の記録（誰に・何を・いくつ・いつ）と、受け取ったか', gLogs.length === 3 && gOk?.target === G[0].id && JSON.parse(gOk.detail).kind === 'pack_taikai' && JSON.parse(gOk.detail).count === 3 && gOk.at > 0 && gOk.received === true && gNo?.received === false, JSON.stringify(gLogs));
+    // たくさんの人（60人）に まとめて贈っても、SQL は決まった回数（無料プランの1回の問い合わせの上限に収まる）
+    const bulk = [];
+    for (let i = 0; i < 60; i++) bulk.push(register(B, pid(800 + i), `まとめ${i}`));
+    const manyIds = (await Promise.all(bulk)).map((u) => u.id);
+    const big = await api(B, '/admin/gift', { method: 'POST', admin: ADMIN, origin: null, body: { kind: 'pack_taikai', count: 2, userIds: manyIds.join(' ') } });
+    const bigCount = big.count;
+    check('60人にまとめて贈れる（D1 の問い合わせは決まった回数）', big.status === 200 && big.json.sent.length === 60 && new Set(big.json.sent.map((x) => x.giftId)).size === 60, JSON.stringify({ s: big.status, n: big.json?.sent?.length, c: bigCount }));
   }
 } catch (e) {
   check('とちゅうでエラー', false, e?.stack ?? String(e));

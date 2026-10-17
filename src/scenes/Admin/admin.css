@@ -313,3 +313,43 @@
   align-items: center;
   gap: 10px;
 }
+
+/* まとめて おくる（v2.7）：ユーザーID を何人分も入れる欄・飛ばすID の一覧 */
+.admin-field__ids {
+  width: 560px;
+  font-size: 18px;
+  line-height: 1.4;
+  resize: vertical;
+}
+.admin-field__count {
+  width: 90px;
+}
+.admin-batch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-batch__problem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 18px;
+}
+.admin-batch__list {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: var(--ink);
+}
+/* ギフトたいかいパック：右上にパックの絵 */
+.admin-gift {
+  position: relative;
+  min-height: 160px;
+}
+.admin-gift__art {
+  position: absolute;
+  right: 6px;
+  top: 0;
+  width: 90px;
+  height: 135px;
+  rotate: 4deg;
+}

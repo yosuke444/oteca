@@ -416,7 +416,7 @@ export const kanji: Dict = {
     codeGo: '決定',
     unknownCode: 'そのコードはないよ',
     // 管理者メニューのコード（どちらの表記でも同じ言葉。企画者の指示のとおり）
-    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング', cards: 'カードのせいせき' },
+    codeWords: { watch: '大会閲覧', trophy: 'ギフトトロフィあげ', giftpack: 'ギフトたいかいパック', suspend: 'アカウント停止', unsuspend: '停止解除', search: '検索', log: 'かんりログ', ranking: 'ランキング', cards: 'カードのせいせき' },
     cardStats: {
       ranges: { today: '今日', '7d': '7日', all: '全部' } as Record<'today' | '7d' | 'all', string>,
       games: (n: number) => `試合 ${n}`,
@@ -465,6 +465,27 @@ export const kanji: Dict = {
       send: '送る',
       sent: '送ったよ！ 相手がゲームを開くと届くよ',
       used: 'その番号はもう使われているよ',
+      start: '最初の番号（1〜9999。使われている番号は飛ばすよ）',
+      batchConfirm: (n, start) => `${n}人にトロフィあげを1枚ずつ送ります（番号は${start}から順に）`,
+      sentList: (n) => `${n}人に送ったよ！ ゲームを開いている人にはすぐ届くよ`,
+      sentLine: (id, n) => `${id} → 番号 ${n}`,
+      noNumberList: (ids) => `番号が足りなくて送れなかった：${ids}`,
+    },
+    batch: {
+      ids: '相手のユーザーID（何人でも。改行・カンマ・スペースで区切る）',
+      missing: '見つからないユーザーID（飛ばすよ）',
+      suspended: '停止中のアカウント（飛ばすよ）',
+      bad: 'ユーザーIDの形になっていない（飛ばすよ）',
+      none: '送れる相手がいないよ',
+      tooMany: (n) => `一度に${n}人までだよ`,
+      people: (n) => `${n}人`,
+    },
+    giftPack: {
+      count: (max) => `1人に送る数（1〜${max}）`,
+      badCount: (max) => `数は1〜${max}だよ`,
+      confirm: (n, c) => `${n}人に${c}こずつ送ります`,
+      send: '送る',
+      sent: (n, c) => `${n}人に${c}こずつ送ったよ！ ゲームを開いている人にはすぐ届くよ`,
     },
     suspend: {
       userId: '停止するユーザーID',
@@ -523,9 +544,12 @@ export const kanji: Dict = {
       colDetail: '中身',
       number: (n) => `番号 ${n}`,
       total: (n) => `この人に全部で${n}枚`,
+      gift: (name, n) => `${name} ×${n}`,
+      received: '受け取った',
+      notReceived: 'まだ受け取っていない',
       reason: (r) => `理由：${r}`,
       cond: (label, v) => `${label}：${v}`,
-      actions: { login: '入った', lock: '間違えすぎ', trophy: 'トロフィー', suspend: '停止', unsuspend: '停止取り消し', search: '検索', watch: '観戦' },
+      actions: { login: '入った', lock: '間違えすぎ', trophy: 'トロフィー', gift: 'プレゼント', suspend: '停止', unsuspend: '停止取り消し', search: '検索', watch: '観戦' },
     },
   },
 
@@ -542,6 +566,16 @@ export const kanji: Dict = {
 
   trophyGet: {
     title: 'トロフィーが届いた！',
+  },
+
+  gift: {
+    title: 'プレゼントが届いた！',
+    taikaiTitle: '大会の参加賞',
+    packNote: (name, n) => `「${name}」が${n}つ届いたよ！ ガチャの画面で開けられるよ`,
+    note: (n) => `${n}こ届いたよ！`,
+    times: (n) => `×${n}`,
+    taikaiBag: '大会',
+    boxMark: 'プレゼント',
   },
 
   ranking: {
@@ -678,6 +712,9 @@ export const kanji: Dict = {
   },
 
   gacha: {
+    ownedTitle: '持っているパック',
+    ownedPacks: (n) => `×${n}`,
+    ownedOpen: '開ける',
     title: 'パックガチャ',
     prev: '前のパック',
     next: '次のパック',

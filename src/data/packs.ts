@@ -12,10 +12,14 @@ export type PackDef = {
   id: string;
   /** パックの名前（固有名詞。言語で変えない） */
   name: string;
+  /** 漢字の設定の時の名前（v2.7。大会パック。書かなければ name） */
+  nameKanji?: string;
   /** 絞り込みのボタンに出す短い名前（固有名詞） */
   short: string;
-  /** 仮の絵の色（パックの絵が届くまで。SPEC §7 S09）。daily は緑と黄色のしま（v2.1-M） */
-  color: 'blue' | 'red' | 'green' | 'daily';
+  /** 仮の絵の色（パックの絵が届くまで。SPEC §7 S09）。daily は緑と黄色のしま（v2.1-M）。taikai は青い袋に大きく「たいかい」（v2.7） */
+  color: 'blue' | 'red' | 'green' | 'daily' | 'taikai';
+  /** 中身（normal・super）を、このパックと同じにする（v2.7。大会パックはデイリーパックと同じ）。読み込んだ時に写す */
+  contentsOf?: string;
   /** false：パックガチャでは売らない（デイリーパック。ミッションの報酬でだけ手に入る。v2.1-M）。書かなければ売る */
   purchasable?: boolean;
   normal: string[];
@@ -59,8 +63,17 @@ export function parsePackData(data: unknown): PackData {
     }
   }
   for (const id of d.limited) check(!!cardById(id), `limited の ${id} は cards.json にありません`);
+  // 中身を別のパックと同じにする（v2.7）：写す元は contentsOf の無いパック
   for (const p of d.packs) {
-    check(['blue', 'red', 'green', 'daily'].includes(p.color), `パック ${p.id}: color が不正です`);
+    if (p.contentsOf === undefined) continue;
+    const from = d.packs.find((x) => x.id === p.contentsOf);
+    check(!!from && from.contentsOf === undefined && p.normal.length === 0 && p.super.length === 0, `パック ${p.id}: contentsOf が不正です`);
+    p.normal = [...from!.normal];
+    p.super = [...from!.super];
+  }
+  for (const p of d.packs) {
+    check(['blue', 'red', 'green', 'daily', 'taikai'].includes(p.color), `パック ${p.id}: color が不正です`);
+    check(p.nameKanji === undefined || typeof p.nameKanji === 'string', `パック ${p.id}: nameKanji が不正です`);
     check(p.purchasable === undefined || typeof p.purchasable === 'boolean', `パック ${p.id}: purchasable が不正です`);
     // 売るパックはノーマルとスーパーレアが1枚以上。売らないパック（デイリー）はスーパーレア無しでもよい
     check(p.normal.length > 0 && (p.super.length > 0 || p.purchasable === false), `パック ${p.id}: ノーマルとスーパーレアが1枚以上必要です`);
@@ -88,6 +101,11 @@ export const PACK_DATA: PackData = parsePackData(raw);
 
 /** パックガチャで売るパック（デイリーパックは売らない） */
 export const SHOP_PACKS: PackDef[] = PACK_DATA.packs.filter((p) => p.purchasable !== false);
+
+/** パックの名前（漢字の設定では nameKanji があればそれ。v2.7） */
+export function packName(pack: PackDef, lang: 'hira' | 'kanji'): string {
+  return lang === 'kanji' && pack.nameKanji ? pack.nameKanji : pack.name;
+}
 
 /** 絞り込みの「パック」：各パックと 限定 */
 export type PackFilter = string | 'limited';

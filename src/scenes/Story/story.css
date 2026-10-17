@@ -521,3 +521,49 @@ html[data-reduce-fx] .limited-fx__glow {
   inset: 0;
   z-index: 150;
 }
+
+/* 贈り物が届いた（v2.7。大会パックなど）：袋を横に並べる */
+.gift-fx__glow {
+  background: radial-gradient(circle, var(--pen-sky) 0%, color-mix(in srgb, var(--pen-blue) 30%, transparent) 40%, transparent 70%);
+}
+.gift-fx__packs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 200px;
+  height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 26px;
+}
+.gift-fx__pack {
+  width: 180px;
+  height: 270px;
+  filter: drop-shadow(0 0 18px var(--pen-sky));
+}
+.gift-fx__box {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 30px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+}
+.gift-fx__more {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 488px;
+  margin: 0;
+  text-align: center;
+  font-size: 40px;
+  color: var(--paper);
+}
+.gift-fx__stamp {
+  color: var(--pen-blue);
+  border-color: var(--pen-blue);
+}

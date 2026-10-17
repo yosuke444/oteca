@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_DB, CARD_LIST } from '../src/data/cards';
 import { STARTER_COINS, classicDeckNos, starterCollection } from '../src/data/starterDeck';
 import { validateDeck } from '../src/engine';
-import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, type SaveDataV6, type SaveDataV7, type SaveDataV8, type SaveDataV9, type SaveDataV10, encodeBody, encodeSave } from '../src/save/binary';
+import { type SaveDataV1, type SaveDataV2, type SaveDataV3, type SaveDataV4, type SaveDataV6, type SaveDataV7, type SaveDataV8, type SaveDataV9, type SaveDataV10, type SaveDataV11, encodeBody, encodeSave } from '../src/save/binary';
 import { applyRateResult } from '../src/online/rate';
 import { isUserId } from '../src/save/userId';
 import { checkSavedDeck } from '../src/save/collection';
@@ -107,7 +107,7 @@ describe('形式の移行（固定の見本）', () => {
     loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     // 形式版数11 への移行で CPU対戦のコインの回数（0回）
-    cpuReward: { cycleKey: 0, count: 0 },
+    cpuReward: { cycleKey: 0, count: 0 }, ownedPacks: {}, giftIds: [],
     rate: 100,
     rateStats: { wins: 0, losses: 0, best: 100 },
     lastRateOpponentId: '',
@@ -196,10 +196,10 @@ describe('形式の移行（固定の見本）', () => {
   const toV8 = (d: SaveDataV7): SaveData => {
     const x = structuredClone(d);
     if (x.pendingRateMatch) applyRateResult(x, x.pendingRateMatch.opponentRate, 'lose');
-    return { ...x, userId: ANY_USER_ID, userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, pendingFriendMatch: null, ranking: { ...x.ranking, unsent: [], lastMatchId: '' }, trophies: [], cpuReward: { cycleKey: 0, count: 0 } };
+    return { ...x, userId: ANY_USER_ID, userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, pendingFriendMatch: null, ranking: { ...x.ranking, unsent: [], lastMatchId: '' }, trophies: [], cpuReward: { cycleKey: 0, count: 0 }, ownedPacks: {}, giftIds: [] };
   };
   /** 今の形式で書ける形（テスト用：ユーザーID を決まった値に） */
-  const asLatest = (d: SaveDataV7): SaveData => ({ ...d, userId: '123456789012345', userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, pendingFriendMatch: null, ranking: { ...d.ranking, lastMatchId: '' }, trophies: [], cpuReward: { cycleKey: 0, count: 0 } });
+  const asLatest = (d: SaveDataV7): SaveData => ({ ...d, userId: '123456789012345', userIdRegistered: false, lastRateOpponentId: '', pendingRateMatch: null, pendingFriendMatch: null, ranking: { ...d.ranking, lastMatchId: '' }, trophies: [], cpuReward: { cycleKey: 0, count: 0 }, ownedPacks: {}, giftIds: [] });
   const V4_AS_LATEST = toV8(toV7(renumbered(V4_AS_V5)));
   /** 形式版数5（v2.1-L）：すべての項目に初期値でない値を入れた見本 */
   const V5_EXPECTED: SaveDataV6 = {
@@ -245,7 +245,7 @@ describe('形式の移行（固定の見本）', () => {
     ],
   };
   /** 形式版数9 → 10：レート対戦中の印は「始まった」・試合ID なし（今までどおり次に開いた時に負け）、フレンド対戦中の印は無し */
-  const V9_AS_LATEST: SaveData = { ...V9_EXPECTED, pendingRateMatch: { ...V9_EXPECTED.pendingRateMatch!, matchId: '', begun: true }, pendingFriendMatch: null, cpuReward: { cycleKey: 0, count: 0 } };
+  const V9_AS_LATEST: SaveData = { ...V9_EXPECTED, pendingRateMatch: { ...V9_EXPECTED.pendingRateMatch!, matchId: '', begun: true }, pendingFriendMatch: null, cpuReward: { cycleKey: 0, count: 0 }, ownedPacks: {}, giftIds: [] };
   /** 形式版数10（v2.4）：レート対戦中の印の試合ID・始まる前、フレンド対戦中の印も入れた見本 */
   const V10_EXPECTED: SaveDataV10 = {
     ...V9_EXPECTED,
@@ -259,11 +259,17 @@ describe('形式の移行（固定の見本）', () => {
     '7a0202723106e5a0b1e5918a108bd1d4090306010100ac020004000001ceae9e859034ffad84af9034f9beb7b088891cabcdef0123456789020780ae84af90348f' +
     '4e81ae84af9034fedcba987654321000010000ca1c66d844bc';
   /** 形式版数10 → 11：CPU対戦のコインの回数は0回 */
-  const V10_AS_LATEST: SaveData = { ...V10_EXPECTED, cpuReward: { cycleKey: 0, count: 0 } };
+  const V10_AS_LATEST: SaveData = { ...V10_EXPECTED, cpuReward: { cycleKey: 0, count: 0 }, ownedPacks: {}, giftIds: [] };
   /** 形式版数11（v2.7。今の形式）：CPU対戦のコインの区切り（20261012）と回数（3）も入れた見本 */
-  const V11_EXPECTED: SaveData = { ...V10_EXPECTED, cpuReward: { cycleKey: 20261012, count: 3 } };
+  const V11_EXPECTED: SaveDataV11 = { ...V10_EXPECTED, cpuReward: { cycleKey: 20261012, count: 3 } };
   /** 並びは形式版数10 と同じ ＋ 末尾に 20261012（94d1d409）と 3（03）。先頭の版数だけ 0b */
   const V11_FIXTURE_HEX = '0b' + V10_FIXTURE_HEX.slice(2) + '94d1d409' + '03';
+  /** 形式版数11 → 12：もっている パック・受け取った贈り物の番号は無し */
+  const V11_AS_LATEST: SaveData = { ...V11_EXPECTED, ownedPacks: {}, giftIds: [] };
+  /** 形式版数12（v2.7。今の形式）：大会パック3つ・受け取った贈り物の番号 5 と 300 も入れた見本 */
+  const V12_EXPECTED: SaveData = { ...V11_EXPECTED, ownedPacks: { taikai: 3 }, giftIds: [5, 300] };
+  /** 並びは形式版数11 と同じ ＋ 末尾に パック1種類（01）・'taikai'（06 7461696b6169）・3（03）・番号2つ（02）・5（05）・300（ac02）。先頭の版数だけ 0c */
+  const V12_FIXTURE_HEX = '0c' + V11_FIXTURE_HEX.slice(2) + '01' + '067461696b6169' + '03' + '02' + '05' + 'ac02';
   const V9_FIXTURE_HEX =
     '0901d20909e382aae38386e382aba009016b0123456789abcdef1318e381afe38198e38281e381a6e381aee38387e38383e382ad070101020307090a0000014201' +
     '0c000000000000000000000000000000000000000000000000000000000000000000000c0500e707000000000000000082019f8d060708010203040506c80100ce' +
@@ -373,14 +379,23 @@ describe('形式の移行（固定の見本）', () => {
     expect(upgradeToV8(V7_EXPECTED, (n) => new Uint8Array(n).fill(255)).userId).toMatch(/^[1-9]\d{14}$/);
   });
 
-  it('V05 今の形式（形式版数11。v2.7）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
-    expect(toHex(encodeSave(V11_EXPECTED))).toBe(V11_FIXTURE_HEX);
-    expect(decodeSave(hexToBytes(V11_FIXTURE_HEX))).toEqual(V11_EXPECTED);
-    // 回数・区切りが0の時も読み書きできる
-    const zero = { ...V11_EXPECTED, cpuReward: { cycleKey: 0, count: 0 } };
+  it('V05 今の形式（形式版数12。v2.7）で書いたものは、固定のバイト列と一致する（形式を黙って変えていない）', () => {
+    expect(toHex(encodeSave(V12_EXPECTED))).toBe(V12_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V12_FIXTURE_HEX))).toEqual(V12_EXPECTED);
+    // パック・番号が無い時も読み書きできる
+    const zero = { ...V12_EXPECTED, ownedPacks: {}, giftIds: [] };
     expect(decodeSave(encodeSave(zero))).toEqual(zero);
     // 余分なバイトはエラー
-    expect(() => decodeSave(hexToBytes(V11_FIXTURE_HEX + '00'))).toThrow();
+    expect(() => decodeSave(hexToBytes(V12_FIXTURE_HEX + '00'))).toThrow();
+    // 範囲外の数・形の正しくない id は書かない
+    expect(() => encodeSave({ ...V12_EXPECTED, ownedPacks: { taikai: 1000 } })).toThrow('パック');
+    expect(() => encodeSave({ ...V12_EXPECTED, ownedPacks: { 'たいかい': 1 } })).toThrow('パック');
+  });
+
+  it('V05 形式版数11（v2.7）→ 最新：もっている パック・受け取った贈り物の番号は無し', () => {
+    expect(toHex(encodeBody(V11_EXPECTED, 11))).toBe(V11_FIXTURE_HEX);
+    expect(decodeSave(hexToBytes(V11_FIXTURE_HEX))).toEqual(V11_AS_LATEST);
+    expect(migrate(11, V11_EXPECTED)).toEqual(V11_AS_LATEST);
   });
 
   it('V05 形式版数10（v2.4）→ 最新：CPU対戦のコインの回数は0回', () => {
@@ -400,7 +415,7 @@ describe('形式の移行（固定の見本）', () => {
     bad[bad.length - 9] = 2;
     expect(() => decodeSave(bad)).toThrow('フレンド対戦中');
     // トロフィーの番号が範囲外ならエラー
-    expect(() => encodeSave({ ...V11_EXPECTED, trophies: [{ number: 10000, receivedAt: 0 }] })).toThrow('トロフィー');
+    expect(() => encodeSave({ ...V12_EXPECTED, trophies: [{ number: 10000, receivedAt: 0 }] })).toThrow('トロフィー');
   });
 
   it('V05 形式版数9（v2.0-J）→ 最新：レート対戦中の印は「始まった」（試合ID なし）、フレンド対戦中の印は無し', () => {
@@ -413,7 +428,7 @@ describe('形式の移行（固定の見本）', () => {
 
   it('V05 形式版数8（v2.0-J）→ 最新：トロフィーの一覧は空', () => {
     expect(toHex(encodeBody(V8_EXPECTED, 8))).toBe(V8_FIXTURE_HEX);
-    const v8Latest = { ...V8_EXPECTED, trophies: [], pendingRateMatch: { ...V8_EXPECTED.pendingRateMatch!, matchId: '', begun: true }, pendingFriendMatch: null, cpuReward: { cycleKey: 0, count: 0 } };
+    const v8Latest = { ...V8_EXPECTED, trophies: [], pendingRateMatch: { ...V8_EXPECTED.pendingRateMatch!, matchId: '', begun: true }, pendingFriendMatch: null, cpuReward: { cycleKey: 0, count: 0 }, ownedPacks: {}, giftIds: [] };
     expect(decodeSave(hexToBytes(V8_FIXTURE_HEX))).toEqual(v8Latest);
     expect(migrate(8, V8_EXPECTED)).toEqual(v8Latest);
     // 印の1バイトに登録の印（64）

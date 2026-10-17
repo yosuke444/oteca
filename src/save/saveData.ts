@@ -113,6 +113,13 @@ export type SaveData = {
   tutorial: { done: boolean; gachaInviteShown: boolean; step: number };
   /** デイリーミッション（v2.1-M） */
   daily: DailyState;
+  /**
+   * もっている パック（v2.7。形式版数12）：パックの id → 数（1〜OWNED_PACK_MAX）。贈り物で届いた大会パックなど。
+   * ガチャ画面から好きな時に開ける（期限なし）。トレードには出せない（カードではない）
+   */
+  ownedPacks: Record<string, number>;
+  /** 受け取った贈り物の番号（v2.7。サーバーの gifts の id。直近 GIFT_IDS_MAX 件）。同じ贈り物を二重に受け取らないため */
+  giftIds: number[];
 };
 
 /**
@@ -125,6 +132,14 @@ export type Trophy = { number: number; receivedAt: number };
 
 /** トロフィーの数の上限（バイト列で読む時の上限） */
 export const TROPHIES_MAX = 100;
+/** もっている パックの、1種類の数の上限（v2.7） */
+export const OWNED_PACK_MAX = 999;
+/** もっている パックの種類の上限（バイト列で読む時の上限） */
+export const OWNED_PACK_KINDS_MAX = 16;
+/** 覚えておく、受け取った贈り物の番号の数（v2.7） */
+export const GIFT_IDS_MAX = 100;
+/** パックの id の形（packs.json の id） */
+export const PACK_ID_RE = /^[a-z0-9_]{1,24}$/;
 /** トロフィーの番号の上限（cards.json の trophy.numberMax） */
 export const TROPHY_NUMBER_MAX: number = cardsJson.trophy.numberMax;
 /** トロフィーのカードNo の始まり（cards.json の trophy.noBase） */
@@ -224,6 +239,8 @@ export function normalizeSave(data: SaveData): SaveData {
     userId: normalizeUserId(data.userId),
     userIdRegistered: !!data.userIdRegistered && isUserId(data.userId),
     trophies: normalizeTrophies(data.trophies),
+    ownedPacks: normalizeOwnedPacks(data.ownedPacks),
+    giftIds: normalizeGiftIds(data.giftIds),
     decks: Array.from({ length: DECK_SLOTS }, (_, i) => {
       const deck = data.decks[i] ?? { name: '', cards: [] };
       const deckName = clampText(deck.name.trim(), DECK_NAME_MAX);
@@ -264,6 +281,23 @@ export function normalizeSave(data: SaveData): SaveData {
 }
 
 /** トロフィーの一覧を整える（番号 1〜9999、同じ番号は1つ、番号の順、100まで） */
+/** もっている パックを整える（形の正しい id・1〜999。0 は消す。16種類まで） */
+export function normalizeOwnedPacks(p: Record<string, number> | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [id, n] of Object.entries(p ?? {})) {
+    if (!PACK_ID_RE.test(id) || !Number.isInteger(n) || n <= 0) continue;
+    if (Object.keys(out).length >= OWNED_PACK_KINDS_MAX) break;
+    out[id] = Math.min(n, OWNED_PACK_MAX);
+  }
+  return out;
+}
+
+/** 受け取った贈り物の番号を整える（正の整数・同じ番号は1つ・新しい GIFT_IDS_MAX 件） */
+export function normalizeGiftIds(list: number[] | undefined): number[] {
+  const ids = [...new Set((list ?? []).filter((n) => Number.isSafeInteger(n) && n > 0))];
+  return ids.slice(-GIFT_IDS_MAX);
+}
+
 export function normalizeTrophies(list: Trophy[] | undefined): Trophy[] {
   const m = new Map<number, Trophy>();
   for (const t of list ?? []) {
@@ -293,13 +327,15 @@ export function emptyDaily(): DailyState {
 /** 後の項目（D〜I）の枠の初期値。新しいセーブと、古いセーブからの移行で共通 */
 export function laterFieldsDefault(): Pick<
   SaveData,
-  'playerId' | 'userId' | 'userIdRegistered' | 'trophies' | 'loginBonus' | 'dailyReward' | 'cpuReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'pendingFriendMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
+  'playerId' | 'userId' | 'userIdRegistered' | 'trophies' | 'ownedPacks' | 'giftIds' | 'loginBonus' | 'dailyReward' | 'cpuReward' | 'rate' | 'rateStats' | 'lastRateOpponentId' | 'pendingRateMatch' | 'pendingFriendMatch' | 'trade' | 'ranking' | 'tutorial' | 'daily'
 > {
   return {
     playerId: '',
     userId: '',
     userIdRegistered: false,
     trophies: [],
+    ownedPacks: {},
+    giftIds: [],
     loginBonus: { claimedAt: 0 },
     dailyReward: { date: 0, count: 0 },
     cpuReward: { cycleKey: 0, count: 0 },

@@ -14,6 +14,10 @@ import {
   SAVE_VERSION,
   TRADE_IDS_MAX,
   TROPHIES_MAX,
+  GIFT_IDS_MAX,
+  OWNED_PACK_KINDS_MAX,
+  OWNED_PACK_MAX,
+  PACK_ID_RE,
   TROPHY_NUMBER_MAX,
   TUTORIAL_STEP_MAX,
   VOLUME_MAX,
@@ -40,12 +44,16 @@ import {
  * 8＝v2.0-J（印に userIdRegistered、末尾に userId と ranking.lastMatchId。直前の相手・レート対戦中の相手はユーザーID）／
  * 9＝v2.0-J（末尾にトロフィーの一覧）／
  * 10＝v2.4（末尾に レート対戦中の印の試合ID と「始まったか」、フレンド対戦中の印）／
- * 11＝v2.7（末尾に CPU対戦のコインの区切りと回数）
+ * 11＝v2.7（末尾に CPU対戦のコインの区切りと回数）／
+ * 12＝v2.7（末尾に もっている パックと、受け取った贈り物の番号）
  */
-export const FORMAT_VERSION = 11;
+export const FORMAT_VERSION = 12;
+
+/** 形式版数11の形（もっている パック・受け取った贈り物の番号が無い） */
+export type SaveDataV11 = Omit<SaveData, 'ownedPacks' | 'giftIds'>;
 
 /** 形式版数10の形（CPU対戦のコインの回数が無い） */
-export type SaveDataV10 = Omit<SaveData, 'cpuReward'>;
+export type SaveDataV10 = Omit<SaveDataV11, 'cpuReward'>;
 
 /** 形式版数9の形（レート対戦中の印に試合ID・始まったか が無い。フレンド対戦中の印が無い） */
 export type SaveDataV9 = Omit<SaveDataV10, 'pendingRateMatch' | 'pendingFriendMatch'> & { pendingRateMatch: { opponentId: string; opponentRate: number } | null };
@@ -198,9 +206,9 @@ export class ByteReader {
 /** 印のビット（形式版数4） */
 const FLAG = { unlockAll: 1, updateNoticeSeen: 2, tutorialDone: 4, gachaInviteShown: 8, rankingOptIn: 16, rankingProvisional: 32, userIdRegistered: 64 } as const;
 
-/** 最新の形式（形式版数11）でバイト列にする */
+/** 最新の形式（形式版数12）でバイト列にする */
 export function encodeSave(data: SaveData): Uint8Array {
-  return encodeBody(data, FORMAT_VERSION as 11);
+  return encodeBody(data, FORMAT_VERSION as 12);
 }
 
 /**
@@ -208,7 +216,7 @@ export function encodeSave(data: SaveData): Uint8Array {
  * 5 は 4 と同じ並びで、ログボが時刻になり、末尾に tutorial.step と daily が付く。6 は 5 と同じ並び（ステージ番号の付け替えの印）。
  * 7 は 6 と同じ並びで、印に ranking.provisional、末尾に ranking.syncedAt と ranking.playedAt が付く
  */
-export function encodeBody(data: SaveData | SaveDataV10 | SaveDataV9 | SaveDataV8 | SaveDataV7 | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11): Uint8Array {
+export function encodeBody(data: SaveData | SaveDataV11 | SaveDataV10 | SaveDataV9 | SaveDataV8 | SaveDataV7 | SaveDataV6 | SaveDataV4, version: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12): Uint8Array {
   /** 形式版数8から、相手の ID はユーザーID（数を16進数にして8バイトの場所に入れる） */
   const oppId = (id: string) => (version >= 8 ? userIdToHex(id) : id);
   const w = new ByteWriter();
@@ -331,11 +339,41 @@ export function encodeBody(data: SaveData | SaveDataV10 | SaveDataV9 | SaveDataV
     w.uint(d.cpuReward.cycleKey);
     w.uint(d.cpuReward.count);
   }
+  if (version >= 12) {
+    const d = data as SaveData;
+    // もっている パック（id と数）・受け取った贈り物の番号（v2.7）
+    const packs = Object.entries(d.ownedPacks);
+    if (packs.length > OWNED_PACK_KINDS_MAX) throw new Error('もっている パックの種類が多すぎます');
+    w.uint(packs.length);
+    for (const [id, n] of packs) {
+      if (!PACK_ID_RE.test(id) || !Number.isInteger(n) || n < 1 || n > OWNED_PACK_MAX) throw new Error(`もっている パックの値が不正です: ${id} ${n}`);
+      w.text(id);
+      w.uint(n);
+    }
+    if (d.giftIds.length > GIFT_IDS_MAX) throw new Error('受け取った贈り物の番号が多すぎます');
+    w.uint(d.giftIds.length);
+    for (const id of d.giftIds) w.uint(id);
+  }
   return w.toBytes();
 }
 
+/** 形式版数12の本体を読む（形式版数11 の並び ＋ 末尾の もっている パック・受け取った贈り物の番号。v2.7） */
+export function readSaveV12(r: ByteReader): SaveData {
+  const v11 = readSaveV11(r);
+  const ownedPacks: Record<string, number> = {};
+  const kinds = r.uintMax(OWNED_PACK_KINDS_MAX);
+  for (let i = 0; i < kinds; i++) {
+    const id = r.text(24);
+    const n = r.uintMax(OWNED_PACK_MAX);
+    if (!PACK_ID_RE.test(id) || n < 1 || id in ownedPacks) throw new Error('もっている パックの値が不正です');
+    ownedPacks[id] = n;
+  }
+  const giftIds = Array.from({ length: r.uintMax(GIFT_IDS_MAX) }, () => r.uint());
+  return { ...v11, ownedPacks, giftIds };
+}
+
 /** 形式版数11の本体を読む（形式版数10 の並び ＋ 末尾の CPU対戦のコインの区切りと回数。v2.7） */
-export function readSaveV11(r: ByteReader): SaveData {
+export function readSaveV11(r: ByteReader): SaveDataV11 {
   const v10 = readSaveV10(r);
   return { ...v10, cpuReward: { cycleKey: r.uint(), count: r.uint() } };
 }

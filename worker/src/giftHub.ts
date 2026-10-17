@@ -28,17 +28,20 @@ export class GiftHub extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
     if (url.pathname === '/notify' && req.method === 'POST') {
-      const userId = ((await req.json().catch(() => null)) as { userId?: unknown } | null)?.userId;
-      if (typeof userId !== 'string' || !userId) return new Response('bad', { status: 400 });
+      // userId（1人）か userIds（まとめて。v2.7）
+      const b = (await req.json().catch(() => null)) as { userId?: unknown; userIds?: unknown } | null;
+      const ids = (Array.isArray(b?.userIds) ? b!.userIds : [b?.userId]).filter((x): x is string => typeof x === 'string' && x !== '').slice(0, 200);
+      if (!ids.length) return new Response('bad', { status: 400 });
       let sent = 0;
-      for (const ws of this.ctx.getWebSockets(userId)) {
-        try {
-          ws.send(GIFT_PING);
-          sent += 1;
-        } catch {
-          // 切れている：次に開いた時に郵便受けで受け取る
+      for (const userId of ids)
+        for (const ws of this.ctx.getWebSockets(userId)) {
+          try {
+            ws.send(GIFT_PING);
+            sent += 1;
+          } catch {
+            // 切れている：次に開いた時に郵便受けで受け取る
+          }
         }
-      }
       return Response.json({ sent });
     }
     return new Response('not found', { status: 404 });

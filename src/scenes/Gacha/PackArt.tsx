@@ -7,14 +7,16 @@ import { useT } from '../../i18n/useT';
  * パックの絵（SPEC §7 S09・UPDATE_v2 §11-3）。public/packs/pack_<id>.webp があればそれを使う。
  * 無い時の仮表示：手描きの袋の形に、パック名をペン文字で書く（元祖＝青、真＝赤、よせあつめ＝緑）。
  * デイリーパック（color: daily）は、緑の地に黄色のしまと黄色の縁取り、まんなかに特大の「デイリー」（v2.1-M）。
+ * 大会パック（color: taikai。v2.7）は、青い袋に、特大の「たいかい」（漢字の設定では「大会」）。絵は pack_taikai.png でもよい。
  * small は開ける時の袋（破る点線を出す）
  */
 export function PackArt({ pack, small = false, className }: { pack: PackDef; small?: boolean; className?: string }) {
   const tr = useT();
-  const img = imageUrl(`packs/pack_${pack.id}.webp`);
+  const img = imageUrl(`packs/pack_${pack.id}.webp`) ?? imageUrl(`packs/pack_${pack.id}.png`);
   // しま模様の pattern の id（同じ画面に何枚あっても別々に）
   const stripes = `stripes-${useId().replace(/:/g, '')}`;
   const daily = pack.color === 'daily';
+  const taikai = pack.color === 'taikai';
   return (
     <div className={`pack-art pack-art--${pack.color} ${small ? 'pack-art--small' : ''} ${className ?? ''}`}>
       {img ? (
@@ -54,7 +56,15 @@ export function PackArt({ pack, small = false, className }: { pack: PackDef; sma
             <path d="M44 220 L47 227 L55 228 L49 233 L51 241 L44 236 L37 241 L39 233 L33 228 L41 227 Z" className="pack-art__star" />
           </svg>
           <span className="pack-art__logo">{tr.common.logo}</span>
-          {daily ? <span className="pack-art__daily">{tr.daily.packBig}</span> : <span className="pack-art__name">{pack.name}</span>}
+          {daily ? (
+            <span className="pack-art__daily">{tr.daily.packBig}</span>
+          ) : taikai ? (
+            <span className={`pack-art__daily pack-art__taikai ${[...tr.gift.taikaiBag].length <= 2 ? 'is-short' : ''}`} data-testid="pack-art-taikai">
+              {tr.gift.taikaiBag}
+            </span>
+          ) : (
+            <span className="pack-art__name">{pack.name}</span>
+          )}
         </>
       )}
       {small && <span className="pack-art__tear" aria-hidden />}

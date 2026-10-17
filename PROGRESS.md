@@ -764,3 +764,10 @@
 
 - [x] 原因：サイコロを操作ごとの印で持ち、操作が分かれる（捨てる・交代先を選ぶ）と消えなかった。サイコロ専用の入れ物 src/fx/dieSlot.ts にして、次の操作・ターンの変わり目・決着・画面を離れた時・止められた時・保険15秒で消す（サイコロだけ）
 - [x] 確かめ：tests/dieSlot.v27.test.ts・scripts/dice-e2e.mjs（直す前は残る → 直した後は残らない。攻撃の数字の演出は出る）
+
+## v2.7 贈り物の共通の仕組みと大会パック（企画者の指示）
+
+- [x] gifts.json・表 gifts（D1 マイグレーション 0005）・郵便受けとack に贈り物・管理の道 check-users／gift／trophy-batch・かんりログの受け取ったか
+- [x] 大会パック（packs.json taikai・contentsOf daily・青い袋に「たいかい」／「大会」）・セーブ形式12（ownedPacks・giftIds）・ガチャ画面の もっている パック・届いた演出「たいかいの さんかしょう」
+- [x] 管理画面「ギフトたいかいパック」・ギフトトロフィあげのまとめ入れ
+- [x] 確かめ：tests/giftPack.v27.test.ts・npm run test:worker・scripts/giftpack-e2e.mjs（贈ってから演出まで 約0.2秒）・scripts/trophy-gift-e2e.mjs

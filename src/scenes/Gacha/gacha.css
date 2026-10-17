@@ -150,6 +150,39 @@
 .pack-art--green .pack-art__body {
   fill: var(--note-green);
 }
+/* 大会パック（v2.7）：青い袋。文字は白に紺の縁取りで特大（デイリーと同じ置き方） */
+.pack-art--taikai .pack-art__body {
+  fill: var(--pen-blue);
+}
+.pack-art--taikai .pack-art__logo {
+  color: var(--ink);
+  background: var(--paper);
+  left: 30%;
+  right: 30%;
+  border-radius: 6px;
+}
+.pack-art--taikai {
+  /* 文字の大きさを袋の幅に合わせる（どの大きさの袋でも1行に収める） */
+  container-type: inline-size;
+}
+.pack-art__daily.pack-art__taikai {
+  color: var(--paper);
+  font-size: 23cqw;
+  white-space: nowrap;
+  letter-spacing: 0;
+  -webkit-text-stroke-width: max(1px, 1.1cqw);
+  text-shadow: 1.4cqw 1.4cqw 0 var(--ink);
+}
+/* 漢字の「大会」は2文字なので大きく */
+.pack-art__daily.pack-art__taikai.is-short {
+  font-size: 38cqw;
+}
+.pack-art--small .pack-art__daily.pack-art__taikai {
+  font-size: 23cqw;
+}
+.pack-art--small .pack-art__daily.pack-art__taikai.is-short {
+  font-size: 38cqw;
+}
 /* デイリーパック（v2.1-M）：しま模様は SVG の pattern。黄色の太い縁取り、特大の「デイリー」 */
 .pack-art__daily-frame {
   fill: none;
@@ -751,4 +784,60 @@ html[data-reduce-fx] .gacha-bag.is-glow {
   border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
   transform-origin: 50% 0;
   pointer-events: none;
+}
+
+/* もっている パック（v2.7。大会パックなど）：右の空いている所に */
+.gacha-owned {
+  position: absolute;
+  right: 28px;
+  top: 96px;
+  width: 270px;
+  padding: 8px 12px 12px;
+  background: var(--paper);
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  rotate: 1deg;
+  z-index: 5;
+}
+.gacha-owned__title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: normal;
+  text-align: center;
+}
+.gacha-owned__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gacha-owned__row + .gacha-owned__row {
+  margin-top: 8px;
+}
+.gacha-owned__art {
+  flex: none;
+  width: 72px;
+  height: 108px;
+}
+.gacha-owned__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.gacha-owned__name {
+  font-size: 18px;
+}
+.gacha-owned__count {
+  font-size: 26px;
+  font-weight: bold;
+  color: var(--pen-blue);
+}
+.gacha-owned__open {
+  min-width: 110px;
+  font-size: 20px;
+}
+/* 小さい袋の絵（もっている パック・管理画面）：ロゴは出さない（折れて文字に重なるので） */
+.pack-art--thumb .pack-art__logo {
+  display: none;
 }

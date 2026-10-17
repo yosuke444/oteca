@@ -18,6 +18,8 @@ import {
   readSaveV9,
   readSaveV10,
   readSaveV11,
+  readSaveV12,
+  type SaveDataV11,
   type SaveDataV10,
   type SaveDataV8,
   type SaveDataV9,
@@ -50,6 +52,7 @@ const READERS: Record<number, (r: ByteReader) => unknown> = {
   9: readSaveV9,
   10: readSaveV10,
   11: readSaveV11,
+  12: readSaveV12,
 };
 
 /** 版 n の形 → 版 n+1 の形 への変換 */
@@ -82,7 +85,9 @@ const UPGRADES: Record<number, (old: unknown) => unknown> = {
     return { ...d, pendingRateMatch: p ? { ...p, matchId: '', begun: true } : null, pendingFriendMatch: null } satisfies SaveDataV10;
   },
   /** 10 → 11（v2.7）：CPU対戦のコインの回数を足す（まだ0回） */
-  10: (old) => ({ ...(old as SaveDataV10), cpuReward: { cycleKey: 0, count: 0 } }) satisfies SaveData,
+  10: (old) => ({ ...(old as SaveDataV10), cpuReward: { cycleKey: 0, count: 0 } }) satisfies SaveDataV11,
+  /** 11 → 12（v2.7）：もっている パック（なし）と、受け取った贈り物の番号（なし）を足す */
+  11: (old) => ({ ...(old as SaveDataV11), ownedPacks: {}, giftIds: [] }) satisfies SaveData,
 };
 
 /**

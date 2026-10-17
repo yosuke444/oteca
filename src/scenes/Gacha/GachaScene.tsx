@@ -5,7 +5,8 @@ import { useGiftHold } from '../../online/giftHold';
 import { flushSync } from 'react-dom';
 import { audio } from '../../audio/audioManager';
 import { CARD_DB, cardById } from '../../data/cards';
-import { type PackDef, SHOP_PACKS } from '../../data/packs';
+import { type PackDef, SHOP_PACKS, packName } from '../../data/packs';
+import { consumeOwnedPack, drawOwnedPack, ownedPackList } from '../../gift/ownedPacks';
 import { addDailyProgress, dailyPack } from '../../daily/daily';
 import { addDailyNotice } from '../../daily/noticeStore';
 import { postState, setPostState } from '../../tutorial/post';
@@ -15,7 +16,7 @@ import { useIsSandbox } from '../../state/SaveContext';
 import { useFx } from '../../fx/fxSettings';
 import { setFxSpeed } from '../../fx/timing';
 import { DRAW, type Bag, type Offer, type PullResult, applyPull, canAfford, coinsRoomFor, cardRate, convertSuper, cryptoRand, drawOffer, superRate } from '../../gacha/gacha';
-import { useT } from '../../i18n/useT';
+import { useLang, useT } from '../../i18n/useT';
 import { useNav } from '../../router';
 import { useSave } from '../../state/SaveContext';
 import { CardMini } from '../../ui/card/CardMini';
@@ -45,6 +46,7 @@ export function GachaScene() {
   const guide = payload as GachaPayload;
   const { save, update } = useSave();
   const tr = useT();
+  const lang = useLang();
   const fx = useFx();
   const packs = SHOP_PACKS;
   // チュートリアルの延長の中は、案内しているパック（元祖パック）から
@@ -123,6 +125,24 @@ export function GachaScene() {
     setView('open');
   };
 
+  /** もっている パック（大会パックなど。v2.7）を1つ開ける：減らすのとカードを足すのを1回の保存で行ってから、デイリーパックと同じ演出 */
+  const openOwned = (p: PackDef) => {
+    const bags = drawOwnedPack(p, cryptoRand);
+    let results: PullResult[] | null = null;
+    flushSync(() =>
+      update((d) => {
+        results = consumeOwnedPack(d, p.id, bags);
+      }),
+    );
+    if (!results) return;
+    void preloadCards((results as PullResult[]).map((r) => r.no), 'high');
+    audio.play('se_card_place');
+    setRun({ pack: p, packIndex: -1, offer: null, bags, results });
+    setView('open');
+  };
+  // チュートリアル（見返しの写しのセーブ）の中では出さない
+  const ownedList = tutorial || sandbox ? [] : ownedPackList(save);
+
   /** デイリーパックのまとめ画面が出た：確定のミッションのコイン（+50）が飛んでくる */
   const landDailyCoins = (from: HTMLElement | null) => {
     const L = layerRef.current;
@@ -193,6 +213,28 @@ export function GachaScene() {
             <PackArt pack={pack} />
           </div>
           <p className="gacha-scene__packname">{pack.name}</p>
+          {/* もっている パック（v2.7。大会パックなど。好きな時に開ける） */}
+          {ownedList.length > 0 && (
+            <div className="gacha-owned" data-testid="gacha-owned">
+              <h2 className="gacha-owned__title">{tr.gacha.ownedTitle}</h2>
+              {ownedList.map(({ pack: p, count }) => (
+                <div key={p.id} className="gacha-owned__row" data-testid={`gacha-owned-${p.id}`}>
+                  <div className="gacha-owned__art">
+                    <PackArt pack={p} className="pack-art--thumb" />
+                  </div>
+                  <div className="gacha-owned__info">
+                    <span className="gacha-owned__name">{packName(p, lang)}</span>
+                    <span className="gacha-owned__count num" data-testid={`gacha-owned-count-${p.id}`}>
+                      {tr.gacha.ownedPacks(count)}
+                    </span>
+                    <RoughButton seed={`owned-open-${p.id}`} className="gacha-owned__open" highlight strokeWidth={3} onClick={() => openOwned(p)} data-testid={`gacha-owned-open-${p.id}`}>
+                      {tr.gacha.ownedOpen}
+                    </RoughButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <p className="gacha-scene__tap pencil">{tr.gacha.tapPack}</p>
           <div className="gacha-scene__offers">
             {DRAW.offers.map((o) => {
